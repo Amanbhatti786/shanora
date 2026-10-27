@@ -1,10 +1,18 @@
 'use client';
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { supabase } from '../../lib/supabaseClient';
+import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://aeyvwtphbmsbvxzmsftv.supabase.co';
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFleXZ3dHBoYm1zYnZ4em1zZnR2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI5NTg1MDcsImV4cCI6MjA1ODUzNDUwN30.ZqG9sE2r9n5W1o7V2_Q5UeXy7_9vYy_example'; 
+// Note: Agar environment variables set hain toh ye khud utha lega
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+);
 
 function ProfileCard() {
   const searchParams = useSearchParams();
@@ -58,7 +66,7 @@ function ProfileCard() {
       <main style={{ minHeight: '80vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '1rem', textAlign: 'center' }}>
         <h2 style={{ fontSize: '1.4rem', color: '#f87171' }}>Profile Not Found</h2>
         <p style={{ color: '#94a3b8', fontSize: '0.9rem', maxWidth: '400px', margin: '0.5rem 0 1.5rem 0' }}>
-          Is email ke sath koi profile match nahi hui.
+          Is email ke sath koi verified digital profile match nahi hui.
         </p>
         <Link href="/" style={{ backgroundColor: '#0284c7', color: '#fff', padding: '0.6rem 1.2rem', borderRadius: '8px', textDecoration: 'none', fontSize: '0.85rem' }}>
           Back to Shanora Home
@@ -73,7 +81,6 @@ function ProfileCard() {
   return (
     <main style={{ minHeight: '100vh', padding: '1.5rem 1rem', maxWidth: '850px', margin: '0 auto', fontFamily: 'sans-serif', color: '#f8fafc' }}>
       
-      {/* Top Bar Actions */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1.5rem' }}>
         <Link href="/" style={{ color: '#38bdf8', textDecoration: 'none', fontSize: '0.85rem', fontWeight: 'bold' }}>
           ← Shanora Talent Network
@@ -87,7 +94,6 @@ function ProfileCard() {
         </button>
       </div>
 
-      {/* Main Profile Header Card */}
       <section style={{ backgroundColor: '#131b2e', padding: '2rem 1.5rem', borderRadius: '16px', border: '1px solid #1e293b', marginBottom: '1.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap' }}>
           
@@ -119,7 +125,6 @@ function ProfileCard() {
               {profile.expected_salary && <span>💰 Expected: PKR {profile.expected_salary}</span>}
             </div>
 
-            {/* Recruiter Action Buttons */}
             <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.25rem', flexWrap: 'wrap' }}>
               {profile.phone && (
                 <a
@@ -155,7 +160,6 @@ function ProfileCard() {
         )}
       </section>
 
-      {/* Core Skills */}
       {profile.skills && (
         <section style={{ backgroundColor: '#131b2e', padding: '1.25rem', borderRadius: '14px', border: '1px solid #1e293b', marginBottom: '1.25rem' }}>
           <h2 style={{ fontSize: '1rem', color: '#38bdf8', margin: '0 0 0.75rem 0' }}>Core Competencies & Skills</h2>
@@ -169,7 +173,6 @@ function ProfileCard() {
         </section>
       )}
 
-      {/* Final Year Project (FYP) Showcase */}
       {profile.fyp_title && (
         <section style={{ backgroundColor: '#131b2e', padding: '1.25rem', borderRadius: '14px', border: '1px solid #1e293b', marginBottom: '1.25rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.5rem' }}>
@@ -181,7 +184,6 @@ function ProfileCard() {
         </section>
       )}
 
-      {/* Experience & Internships */}
       {profile.experience && profile.experience.length > 0 && (
         <section style={{ backgroundColor: '#131b2e', padding: '1.25rem', borderRadius: '14px', border: '1px solid #1e293b', marginBottom: '1.25rem' }}>
           <h2 style={{ fontSize: '1.05rem', color: '#38bdf8', margin: '0 0 0.85rem 0' }}>Work Experience & Internships</h2>
@@ -197,7 +199,6 @@ function ProfileCard() {
         </section>
       )}
 
-      {/* Certifications & Trainings */}
       {((profile.certifications && profile.certifications.length > 0) || (profile.trainings && profile.trainings.length > 0)) && (
         <section style={{ backgroundColor: '#131b2e', padding: '1.25rem', borderRadius: '14px', border: '1px solid #1e293b', marginBottom: '1.5rem' }}>
           <h2 style={{ fontSize: '1.05rem', color: '#38bdf8', margin: '0 0 0.85rem 0' }}>Certifications & Trainings</h2>
@@ -244,6 +245,4 @@ export default function PublicProfileView() {
       <ProfileCard />
     </Suspense>
   );
-        }
-
-Trigger fresh build
+          }
