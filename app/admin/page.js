@@ -9,6 +9,15 @@ export default function AdminDashboard() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCity, setSelectedCity] = useState('All');
 
+  // Job Posting States
+  const [title, setTitle] = useState('');
+  const [company, setCompany] = useState('');
+  const [location, setLocation] = useState('Lahore');
+  const [type, setType] = useState('Fresh Graduate');
+  const [applyLink, setApplyLink] = useState('');
+  const [posting, setPosting] = useState(false);
+  const [jobMessage, setJobMessage] = useState('');
+
   useEffect(() => {
     fetchRegisteredStudents();
   }, []);
@@ -28,6 +37,41 @@ export default function AdminDashboard() {
       setLoading(false);
     }
   }
+
+  const handlePostJob = async (e) => {
+    e.preventDefault();
+    if (!title || !company || !applyLink) {
+      alert('Kripya tamaam fields fill karein.');
+      return;
+    }
+
+    setPosting(true);
+    setJobMessage('');
+
+    try {
+      const { error } = await supabase.from('jobs').insert([
+        {
+          title: title.trim(),
+          company: company.trim(),
+          location: location.trim(),
+          type: type.trim(),
+          apply_link: applyLink.trim(),
+        }
+      ]);
+
+      if (error) throw error;
+
+      setJobMessage('✅ Job kamyabi se Homepage par live ho gayi!');
+      setTitle('');
+      setCompany('');
+      setApplyLink('');
+      setTimeout(() => setJobMessage(''), 4000);
+    } catch (err) {
+      setJobMessage('❌ Error: ' + err.message);
+    } finally {
+      setPosting(false);
+    }
+  };
 
   const filteredStudents = profiles.filter((student) => {
     const q = searchTerm.toLowerCase();
@@ -54,10 +98,10 @@ export default function AdminDashboard() {
             ADMIN ACCESS
           </span>
           <h1 style={{ fontSize: '1.8rem', fontWeight: '800', color: '#ffffff', margin: '0.4rem 0 0.2rem 0' }}>
-            Registered Students Directory
+            Shanora Operations & Directory
           </h1>
           <p style={{ color: '#94a3b8', fontSize: '0.85rem', margin: 0 }}>
-            Shanora ke tamam registered graduates, contact details aur unke uploaded CVs.
+            Students oversight, candidate filtering aur nayi graduate jobs live post karein.
           </p>
         </div>
 
@@ -68,6 +112,103 @@ export default function AdminDashboard() {
           Refresh Data 🔄
         </button>
       </div>
+
+      {/* Post a New Job Form */}
+      <div style={{ backgroundColor: '#131b2e', padding: '1.5rem', borderRadius: '14px', border: '1px solid #1e293b', marginBottom: '2rem' }}>
+        <h2 style={{ fontSize: '1.2rem', color: '#fff', margin: '0 0 0.4rem 0' }}>📢 Post a New Verified Opportunity</h2>
+        <p style={{ color: '#94a3b8', fontSize: '0.82rem', marginBottom: '1rem' }}>
+          Yahan job add karein, yeh foran Homepage feed par tamam candidates ko nazar aane lagegi.
+        </p>
+
+        {jobMessage && (
+          <div style={{ padding: '0.75rem', backgroundColor: '#0a0f1d', border: '1px solid #38bdf8', color: '#38bdf8', borderRadius: '6px', marginBottom: '1rem', fontSize: '0.85rem', fontWeight: 'bold' }}>
+            {jobMessage}
+          </div>
+        )}
+
+        <form onSubmit={handlePostJob} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
+          <div>
+            <label style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'block', marginBottom: '0.2rem' }}>Job Title</label>
+            <input
+              type="text"
+              placeholder="e.g. Associate Software Engineer"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              style={{ width: '100%', padding: '0.6rem', borderRadius: '6px', border: '1px solid #334155', backgroundColor: '#0a0f1d', color: '#fff', fontSize: '0.85rem', boxSizing: 'border-box' }}
+              required
+            />
+          </div>
+
+          <div>
+            <label style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'block', marginBottom: '0.2rem' }}>Company Name</label>
+            <input
+              type="text"
+              placeholder="e.g. Netsol / Jazz / Meezan Bank"
+              value={company}
+              onChange={(e) => setCompany(e.target.value)}
+              style={{ width: '100%', padding: '0.6rem', borderRadius: '6px', border: '1px solid #334155', backgroundColor: '#0a0f1d', color: '#fff', fontSize: '0.85rem', boxSizing: 'border-box' }}
+              required
+            />
+          </div>
+
+          <div>
+            <label style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'block', marginBottom: '0.2rem' }}>Location / City</label>
+            <select
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              style={{ width: '100%', padding: '0.6rem', borderRadius: '6px', border: '1px solid #334155', backgroundColor: '#0a0f1d', color: '#fff', fontSize: '0.85rem', boxSizing: 'border-box' }}
+            >
+              <option value="Lahore">Lahore</option>
+              <option value="Karachi">Karachi</option>
+              <option value="Islamabad">Islamabad</option>
+              <option value="Rawalpindi">Rawalpindi</option>
+              <option value="Faisalabad">Faisalabad</option>
+              <option value="Peshawar">Peshawar</option>
+              <option value="Multan">Multan</option>
+              <option value="Sukkur">Sukkur</option>
+              <option value="Remote">Remote</option>
+            </select>
+          </div>
+
+          <div>
+            <label style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'block', marginBottom: '0.2rem' }}>Job Category</label>
+            <select
+              value={type}
+              onChange={(e) => setType(e.target.value)}
+              style={{ width: '100%', padding: '0.6rem', borderRadius: '6px', border: '1px solid #334155', backgroundColor: '#0a0f1d', color: '#fff', fontSize: '0.85rem', boxSizing: 'border-box' }}
+            >
+              <option value="Fresh Graduate">Fresh Graduate</option>
+              <option value="Internship">Internship</option>
+              <option value="Entry-Level">Entry-Level</option>
+            </select>
+          </div>
+
+          <div style={{ gridColumn: '1 / -1' }}>
+            <label style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'block', marginBottom: '0.2rem' }}>Apply URL / Link</label>
+            <input
+              type="url"
+              placeholder="https://company.com/apply"
+              value={applyLink}
+              onChange={(e) => setApplyLink(e.target.value)}
+              style={{ width: '100%', padding: '0.6rem', borderRadius: '6px', border: '1px solid #334155', backgroundColor: '#0a0f1d', color: '#fff', fontSize: '0.85rem', boxSizing: 'border-box' }}
+              required
+            />
+          </div>
+
+          <div style={{ gridColumn: '1 / -1' }}>
+            <button
+              type="submit"
+              disabled={posting}
+              style={{ backgroundColor: '#22c55e', color: '#090d16', border: 'none', padding: '0.7rem 1.25rem', borderRadius: '6px', fontWeight: '800', cursor: 'pointer', width: '100%', fontSize: '0.9rem' }}
+            >
+              {posting ? 'Publishing Job...' : 'Publish Job to Feed 🚀'}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* Directory Section Header */}
+      <h2 style={{ fontSize: '1.2rem', color: '#ffffff', margin: '0 0 0.8rem 0' }}>🎓 Registered Student Database</h2>
 
       {/* Filter and Search Bar */}
       <div style={{ backgroundColor: '#131b2e', padding: '1rem', borderRadius: '12px', border: '1px solid #1e293b', marginBottom: '1.5rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
@@ -92,6 +233,7 @@ export default function AdminDashboard() {
           <option value="Peshawar">Peshawar</option>
           <option value="Faisalabad">Faisalabad</option>
           <option value="Multan">Multan</option>
+          <option value="Sukkur">Sukkur</option>
         </select>
       </div>
 
@@ -171,4 +313,5 @@ export default function AdminDashboard() {
 
     </main>
   );
-}
+    }
+                
