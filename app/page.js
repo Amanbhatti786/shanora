@@ -13,6 +13,13 @@ export default function Home() {
   const [loadingJobs, setLoadingJobs] = useState(true);
   const [selectedCity, setSelectedCity] = useState('All');
 
+  // WhatsApp Alert Form States
+  const [subName, setSubName] = useState('');
+  const [subPhone, setSubPhone] = useState('');
+  const [subCity, setSubCity] = useState('Karachi');
+  const [submittingLead, setSubmittingLead] = useState(false);
+  const [leadSuccess, setLeadSuccess] = useState(false);
+
   useEffect(() => {
     async function fetchOpportunities() {
       try {
@@ -87,6 +94,31 @@ export default function Home() {
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
+  };
+
+  const handleSubscribe = async (e) => {
+    e.preventDefault();
+    if (!subPhone.trim()) return;
+
+    setSubmittingLead(true);
+    try {
+      const { error } = await supabase.from('subscribers').insert([
+        {
+          name: subName.trim() || 'Graduate Student',
+          phone: subPhone.trim(),
+          city: subCity,
+          target_role: interest.trim() || degree.trim() || 'General Graduate'
+        }
+      ]);
+
+      if (error) throw error;
+      setLeadSuccess(true);
+    } catch (err) {
+      alert('Registration mein masla aya. Baraye mehrbani dobara check karein.');
+      console.error(err);
+    } finally {
+      setSubmittingLead(false);
+    }
   };
 
   const cities = ['All', 'Karachi', 'Lahore', 'Islamabad'];
@@ -196,7 +228,7 @@ export default function Home() {
         </section>
 
         {/* Real-time Jobs Section */}
-        <section style={{ backgroundColor: '#131b2e', padding: '1.75rem', borderRadius: '16px', border: '1px solid #1e293b', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.3)' }}>
+        <section style={{ backgroundColor: '#131b2e', padding: '1.75rem', borderRadius: '16px', border: '1px solid #1e293b', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.3)', marginBottom: '2rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
             <div>
               <h2 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#ffffff', margin: '0 0 0.25rem 0' }}>
@@ -266,13 +298,77 @@ export default function Home() {
           )}
         </section>
 
-        {/* Footer */}
-        <footer style={{ textAlign: 'center', marginTop: '2.5rem', color: '#64748b', fontSize: '0.8rem' }}>
-          Shanora Career Intelligence © 2026 • Powered by Next.js & Supabase
-        </footer>
+        {/* WhatsApp Channel & Direct Alerts Section */}
+        <section style={{ backgroundColor: '#131b2e', padding: '1.75rem', borderRadius: '16px', border: '1px solid #22c55e', boxShadow: '0 10px 25px -5px rgba(34, 197, 94, 0.15)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.5rem' }}>
+            <span style={{ fontSize: '1.5rem' }}>📲</span>
+            <h2 style={{ fontSize: '1.2rem', fontWeight: '700', color: '#ffffff', margin: 0 }}>
+              Shanora WhatsApp Career Community
+            </h2>
+          </div>
+          <p style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: '1.25rem', lineHeight: '1.4' }}>
+            Verified entry-level roles, paid internships, test dates (NTS/SBP/Banks), aur roadmap PDF guides foran apne phone par paane ke liye join karein.
+          </p>
 
-      </div>
-    </main>
-  );
-                       }
-                            
+          {leadSuccess ? (
+            <div style={{ backgroundColor: '#0a0f1d', padding: '1.5rem', borderRadius: '12px', border: '1px solid #22c55e', textAlign: 'center' }}>
+              <div style={{ color: '#4ade80', fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
+                🎉 Registration Successful!
+              </div>
+              <p style={{ color: '#cbd5e1', fontSize: '0.85rem', marginBottom: '1rem' }}>
+                Aapka number Shanora alert list mein shamil ho chuka hai. Daily updates ke liye hamara official WhatsApp channel join karein:
+              </p>
+              <a
+                href="https://whatsapp.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: 'inline-block', backgroundColor: '#22c55e', color: '#090d16', fontWeight: '800', padding: '0.75rem 1.5rem', borderRadius: '8px', textDecoration: 'none', fontSize: '0.95rem' }}
+              >
+                Join WhatsApp Group / Channel Now ➔
+              </a>
+            </div>
+          ) : (
+            <form onSubmit={handleSubscribe} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <input
+                  type="text"
+                  placeholder="Your Full Name"
+                  value={subName}
+                  onChange={(e) => setSubName(e.target.value)}
+                  style={{ flex: '1 1 200px', padding: '0.75rem 0.9rem', borderRadius: '8px', border: '1px solid #334155', backgroundColor: '#0a0f1d', color: '#ffffff', fontSize: '0.9rem', outline: 'none' }}
+                />
+                <select
+                  value={subCity}
+                  onChange={(e) => setSubCity(e.target.value)}
+                  style={{ flex: '0 1 120px', padding: '0.75rem 0.9rem', borderRadius: '8px', border: '1px solid #334155', backgroundColor: '#0a0f1d', color: '#ffffff', fontSize: '0.9rem', outline: 'none' }}
+                >
+                  <option value="Karachi">Karachi</option>
+                  <option value="Lahore">Lahore</option>
+                  <option value="Islamabad">Islamabad</option>
+                  <option value="Other">Other Cities</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <input
+                  type="tel"
+                  placeholder="WhatsApp Number (03xxxxxxxxx)"
+                  value={subPhone}
+                  onChange={(e) => setSubPhone(e.target.value)}
+                  required
+                  style={{ flex: '1 1 220px', padding: '0.75rem 0.9rem', borderRadius: '8px', border: '1px solid #334155', backgroundColor: '#0a0f1d', color: '#ffffff', fontSize: '0.9rem', outline: 'none' }}
+                />
+                <button
+                  type="submit"
+                  disabled={submittingLead}
+                  style={{ backgroundColor: '#22c55e', color: '#090d16', fontWeight: '700', padding: '0.75rem 1.25rem', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                >
+                  {submittingLead ? 'Saving...' : 'Get Instant Alerts ⚡'}
+                </button>
+              </div>
+            </form>
+          )}
+        </section>
+
+        {/* Footer */}
+        <footer style={{ textAlign: 'center', marginTop: '2.5rem', color: '#64748b', fontSize: '0.8re
