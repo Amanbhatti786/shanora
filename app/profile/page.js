@@ -1,17 +1,21 @@
 'use client';
-import { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabaseClient';
+import { useState } from 'react';
+import { supabase } from '../lib/supabaseClient';
 import Link from 'next/link';
 
 export default function ProfilePage() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
+  const [isUnlocked, setIsUnlocked] = useState(false);
   const [savedEmail, setSavedEmail] = useState('');
 
-  // Basic Profile State
-  const [fullName, setFullName] = useState('');
+  // Credentials
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  // Profile Fields
+  const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [city, setCity] = useState('Lahore');
   const [degree, setDegree] = useState('');
@@ -28,11 +32,11 @@ export default function ProfilePage() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [uploadingResume, setUploadingResume] = useState(false);
 
-  // Final Year Project (FYP)
+  // FYP
   const [fypTitle, setFypTitle] = useState('');
   const [fypDetails, setFypDetails] = useState('');
 
-  // Dynamic Lists: Experience, Certifications, Trainings
+  // Dynamic Lists
   const [experienceList, setExperienceList] = useState([]);
   const [newExp, setNewExp] = useState({ role: '', company: '', duration: '', desc: '' });
   const [expError, setExpError] = useState('');
@@ -45,7 +49,6 @@ export default function ProfilePage() {
   const [newTraining, setNewTraining] = useState({ program: '', institute: '', duration: '' });
   const [trainingError, setTrainingError] = useState('');
 
-  // Calculate Profile Completeness
   const calculateCompleteness = () => {
     let score = 0;
     if (fullName) score += 10;
@@ -60,18 +63,31 @@ export default function ProfilePage() {
     return Math.min(score, 100);
   };
 
-  // Load existing profile by email lookup
-  const loadProfile = async (lookupEmail) => {
-    if (!lookupEmail) return;
+  // 🔐 Secure Login / Load Profile
+  const handleAuth = async (e) => {
+    e.preventDefault();
+    if (!email || !password) {
+      return alert('Email aur Password dono darj karein!');
+    }
     setLoading(true);
+    setMsg('');
+
     try {
+      const cleanEmail = email.trim().toLowerCase();
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('email', lookupEmail.trim().toLowerCase())
+        .eq('email', cleanEmail)
         .maybeSingle();
 
       if (data) {
+        // User exists -> check password
+        if (data.password && data.password !== password) {
+          alert('Ghalat Password! Baraye meharbani sahi password likhein.');
+          setLoading(false);
+          return;
+        }
+        // Load data
         setFullName(data.full_name || '');
         setPhone(data.phone || '');
         setCity(data.city || 'Lahore');
@@ -90,18 +106,22 @@ export default function ProfilePage() {
         setCertList(data.certifications || []);
         setTrainingList(data.trainings || []);
         setSavedEmail(data.email);
-        setMsg('Profile loaded successfully! ✅');
+        setIsUnlocked(true);
+        setMsg('Profile Unlocked! Aap details update kar sakte hain.');
       } else {
-        setMsg('No previous profile found. Fill out the form to create yours!');
+        // Naya candidate hai -> allow creation with this password
+        setIsUnlocked(true);
+        setSavedEmail(cleanEmail);
+        setMsg('Naya Account Detected! Profile fill karke save karein, yeh password apka secure login ban jayega.');
       }
     } catch (err) {
-      setMsg('Error loading profile.');
+      alert('Verification error: ' + err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  // Upload Photo to Supabase Storage
+  // Upload handlers
   const handlePhotoUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -109,103 +129,73 @@ export default function ProfilePage() {
     try {
       const fileExt = file.name.split('.').pop();
       const fileName = `avatar_${Date.now()}.${fileExt}`;
-      const { data, error } = await supabase.storage.from('resumes').upload(fileName, file);
-
+      const { error } = await supabase.storage.from('resumes').upload(fileName, file);
       if (error) throw error;
-
-      const { data: publicUrlData } = supabase.storage.from('resumes').getPublicUrl(fileName);
-      setPhotoUrl(publicUrlData.publicUrl);
-      setMsg('Profile photo uploaded! 📸');
+      const { data } = supabase.storage.from('resumes').getPublicUrl(fileName);
+      setPhotoUrl(data.publicUrl);
     } catch (err) {
-      alert('Photo upload failed: ' + err.message);
+      alert('Upload failed: ' + err.message);
     } finally {
       setUploadingPhoto(false);
     }
   };
 
-  // Upload Resume PDF to Supabase Storage
   const handleResumeUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     setUploadingResume(true);
     try {
       const fileExt = file.name.split('.').pop();
-      const fileName = `resume_${Date.now()}.${fileExt}`;
-      const { data, error } = await supabase.storage.from('resumes').upload(fileName, file);
-
+      const fileName = `cv_${Date.now()}.${fileExt}`;
+      const { error } = await supabase.storage.from('resumes').upload(fileName, file);
       if (error) throw error;
-
-      const { data: publicUrlData } = supabase.storage.from('resumes').getPublicUrl(fileName);
-      setResumeUrl(publicUrlData.publicUrl);
-      setMsg('Resume PDF uploaded! 📄');
+      const { data } = supabase.storage.from('resumes').getPublicUrl(fileName);
+      setResumeUrl(data.publicUrl);
     } catch (err) {
-      alert('Resume upload failed: ' + err.message);
+      alert('Upload failed: ' + err.message);
     } finally {
       setUploadingResume(false);
     }
   };
 
-  // Experience handlers
+  // Dynamic handlers
   const addExperience = (e) => {
     e.preventDefault();
-    e.stopPropagation();
-    if (!newExp.role.trim() || !newExp.company.trim()) {
-      setExpError('Pehle Role aur Company name likhein!');
-      return;
-    }
+    if (!newExp.role || !newExp.company) return setExpError('Role aur Company name likhein!');
     setExperienceList([...experienceList, { ...newExp }]);
     setNewExp({ role: '', company: '', duration: '', desc: '' });
     setExpError('');
   };
-  const removeExperience = (index) => {
-    setExperienceList(experienceList.filter((_, i) => i !== index));
-  };
 
-  // Certification handlers
   const addCertification = (e) => {
     e.preventDefault();
-    e.stopPropagation();
-    if (!newCert.title.trim() || !newCert.issuer.trim()) {
-      setCertError('Pehle Certificate Title aur Issuer likhein!');
-      return;
-    }
+    if (!newCert.title || !newCert.issuer) return setCertError('Title aur Issuer likhein!');
     setCertList([...certList, { ...newCert }]);
     setNewCert({ title: '', issuer: '', year: '', link: '' });
     setCertError('');
   };
-  const removeCertification = (index) => {
-    setCertList(certList.filter((_, i) => i !== index));
-  };
 
-  // Training handlers
   const addTraining = (e) => {
     e.preventDefault();
-    e.stopPropagation();
-    if (!newTraining.program.trim() || !newTraining.institute.trim()) {
-      setTrainingError('Pehle Training Program aur Institute likhein!');
-      return;
-    }
+    if (!newTraining.program || !newTraining.institute) return setTrainingError('Program aur Institute likhein!');
     setTrainingList([...trainingList, { ...newTraining }]);
     setNewTraining({ program: '', institute: '', duration: '' });
     setTrainingError('');
   };
-  const removeTraining = (index) => {
-    setTrainingList(trainingList.filter((_, i) => i !== index));
-  };
 
-  // Save Profile to Supabase
+  // 💾 Save / Update Profile
   const handleSaveProfile = async (e) => {
     e.preventDefault();
-    if (!email || !fullName) {
-      return alert('Full Name and Email are strictly required.');
-    }
+    if (!isUnlocked) return alert('Pehle email aur password daal kar login karein!');
+    if (!fullName) return alert('Full Name zaroori hai.');
+
     setSaving(true);
     setMsg('');
 
-    const formattedEmail = email.trim().toLowerCase();
     const profileData = {
+      email: email.trim().toLowerCase(),
+      password,
       full_name: fullName,
-      email: formattedEmail,
       phone,
       city,
       degree,
@@ -226,11 +216,8 @@ export default function ProfilePage() {
     };
 
     try {
-      const { data: existing } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('email', formattedEmail)
-        .maybeSingle();
+      const cleanEmail = email.trim().toLowerCase();
+      const { data: existing } = await supabase.from('profiles').select('id').eq('email', cleanEmail).maybeSingle();
 
       let opError;
       if (existing) {
@@ -242,8 +229,8 @@ export default function ProfilePage() {
       }
 
       if (opError) throw opError;
-      setSavedEmail(formattedEmail);
-      setMsg('Profile successfully saved! Niche se apna public link copy karein 🎉');
+      setSavedEmail(cleanEmail);
+      setMsg('Profile successfully saved & secured! 🎉');
     } catch (err) {
       setMsg('Save error: ' + err.message);
     } finally {
@@ -256,316 +243,228 @@ export default function ProfilePage() {
   return (
     <main style={{ minHeight: '100vh', padding: '1.25rem 1rem', maxWidth: '850px', margin: '0 auto', fontFamily: 'sans-serif', color: '#f8fafc' }}>
       
-      {/* Navigation */}
+      {/* Top Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <Link href="/" style={{ color: '#38bdf8', textDecoration: 'none', fontSize: '0.9rem', fontWeight: 'bold' }}>
-          ← Back to Homepage
+          ← Back to Shanora Home
         </Link>
-        <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Student Digital Career Hub</span>
+        <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Secure Student Digital Resume</span>
       </div>
 
-      {/* Profile Header & Completeness */}
-      <section style={{ backgroundColor: '#131b2e', padding: '1.5rem', borderRadius: '16px', border: '1px solid #1e293b', marginBottom: '1.5rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
-          
-          {/* Avatar Photo */}
-          <div style={{ position: 'relative', width: '90px', height: '90px', borderRadius: '50%', backgroundColor: '#0a0f1d', border: '2px solid #38bdf8', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            {photoUrl ? (
-              <img src={photoUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            ) : (
-              <span style={{ fontSize: '2.2rem' }}>🎓</span>
-            )}
-          </div>
+      {/* 🔐 STEP 1: LOGIN / UNLOCK BOX */}
+      {!isUnlocked ? (
+        <section style={{ backgroundColor: '#131b2e', padding: '2rem 1.5rem', borderRadius: '16px', border: '1px solid #1e293b', textAlign: 'center', maxWidth: '500px', margin: '2rem auto' }}>
+          <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>🔐</div>
+          <h2 style={{ fontSize: '1.35rem', fontWeight: 'bold', margin: '0 0 0.5rem 0', color: '#fff' }}>
+            Student Security Portal
+          </h2>
+          <p style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: '1.5rem', lineHeight: '1.5' }}>
+            Apna Email aur Secret Password darj karein. Agar pehli baar hain, toh naya password set karein.
+          </p>
 
-          <div style={{ flex: 1, minWidth: '220px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <h1 style={{ fontSize: '1.4rem', fontWeight: 'bold', margin: 0, color: '#fff' }}>
-                {fullName || 'Your Full Name'}
-              </h1>
-              <span style={{ backgroundColor: '#22c55e', color: '#090d16', fontSize: '0.65rem', padding: '0.15rem 0.5rem', borderRadius: '20px', fontWeight: 'bold' }}>
-                Verified Graduate
-              </span>
-            </div>
-            <p style={{ color: '#94a3b8', fontSize: '0.85rem', margin: '0.25rem 0' }}>
-              {degree || 'Degree Program'} • {university || 'University'} ({city})
-            </p>
-
-            {/* Completeness Bar */}
-            <div style={{ marginTop: '0.75rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '0.3rem' }}>
-                <span style={{ color: '#cbd5e1' }}>Profile Completeness</span>
-                <span style={{ color: '#38bdf8', fontWeight: 'bold' }}>{completeness}%</span>
+          <form onSubmit={handleAuth} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+            <input
+              type="email"
+              required
+              placeholder="Your Email Address"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              style={inputStyle}
+            />
+            <input
+              type="password"
+              required
+              placeholder="Your Secret Password (e.g. Pass@123)"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              style={inputStyle}
+            />
+            <button
+              type="submit"
+              disabled={loading}
+              style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', borderRadius: '8px', padding: '0.8rem', fontWeight: 'bold', fontSize: '0.9rem', cursor: 'pointer', marginTop: '0.5rem' }}
+            >
+              {loading ? 'Checking Security...' : 'Unlock & Edit Profile 🔓'}
+            </button>
+          </form>
+        </section>
+      ) : (
+        <>
+          {/* ✅ UNLOCKED: PROFILE BUILDER */}
+          <section style={{ backgroundColor: '#131b2e', padding: '1.5rem', borderRadius: '16px', border: '1px solid #1e293b', marginBottom: '1.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
+              
+              <div style={{ width: '85px', height: '85px', borderRadius: '50%', backgroundColor: '#0a0f1d', border: '2px solid #38bdf8', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {photoUrl ? <img src={photoUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: '2.2rem' }}>🎓</span>}
               </div>
-              <div style={{ width: '100%', height: '7px', backgroundColor: '#0a0f1d', borderRadius: '10px', overflow: 'hidden' }}>
-                <div style={{ width: `${completeness}%`, height: '100%', backgroundColor: completeness > 70 ? '#22c55e' : '#38bdf8', transition: 'width 0.4s ease' }} />
+
+              <div style={{ flex: 1, minWidth: '220px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <h1 style={{ fontSize: '1.35rem', fontWeight: 'bold', margin: 0, color: '#fff' }}>
+                    {fullName || 'Your Name'}
+                  </h1>
+                  <span style={{ backgroundColor: '#22c55e', color: '#090d16', fontSize: '0.65rem', padding: '0.15rem 0.5rem', borderRadius: '20px', fontWeight: 'bold' }}>
+                    Secured Account 🔒
+                  </span>
+                </div>
+                <p style={{ color: '#94a3b8', fontSize: '0.82rem', margin: '0.2rem 0' }}>
+                  Logged in as: <strong style={{ color: '#38bdf8' }}>{email}</strong>
+                </p>
+
+                {/* Completeness */}
+                <div style={{ marginTop: '0.5rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                    <span style={{ color: '#cbd5e1' }}>Completeness</span>
+                    <span style={{ color: '#38bdf8', fontWeight: 'bold' }}>{completeness}%</span>
+                  </div>
+                  <div style={{ width: '100%', height: '6px', backgroundColor: '#0a0f1d', borderRadius: '10px', overflow: 'hidden' }}>
+                    <div style={{ width: `${completeness}%`, height: '100%', backgroundColor: completeness > 70 ? '#22c55e' : '#38bdf8' }} />
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        </div>
 
-        {/* Existing Profile Email Search Bar */}
-        <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid #1e293b', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <input
-            type="email"
-            placeholder="Enter your registered email to load profile..."
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            style={{ flex: 1, minWidth: '220px', padding: '0.6rem 0.8rem', borderRadius: '8px', border: '1px solid #334155', backgroundColor: '#0a0f1d', color: '#fff', fontSize: '0.85rem' }}
-          />
-          <button
-            type="button"
-            onClick={() => loadProfile(email)}
-            disabled={loading}
-            style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', borderRadius: '8px', padding: '0.6rem 1rem', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer' }}
-          >
-            {loading ? 'Searching...' : 'Load Profile 🔍'}
-          </button>
-        </div>
-
-        {/* Public Profile Share Card (Jab profile load ya save ho) */}
-        {savedEmail && (
-          <div style={{ marginTop: '1rem', padding: '0.85rem', backgroundColor: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.6rem' }}>
-            <span style={{ color: '#86efac', fontSize: '0.82rem', fontWeight: 'bold' }}>
-              Digital Resume Ready:
-            </span>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <Link
-                href={`/view-profile?email=${encodeURIComponent(savedEmail)}`}
-                target="_blank"
-                style={{ backgroundColor: '#22c55e', color: '#090d16', padding: '0.4rem 0.8rem', borderRadius: '6px', fontSize: '0.78rem', textDecoration: 'none', fontWeight: 'bold' }}
-              >
-                View Public Profile 👁️
-              </Link>
               <button
                 type="button"
-                onClick={() => {
-                  const url = `${window.location.origin}/view-profile?email=${encodeURIComponent(savedEmail)}`;
-                  navigator.clipboard.writeText(url);
-                  alert('Public link copy ho gaya! Ab HR ya WhatsApp par share karein.');
-                }}
-                style={{ backgroundColor: '#1e293b', color: '#fff', border: '1px solid #334155', padding: '0.4rem 0.8rem', borderRadius: '6px', fontSize: '0.78rem', cursor: 'pointer' }}
+                onClick={() => setIsUnlocked(false)}
+                style={{ backgroundColor: '#1e293b', color: '#f87171', border: '1px solid #334155', padding: '0.45rem 0.8rem', borderRadius: '6px', fontSize: '0.78rem', cursor: 'pointer' }}
               >
-                Copy Link 🔗
+                Lock / Logout 🔒
               </button>
             </div>
-          </div>
-        )}
 
-        {msg && <div style={{ marginTop: '0.75rem', color: '#4ade80', fontSize: '0.85rem' }}>{msg}</div>}
-      </section>
+            {/* Share Card */}
+            {savedEmail && (
+              <div style={{ marginTop: '1rem', padding: '0.85rem', backgroundColor: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.6rem' }}>
+                <span style={{ color: '#86efac', fontSize: '0.82rem', fontWeight: 'bold' }}>
+                  Digital Resume Ready:
+                </span>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <Link
+                    href={`/view-profile?email=${encodeURIComponent(savedEmail)}`}
+                    target="_blank"
+                    style={{ backgroundColor: '#22c55e', color: '#090d16', padding: '0.4rem 0.8rem', borderRadius: '6px', fontSize: '0.78rem', textDecoration: 'none', fontWeight: 'bold' }}
+                  >
+                    View Public Profile 👁️
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const url = `${window.location.origin}/view-profile?email=${encodeURIComponent(savedEmail)}`;
+                      navigator.clipboard.writeText(url);
+                      alert('Public link copy ho gaya!');
+                    }}
+                    style={{ backgroundColor: '#1e293b', color: '#fff', border: '1px solid #334155', padding: '0.4rem 0.8rem', borderRadius: '6px', fontSize: '0.78rem', cursor: 'pointer' }}
+                  >
+                    Copy Link 🔗
+                  </button>
+                </div>
+              </div>
+            )}
 
-      {/* Main Profile Form */}
-      <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-        
-        {/* 1. Personal & Contact Details */}
-        <div style={{ backgroundColor: '#131b2e', padding: '1.25rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
-          <h2 style={{ fontSize: '1.1rem', margin: '0 0 1rem 0', color: '#38bdf8' }}>1. Basic Information & Photo</h2>
-          
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.85rem' }}>
-            <div>
-              <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Full Name *</label>
-              <input type="text" required value={fullName} onChange={(e) => setFullName(e.target.value)} style={inputStyle} />
+            {msg && <div style={{ marginTop: '0.75rem', color: '#4ade80', fontSize: '0.82rem' }}>{msg}</div>}
+          </section>
+
+          {/* Form */}
+          <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            
+            {/* 1. Basic Info */}
+            <div style={{ backgroundColor: '#131b2e', padding: '1.25rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
+              <h2 style={{ fontSize: '1.05rem', margin: '0 0 1rem 0', color: '#38bdf8' }}>1. Basic Info & Attachments</h2>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.85rem' }}>
+                <div>
+                  <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Full Name *</label>
+                  <input type="text" required value={fullName} onChange={(e) => setFullName(e.target.value)} style={inputStyle} />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>WhatsApp Number *</label>
+                  <input type="text" required placeholder="03001234567" value={phone} onChange={(e) => setPhone(e.target.value)} style={inputStyle} />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Current City *</label>
+                  <input type="text" value={city} onChange={(e) => setCity(e.target.value)} style={inputStyle} />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Expected Salary (PKR)</label>
+                  <input type="text" value={expectedSalary} onChange={(e) => setExpectedSalary(e.target.value)} style={inputStyle} />
+                </div>
+              </div>
+
+              <div style={{ marginTop: '1rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+                <div style={{ backgroundColor: '#0a0f1d', padding: '0.75rem', borderRadius: '8px', border: '1px solid #334155' }}>
+                  <label style={{ fontSize: '0.8rem', color: '#38bdf8', fontWeight: 'bold' }}>Upload Formal Photo 📸</label>
+                  <input type="file" accept="image/*" onChange={handlePhotoUpload} style={{ fontSize: '0.8rem', marginTop: '0.3rem' }} />
+                  {uploadingPhoto && <div style={{ fontSize: '0.75rem', color: '#facc15' }}>Uploading photo...</div>}
+                </div>
+                <div style={{ backgroundColor: '#0a0f1d', padding: '0.75rem', borderRadius: '8px', border: '1px solid #334155' }}>
+                  <label style={{ fontSize: '0.8rem', color: '#38bdf8', fontWeight: 'bold' }}>Upload PDF CV 📄</label>
+                  <input type="file" accept=".pdf" onChange={handleResumeUpload} style={{ fontSize: '0.8rem', marginTop: '0.3rem' }} />
+                  {uploadingResume && <div style={{ fontSize: '0.75rem', color: '#facc15' }}>Uploading CV...</div>}
+                </div>
+              </div>
             </div>
-            <div>
-              <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>WhatsApp / Phone Number *</label>
-              <input type="text" required placeholder="03001234567" value={phone} onChange={(e) => setPhone(e.target.value)} style={inputStyle} />
-            </div>
-            <div>
-              <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Current City *</label>
-              <input type="text" value={city} onChange={(e) => setCity(e.target.value)} style={inputStyle} />
-            </div>
-            <div>
-              <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Expected Salary (PKR)</label>
-              <input type="text" placeholder="e.g. 60,000 - 85,000" value={expectedSalary} onChange={(e) => setExpectedSalary(e.target.value)} style={inputStyle} />
-            </div>
-          </div>
 
-          <div style={{ marginTop: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <input type="checkbox" id="relocate" checked={relocateOk} onChange={(e) => setRelocateOk(e.target.checked)} />
-            <label htmlFor="relocate" style={{ fontSize: '0.85rem', color: '#cbd5e1', cursor: 'pointer' }}>
-              Open to relocate to Lahore / Karachi / Islamabad for work
-            </label>
-          </div>
-
-          {/* Photo & Resume Upload Files */}
-          <div style={{ marginTop: '1rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
-            <div style={{ backgroundColor: '#0a0f1d', padding: '0.75rem', borderRadius: '8px', border: '1px solid #334155' }}>
-              <label style={{ fontSize: '0.8rem', color: '#38bdf8', fontWeight: 'bold', display: 'block', marginBottom: '0.3rem' }}>
-                Upload Formal Photo 📸
-              </label>
-              <input type="file" accept="image/*" onChange={handlePhotoUpload} style={{ fontSize: '0.8rem', color: '#94a3b8' }} />
-              {uploadingPhoto && <span style={{ fontSize: '0.75rem', color: '#facc15' }}> Uploading photo...</span>}
+            {/* 2. Education */}
+            <div style={{ backgroundColor: '#131b2e', padding: '1.25rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
+              <h2 style={{ fontSize: '1.05rem', margin: '0 0 1rem 0', color: '#38bdf8' }}>2. Education & Summary</h2>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.85rem', marginBottom: '0.85rem' }}>
+                <div>
+                  <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Degree (e.g. BSCS)</label>
+                  <input type="text" value={degree} onChange={(e) => setDegree(e.target.value)} style={inputStyle} />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>University</label>
+                  <input type="text" value={university} onChange={(e) => setUniversity(e.target.value)} style={inputStyle} />
+                </div>
+              </div>
+              <div style={{ marginBottom: '0.85rem' }}>
+                <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Bio / Summary</label>
+                <textarea rows="3" value={bio} onChange={(e) => setBio(e.target.value)} style={inputStyle} />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Skills (Comma separated)</label>
+                <input type="text" value={skills} onChange={(e) => setSkills(e.target.value)} style={inputStyle} />
+              </div>
             </div>
 
-            <div style={{ backgroundColor: '#0a0f1d', padding: '0.75rem', borderRadius: '8px', border: '1px solid #334155' }}>
-              <label style={{ fontSize: '0.8rem', color: '#38bdf8', fontWeight: 'bold', display: 'block', marginBottom: '0.3rem' }}>
-                Upload PDF Resume 📄
-              </label>
-              <input type="file" accept=".pdf" onChange={handleResumeUpload} style={{ fontSize: '0.8rem', color: '#94a3b8' }} />
-              {uploadingResume && <span style={{ fontSize: '0.75rem', color: '#facc15' }}> Uploading CV...</span>}
+            {/* 3. FYP */}
+            <div style={{ backgroundColor: '#131b2e', padding: '1.25rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
+              <h2 style={{ fontSize: '1.05rem', margin: '0 0 0.85rem 0', color: '#38bdf8' }}>3. Final Year Project (FYP)</h2>
+              <input type="text" placeholder="Project Title" value={fypTitle} onChange={(e) => setFypTitle(e.target.value)} style={{ ...inputStyle, marginBottom: '0.6rem' }} />
+              <textarea rows="2" placeholder="Project Details & Link" value={fypDetails} onChange={(e) => setFypDetails(e.target.value)} style={inputStyle} />
             </div>
-          </div>
-        </div>
 
-        {/* 2. Education & About */}
-        <div style={{ backgroundColor: '#131b2e', padding: '1.25rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
-          <h2 style={{ fontSize: '1.1rem', margin: '0 0 1rem 0', color: '#38bdf8' }}>2. Education & Professional Bio</h2>
-          
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.85rem', marginBottom: '0.85rem' }}>
-            <div>
-              <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Degree Program (e.g. BSCS, BBA, Civil)</label>
-              <input type="text" value={degree} onChange={(e) => setDegree(e.target.value)} style={inputStyle} />
-            </div>
-            <div>
-              <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>University / Institute</label>
-              <input type="text" value={university} onChange={(e) => setUniversity(e.target.value)} style={inputStyle} />
-            </div>
-            <div>
-              <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Graduation Year</label>
-              <input type="text" value={graduationYear} onChange={(e) => setGraduationYear(e.target.value)} style={inputStyle} />
-            </div>
-          </div>
-
-          <div style={{ marginBottom: '0.85rem' }}>
-            <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Professional Summary / Bio (2-3 lines)</label>
-            <textarea
-              rows="3"
-              placeholder="e.g. Passionate software graduate specializing in React, Next.js and backend integrations, aiming for an entry-level engineering role..."
-              value={bio}
-              onChange={(e) => setBio(e.target.value)}
-              style={inputStyle}
-            />
-          </div>
-
-          <div>
-            <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Core Skills (Comma separated)</label>
-            <input
-              type="text"
-              placeholder="React, Next.js, Python, Financial Modeling, AutoCAD, Git"
-              value={skills}
-              onChange={(e) => setSkills(e.target.value)}
-              style={inputStyle}
-            />
-          </div>
-        </div>
-
-        {/* 3. Final Year Project (FYP) Showcase */}
-        <div style={{ backgroundColor: '#131b2e', padding: '1.25rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
-          <h2 style={{ fontSize: '1.1rem', margin: '0 0 0.5rem 0', color: '#38bdf8' }}>3. Final Year Project (FYP) / Capstone</h2>
-          <p style={{ color: '#94a3b8', fontSize: '0.8rem', marginBottom: '1rem' }}>Pakistani recruiters prioritize final year projects for fresh graduates.</p>
-          
-          <div style={{ marginBottom: '0.85rem' }}>
-            <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Project Title</label>
-            <input type="text" placeholder="e.g. Shanora AI Career Intelligence Platform" value={fypTitle} onChange={(e) => setFypTitle(e.target.value)} style={inputStyle} />
-          </div>
-
-          <div>
-            <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Project Description & GitHub / Live Demo Link</label>
-            <textarea
-              rows="2"
-              placeholder="Built using Next.js & Supabase. Live Demo: github.com/... or app.vercel.app"
-              value={fypDetails}
-              onChange={(e) => setFypDetails(e.target.value)}
-              style={inputStyle}
-            />
-          </div>
-        </div>
-
-        {/* 4. Experience & Internships (Dynamic) */}
-        <div style={{ backgroundColor: '#131b2e', padding: '1.25rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
-          <h2 style={{ fontSize: '1.1rem', margin: '0 0 0.8rem 0', color: '#38bdf8' }}>4. Experience & Internships</h2>
-
-          {experienceList.length > 0 && (
-            <div style={{ marginBottom: '1rem' }}>
+            {/* 4. Experience */}
+            <div style={{ backgroundColor: '#131b2e', padding: '1.25rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
+              <h2 style={{ fontSize: '1.05rem', margin: '0 0 0.85rem 0', color: '#38bdf8' }}>4. Experience & Internships</h2>
               {experienceList.map((exp, idx) => (
-                <div key={idx} style={{ backgroundColor: '#0a0f1d', padding: '0.75rem', borderRadius: '8px', border: '1px solid #334155', marginBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <strong style={{ color: '#fff', fontSize: '0.9rem' }}>{exp.role}</strong> - <span style={{ color: '#38bdf8' }}>{exp.company}</span>
-                    {exp.duration && <div style={{ color: '#94a3b8', fontSize: '0.78rem' }}>{exp.duration}</div>}
-                  </div>
-                  <button type="button" onClick={() => removeExperience(idx)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem', padding: '0.3rem 0.6rem' }}>✕ Remove</button>
+                <div key={idx} style={{ backgroundColor: '#0a0f1d', padding: '0.65rem', borderRadius: '6px', marginBottom: '0.5rem', display: 'flex', justifyContent: 'space-between' }}>
+                  <span><strong>{exp.role}</strong> at {exp.company}</span>
+                  <button type="button" onClick={() => setExperienceList(experienceList.filter((_, i) => i !== idx))} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
                 </div>
               ))}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.5rem' }}>
+                <input type="text" placeholder="Role" value={newExp.role} onChange={(e) => setNewExp({ ...newExp, role: e.target.value })} style={inputStyle} />
+                <input type="text" placeholder="Company" value={newExp.company} onChange={(e) => setNewExp({ ...newExp, company: e.target.value })} style={inputStyle} />
+              </div>
+              {expError && <div style={{ color: '#f87171', fontSize: '0.8rem', marginTop: '0.3rem' }}>{expError}</div>}
+              <button type="button" onClick={addExperience} style={{ marginTop: '0.6rem', backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.5rem 0.9rem', borderRadius: '6px', cursor: 'pointer' }}>+ Add Exp</button>
             </div>
-          )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.5rem' }}>
-            <input type="text" placeholder="Role (e.g. Intern)" value={newExp.role} onChange={(e) => { setNewExp({ ...newExp, role: e.target.value }); setExpError(''); }} style={inputStyle} />
-            <input type="text" placeholder="Company (e.g. Systems Ltd)" value={newExp.company} onChange={(e) => { setNewExp({ ...newExp, company: e.target.value }); setExpError(''); }} style={inputStyle} />
-            <input type="text" placeholder="Duration (e.g. 3 Months)" value={newExp.duration} onChange={(e) => setNewExp({ ...newExp, duration: e.target.value })} style={inputStyle} />
-          </div>
+            {/* Submit */}
+            <button
+              type="submit"
+              disabled={saving}
+              style={{ backgroundColor: '#22c55e', color: '#090d16', border: 'none', borderRadius: '10px', padding: '1rem', fontSize: '1rem', fontWeight: '900', cursor: 'pointer' }}
+            >
+              {saving ? 'Securing & Saving...' : 'Save & Lock Digital Profile 🚀'}
+            </button>
 
-          {expError && <div style={{ color: '#f87171', fontSize: '0.8rem', marginTop: '0.4rem' }}>{expError}</div>}
-
-          <button type="button" onClick={addExperience} style={{ marginTop: '0.75rem', backgroundColor: '#0284c7', color: '#ffffff', border: 'none', padding: '0.55rem 1rem', borderRadius: '6px', fontSize: '0.82rem', cursor: 'pointer', fontWeight: 'bold' }}>
-            + Add Experience
-          </button>
-        </div>
-
-        {/* 5. Certifications & Trainings (Dynamic) */}
-        <div style={{ backgroundColor: '#131b2e', padding: '1.25rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
-          <h2 style={{ fontSize: '1.1rem', margin: '0 0 0.8rem 0', color: '#38bdf8' }}>5. Certifications & Technical Trainings</h2>
-
-          <h4 style={{ color: '#cbd5e1', margin: '0.5rem 0', fontSize: '0.85rem' }}>Certifications (Coursera, Google, PEC, etc.):</h4>
-          {certList.length > 0 && (
-            <div style={{ marginBottom: '0.75rem' }}>
-              {certList.map((c, idx) => (
-                <div key={idx} style={{ backgroundColor: '#0a0f1d', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid #334155', marginBottom: '0.4rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.82rem' }}><strong>{c.title}</strong> ({c.issuer}) {c.year ? `- ${c.year}` : ''}</span>
-                  <button type="button" onClick={() => removeCertification(idx)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>✕ Remove</button>
-                </div>
-              ))}
-            </div>
-          )}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.5rem' }}>
-            <input type="text" placeholder="Certificate Name" value={newCert.title} onChange={(e) => { setNewCert({ ...newCert, title: e.target.value }); setCertError(''); }} style={inputStyle} />
-            <input type="text" placeholder="Issuer (e.g. Google)" value={newCert.issuer} onChange={(e) => { setNewCert({ ...newCert, issuer: e.target.value }); setCertError(''); }} style={inputStyle} />
-            <input type="text" placeholder="Year / Credential Link" value={newCert.year} onChange={(e) => setNewCert({ ...newCert, year: e.target.value })} style={inputStyle} />
-          </div>
-
-          {certError && <div style={{ color: '#f87171', fontSize: '0.8rem', marginTop: '0.4rem' }}>{certError}</div>}
-
-          <button type="button" onClick={addCertification} style={{ marginTop: '0.6rem', marginBottom: '1.25rem', backgroundColor: '#0284c7', color: '#ffffff', border: 'none', padding: '0.5rem 0.9rem', borderRadius: '6px', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 'bold' }}>
-            + Add Certificate
-          </button>
-
-          <h4 style={{ color: '#cbd5e1', margin: '0.5rem 0', fontSize: '0.85rem' }}>Trainings & Bootcamps (NAVTTC, PITB, DigiSkills):</h4>
-          {trainingList.length > 0 && (
-            <div style={{ marginBottom: '0.75rem' }}>
-              {trainingList.map((t, idx) => (
-                <div key={idx} style={{ backgroundColor: '#0a0f1d', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid #334155', marginBottom: '0.4rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.82rem' }}><strong>{t.program}</strong> ({t.institute}) {t.duration ? `- ${t.duration}` : ''}</span>
-                  <button type="button" onClick={() => removeTraining(idx)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>✕ Remove</button>
-                </div>
-              ))}
-            </div>
-          )}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.5rem' }}>
-            <input type="text" placeholder="Training Program" value={newTraining.program} onChange={(e) => { setNewTraining({ ...newTraining, program: e.target.value }); setTrainingError(''); }} style={inputStyle} />
-            <input type="text" placeholder="Institute (e.g. NAVTTC)" value={newTraining.institute} onChange={(e) => { setNewTraining({ ...newTraining, institute: e.target.value }); setTrainingError(''); }} style={inputStyle} />
-            <input type="text" placeholder="Duration (e.g. 6 Months)" value={newTraining.duration} onChange={(e) => setNewTraining({ ...newTraining, duration: e.target.value })} style={inputStyle} />
-          </div>
-
-          {trainingError && <div style={{ color: '#f87171', fontSize: '0.8rem', marginTop: '0.4rem' }}>{trainingError}</div>}
-
-          <button type="button" onClick={addTraining} style={{ marginTop: '0.6rem', backgroundColor: '#0284c7', color: '#ffffff', border: 'none', padding: '0.5rem 0.9rem', borderRadius: '6px', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 'bold' }}>
-            + Add Training
-          </button>
-        </div>
-
-        {/* Submit Button */}
-        <button
-          type="submit"
-          disabled={saving}
-          style={{ backgroundColor: '#22c55e', color: '#090d16', border: 'none', borderRadius: '10px', padding: '1rem', fontSize: '1rem', fontWeight: '900', cursor: 'pointer', boxShadow: '0 4px 15px rgba(34, 197, 94, 0.3)' }}
-        >
-          {saving ? 'Saving Profile...' : 'Save & Publish Digital Profile 🚀'}
-        </button>
-
-      </form>
+          </form>
+        </>
+      )}
 
       <footer style={{ textAlign: 'center', padding: '2rem 1rem', color: '#64748b', fontSize: '0.8rem' }}>
-        Shanora Pakistan • Verified Student Digital Portfolio
+        Shanora Pakistan • Secure Student Career Ecosystem
       </footer>
 
     </main>
@@ -581,6 +480,5 @@ const inputStyle = {
   color: '#fff',
   fontSize: '0.85rem',
   outline: 'none',
-  boxSizing: 'border-box',
-  marginTop: '0.25rem'
+  boxSizing: 'border-box'
 };
