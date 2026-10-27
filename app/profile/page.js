@@ -7,6 +7,7 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
+  const [savedEmail, setSavedEmail] = useState('');
 
   // Basic Profile State
   const [fullName, setFullName] = useState('');
@@ -34,12 +35,15 @@ export default function ProfilePage() {
   // Dynamic Lists: Experience, Certifications, Trainings
   const [experienceList, setExperienceList] = useState([]);
   const [newExp, setNewExp] = useState({ role: '', company: '', duration: '', desc: '' });
+  const [expError, setExpError] = useState('');
 
   const [certList, setCertList] = useState([]);
   const [newCert, setNewCert] = useState({ title: '', issuer: '', year: '', link: '' });
+  const [certError, setCertError] = useState('');
 
   const [trainingList, setTrainingList] = useState([]);
   const [newTraining, setNewTraining] = useState({ program: '', institute: '', duration: '' });
+  const [trainingError, setTrainingError] = useState('');
 
   // Calculate Profile Completeness
   const calculateCompleteness = () => {
@@ -85,6 +89,7 @@ export default function ProfilePage() {
         setExperienceList(data.experience || []);
         setCertList(data.certifications || []);
         setTrainingList(data.trainings || []);
+        setSavedEmail(data.email);
         setMsg('Profile loaded successfully! ✅');
       } else {
         setMsg('No previous profile found. Fill out the form to create yours!');
@@ -141,30 +146,48 @@ export default function ProfilePage() {
   };
 
   // Experience handlers
-  const addExperience = () => {
-    if (!newExp.role || !newExp.company) return alert('Role and Company are required.');
-    setExperienceList([...experienceList, newExp]);
+  const addExperience = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!newExp.role.trim() || !newExp.company.trim()) {
+      setExpError('Pehle Role aur Company name likhein!');
+      return;
+    }
+    setExperienceList([...experienceList, { ...newExp }]);
     setNewExp({ role: '', company: '', duration: '', desc: '' });
+    setExpError('');
   };
   const removeExperience = (index) => {
     setExperienceList(experienceList.filter((_, i) => i !== index));
   };
 
   // Certification handlers
-  const addCertification = () => {
-    if (!newCert.title || !newCert.issuer) return alert('Title and Issuer are required.');
-    setCertList([...certList, newCert]);
+  const addCertification = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!newCert.title.trim() || !newCert.issuer.trim()) {
+      setCertError('Pehle Certificate Title aur Issuer likhein!');
+      return;
+    }
+    setCertList([...certList, { ...newCert }]);
     setNewCert({ title: '', issuer: '', year: '', link: '' });
+    setCertError('');
   };
   const removeCertification = (index) => {
     setCertList(certList.filter((_, i) => i !== index));
   };
 
   // Training handlers
-  const addTraining = () => {
-    if (!newTraining.program || !newTraining.institute) return alert('Program and Institute are required.');
-    setTrainingList([...trainingList, newTraining]);
+  const addTraining = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!newTraining.program.trim() || !newTraining.institute.trim()) {
+      setTrainingError('Pehle Training Program aur Institute likhein!');
+      return;
+    }
+    setTrainingList([...trainingList, { ...newTraining }]);
     setNewTraining({ program: '', institute: '', duration: '' });
+    setTrainingError('');
   };
   const removeTraining = (index) => {
     setTrainingList(trainingList.filter((_, i) => i !== index));
@@ -179,9 +202,10 @@ export default function ProfilePage() {
     setSaving(true);
     setMsg('');
 
+    const formattedEmail = email.trim().toLowerCase();
     const profileData = {
       full_name: fullName,
-      email: email.trim().toLowerCase(),
+      email: formattedEmail,
       phone,
       city,
       degree,
@@ -205,7 +229,7 @@ export default function ProfilePage() {
       const { data: existing } = await supabase
         .from('profiles')
         .select('id')
-        .eq('email', email.trim().toLowerCase())
+        .eq('email', formattedEmail)
         .maybeSingle();
 
       let opError;
@@ -218,7 +242,8 @@ export default function ProfilePage() {
       }
 
       if (opError) throw opError;
-      setMsg('Profile successfully saved to Shanora Talent Network! 🎉');
+      setSavedEmail(formattedEmail);
+      setMsg('Profile successfully saved! Niche se apna public link copy karein 🎉');
     } catch (err) {
       setMsg('Save error: ' + err.message);
     } finally {
@@ -297,6 +322,35 @@ export default function ProfilePage() {
           </button>
         </div>
 
+        {/* Public Profile Share Card (When saved or loaded) */}
+        {savedEmail && (
+          <div style={{ marginTop: '1rem', padding: '0.85rem', backgroundColor: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.6rem' }}>
+            <span style={{ color: '#86efac', fontSize: '0.82rem', fontWeight: 'bold' }}>
+              Digital Resume Ready:
+            </span>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <Link
+                href={`/profile/view?email=${encodeURIComponent(savedEmail)}`}
+                target="_blank"
+                style={{ backgroundColor: '#22c55e', color: '#090d16', padding: '0.4rem 0.8rem', borderRadius: '6px', fontSize: '0.78rem', textDecoration: 'none', fontWeight: 'bold' }}
+              >
+                View Public Profile 👁️
+              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  const url = `${window.location.origin}/profile/view?email=${encodeURIComponent(savedEmail)}`;
+                  navigator.clipboard.writeText(url);
+                  alert('Public link copy ho gaya! Ab HR ya WhatsApp par share karein.');
+                }}
+                style={{ backgroundColor: '#1e293b', color: '#fff', border: '1px solid #334155', padding: '0.4rem 0.8rem', borderRadius: '6px', fontSize: '0.78rem', cursor: 'pointer' }}
+              >
+                Copy Link 🔗
+              </button>
+            </div>
+          </div>
+        )}
+
         {msg && <div style={{ marginTop: '0.75rem', color: '#4ade80', fontSize: '0.85rem' }}>{msg}</div>}
       </section>
 
@@ -353,7 +407,7 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* 2. Education & About */}
+          {/* 2. Education & About */}
         <div style={{ backgroundColor: '#131b2e', padding: '1.25rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
           <h2 style={{ fontSize: '1.1rem', margin: '0 0 1rem 0', color: '#38bdf8' }}>2. Education & Professional Bio</h2>
           
@@ -421,25 +475,29 @@ export default function ProfilePage() {
         <div style={{ backgroundColor: '#131b2e', padding: '1.25rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
           <h2 style={{ fontSize: '1.1rem', margin: '0 0 0.8rem 0', color: '#38bdf8' }}>4. Experience & Internships</h2>
 
-          {/* List of existing experiences */}
-          {experienceList.map((exp, idx) => (
-            <div key={idx} style={{ backgroundColor: '#0a0f1d', padding: '0.75rem', borderRadius: '8px', border: '1px solid #334155', marginBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <strong style={{ color: '#fff', fontSize: '0.9rem' }}>{exp.role}</strong> - <span style={{ color: '#38bdf8' }}>{exp.company}</span>
-                <div style={{ color: '#94a3b8', fontSize: '0.78rem' }}>{exp.duration}</div>
-                {exp.desc && <div style={{ color: '#cbd5e1', fontSize: '0.8rem', marginTop: '0.2rem' }}>{exp.desc}</div>}
-              </div>
-              <button type="button" onClick={() => removeExperience(idx)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>✕</button>
+          {experienceList.length > 0 && (
+            <div style={{ marginBottom: '1rem' }}>
+              {experienceList.map((exp, idx) => (
+                <div key={idx} style={{ backgroundColor: '#0a0f1d', padding: '0.75rem', borderRadius: '8px', border: '1px solid #334155', marginBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <strong style={{ color: '#fff', fontSize: '0.9rem' }}>{exp.role}</strong> - <span style={{ color: '#38bdf8' }}>{exp.company}</span>
+                    {exp.duration && <div style={{ color: '#94a3b8', fontSize: '0.78rem' }}>{exp.duration}</div>}
+                  </div>
+                  <button type="button" onClick={() => removeExperience(idx)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem', padding: '0.3rem 0.6rem' }}>✕ Remove</button>
+                </div>
+              ))}
             </div>
-          ))}
+          )}
 
-          {/* Add new experience input */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.5rem', marginTop: '0.75rem' }}>
-            <input type="text" placeholder="Role (e.g. Intern)" value={newExp.role} onChange={(e) => setNewExp({ ...newExp, role: e.target.value })} style={inputStyle} />
-            <input type="text" placeholder="Company (e.g. Systems Ltd)" value={newExp.company} onChange={(e) => setNewExp({ ...newExp, company: e.target.value })} style={inputStyle} />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.5rem' }}>
+            <input type="text" placeholder="Role (e.g. Intern)" value={newExp.role} onChange={(e) => { setNewExp({ ...newExp, role: e.target.value }); setExpError(''); }} style={inputStyle} />
+            <input type="text" placeholder="Company (e.g. Systems Ltd)" value={newExp.company} onChange={(e) => { setNewExp({ ...newExp, company: e.target.value }); setExpError(''); }} style={inputStyle} />
             <input type="text" placeholder="Duration (e.g. 3 Months)" value={newExp.duration} onChange={(e) => setNewExp({ ...newExp, duration: e.target.value })} style={inputStyle} />
           </div>
-          <button type="button" onClick={addExperience} style={{ marginTop: '0.6rem', backgroundColor: '#1e293b', color: '#38bdf8', border: '1px solid #334155', padding: '0.4rem 0.8rem', borderRadius: '6px', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 'bold' }}>
+
+          {expError && <div style={{ color: '#f87171', fontSize: '0.8rem', marginTop: '0.4rem' }}>{expError}</div>}
+
+          <button type="button" onClick={addExperience} style={{ marginTop: '0.75rem', backgroundColor: '#0284c7', color: '#ffffff', border: 'none', padding: '0.55rem 1rem', borderRadius: '6px', fontSize: '0.82rem', cursor: 'pointer', fontWeight: 'bold' }}>
             + Add Experience
           </button>
         </div>
@@ -448,37 +506,49 @@ export default function ProfilePage() {
         <div style={{ backgroundColor: '#131b2e', padding: '1.25rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
           <h2 style={{ fontSize: '1.1rem', margin: '0 0 0.8rem 0', color: '#38bdf8' }}>5. Certifications & Technical Trainings</h2>
 
-          {/* Certifications List */}
           <h4 style={{ color: '#cbd5e1', margin: '0.5rem 0', fontSize: '0.85rem' }}>Certifications (Coursera, Google, PEC, etc.):</h4>
-          {certList.map((c, idx) => (
-            <div key={idx} style={{ backgroundColor: '#0a0f1d', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid #334155', marginBottom: '0.4rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.82rem' }}><strong>{c.title}</strong> ({c.issuer}) - {c.year}</span>
-              <button type="button" onClick={() => removeCertification(idx)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
+          {certList.length > 0 && (
+            <div style={{ marginBottom: '0.75rem' }}>
+              {certList.map((c, idx) => (
+                <div key={idx} style={{ backgroundColor: '#0a0f1d', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid #334155', marginBottom: '0.4rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.82rem' }}><strong>{c.title}</strong> ({c.issuer}) {c.year ? `- ${c.year}` : ''}</span>
+                  <button type="button" onClick={() => removeCertification(idx)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>✕ Remove</button>
+                </div>
+              ))}
             </div>
-          ))}
+          )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.5rem' }}>
-            <input type="text" placeholder="Certificate Name" value={newCert.title} onChange={(e) => setNewCert({ ...newCert, title: e.target.value })} style={inputStyle} />
-            <input type="text" placeholder="Issuer (e.g. Google)" value={newCert.issuer} onChange={(e) => setNewCert({ ...newCert, issuer: e.target.value })} style={inputStyle} />
+            <input type="text" placeholder="Certificate Name" value={newCert.title} onChange={(e) => { setNewCert({ ...newCert, title: e.target.value }); setCertError(''); }} style={inputStyle} />
+            <input type="text" placeholder="Issuer (e.g. Google)" value={newCert.issuer} onChange={(e) => { setNewCert({ ...newCert, issuer: e.target.value }); setCertError(''); }} style={inputStyle} />
             <input type="text" placeholder="Year / Credential Link" value={newCert.year} onChange={(e) => setNewCert({ ...newCert, year: e.target.value })} style={inputStyle} />
           </div>
-          <button type="button" onClick={addCertification} style={{ marginTop: '0.4rem', marginBottom: '1rem', backgroundColor: '#1e293b', color: '#38bdf8', border: '1px solid #334155', padding: '0.35rem 0.75rem', borderRadius: '6px', fontSize: '0.78rem', cursor: 'pointer', fontWeight: 'bold' }}>
+
+          {certError && <div style={{ color: '#f87171', fontSize: '0.8rem', marginTop: '0.4rem' }}>{certError}</div>}
+
+          <button type="button" onClick={addCertification} style={{ marginTop: '0.6rem', marginBottom: '1.25rem', backgroundColor: '#0284c7', color: '#ffffff', border: 'none', padding: '0.5rem 0.9rem', borderRadius: '6px', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 'bold' }}>
             + Add Certificate
           </button>
 
-          {/* Trainings / Bootcamps List */}
           <h4 style={{ color: '#cbd5e1', margin: '0.5rem 0', fontSize: '0.85rem' }}>Trainings & Bootcamps (NAVTTC, PITB, DigiSkills):</h4>
-          {trainingList.map((t, idx) => (
-            <div key={idx} style={{ backgroundColor: '#0a0f1d', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid #334155', marginBottom: '0.4rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.82rem' }}><strong>{t.program}</strong> ({t.institute}) - {t.duration}</span>
-              <button type="button" onClick={() => removeTraining(idx)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
+          {trainingList.length > 0 && (
+            <div style={{ marginBottom: '0.75rem' }}>
+              {trainingList.map((t, idx) => (
+                <div key={idx} style={{ backgroundColor: '#0a0f1d', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid #334155', marginBottom: '0.4rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.82rem' }}><strong>{t.program}</strong> ({t.institute}) {t.duration ? `- ${t.duration}` : ''}</span>
+                  <button type="button" onClick={() => removeTraining(idx)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>✕ Remove</button>
+                </div>
+              ))}
             </div>
-          ))}
+          )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.5rem' }}>
-            <input type="text" placeholder="Training Program" value={newTraining.program} onChange={(e) => setNewTraining({ ...newTraining, program: e.target.value })} style={inputStyle} />
-            <input type="text" placeholder="Institute (e.g. NAVTTC)" value={newTraining.institute} onChange={(e) => setNewTraining({ ...newTraining, institute: e.target.value })} style={inputStyle} />
+            <input type="text" placeholder="Training Program" value={newTraining.program} onChange={(e) => { setNewTraining({ ...newTraining, program: e.target.value }); setTrainingError(''); }} style={inputStyle} />
+            <input type="text" placeholder="Institute (e.g. NAVTTC)" value={newTraining.institute} onChange={(e) => { setNewTraining({ ...newTraining, institute: e.target.value }); setTrainingError(''); }} style={inputStyle} />
             <input type="text" placeholder="Duration (e.g. 6 Months)" value={newTraining.duration} onChange={(e) => setNewTraining({ ...newTraining, duration: e.target.value })} style={inputStyle} />
           </div>
-          <button type="button" onClick={addTraining} style={{ marginTop: '0.4rem', backgroundColor: '#1e293b', color: '#38bdf8', border: '1px solid #334155', padding: '0.35rem 0.75rem', borderRadius: '6px', fontSize: '0.78rem', cursor: 'pointer', fontWeight: 'bold' }}>
+
+          {trainingError && <div style={{ color: '#f87171', fontSize: '0.8rem', marginTop: '0.4rem' }}>{trainingError}</div>}
+
+          <button type="button" onClick={addTraining} style={{ marginTop: '0.6rem', backgroundColor: '#0284c7', color: '#ffffff', border: 'none', padding: '0.5rem 0.9rem', borderRadius: '6px', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 'bold' }}>
             + Add Training
           </button>
         </div>
