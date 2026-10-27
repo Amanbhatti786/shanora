@@ -1,205 +1,516 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 export default function ProfilePage() {
-  const router = useRouter();
-  const [user, setUser] = useState(null);
-  const [profile, setProfile] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [isEditing, setIsEditing] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const [form, setForm] = useState({ full_name: '', degree: '', university: '', city: '', phone: '', target_role: '' });
+  const [msg, setMsg] = useState('');
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) return router.push('/auth');
-      setUser(session.user);
-      supabase.from('profiles').select('*').eq('id', session.user.id).maybeSingle().then(({ data }) => {
-        if (data) {
-          setProfile(data);
-          setForm({ 
-            full_name: data.full_name || '', 
-            degree: data.degree || '', 
-            university: data.university || '', 
-            city: data.city || '', 
-            phone: data.phone || '', 
-            target_role: data.target_role || '' 
-          });
-        }
-        setLoading(false);
-      });
-    });
-  }, [router]);
+  // Basic Profile State
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [city, setCity] = useState('Lahore');
+  const [degree, setDegree] = useState('');
+  const [university, setUniversity] = useState('');
+  const [graduationYear, setGraduationYear] = useState('2026');
+  const [bio, setBio] = useState('');
+  const [skills, setSkills] = useState('');
+  const [expectedSalary, setExpectedSalary] = useState('50,000 - 80,000');
+  const [relocateOk, setRelocateOk] = useState(true);
 
-  const handleSave = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-    const payload = { 
-      id: user.id, 
-      email: user.email,
-      ...form 
-    };
-    const { error } = await supabase.from('profiles').upsert(payload);
-    setSaving(false);
-    if (error) alert('Error: ' + error.message);
-    else {
-      setProfile(payload);
-      setIsEditing(false);
-      alert('Profile updated!');
+  // Media
+  const [photoUrl, setPhotoUrl] = useState('');
+  const [resumeUrl, setResumeUrl] = useState('');
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [uploadingResume, setUploadingResume] = useState(false);
+
+  // Final Year Project (FYP)
+  const [fypTitle, setFypTitle] = useState('');
+  const [fypDetails, setFypDetails] = useState('');
+
+  // Dynamic Lists: Experience, Certifications, Trainings
+  const [experienceList, setExperienceList] = useState([]);
+  const [newExp, setNewExp] = useState({ role: '', company: '', duration: '', desc: '' });
+
+  const [certList, setCertList] = useState([]);
+  const [newCert, setNewCert] = useState({ title: '', issuer: '', year: '', link: '' });
+
+  const [trainingList, setTrainingList] = useState([]);
+  const [newTraining, setNewTraining] = useState({ program: '', institute: '', duration: '' });
+
+  // Calculate Profile Completeness
+  const calculateCompleteness = () => {
+    let score = 0;
+    if (fullName) score += 10;
+    if (phone) score += 10;
+    if (degree && university) score += 15;
+    if (photoUrl) score += 10;
+    if (resumeUrl) score += 15;
+    if (skills) score += 10;
+    if (fypTitle) score += 10;
+    if (experienceList.length > 0) score += 10;
+    if (certList.length > 0 || trainingList.length > 0) score += 10;
+    return Math.min(score, 100);
+  };
+
+  // Load existing profile by email lookup
+  const loadProfile = async (lookupEmail) => {
+    if (!lookupEmail) return;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('email', lookupEmail.trim().toLowerCase())
+        .single();
+
+      if (data) {
+        setFullName(data.full_name || '');
+        setPhone(data.phone || '');
+        setCity(data.city || 'Lahore');
+        setDegree(data.degree || '');
+        setUniversity(data.university || '');
+        setGraduationYear(data.graduation_year || '2026');
+        setBio(data.bio || '');
+        setSkills(Array.isArray(data.skills) ? data.skills.join(', ') : (data.skills || ''));
+        setPhotoUrl(data.photo_url || '');
+        setResumeUrl(data.resume_url || '');
+        setFypTitle(data.fyp_title || '');
+        setFypDetails(data.fyp_details || '');
+        setExpectedSalary(data.expected_salary || '50,000 - 80,000');
+        setRelocateOk(data.relocate_ok !== false);
+        setExperienceList(data.experience || []);
+        setCertList(data.certifications || []);
+        setTrainingList(data.trainings || []);
+        setMsg('Profile loaded successfully! ✅');
+      } else {
+        setMsg('No previous profile found. Fill out the form to create yours!');
+      }
+    } catch (err) {
+      setMsg('Error loading profile.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleUpload = async (e) => {
+  // Upload Photo to Supabase Storage
+  const handlePhotoUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    setUploading(true);
-    const path = `${user.id}_${Date.now()}.pdf`;
-    const { error } = await supabase.storage.from('resumes').upload(path, file, { upsert: true });
-    if (error) { alert(error.message); setUploading(false); return; }
-    const { data: { publicUrl } } = supabase.storage.from('resumes').getPublicUrl(path);
-    await supabase.from('profiles').upsert({ id: user.id, email: user.email, resume_url: publicUrl });
-    setProfile(prev => ({ ...prev, resume_url: publicUrl }));
-    setUploading(false);
-    alert('CV uploaded!');
+    setUploadingPhoto(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `avatar_${Date.now()}.${fileExt}`;
+      const { data, error } = await supabase.storage.from('resumes').upload(fileName, file);
+
+      if (error) throw error;
+
+      const { data: publicUrlData } = supabase.storage.from('resumes').getPublicUrl(fileName);
+      setPhotoUrl(publicUrlData.publicUrl);
+      setMsg('Profile photo uploaded! 📸');
+    } catch (err) {
+      alert('Photo upload failed: ' + err.message);
+    } finally {
+      setUploadingPhoto(false);
+    }
   };
 
-  if (loading) return <div style={{ color: '#fff', textAlign: 'center', padding: '3rem' }}>Loading student portal...</div>;
+  // Upload Resume PDF to Supabase Storage
+  const handleResumeUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploadingResume(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `resume_${Date.now()}.${fileExt}`;
+      const { data, error } = await supabase.storage.from('resumes').upload(fileName, file);
+
+      if (error) throw error;
+
+      const { data: publicUrlData } = supabase.storage.from('resumes').getPublicUrl(fileName);
+      setResumeUrl(publicUrlData.publicUrl);
+      setMsg('Resume PDF uploaded! 📄');
+    } catch (err) {
+      alert('Resume upload failed: ' + err.message);
+    } finally {
+      setUploadingResume(false);
+    }
+  };
+
+  // Experience handlers
+  const addExperience = () => {
+    if (!newExp.role || !newExp.company) return alert('Role and Company are required.');
+    setExperienceList([...experienceList, newExp]);
+    setNewExp({ role: '', company: '', duration: '', desc: '' });
+  };
+  const removeExperience = (index) => {
+    setExperienceList(experienceList.filter((_, i) => i !== index));
+  };
+
+  // Certification handlers
+  const addCertification = () => {
+    if (!newCert.title || !newCert.issuer) return alert('Title and Issuer are required.');
+    setCertList([...certList, newCert]);
+    setNewCert({ title: '', issuer: '', year: '', link: '' });
+  };
+  const removeCertification = (index) => {
+    setCertList(certList.filter((_, i) => i !== index));
+  };
+
+  // Training handlers
+  const addTraining = () => {
+    if (!newTraining.program || !newTraining.institute) return alert('Program and Institute are required.');
+    setTrainingList([...trainingList, newTraining]);
+    setNewTraining({ program: '', institute: '', duration: '' });
+  };
+  const removeTraining = (index) => {
+    setTrainingList(trainingList.filter((_, i) => i !== index));
+  };
+
+  // Save Profile to Supabase
+  const handleSaveProfile = async (e) => {
+    e.preventDefault();
+    if (!email || !fullName) {
+      return alert('Full Name and Email are strictly required.');
+    }
+    setSaving(true);
+    setMsg('');
+
+    const profileData = {
+      full_name: fullName,
+      email: email.trim().toLowerCase(),
+      phone,
+      city,
+      degree,
+      university,
+      graduation_year: graduationYear,
+      bio,
+      skills: skills.split(',').map((s) => s.trim()).filter(Boolean),
+      photo_url: photoUrl,
+      resume_url: resumeUrl,
+      fyp_title: fypTitle,
+      fyp_details: fypDetails,
+      expected_salary: expectedSalary,
+      relocate_ok: relocateOk,
+      experience: experienceList,
+      certifications: certList,
+      trainings: trainingList,
+      updated_at: new Date().toISOString()
+    };
+
+    try {
+      const { data: existing } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', email.trim().toLowerCase())
+        .maybeSingle();
+
+      let opError;
+      if (existing) {
+        const { error } = await supabase.from('profiles').update(profileData).eq('id', existing.id);
+        opError = error;
+      } else {
+        const { error } = await supabase.from('profiles').insert([profileData]);
+        opError = error;
+      }
+
+      if (opError) throw opError;
+      setMsg('Profile successfully saved to Shanora Talent Network! 🎉');
+    } catch (err) {
+      setMsg('Save error: ' + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const completeness = calculateCompleteness();
 
   return (
-    <div style={{ maxWidth: '700px', margin: '2rem auto', padding: '1rem', color: '#fff', fontFamily: 'sans-serif' }}>
+    <main style={{ minHeight: '100vh', padding: '1.25rem 1rem', maxWidth: '850px', margin: '0 auto', fontFamily: 'sans-serif', color: '#f8fafc' }}>
       
-      {/* Profile Header Box */}
-      <div style={{ background: '#131b2e', padding: '1.5rem', borderRadius: '14px', border: '1px solid #1e293b' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-              <span style={{ fontSize: '0.75rem', color: '#38bdf8', fontWeight: 'bold' }}>STUDENT ACCOUNT</span>
-              {profile.is_premium ? (
-                <span style={{ backgroundColor: 'rgba(234, 179, 8, 0.15)', color: '#eab308', padding: '0.1rem 0.5rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold' }}>
-                  👑 PRO
-                </span>
-              ) : (
-                <span style={{ backgroundColor: '#1e293b', color: '#94a3b8', padding: '0.1rem 0.5rem', borderRadius: '4px', fontSize: '0.7rem' }}>
-                  Free Member
-                </span>
-              )}
-            </div>
-            <h2 style={{ margin: '0 0 0.2rem 0', fontSize: '1.5rem' }}>{profile.full_name || 'Set Full Name'}</h2>
-            <p style={{ color: '#94a3b8', margin: 0, fontSize: '0.85rem' }}>{user?.email} • {profile.city || 'Pakistan'}</p>
+      {/* Navigation */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+        <Link href="/" style={{ color: '#38bdf8', textDecoration: 'none', fontSize: '0.9rem', fontWeight: 'bold' }}>
+          ← Back to Homepage
+        </Link>
+        <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Student Digital Career Hub</span>
+      </div>
+
+      {/* Profile Header & Completeness */}
+      <section style={{ backgroundColor: '#131b2e', padding: '1.5rem', borderRadius: '16px', border: '1px solid #1e293b', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
+          
+          {/* Avatar Photo */}
+          <div style={{ position: 'relative', width: '90px', height: '90px', borderRadius: '50%', backgroundColor: '#0a0f1d', border: '2px solid #38bdf8', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {photoUrl ? (
+              <img src={photoUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              <span style={{ fontSize: '2.2rem' }}>🎓</span>
+            )}
           </div>
 
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <button onClick={() => setIsEditing(!isEditing)} style={{ background: '#0284c7', color: '#fff', border: 'none', padding: '0.5rem 0.85rem', borderRadius: '6px', fontSize: '0.85rem', fontWeight: 'bold', cursor: 'pointer' }}>
-              {isEditing ? 'Cancel ✕' : 'Edit Profile ✏️'}
-            </button>
-            {!profile.is_premium && (
-              <button onClick={() => setShowUpgradeModal(true)} style={{ background: '#eab308', color: '#090d16', border: 'none', padding: '0.5rem 0.85rem', borderRadius: '6px', fontSize: '0.85rem', fontWeight: 'bold', cursor: 'pointer' }}>
-                Go Pro 👑
-              </button>
-            )}
-            <button onClick={() => supabase.auth.signOut().then(() => router.push('/'))} style={{ background: '#1e293b', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '0.5rem 0.75rem', borderRadius: '6px', fontSize: '0.85rem', cursor: 'pointer' }}>
-              Sign Out
-            </button>
+          <div style={{ flex: 1, minWidth: '220px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <h1 style={{ fontSize: '1.4rem', fontWeight: 'bold', margin: 0, color: '#fff' }}>
+                {fullName || 'Your Full Name'}
+              </h1>
+              <span style={{ backgroundColor: '#22c55e', color: '#090d16', fontSize: '0.65rem', padding: '0.15rem 0.5rem', borderRadius: '20px', fontWeight: 'bold' }}>
+                Verified Graduate
+              </span>
+            </div>
+            <p style={{ color: '#94a3b8', fontSize: '0.85rem', margin: '0.25rem 0' }}>
+              {degree || 'Degree Program'} • {university || 'University'} ({city})
+            </p>
+
+            {/* Completeness Bar */}
+            <div style={{ marginTop: '0.75rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '0.3rem' }}>
+                <span style={{ color: '#cbd5e1' }}>Profile Completeness</span>
+                <span style={{ color: '#38bdf8', fontWeight: 'bold' }}>{completeness}%</span>
+              </div>
+              <div style={{ width: '100%', height: '7px', backgroundColor: '#0a0f1d', borderRadius: '10px', overflow: 'hidden' }}>
+                <div style={{ width: `${completeness}%`, height: '100%', backgroundColor: completeness > 70 ? '#22c55e' : '#38bdf8', transition: 'width 0.4s ease' }} />
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Upgrade Pro Modal */}
-        {showUpgradeModal && (
-          <div style={{ backgroundColor: '#0f172a', border: '2px solid #eab308', borderRadius: '12px', padding: '1.25rem', marginTop: '1.25rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-              <h3 style={{ color: '#facc15', margin: 0, fontSize: '1.1rem' }}>👑 Shanora Pro Membership</h3>
-              <button onClick={() => setShowUpgradeModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer' }}>✕</button>
+        {/* Existing Profile Email Search Bar */}
+        <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid #1e293b', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <input
+            type="email"
+            placeholder="Enter your registered email to load profile..."
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            style={{ flex: 1, minWidth: '220px', padding: '0.6rem 0.8rem', borderRadius: '8px', border: '1px solid #334155', backgroundColor: '#0a0f1d', color: '#fff', fontSize: '0.85rem' }}
+          />
+          <button
+            type="button"
+            onClick={() => loadProfile(email)}
+            disabled={loading}
+            style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', borderRadius: '8px', padding: '0.6rem 1rem', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer' }}
+          >
+            {loading ? 'Searching...' : 'Load Profile 🔍'}
+          </button>
+        </div>
+
+        {msg && <div style={{ marginTop: '0.75rem', color: '#4ade80', fontSize: '0.85rem' }}>{msg}</div>}
+      </section>
+
+      {/* Main Profile Form */}
+      <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        
+        {/* 1. Personal & Contact Details */}
+        <div style={{ backgroundColor: '#131b2e', padding: '1.25rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
+          <h2 style={{ fontSize: '1.1rem', margin: '0 0 1rem 0', color: '#38bdf8' }}>1. Basic Information & Photo</h2>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.85rem' }}>
+            <div>
+              <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Full Name *</label>
+              <input type="text" required value={fullName} onChange={(e) => setFullName(e.target.value)} style={inputStyle} />
             </div>
-            <p style={{ color: '#cbd5e1', fontSize: '0.82rem', margin: '0 0 0.85rem 0', lineHeight: '1.4' }}>
-              Direct Recruiter Priority, AI Resume Rewrite, tailored Cover Letters aur WhatsApp Job Alerts hasil karein.
-            </p>
-            <div style={{ backgroundColor: '#131b2e', padding: '0.75rem 1rem', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-              <div>
-                <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Lifetime Access</span>
-                <div style={{ color: '#4ade80', fontSize: '1.15rem', fontWeight: '900' }}>PKR 999</div>
-              </div>
-              <a
-                href="https://wa.me/923000000000?text=Hi%20Shanora%2C%20I%20want%20to%20upgrade%20my%20account%20to%20Shanora%20Pro"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ backgroundColor: '#22c55e', color: '#090d16', padding: '0.5rem 1rem', borderRadius: '6px', textDecoration: 'none', fontWeight: 'bold', fontSize: '0.8rem' }}
-              >
-                Pay via Easypaisa / JazzCash 📲
-              </a>
+            <div>
+              <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>WhatsApp / Phone Number *</label>
+              <input type="text" required placeholder="03001234567" value={phone} onChange={(e) => setPhone(e.target.value)} style={inputStyle} />
+            </div>
+            <div>
+              <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Current City *</label>
+              <input type="text" value={city} onChange={(e) => setCity(e.target.value)} style={inputStyle} />
+            </div>
+            <div>
+              <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Expected Salary (PKR)</label>
+              <input type="text" placeholder="e.g. 60,000 - 85,000" value={expectedSalary} onChange={(e) => setExpectedSalary(e.target.value)} style={inputStyle} />
             </div>
           </div>
-        )}
 
-        {/* Edit Form */}
-        {isEditing && (
-          <form onSubmit={handleSave} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.6rem', marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid #1e293b' }}>
-            <input placeholder="Full Name" value={form.full_name} onChange={e => setForm({...form, full_name: e.target.value})} style={{ padding: '0.6rem', background: '#0a0f1d', color: '#fff', border: '1px solid #334155', borderRadius: '6px', fontSize: '0.85rem' }} required />
-            <input placeholder="WhatsApp Number" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} style={{ padding: '0.6rem', background: '#0a0f1d', color: '#fff', border: '1px solid #334155', borderRadius: '6px', fontSize: '0.85rem' }} />
-            <input placeholder="Degree (BSCS, BBA, Inter)" value={form.degree} onChange={e => setForm({...form, degree: e.target.value})} style={{ padding: '0.6rem', background: '#0a0f1d', color: '#fff', border: '1px solid #334155', borderRadius: '6px', fontSize: '0.85rem' }} />
-            <input placeholder="University / Institute" value={form.university} onChange={e => setForm({...form, university: e.target.value})} style={{ padding: '0.6rem', background: '#0a0f1d', color: '#fff', border: '1px solid #334155', borderRadius: '6px', fontSize: '0.85rem' }} />
-            <input placeholder="City / District" value={form.city} onChange={e => setForm({...form, city: e.target.value})} style={{ padding: '0.6rem', background: '#0a0f1d', color: '#fff', border: '1px solid #334155', borderRadius: '6px', fontSize: '0.85rem' }} />
-            <input placeholder="Specialization (Web, AI, Banking)" value={form.target_role} onChange={e => setForm({...form, target_role: e.target.value})} style={{ padding: '0.6rem', background: '#0a0f1d', color: '#fff', border: '1px solid #334155', borderRadius: '6px', fontSize: '0.85rem' }} />
-            <div style={{ gridColumn: '1 / -1' }}>
-              <button type="submit" disabled={saving} style={{ background: '#22c55e', color: '#090d16', padding: '0.7rem', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', width: '100%', fontSize: '0.9rem' }}>
-                {saving ? 'Saving changes...' : 'Save Profile Changes 💾'}
-              </button>
-            </div>
-          </form>
-        )}
-      </div>
-
-      {/* CV Box */}
-      <div style={{ background: '#131b2e', padding: '1.25rem', borderRadius: '12px', border: '1px solid #1e293b', marginTop: '1rem' }}>
-        <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.1rem' }}>📄 Official Resume / CV (PDF)</h3>
-        {profile.resume_url ? (
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <a href={profile.resume_url} target="_blank" rel="noreferrer" style={{ background: '#0284c7', color: '#fff', padding: '0.55rem 1rem', borderRadius: '6px', textDecoration: 'none', fontSize: '0.85rem', fontWeight: 'bold' }}>
-              View My CV ↗
-            </a>
-            <label style={{ background: '#1e293b', border: '1px solid #334155', padding: '0.55rem 1rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem' }}>
-              {uploading ? 'Uploading...' : 'Replace PDF'}
-              <input type="file" accept=".pdf" onChange={handleUpload} style={{ display: 'none' }} />
+          <div style={{ marginTop: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <input type="checkbox" id="relocate" checked={relocateOk} onChange={(e) => setRelocateOk(e.target.checked)} />
+            <label htmlFor="relocate" style={{ fontSize: '0.85rem', color: '#cbd5e1', cursor: 'pointer' }}>
+              Open to relocate to Lahore / Karachi / Islamabad for work
             </label>
           </div>
-        ) : (
-          <label style={{ background: '#22c55e', color: '#090d16', padding: '0.6rem 1.25rem', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', display: 'inline-block', fontSize: '0.85rem' }}>
-            {uploading ? 'Uploading PDF...' : 'Select & Upload PDF CV 📤'}
-            <input type="file" accept=".pdf" onChange={handleUpload} style={{ display: 'none' }} />
-          </label>
-        )}
-      </div>
 
-      {/* Student Details Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem', marginTop: '1rem' }}>
-        <div style={{ background: '#0a0f1d', padding: '0.85rem', borderRadius: '8px', border: '1px solid #1e293b' }}>
-          <small style={{ color: '#94a3b8' }}>Academic Degree</small>
-          <div style={{ fontWeight: 'bold', marginTop: '0.2rem' }}>{profile.degree || 'Not specified'}</div>
-          <small style={{ color: '#38bdf8' }}>{profile.university || 'University not set'}</small>
-        </div>
-        <div style={{ background: '#0a0f1d', padding: '0.85rem', borderRadius: '8px', border: '1px solid #1e293b' }}>
-          <small style={{ color: '#94a3b8' }}>WhatsApp Direct</small>
-          <div style={{ fontWeight: 'bold', marginTop: '0.2rem' }}>{profile.phone || 'No phone'}</div>
-          <small style={{ color: '#22c55e' }}>Active for Recruiter</small>
-        </div>
-        <div style={{ background: '#0a0f1d', padding: '0.85rem', borderRadius: '8px', border: '1px solid #1e293b' }}>
-          <small style={{ color: '#94a3b8' }}>Specialization</small>
-          <div style={{ fontWeight: 'bold', marginTop: '0.2rem' }}>{profile.target_role || 'General Tech'}</div>
-          <small style={{ color: '#94a3b8' }}>Open for Matching</small>
-        </div>
-      </div>
+          {/* Photo & Resume Upload Files */}
+          <div style={{ marginTop: '1rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+            <div style={{ backgroundColor: '#0a0f1d', padding: '0.75rem', borderRadius: '8px', border: '1px solid #334155' }}>
+              <label style={{ fontSize: '0.8rem', color: '#38bdf8', fontWeight: 'bold', display: 'block', marginBottom: '0.3rem' }}>
+                Upload Formal Photo 📸
+              </label>
+              <input type="file" accept="image/*" onChange={handlePhotoUpload} style={{ fontSize: '0.8rem', color: '#94a3b8' }} />
+              {uploadingPhoto && <span style={{ fontSize: '0.75rem', color: '#facc15' }}> Uploading photo...</span>}
+            </div>
 
-      <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
-        <Link href="/" style={{ color: '#38bdf8', textDecoration: 'none', fontSize: '0.85rem', fontWeight: 'bold' }}>
-          ← Back to Verified Jobs Feed
-        </Link>
-      </div>
+            <div style={{ backgroundColor: '#0a0f1d', padding: '0.75rem', borderRadius: '8px', border: '1px solid #334155' }}>
+              <label style={{ fontSize: '0.8rem', color: '#38bdf8', fontWeight: 'bold', display: 'block', marginBottom: '0.3rem' }}>
+                Upload PDF Resume 📄
+              </label>
+              <input type="file" accept=".pdf" onChange={handleResumeUpload} style={{ fontSize: '0.8rem', color: '#94a3b8' }} />
+              {uploadingResume && <span style={{ fontSize: '0.75rem', color: '#facc15' }}> Uploading CV...</span>}
+            </div>
+          </div>
+        </div>
 
-    </div>
+        {/* 2. Education & About */}
+        <div style={{ backgroundColor: '#131b2e', padding: '1.25rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
+          <h2 style={{ fontSize: '1.1rem', margin: '0 0 1rem 0', color: '#38bdf8' }}>2. Education & Professional Bio</h2>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.85rem', marginBottom: '0.85rem' }}>
+            <div>
+              <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Degree Program (e.g. BSCS, BBA, Civil)</label>
+              <input type="text" value={degree} onChange={(e) => setDegree(e.target.value)} style={inputStyle} />
+            </div>
+            <div>
+              <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>University / Institute</label>
+              <input type="text" value={university} onChange={(e) => setUniversity(e.target.value)} style={inputStyle} />
+            </div>
+            <div>
+              <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Graduation Year</label>
+              <input type="text" value={graduationYear} onChange={(e) => setGraduationYear(e.target.value)} style={inputStyle} />
+            </div>
+          </div>
+
+          <div style={{ marginBottom: '0.85rem' }}>
+            <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Professional Summary / Bio (2-3 lines)</label>
+            <textarea
+              rows="3"
+              placeholder="e.g. Passionate software graduate specializing in React, Next.js and backend integrations, aiming for an entry-level engineering role..."
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              style={inputStyle}
+            />
+          </div>
+
+          <div>
+            <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Core Skills (Comma separated)</label>
+            <input
+              type="text"
+              placeholder="React, Next.js, Python, Financial Modeling, AutoCAD, Git"
+              value={skills}
+              onChange={(e) => setSkills(e.target.value)}
+              style={inputStyle}
+            />
+          </div>
+        </div>
+
+        {/* 3. Final Year Project (FYP) Showcase */}
+        <div style={{ backgroundColor: '#131b2e', padding: '1.25rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
+          <h2 style={{ fontSize: '1.1rem', margin: '0 0 0.5rem 0', color: '#38bdf8' }}>3. Final Year Project (FYP) / Capstone</h2>
+          <p style={{ color: '#94a3b8', fontSize: '0.8rem', marginBottom: '1rem' }}>Pakistani recruiters prioritize final year projects for fresh graduates.</p>
+          
+          <div style={{ marginBottom: '0.85rem' }}>
+            <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Project Title</label>
+            <input type="text" placeholder="e.g. Shanora AI Career Intelligence Platform" value={fypTitle} onChange={(e) => setFypTitle(e.target.value)} style={inputStyle} />
+          </div>
+
+          <div>
+            <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Project Description & GitHub / Live Demo Link</label>
+            <textarea
+              rows="2"
+              placeholder="Built using Next.js & Supabase. Live Demo: github.com/... or app.vercel.app"
+              value={fypDetails}
+              onChange={(e) => setFypDetails(e.target.value)}
+              style={inputStyle}
+            />
+          </div>
+        </div>
+
+        {/* 4. Experience & Internships (Dynamic) */}
+        <div style={{ backgroundColor: '#131b2e', padding: '1.25rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
+          <h2 style={{ fontSize: '1.1rem', margin: '0 0 0.8rem 0', color: '#38bdf8' }}>4. Experience & Internships</h2>
+
+          {/* List of existing experiences */}
+          {experienceList.map((exp, idx) => (
+            <div key={idx} style={{ backgroundColor: '#0a0f1d', padding: '0.75rem', borderRadius: '8px', border: '1px solid #334155', marginBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <strong style={{ color: '#fff', fontSize: '0.9rem' }}>{exp.role}</strong> - <span style={{ color: '#38bdf8' }}>{exp.company}</span>
+                <div style={{ color: '#94a3b8', fontSize: '0.78rem' }}>{exp.duration}</div>
+                {exp.desc && <div style={{ color: '#cbd5e1', fontSize: '0.8rem', marginTop: '0.2rem' }}>{exp.desc}</div>}
+              </div>
+              <button type="button" onClick={() => removeExperience(idx)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>✕</button>
+            </div>
+          ))}
+
+          {/* Add new experience input */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.5rem', marginTop: '0.75rem' }}>
+            <input type="text" placeholder="Role (e.g. Intern)" value={newExp.role} onChange={(e) => setNewExp({ ...newExp, role: e.target.value })} style={inputStyle} />
+            <input type="text" placeholder="Company (e.g. Systems Ltd)" value={newExp.company} onChange={(e) => setNewExp({ ...newExp, company: e.target.value })} style={inputStyle} />
+            <input type="text" placeholder="Duration (e.g. 3 Months)" value={newExp.duration} onChange={(e) => setNewExp({ ...newExp, duration: e.target.value })} style={inputStyle} />
+          </div>
+          <button type="button" onClick={addExperience} style={{ marginTop: '0.6rem', backgroundColor: '#1e293b', color: '#38bdf8', border: '1px solid #334155', padding: '0.4rem 0.8rem', borderRadius: '6px', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 'bold' }}>
+            + Add Experience
+          </button>
+        </div>
+
+        {/* 5. Certifications & Trainings (Dynamic) */}
+        <div style={{ backgroundColor: '#131b2e', padding: '1.25rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
+          <h2 style={{ fontSize: '1.1rem', margin: '0 0 0.8rem 0', color: '#38bdf8' }}>5. Certifications & Technical Trainings</h2>
+
+          {/* Certifications List */}
+          <h4 style={{ color: '#cbd5e1', margin: '0.5rem 0', fontSize: '0.85rem' }}>Certifications (Coursera, Google, PEC, etc.):</h4>
+          {certList.map((c, idx) => (
+            <div key={idx} style={{ backgroundColor: '#0a0f1d', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid #334155', marginBottom: '0.4rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.82rem' }}><strong>{c.title}</strong> ({c.issuer}) - {c.year}</span>
+              <button type="button" onClick={() => removeCertification(idx)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
+            </div>
+          ))}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.5rem' }}>
+            <input type="text" placeholder="Certificate Name" value={newCert.title} onChange={(e) => setNewCert({ ...newCert, title: e.target.value })} style={inputStyle} />
+            <input type="text" placeholder="Issuer (e.g. Google)" value={newCert.issuer} onChange={(e) => setNewCert({ ...newCert, issuer: e.target.value })} style={inputStyle} />
+            <input type="text" placeholder="Year / Credential Link" value={newCert.year} onChange={(e) => setNewCert({ ...newCert, year: e.target.value })} style={inputStyle} />
+          </div>
+          <button type="button" onClick={addCertification} style={{ marginTop: '0.4rem', marginBottom: '1rem', backgroundColor: '#1e293b', color: '#38bdf8', border: '1px solid #334155', padding: '0.35rem 0.75rem', borderRadius: '6px', fontSize: '0.78rem', cursor: 'pointer', fontWeight: 'bold' }}>
+            + Add Certificate
+          </button>
+
+          {/* Trainings / Bootcamps List */}
+          <h4 style={{ color: '#cbd5e1', margin: '0.5rem 0', fontSize: '0.85rem' }}>Trainings & Bootcamps (NAVTTC, PITB, DigiSkills):</h4>
+          {trainingList.map((t, idx) => (
+            <div key={idx} style={{ backgroundColor: '#0a0f1d', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid #334155', marginBottom: '0.4rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.82rem' }}><strong>{t.program}</strong> ({t.institute}) - {t.duration}</span>
+              <button type="button" onClick={() => removeTraining(idx)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
+            </div>
+          ))}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.5rem' }}>
+            <input type="text" placeholder="Training Program" value={newTraining.program} onChange={(e) => setNewTraining({ ...newTraining, program: e.target.value })} style={inputStyle} />
+            <input type="text" placeholder="Institute (e.g. NAVTTC)" value={newTraining.institute} onChange={(e) => setNewTraining({ ...newTraining, institute: e.target.value })} style={inputStyle} />
+            <input type="text" placeholder="Duration (e.g. 6 Months)" value={newTraining.duration} onChange={(e) => setNewTraining({ ...newTraining, duration: e.target.value })} style={inputStyle} />
+          </div>
+          <button type="button" onClick={addTraining} style={{ marginTop: '0.4rem', backgroundColor: '#1e293b', color: '#38bdf8', border: '1px solid #334155', padding: '0.35rem 0.75rem', borderRadius: '6px', fontSize: '0.78rem', cursor: 'pointer', fontWeight: 'bold' }}>
+            + Add Training
+          </button>
+        </div>
+
+        {/* Submit Button */}
+        <button
+          type="submit"
+          disabled={saving}
+          style={{ backgroundColor: '#22c55e', color: '#090d16', border: 'none', borderRadius: '10px', padding: '1rem', fontSize: '1rem', fontWeight: '900', cursor: 'pointer', boxShadow: '0 4px 15px rgba(34, 197, 94, 0.3)' }}
+        >
+          {saving ? 'Saving Profile...' : 'Save & Publish Digital Profile 🚀'}
+        </button>
+
+      </form>
+
+      <footer style={{ textAlign: 'center', padding: '2rem 1rem', color: '#64748b', fontSize: '0.8rem' }}>
+        Shanora Pakistan • Verified Student Digital Portfolio
+      </footer>
+
+    </main>
   );
-                    }
-        
+}
+
+const inputStyle = {
+  width: '100%',
+  padding: '0.65rem 0.8rem',
+  borderRadius: '8px',
+  border: '1px solid #334155',
+  backgroundColor: '#0a0f1d',
+  color: '#fff',
+  fontSize: '0.85rem',
+  outline: 'none',
+  boxSizing: 'border-box',
+  marginTop: '0.25rem'
+};
