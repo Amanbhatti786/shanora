@@ -176,6 +176,14 @@ export default function HomePage() {
           <Link href="/ats-checker" style={{ color: '#cbd5e1', textDecoration: 'none', fontSize: '0.82rem', padding: '0.4rem 0.75rem', borderRadius: '6px', border: '1px solid #334155', backgroundColor: '#0a0f1d' }}>
             ATS Scanner ⚡
           </Link>
+          <a
+            href="https://whatsapp.com/channel/0029VbDvJtl5a242cAW6DF2s"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: '#22c55e', textDecoration: 'none', fontSize: '0.82rem', padding: '0.4rem 0.75rem', borderRadius: '6px', border: '1px solid rgba(34,197,94,0.3)', backgroundColor: 'rgba(34,197,94,0.1)', fontWeight: 'bold' }}
+          >
+            WhatsApp Channel 📢
+          </a>
           <Link href="/admin" style={{ color: '#38bdf8', textDecoration: 'none', fontSize: '0.82rem', padding: '0.4rem 0.75rem', borderRadius: '6px', border: '1px solid rgba(56,189,248,0.3)', backgroundColor: 'rgba(56,189,248,0.1)' }}>
             Admin 🔒
           </Link>
@@ -353,9 +361,9 @@ export default function HomePage() {
         )}
       </section>
 
-      {/* Floating WhatsApp Community Alert Button */}
+      {/* Official WhatsApp Channel Floating Button */}
       <a
-        href="https://chat.whatsapp.com/"
+        href="https://whatsapp.com/channel/0029VbDvJtl5a242cAW6DF2s"
         target="_blank"
         rel="noopener noreferrer"
         style={{
@@ -376,7 +384,7 @@ export default function HomePage() {
           zIndex: 999
         }}
       >
-        <span>💬</span> Join WhatsApp Alerts
+        <span>📢</span> Join Shanora Channel
       </a>
 
       {/* Footer */}
@@ -386,5 +394,5 @@ export default function HomePage() {
 
     </main>
   );
-        }
+              }
               
