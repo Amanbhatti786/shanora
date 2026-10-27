@@ -406,8 +406,7 @@ export default function ProfilePage() {
             </div>
           </div>
         </div>
-
-          {/* 2. Education & About */}
+{/* 2. Education & About */}
         <div style={{ backgroundColor: '#131b2e', padding: '1.25rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
           <h2 style={{ fontSize: '1.1rem', margin: '0 0 1rem 0', color: '#38bdf8' }}>2. Education & Professional Bio</h2>
           
