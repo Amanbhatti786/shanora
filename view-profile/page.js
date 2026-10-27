@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { supabase } from '../lib/supabaseClient';
+import { supabase } from '../../lib/supabaseClient';
 import Link from 'next/link';
 
 function ProfileContent() {
@@ -240,5 +240,4 @@ export default function PublicProfileViewPage() {
       <ProfileContent />
     </Suspense>
   );
-                   }
-        
+              }
