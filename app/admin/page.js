@@ -4,12 +4,12 @@ import { supabase } from '../../lib/supabaseClient';
 import Link from 'next/link';
 
 export default function AdminDashboard() {
-  // Security PIN
-  const ADMIN_PIN = '1234'; // Apna marzi ka PIN yahan rakhein
+  const ADMIN_PIN = '1234';
   const [pinInput, setPinInput] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const [profiles, setProfiles] = useState([]);
+  const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCity, setSelectedCity] = useState('All');
@@ -22,15 +22,21 @@ export default function AdminDashboard() {
   const [applyLink, setApplyLink] = useState('');
   const [posting, setPosting] = useState(false);
   const [jobMessage, setJobMessage] = useState('');
+  const [lastPostedJob, setLastPostedJob] = useState(null);
 
   useEffect(() => {
     if (isAuthenticated) {
-      fetchRegisteredStudents();
+      loadData();
     }
   }, [isAuthenticated]);
 
-  async function fetchRegisteredStudents() {
+  async function loadData() {
     setLoading(true);
+    await Promise.all([fetchRegisteredStudents(), fetchJobs()]);
+    setLoading(false);
+  }
+
+  async function fetchRegisteredStudents() {
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -41,8 +47,20 @@ export default function AdminDashboard() {
       setProfiles(data || []);
     } catch (err) {
       console.error('Error fetching students:', err.message);
-    } finally {
-      setLoading(false);
+    }
+  }
+
+  async function fetchJobs() {
+    try {
+      const { data, error } = await supabase
+        .from('jobs')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setJobs(data || []);
+    } catch (err) {
+      console.error('Error fetching jobs:', err.message);
     }
   }
 
@@ -57,28 +75,33 @@ export default function AdminDashboard() {
     setJobMessage('');
 
     try {
-      const { error } = await supabase.from('jobs').insert([
-        {
-          title: title.trim(),
-          company: company.trim(),
-          location: location.trim(),
-          type: type.trim(),
-          apply_link: applyLink.trim(),
-        }
-      ]);
+      const newJob = {
+        title: title.trim(),
+        company: company.trim(),
+        location: location.trim(),
+        type: type.trim(),
+        apply_link: applyLink.trim(),
+      };
 
+      const { data, error } = await supabase.from('jobs').insert([newJob]).select();
       if (error) throw error;
 
-      setJobMessage('✅ Job kamyabi se Homepage par live ho gayi!');
+      setJobMessage('✅ Job live ho gayi!');
+      setLastPostedJob(data ? data[0] : newJob);
       setTitle('');
       setCompany('');
       setApplyLink('');
-      setTimeout(() => setJobMessage(''), 4000);
+      fetchJobs();
     } catch (err) {
       setJobMessage('❌ Error: ' + err.message);
     } finally {
       setPosting(false);
     }
+  };
+
+  const getWhatsAppShareUrl = (jobItem) => {
+    const text = `🚨 *NEW OPPORTUNITY - SHANORA PAKISTAN* 🇵🇰\n\n📌 *Role:* ${jobItem.title}\n🏢 *Company:* ${jobItem.company}\n📍 *Location:* ${jobItem.location}\n🎓 *Category:* ${jobItem.type}\n\n🔗 *Apply Link:* ${jobItem.apply_link}\n\n👉 *Join Shanora Student Portal:* https://shanora-pk.vercel.app`;
+    return `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
   };
 
   const toggleProStatus = async (studentId, currentStatus) => {
@@ -111,7 +134,6 @@ export default function AdminDashboard() {
     return matchesQuery && matchesCity;
   });
 
-  // Agar PIN enter nahi kiya toh Lock Screen dikhayein
   if (!isAuthenticated) {
     return (
       <main style={{ minHeight: '85vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', fontFamily: 'sans-serif' }}>
@@ -158,13 +180,13 @@ export default function AdminDashboard() {
             Shanora Operations & Directory
           </h1>
           <p style={{ color: '#94a3b8', fontSize: '0.85rem', margin: 0 }}>
-            Students oversight, candidate filtering aur nayi graduate jobs live post karein.
+            Post verified jobs, share instant WhatsApp alerts, aur candidate profiles manage karein.
           </p>
         </div>
 
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <button
-            onClick={fetchRegisteredStudents}
+            onClick={loadData}
             style={{ backgroundColor: '#0284c7', color: '#ffffff', border: 'none', padding: '0.6rem 1rem', borderRadius: '8px', fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer' }}
           >
             Refresh 🔄
@@ -182,12 +204,22 @@ export default function AdminDashboard() {
       <div style={{ backgroundColor: '#131b2e', padding: '1.5rem', borderRadius: '14px', border: '1px solid #1e293b', marginBottom: '2rem' }}>
         <h2 style={{ fontSize: '1.2rem', color: '#fff', margin: '0 0 0.4rem 0' }}>📢 Post a New Verified Opportunity</h2>
         <p style={{ color: '#94a3b8', fontSize: '0.82rem', marginBottom: '1rem' }}>
-          Yahan job add karein, yeh foran Homepage feed par tamam candidates ko nazar aane lagegi.
+          Job add karein aur direct apne WhatsApp Channel par alert share karein.
         </p>
 
         {jobMessage && (
-          <div style={{ padding: '0.75rem', backgroundColor: '#0a0f1d', border: '1px solid #38bdf8', color: '#38bdf8', borderRadius: '6px', marginBottom: '1rem', fontSize: '0.85rem', fontWeight: 'bold' }}>
-            {jobMessage}
+          <div style={{ padding: '0.75rem 1rem', backgroundColor: '#0a0f1d', border: '1px solid #22c55e', color: '#4ade80', borderRadius: '8px', marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <span>{jobMessage}</span>
+            {lastPostedJob && (
+              <a
+                href={getWhatsAppShareUrl(lastPostedJob)}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ backgroundColor: '#22c55e', color: '#090d16', padding: '0.4rem 0.85rem', borderRadius: '6px', textDecoration: 'none', fontWeight: 'bold', fontSize: '0.8rem' }}
+              >
+                Share on WhatsApp 📢
+              </a>
+            )}
           </div>
         )}
 
@@ -266,11 +298,36 @@ export default function AdminDashboard() {
               disabled={posting}
               style={{ backgroundColor: '#22c55e', color: '#090d16', border: 'none', padding: '0.7rem 1.25rem', borderRadius: '6px', fontWeight: '800', cursor: 'pointer', width: '100%', fontSize: '0.9rem' }}
             >
-              {posting ? 'Publishing Job...' : 'Publish Job to Feed 🚀'}
+              {posting ? 'Publishing Job...' : 'Publish Job & Ready WhatsApp Alert 🚀'}
             </button>
           </div>
         </form>
       </div>
+
+      {/* Posted Jobs Quick Share List */}
+      {jobs.length > 0 && (
+        <div style={{ backgroundColor: '#131b2e', padding: '1.25rem', borderRadius: '14px', border: '1px solid #1e293b', marginBottom: '2rem' }}>
+          <h2 style={{ fontSize: '1.1rem', color: '#fff', margin: '0 0 0.8rem 0' }}>⚡ Recent Posted Jobs (Quick WhatsApp Share)</h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '200px', overflowY: 'auto' }}>
+            {jobs.slice(0, 5).map((j) => (
+              <div key={j.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0a0f1d', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #1e293b' }}>
+                <div>
+                  <span style={{ color: '#fff', fontWeight: 'bold', fontSize: '0.85rem' }}>{j.title}</span>
+                  <span style={{ color: '#94a3b8', fontSize: '0.8rem', marginLeft: '0.5rem' }}>({j.company} - {j.location})</span>
+                </div>
+                <a
+                  href={getWhatsAppShareUrl(j)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ backgroundColor: '#22c55e', color: '#090d16', padding: '0.3rem 0.65rem', borderRadius: '4px', textDecoration: 'none', fontWeight: 'bold', fontSize: '0.75rem' }}
+                >
+                  Share 📲
+                </a>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Directory Section Header */}
       <h2 style={{ fontSize: '1.2rem', color: '#ffffff', margin: '0 0 0.8rem 0' }}>🎓 Registered Student Database</h2>
@@ -367,7 +424,7 @@ export default function AdminDashboard() {
                       style={{
                         backgroundColor: stu.is_premium ? 'rgba(234, 179, 8, 0.2)' : '#1e293b',
                         color: stu.is_premium ? '#facc15' : '#94a3b8',
-                        border: stu.is_premium ? '1px solid #eab308' : '1px solid #334155',
+                                                border: stu.is_premium ? '1px solid #eab308' : '1px solid #334155',
                         padding: '0.35rem 0.7rem',
                         borderRadius: '6px',
                         cursor: 'pointer',
