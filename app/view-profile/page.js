@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { supabase } from '../lib/supabaseClient';
+import { supabase } from '../../lib/supabaseClient';
 import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
@@ -244,5 +244,5 @@ export default function PublicProfileView() {
       <ProfileCard />
     </Suspense>
   );
-              }
-                      
+                           }
+      
