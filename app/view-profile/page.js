@@ -244,5 +244,5 @@ export default function PublicProfileView() {
       <ProfileCard />
     </Suspense>
   );
-                           }
-      
+        }
+                  
