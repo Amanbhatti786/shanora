@@ -88,8 +88,8 @@ export default function HomePage() {
           timeline: [
             { phase: 'Month 1 - Core Stack', desc: 'React.js, Next.js, Tailwind CSS aur Git / GitHub workflows master karein.' },
             { phase: 'Month 2 - Backend & DB', desc: 'Supabase, PostgreSQL aur REST APIs integrate karna seekhein.' },
-            { phase: 'Month 3 - Production Portfolio', desc: '2 full-stack SaaS apps live deploy karein (e.g. Vercel) with clean code.' },
-            { phase: 'Month 4 - Market Entry', desc: 'Systems Ltd, Arbisoft, 10Pearls aur remote international tech roles target karein.' }
+            { phase: 'Month 3 - Production Portfolio', desc: '2 full-stack SaaS apps live deploy karein with clean code.' },
+            { phase: 'Month 4 - Market Entry', desc: 'Systems Ltd, Arbisoft, 10Pearls aur remote tech roles target karein.' }
           ],
           marketSkills: 'Next.js, TypeScript, Supabase, Tailwind, Postman, Git',
           hiringHubs: 'Lahore, Islamabad, Karachi, Remote Global',
@@ -100,11 +100,11 @@ export default function HomePage() {
           title: `Corporate & Finance Blueprint for ${degreeInput.toUpperCase()}`,
           timeline: [
             { phase: 'Month 1 - Data Tools', desc: 'Advanced Excel (VLOOKUP, Pivot, Macros) aur PowerBI reporting seekhein.' },
-            { phase: 'Month 2 - Industry Knowledge', desc: 'Corporate Banking, Supply Chain processes, aur FMCG business dynamics samjhein.' },
-            { phase: 'Month 3 - MTO Test Prep', desc: 'HBL, Meezan, Nestle, Unilever ki screening & aptitude test practice karein.' },
+            { phase: 'Month 2 - Industry Knowledge', desc: 'Corporate Banking, Supply Chain processes, aur FMCG dynamics samjhein.' },
+            { phase: 'Month 3 - MTO Test Prep', desc: 'HBL, Meezan, Nestle, Unilever ki screening & aptitude tests tayar karein.' },
             { phase: 'Month 4 - Applications', desc: 'LinkedIn optimization karein aur verified corporate Trainee roles par apply karein.' }
           ],
-          marketSkills: 'Financial Modeling, PowerBI, Advanced Excel, ERP Basics, Corporate Communication',
+          marketSkills: 'Financial Modeling, PowerBI, Advanced Excel, ERP Basics',
           hiringHubs: 'Karachi (Banking/FMCG), Lahore, Islamabad',
           salaryEstimate: 'PKR 55,000 - 95,000 / month (MTO/Trainee)'
         };
@@ -114,11 +114,11 @@ export default function HomePage() {
           timeline: [
             { phase: 'Month 1 - Industry Software', desc: 'AutoCAD, MATLAB, ya specific engineering modeling software seekhein.' },
             { phase: 'Month 2 - Site / Lab Skills', desc: 'Quality control, HSE protocols aur practical technical standards study karein.' },
-            { phase: 'Month 3 - Certifications', desc: 'PEC registration complete karein aur Project Management basics sekhein.' },
-            { phase: 'Month 4 - Hiring Target', desc: 'Engro, Fatima Group, FWO, Descon aur Industrial Estate zones target karein.' }
+            { phase: 'Month 3 - Certifications', desc: 'PEC registration complete karein aur Project Management basics seekhein.' },
+            { phase: 'Month 4 - Hiring Target', desc: 'Engro, Fatima Group, FWO, Descon aur Industrial zones target karein.' }
           ],
           marketSkills: 'AutoCAD, Project Estimation, Quality Assurance, Site Safety (HSE)',
-          hiringHubs: 'Lahore, Karachi, Faisalabad, Sheikhupura, Hub',
+          hiringHubs: 'Lahore, Karachi, Faisalabad, Sheikhupura',
           salaryEstimate: 'PKR 50,000 - 85,000 / month (Site Trainee)'
         };
       } else {
@@ -128,7 +128,7 @@ export default function HomePage() {
             { phase: 'Month 1 - Digital Bridge', desc: 'Digital Marketing, SEO, ya Data Analysis me se 1 high-income skill choose karein.' },
             { phase: 'Month 2 - Practical Execution', desc: 'Live campaigns ya sample analytics dashboards prepare karein.' },
             { phase: 'Month 3 - CV ATS Audit', desc: 'Shanora ATS Scanner se resume score 80+ set karein.' },
-            { phase: 'Month 4 - Direct Outreach', desc: 'Pakistani agencies aur tech startups ko direct WhatsApp / LinkedIn par pitch karein.' }
+            { phase: 'Month 4 - Direct Outreach', desc: 'Pakistani agencies aur tech startups ko direct pitch karein.' }
           ],
           marketSkills: 'Google Analytics, Content Strategy, Performance Marketing, CRM',
           hiringHubs: 'Nationwide & Remote Freelance',
@@ -160,14 +160,34 @@ export default function HomePage() {
   });
 
   return (
-    <main style={{ minHeight: '100vh', padding: '1.5rem 1rem', maxWidth: '1000px', margin: '0 auto', fontFamily: 'sans-serif' }}>
+    <main style={{ minHeight: '100vh', padding: '1rem', maxWidth: '1050px', margin: '0 auto', fontFamily: 'sans-serif' }}>
       
+      {/* Top Navigation Bar */}
+      <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', padding: '0.85rem 1.25rem', backgroundColor: '#131b2e', borderRadius: '12px', border: '1px solid #1e293b', marginBottom: '1.5rem' }}>
+        <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <span style={{ fontSize: '1.4rem', fontWeight: '900', color: '#ffffff', letterSpacing: '-0.5px' }}>SHANORA</span>
+          <span style={{ backgroundColor: '#0284c7', color: '#ffffff', fontSize: '0.65rem', padding: '0.15rem 0.45rem', borderRadius: '4px', fontWeight: 'bold' }}>PK 🇵🇰</span>
+        </Link>
+
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <Link href="/profile" style={{ color: '#cbd5e1', textDecoration: 'none', fontSize: '0.82rem', padding: '0.4rem 0.75rem', borderRadius: '6px', border: '1px solid #334155', backgroundColor: '#0a0f1d' }}>
+            Profile 🎓
+          </Link>
+          <Link href="/ats-checker" style={{ color: '#cbd5e1', textDecoration: 'none', fontSize: '0.82rem', padding: '0.4rem 0.75rem', borderRadius: '6px', border: '1px solid #334155', backgroundColor: '#0a0f1d' }}>
+            ATS Scanner ⚡
+          </Link>
+          <Link href="/admin" style={{ color: '#38bdf8', textDecoration: 'none', fontSize: '0.82rem', padding: '0.4rem 0.75rem', borderRadius: '6px', border: '1px solid rgba(56,189,248,0.3)', backgroundColor: 'rgba(56,189,248,0.1)' }}>
+            Admin 🔒
+          </Link>
+        </div>
+      </nav>
+
       {/* Hero Banner */}
       <section style={{ textAlign: 'center', padding: '2.5rem 1rem', backgroundColor: '#131b2e', borderRadius: '16px', border: '1px solid #1e293b', marginBottom: '2rem' }}>
         <span style={{ backgroundColor: 'rgba(56,189,248,0.15)', color: '#38bdf8', padding: '0.3rem 0.8rem', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold' }}>
           Pakistan’s Graduate Talent Network 🇵🇰
         </span>
-        <h1 style={{ fontSize: '2.2rem', fontWeight: '900', color: '#ffffff', margin: '1rem 0 0.5rem 0' }}>
+        <h1 style={{ fontSize: '2.1rem', fontWeight: '900', color: '#ffffff', margin: '1rem 0 0.5rem 0' }}>
           Land Your First Career Role in Pakistan
         </h1>
         <p style={{ color: '#94a3b8', fontSize: '0.95rem', maxWidth: '600px', margin: '0 auto 1.5rem auto' }}>
@@ -366,5 +386,5 @@ export default function HomePage() {
 
     </main>
   );
-              }
+        }
               
