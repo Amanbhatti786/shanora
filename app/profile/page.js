@@ -21,7 +21,14 @@ export default function ProfilePage() {
       supabase.from('profiles').select('*').eq('id', session.user.id).maybeSingle().then(({ data }) => {
         if (data) {
           setProfile(data);
-          setForm({ full_name: data.full_name || '', degree: data.degree || '', university: data.university || '', city: data.city || '', phone: data.phone || '', target_role: data.target_role || '' });
+          setForm({ 
+            full_name: data.full_name || '', 
+            degree: data.degree || '', 
+            university: data.university || '', 
+            city: data.city || '', 
+            phone: data.phone || '', 
+            target_role: data.target_role || '' 
+          });
         }
         setLoading(false);
       });
@@ -31,7 +38,11 @@ export default function ProfilePage() {
   const handleSave = async (e) => {
     e.preventDefault();
     setSaving(true);
-    const payload = { id: user.id, ...form };
+    const payload = { 
+      id: user.id, 
+      email: user.email,
+      ...form 
+    };
     const { error } = await supabase.from('profiles').upsert(payload);
     setSaving(false);
     if (error) alert('Error: ' + error.message);
@@ -50,7 +61,7 @@ export default function ProfilePage() {
     const { error } = await supabase.storage.from('resumes').upload(path, file, { upsert: true });
     if (error) { alert(error.message); setUploading(false); return; }
     const { data: { publicUrl } } = supabase.storage.from('resumes').getPublicUrl(path);
-    await supabase.from('profiles').upsert({ id: user.id, resume_url: publicUrl });
+    await supabase.from('profiles').upsert({ id: user.id, email: user.email, resume_url: publicUrl });
     setProfile(prev => ({ ...prev, resume_url: publicUrl }));
     setUploading(false);
     alert('CV uploaded!');
@@ -61,7 +72,6 @@ export default function ProfilePage() {
   return (
     <div style={{ maxWidth: '600px', margin: '2rem auto', padding: '1rem', color: '#fff', fontFamily: 'sans-serif' }}>
       
-      {/* Header Profile Box */}
       <div style={{ background: '#131b2e', padding: '1.5rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
         <h2>{profile.full_name || 'Set Full Name'}</h2>
         <p style={{ color: '#94a3b8' }}>{user?.email} • {profile.city || 'Pakistan'}</p>
@@ -75,8 +85,7 @@ export default function ProfilePage() {
           </button>
         </div>
 
-        {/* Edit Form */}
-        {isEditing && (
+      {isEditing && (
           <form onSubmit={handleSave} style={{ display: 'grid', gap: '0.5rem', marginTop: '1rem' }}>
             <input placeholder="Full Name" value={form.full_name} onChange={e => setForm({...form, full_name: e.target.value})} style={{ padding: '0.5rem', background: '#0a0f1d', color: '#fff', border: '1px solid #334155', borderRadius: '4px' }} required />
             <input placeholder="Phone / WhatsApp" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} style={{ padding: '0.5rem', background: '#0a0f1d', color: '#fff', border: '1px solid #334155', borderRadius: '4px' }} />
@@ -91,7 +100,6 @@ export default function ProfilePage() {
         )}
       </div>
 
-      {/* CV Box */}
       <div style={{ background: '#131b2e', padding: '1.25rem', borderRadius: '12px', border: '1px solid #1e293b', marginTop: '1rem' }}>
         <h3>Resume / CV (PDF)</h3>
         {profile.resume_url ? (
@@ -110,7 +118,6 @@ export default function ProfilePage() {
         )}
       </div>
 
-      {/* Details Preview */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginTop: '1rem' }}>
         <div style={{ background: '#0a0f1d', padding: '0.8rem', borderRadius: '8px' }}>
           <small style={{ color: '#94a3b8' }}>Degree</small>
@@ -136,4 +143,4 @@ export default function ProfilePage() {
 
     </div>
   );
-    }
+          }
