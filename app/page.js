@@ -315,16 +315,16 @@ export default function Home() {
               <div style={{ color: '#4ade80', fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
                 🎉 Registration Successful!
               </div>
-              <p style={{ color: '#cbd5e1', fontSize: '0.85rem', marginBottom: '1rem' }}>
-                Aapka number Shanora alert list mein shamil ho chuka hai. Daily updates ke liye hamara official WhatsApp channel join karein:
+              <p style={{ color: '#cbd5e1', fontSize: '0.85rem', marginBottom: '1.25rem' }}>
+                Aapka number Shanora alert list mein shamil ho chuka hai. Daily updates ke liye official channel join karein:
               </p>
               <a
-                href="https://whatsapp.com"
+                href="https://whatsapp.com/channel/0029VbDvJtl5a242cAW6DF2s"
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ display: 'inline-block', backgroundColor: '#22c55e', color: '#090d16', fontWeight: '800', padding: '0.75rem 1.5rem', borderRadius: '8px', textDecoration: 'none', fontSize: '0.95rem' }}
+                style={{ display: 'inline-block', backgroundColor: '#22c55e', color: '#090d16', fontWeight: '800', padding: '0.85rem 1.75rem', borderRadius: '10px', textDecoration: 'none', fontSize: '1rem', boxShadow: '0 4px 14px rgba(34, 197, 94, 0.4)' }}
               >
-                Join WhatsApp Group / Channel Now ➔
+                Join Official WhatsApp Channel Now ➔
               </a>
             </div>
           ) : (
@@ -371,4 +371,4 @@ export default function Home() {
         </section>
 
         {/* Footer */}
-        <footer style={{ textAlign: 'center', marginTop: '2.5rem', color: '#64748b', fontSize: '0.8re
+        <footer style={{ textAlig
