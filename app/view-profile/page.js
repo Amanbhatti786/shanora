@@ -4,7 +4,9 @@ import { useSearchParams } from 'next/navigation';
 import { supabase } from '../lib/supabaseClient';
 import Link from 'next/link';
 
-function ProfileContent() {
+export const dynamic = 'force-dynamic';
+
+function ProfileCard() {
   const searchParams = useSearchParams();
   const emailParam = searchParams.get('email');
 
@@ -13,7 +15,7 @@ function ProfileContent() {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    async function fetchPublicProfile() {
+    async function fetchProfile() {
       if (!emailParam) {
         setLoading(false);
         return;
@@ -27,12 +29,12 @@ function ProfileContent() {
 
         if (data) setProfile(data);
       } catch (err) {
-        console.error(err);
+        console.error('Error fetching profile:', err);
       } finally {
         setLoading(false);
       }
     }
-    fetchPublicProfile();
+    fetchProfile();
   }, [emailParam]);
 
   const copyProfileLink = () => {
@@ -45,7 +47,7 @@ function ProfileContent() {
 
   if (loading) {
     return (
-      <div style={{ textAlign: 'center', padding: '4rem 1rem', color: '#94a3b8', fontFamily: 'sans-serif' }}>
+      <div style={{ textAlign: 'center', padding: '4rem 1rem', color: '#94a3b8' }}>
         Loading digital profile...
       </div>
     );
@@ -53,10 +55,10 @@ function ProfileContent() {
 
   if (!profile) {
     return (
-      <main style={{ minHeight: '80vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '1rem', fontFamily: 'sans-serif', color: '#fff', textAlign: 'center' }}>
+      <main style={{ minHeight: '80vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '1rem', textAlign: 'center' }}>
         <h2 style={{ fontSize: '1.4rem', color: '#f87171' }}>Profile Not Found</h2>
         <p style={{ color: '#94a3b8', fontSize: '0.9rem', maxWidth: '400px', margin: '0.5rem 0 1.5rem 0' }}>
-          Is email ke sath koi verified digital profile match nahi hui.
+          Is email ke sath koi profile match nahi hui.
         </p>
         <Link href="/" style={{ backgroundColor: '#0284c7', color: '#fff', padding: '0.6rem 1.2rem', borderRadius: '8px', textDecoration: 'none', fontSize: '0.85rem' }}>
           Back to Shanora Home
@@ -121,7 +123,7 @@ function ProfileContent() {
             <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.25rem', flexWrap: 'wrap' }}>
               {profile.phone && (
                 <a
-                  href={`https://wa.me/${waNumber}?text=Assalam-o-Alaikum%20${encodeURIComponent(profile.full_name)},%20we%20reviewed%20your%20Shanora%20profile%20and%20would%20like%20to%20discuss%20an%20opportunity.`}
+                  href={`https://wa.me/${waNumber}?text=Assalam-o-Alaikum%20${encodeURIComponent(profile.full_name)},%20we%20reviewed%20your%20Shanora%20profile.`}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{ backgroundColor: '#22c55e', color: '#090d16', padding: '0.6rem 1.15rem', borderRadius: '8px', textDecoration: 'none', fontWeight: 'bold', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
@@ -228,19 +230,19 @@ function ProfileContent() {
         </section>
       )}
 
-      {/* Footer */}
       <footer style={{ textAlign: 'center', padding: '1.5rem 0', borderTop: '1px solid #1e293b', color: '#64748b', fontSize: '0.8rem' }}>
-        Verified by Shanora Pakistan Talent Ecosystem
+        Shanora Pakistan • Verified Student Digital Portfolio
       </footer>
 
     </main>
   );
 }
 
-export default function PublicProfileViewPage() {
+export default function PublicProfileView() {
   return (
-    <Suspense fallback={<div style={{ textAlign: 'center', padding: '4rem', color: '#94a3b8' }}>Loading...</div>}>
-      <ProfileContent />
+    <Suspense fallback={<div style={{ textAlign: 'center', padding: '4rem', color: '#94a3b8' }}>Loading profile...</div>}>
+      <ProfileCard />
     </Suspense>
   );
-      }
+              }
+                      
