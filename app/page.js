@@ -12,9 +12,9 @@ export default function HomePage() {
 
   // AI Roadmap state
   const [degreeInput, setDegreeInput] = useState('');
-  const [roadmapResult, setRoadmapResult] = useState('');
+  const [generating, setGenerating] = useState(false);
+  const [roadmapResult, setRoadmapResult] = useState(null);
 
-  // Fallback verified jobs agar database mein jobs kam hon
   const defaultJobs = [
     {
       id: 'demo-1',
@@ -74,23 +74,71 @@ export default function HomePage() {
 
   const handleGenerateRoadmap = (e) => {
     e.preventDefault();
-    if (!degreeInput) return;
-    const lower = degreeInput.toLowerCase();
-    if (lower.includes('cs') || lower.includes('software') || lower.includes('it') || lower.includes('computer')) {
-      setRoadmapResult(`🎯 Career Action Plan for ${degreeInput}:
-1. Month 1-2: Master JavaScript/React or Python & Git GitHub.
-2. Month 3-4: Build 2 production apps (E-commerce / Dashboard) using Supabase.
-3. Month 5: Optimize ATS Resume on Shanora and target top IT hubs (Lahore, Karachi, Islamabad).`);
-    } else if (lower.includes('bba') || lower.includes('commerce') || lower.includes('finance') || lower.includes('accounting')) {
-      setRoadmapResult(`🎯 Career Action Plan for ${degreeInput}:
-1. Month 1-2: Master Advanced Excel, PowerBI, and basic Financial Modeling.
-2. Month 3: Target Commercial Bank Management Trainee programs (HBL, Meezan, UBL).
-3. Month 4-5: Prepare for Corporate Sales, Supply Chain or FinTech analyst openings.`);
-    } else {
-      setRoadmapResult(`🎯 Career Guidance for ${degreeInput}:
-1. Bridge degree knowledge with high-demand digital skills (SEO, Data Analytics, Digital Marketing).
-2. Complete verified portfolio projects and scan your CV with Shanora ATS scanner.`);
-    }
+    if (!degreeInput.trim()) return;
+    setGenerating(true);
+    setRoadmapResult(null);
+
+    setTimeout(() => {
+      const lower = degreeInput.toLowerCase();
+      let plan = {};
+
+      if (lower.includes('cs') || lower.includes('software') || lower.includes('it') || lower.includes('computer')) {
+        plan = {
+          title: `Technology Career Blueprint for ${degreeInput.toUpperCase()}`,
+          timeline: [
+            { phase: 'Month 1 - Core Stack', desc: 'React.js, Next.js, Tailwind CSS aur Git / GitHub workflows master karein.' },
+            { phase: 'Month 2 - Backend & DB', desc: 'Supabase, PostgreSQL aur REST APIs integrate karna seekhein.' },
+            { phase: 'Month 3 - Production Portfolio', desc: '2 full-stack SaaS apps live deploy karein (e.g. Vercel) with clean code.' },
+            { phase: 'Month 4 - Market Entry', desc: 'Systems Ltd, Arbisoft, 10Pearls aur remote international tech roles target karein.' }
+          ],
+          marketSkills: 'Next.js, TypeScript, Supabase, Tailwind, Postman, Git',
+          hiringHubs: 'Lahore, Islamabad, Karachi, Remote Global',
+          salaryEstimate: 'PKR 65,000 - 120,000 / month (Entry-level)'
+        };
+      } else if (lower.includes('bba') || lower.includes('finance') || lower.includes('accounting') || lower.includes('commerce') || lower.includes('mba')) {
+        plan = {
+          title: `Corporate & Finance Blueprint for ${degreeInput.toUpperCase()}`,
+          timeline: [
+            { phase: 'Month 1 - Data Tools', desc: 'Advanced Excel (VLOOKUP, Pivot, Macros) aur PowerBI reporting seekhein.' },
+            { phase: 'Month 2 - Industry Knowledge', desc: 'Corporate Banking, Supply Chain processes, aur FMCG business dynamics samjhein.' },
+            { phase: 'Month 3 - MTO Test Prep', desc: 'HBL, Meezan, Nestle, Unilever ki screening & aptitude test practice karein.' },
+            { phase: 'Month 4 - Applications', desc: 'LinkedIn optimization karein aur verified corporate Trainee roles par apply karein.' }
+          ],
+          marketSkills: 'Financial Modeling, PowerBI, Advanced Excel, ERP Basics, Corporate Communication',
+          hiringHubs: 'Karachi (Banking/FMCG), Lahore, Islamabad',
+          salaryEstimate: 'PKR 55,000 - 95,000 / month (MTO/Trainee)'
+        };
+      } else if (lower.includes('engineer') || lower.includes('electrical') || lower.includes('mechanical') || lower.includes('civil')) {
+        plan = {
+          title: `Engineering Industry Roadmap for ${degreeInput.toUpperCase()}`,
+          timeline: [
+            { phase: 'Month 1 - Industry Software', desc: 'AutoCAD, MATLAB, ya specific engineering modeling software seekhein.' },
+            { phase: 'Month 2 - Site / Lab Skills', desc: 'Quality control, HSE protocols aur practical technical standards study karein.' },
+            { phase: 'Month 3 - Certifications', desc: 'PEC registration complete karein aur Project Management basics sekhein.' },
+            { phase: 'Month 4 - Hiring Target', desc: 'Engro, Fatima Group, FWO, Descon aur Industrial Estate zones target karein.' }
+          ],
+          marketSkills: 'AutoCAD, Project Estimation, Quality Assurance, Site Safety (HSE)',
+          hiringHubs: 'Lahore, Karachi, Faisalabad, Sheikhupura, Hub',
+          salaryEstimate: 'PKR 50,000 - 85,000 / month (Site Trainee)'
+        };
+      } else {
+        plan = {
+          title: `Digital High-Growth Career Roadmap for ${degreeInput.toUpperCase()}`,
+          timeline: [
+            { phase: 'Month 1 - Digital Bridge', desc: 'Digital Marketing, SEO, ya Data Analysis me se 1 high-income skill choose karein.' },
+            { phase: 'Month 2 - Practical Execution', desc: 'Live campaigns ya sample analytics dashboards prepare karein.' },
+            { phase: 'Month 3 - CV ATS Audit', desc: 'Shanora ATS Scanner se resume score 80+ set karein.' },
+            { phase: 'Month 4 - Direct Outreach', desc: 'Pakistani agencies aur tech startups ko direct WhatsApp / LinkedIn par pitch karein.' }
+          ],
+          marketSkills: 'Google Analytics, Content Strategy, Performance Marketing, CRM',
+          hiringHubs: 'Nationwide & Remote Freelance',
+          salaryEstimate: 'PKR 45,000 - 75,000 / month'
+        };
+      }
+
+      setRoadmapResult(plan);
+      setGenerating(false);
+    }, 600);
   };
 
   const filteredJobs = jobs.filter((job) => {
@@ -112,7 +160,7 @@ export default function HomePage() {
   });
 
   return (
-    <main style={{ minHeight: '100vh', padding: '1.5rem 1rem', maxWidth: '1000px', margin: '0 auto' }}>
+    <main style={{ minHeight: '100vh', padding: '1.5rem 1rem', maxWidth: '1000px', margin: '0 auto', fontFamily: 'sans-serif' }}>
       
       {/* Hero Banner */}
       <section style={{ textAlign: 'center', padding: '2.5rem 1rem', backgroundColor: '#131b2e', borderRadius: '16px', border: '1px solid #1e293b', marginBottom: '2rem' }}>
@@ -140,24 +188,48 @@ export default function HomePage() {
       <section style={{ backgroundColor: '#131b2e', padding: '1.5rem', borderRadius: '14px', border: '1px solid #1e293b', marginBottom: '2rem' }}>
         <h2 style={{ fontSize: '1.2rem', color: '#ffffff', margin: '0 0 0.4rem 0' }}>🧭 AI Degree-to-Career Roadmap</h2>
         <p style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: '1rem' }}>
-          Apni degree enter karein (e.g. BSCS, BBA, Civil, English) aur tailored roadmap hasil karein:
+          Apni Pakistani degree enter karein (e.g. BSCS, BBA, Civil, Commerce) aur practical action plan hasil karein:
         </p>
         <form onSubmit={handleGenerateRoadmap} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <input
             type="text"
-            placeholder="Degree (e.g. BSCS, BBA, Mechanical)..."
+            placeholder="Degree (e.g. BSCS, BBA, Electrical, B.Com)..."
             value={degreeInput}
             onChange={(e) => setDegreeInput(e.target.value)}
             style={{ flex: 1, minWidth: '220px', padding: '0.7rem', borderRadius: '8px', border: '1px solid #334155', backgroundColor: '#0a0f1d', color: '#fff', fontSize: '0.85rem', outline: 'none' }}
           />
-          <button type="submit" style={{ backgroundColor: '#38bdf8', color: '#090d16', border: 'none', borderRadius: '8px', padding: '0.7rem 1.25rem', fontWeight: '800', cursor: 'pointer' }}>
-            Generate Roadmap ⚡
+          <button type="submit" disabled={generating} style={{ backgroundColor: '#38bdf8', color: '#090d16', border: 'none', borderRadius: '8px', padding: '0.7rem 1.25rem', fontWeight: '800', cursor: 'pointer' }}>
+            {generating ? 'Analyzing...' : 'Generate Roadmap ⚡'}
           </button>
         </form>
 
         {roadmapResult && (
-          <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: '#0a0f1d', borderRadius: '8px', border: '1px solid #334155', whiteSpace: 'pre-line', color: '#e2e8f0', fontSize: '0.88rem', lineHeight: '1.6' }}>
-            {roadmapResult}
+          <div style={{ marginTop: '1.25rem', padding: '1.25rem', backgroundColor: '#0a0f1d', borderRadius: '10px', border: '1px solid #334155' }}>
+            <h3 style={{ color: '#38bdf8', margin: '0 0 0.8rem 0', fontSize: '1.1rem' }}>{roadmapResult.title}</h3>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', marginBottom: '1rem' }}>
+              {roadmapResult.timeline.map((step, idx) => (
+                <div key={idx} style={{ padding: '0.65rem 0.85rem', backgroundColor: '#131b2e', borderRadius: '6px', borderLeft: '3px solid #38bdf8' }}>
+                  <strong style={{ color: '#fff', fontSize: '0.85rem' }}>{step.phase}</strong>
+                  <p style={{ color: '#cbd5e1', fontSize: '0.8rem', margin: '0.2rem 0 0 0' }}>{step.desc}</p>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem', borderTop: '1px solid #1e293b', paddingTop: '0.85rem', fontSize: '0.8rem' }}>
+              <div>
+                <span style={{ color: '#94a3b8' }}>High-Demand Skills:</span>
+                <div style={{ color: '#4ade80', fontWeight: 'bold' }}>{roadmapResult.marketSkills}</div>
+              </div>
+              <div>
+                <span style={{ color: '#94a3b8' }}>Top Hiring Hubs:</span>
+                <div style={{ color: '#cbd5e1', fontWeight: 'bold' }}>{roadmapResult.hiringHubs}</div>
+              </div>
+              <div>
+                <span style={{ color: '#94a3b8' }}>Estimated Starting Pay:</span>
+                <div style={{ color: '#facc15', fontWeight: 'bold' }}>{roadmapResult.salaryEstimate}</div>
+              </div>
+            </div>
           </div>
         )}
       </section>
@@ -180,7 +252,7 @@ export default function HomePage() {
 
         {/* City Filter Pills */}
         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
-          {['All', 'Lahore', 'Karachi', 'Islamabad', 'Remote'].map((city) => (
+          {['All', 'Lahore', 'Karachi', 'Islamabad', 'Sukkur', 'Remote'].map((city) => (
             <button
               key={city}
               onClick={() => setSelectedCity(city)}
@@ -227,7 +299,7 @@ export default function HomePage() {
           <div style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8' }}>Loading opportunities...</div>
         ) : filteredJobs.length === 0 ? (
           <div style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8', backgroundColor: '#131b2e', borderRadius: '12px' }}>
-            Koi job nahi mili. Search ya city filter change karein.
+            Koi job match nahi hui. Filter change karein.
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
@@ -261,12 +333,38 @@ export default function HomePage() {
         )}
       </section>
 
+      {/* Floating WhatsApp Community Alert Button */}
+      <a
+        href="https://chat.whatsapp.com/"
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{
+          position: 'fixed',
+          bottom: '20px',
+          right: '20px',
+          backgroundColor: '#22c55e',
+          color: '#090d16',
+          padding: '0.75rem 1.25rem',
+          borderRadius: '50px',
+          boxShadow: '0 4px 15px rgba(34, 197, 94, 0.4)',
+          textDecoration: 'none',
+          fontWeight: 'bold',
+          fontSize: '0.85rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+          zIndex: 999
+        }}
+      >
+        <span>💬</span> Join WhatsApp Alerts
+      </a>
+
       {/* Footer */}
       <footer style={{ textAlign: 'center', padding: '2rem 1rem', borderTop: '1px solid #1e293b', color: '#64748b', fontSize: '0.82rem' }}>
-        Shanora Pakistan © 2026 • Empowering Pakistani Graduates Nationwide
+        Shanora Pakistan © 2026 • Career Intelligence & Graduate Network
       </footer>
 
     </main>
   );
-      }
-      
+              }
+              
