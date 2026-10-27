@@ -1,5 +1,3 @@
-import './globals.css';
-
 export const metadata = {
   title: 'Shanora PK | Pakistan’s Graduate Career & Talent Network',
   description: 'Verified entry-level jobs, AI degree-to-career roadmaps, ATS resume audits, and direct recruiter matching for Pakistani graduates.',
