@@ -3,20 +3,6 @@ import Link from 'next/link';
 export const metadata = {
   title: 'Shanora - Pakistan Career Intelligence & Verified Opportunities',
   description: 'AI Career Roadmaps, ATS Resume Checker & Verified Entry-Level Jobs across all Pakistani Districts.',
-  metadataBase: new URL('https://shanora-pk.vercel.app'),
-  openGraph: {
-    title: 'Shanora - Career Intelligence for Pakistani Graduates 🇵🇰',
-    description: 'Find verified tech & banking jobs, scan your resume for ATS score, and get personalized career roadmaps.',
-    url: 'https://shanora-pk.vercel.app',
-    siteName: 'Shanora Pakistan',
-    locale: 'en_PK',
-    type: 'website',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'Shanora - Pakistan Career Intelligence & Opportunities',
-    description: 'Find verified tech & banking jobs across Punjab, Sindh, KPK & Islamabad.',
-  },
 };
 
 export default function RootLayout({ children }) {
@@ -35,21 +21,24 @@ export default function RootLayout({ children }) {
             </Link>
 
             {/* Navigation Links */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-              <Link href="/" style={{ color: '#cbd5e1', textDecoration: 'none', fontSize: '0.88rem', fontWeight: '500' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flexWrap: 'wrap' }}>
+              <Link href="/" style={{ color: '#cbd5e1', textDecoration: 'none', fontSize: '0.85rem', fontWeight: '500' }}>
                 Roadmap
               </Link>
-              <Link href="/ats-checker" style={{ color: '#cbd5e1', textDecoration: 'none', fontSize: '0.88rem', fontWeight: '500' }}>
+              <Link href="/ats-checker" style={{ color: '#cbd5e1', textDecoration: 'none', fontSize: '0.85rem', fontWeight: '500' }}>
                 ATS Scanner
               </Link>
-              <Link href="/admin" style={{ color: '#94a3b8', textDecoration: 'none', fontSize: '0.82rem', border: '1px solid #334155', padding: '0.3rem 0.65rem', borderRadius: '6px' }}>
+              <Link href="/auth" style={{ color: '#38bdf8', textDecoration: 'none', fontSize: '0.85rem', fontWeight: '700' }}>
+                Student Portal
+              </Link>
+              <Link href="/admin" style={{ color: '#94a3b8', textDecoration: 'none', fontSize: '0.8rem', border: '1px solid #334155', padding: '0.25rem 0.55rem', borderRadius: '6px' }}>
                 Admin Panel
               </Link>
               <a 
                 href="https://whatsapp.com/channel/0029VbDvJtl5a242cAW6DF2s" 
                 target="_blank" 
                 rel="noopener noreferrer" 
-                style={{ backgroundColor: '#22c55e', color: '#090d16', textDecoration: 'none', fontSize: '0.82rem', fontWeight: '700', padding: '0.35rem 0.85rem', borderRadius: '6px', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+                style={{ backgroundColor: '#22c55e', color: '#090d16', textDecoration: 'none', fontSize: '0.82rem', fontWeight: '700', padding: '0.35rem 0.8rem', borderRadius: '6px', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
               >
                 <span>WhatsApp</span> ⚡
               </a>
