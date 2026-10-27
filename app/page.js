@@ -7,10 +7,12 @@ export default function Home() {
   const [interest, setInterest] = useState('');
   const [roadmap, setRoadmap] = useState(null);
   const [loadingRoadmap, setLoadingRoadmap] = useState(false);
+  const [copied, setCopied] = useState(false);
+
   const [opportunities, setOpportunities] = useState([]);
   const [loadingJobs, setLoadingJobs] = useState(true);
+  const [selectedCity, setSelectedCity] = useState('All');
 
-  // Fetch opportunities from Supabase
   useEffect(() => {
     async function fetchOpportunities() {
       try {
@@ -30,7 +32,6 @@ export default function Home() {
     fetchOpportunities();
   }, []);
 
-  // Career Roadmap Logic
   const handleGenerate = (e) => {
     e.preventDefault();
     if (!degree.trim() || !interest.trim()) return;
@@ -38,34 +39,32 @@ export default function Home() {
     setLoadingRoadmap(true);
 
     setTimeout(() => {
-      const deg = degree.toLowerCase();
       const intr = interest.toLowerCase();
 
       let targetRoles = [
-        `${interest} Specialist / Engineer`,
-        'Junior Solutions Consultant',
-        'Associate Tech Analyst'
+        `${interest} Specialist`,
+        'Associate Solutions Analyst',
+        'Junior Technical Consultant'
       ];
-
-      let coreSkills = ['Problem Solving & DSA', 'Version Control (Git/GitHub)', 'Modern Frameworks & Cloud Basics'];
+      let coreSkills = ['Problem Solving & DSA', 'Modern Frameworks', 'Git & GitHub Workflows', 'Database Design'];
       let targetCompanies = 'Systems Limited, Contour Software, Jazz, Techlogix, 10Pearls, Folio3';
-      let entryCertifications = ['AWS Certified Cloud Practitioner', 'Google Professional Certificate / Coursera'];
+      let entryCertifications = ['AWS Certified Cloud Practitioner', 'Google Professional Certificate'];
 
       if (intr.includes('ai') || intr.includes('data') || intr.includes('machine learning')) {
         targetRoles = ['Associate Data Scientist', 'AI / ML Engineer Intern', 'Business Intelligence Analyst'];
-        coreSkills = ['Python / PyTorch / Pandas', 'SQL & Database Optimization', 'Data Pipelines & Model Deployment'];
-        targetCompanies = 'Systems Ltd, Jazz xplr, Afiniti, Arbisoft, VentureDive';
-        entryCertifications = ['DeepLearning.AI TensorFlow / GenAI', 'IBM Data Science Professional'];
+        coreSkills = ['Python / PyTorch', 'SQL & Data Wrangling', 'Prompt Engineering & LLM APIs', 'Model Deployment'];
+        targetCompanies = 'Systems Ltd, Afiniti, Arbisoft, Jazz xplr, VentureDive';
+        entryCertifications = ['DeepLearning.AI GenAI', 'IBM Data Science Professional'];
       } else if (intr.includes('web') || intr.includes('frontend') || intr.includes('backend') || intr.includes('full stack')) {
         targetRoles = ['Full-Stack Developer (MERN / Next.js)', 'Frontend Engineer', 'Backend API Specialist'];
-        coreSkills = ['React / Next.js', 'Node.js / FastAPI / Supabase', 'REST & GraphQL APIs', 'Docker Basics'];
-        targetCompanies = 'Contour Software, Devsinc, Educative, Netsol, Remote Global Startups';
-        entryCertifications = ['Meta Front-End / Back-End Developer', 'FreeCodeCamp Full Stack'];
+        coreSkills = ['React / Next.js', 'Node.js & Supabase', 'REST & GraphQL APIs', 'Tailwind CSS'];
+        targetCompanies = 'Contour Software, Devsinc, Educative, Netsol, Remote Startups';
+        entryCertifications = ['Meta Front-End / Back-End Professional', 'FreeCodeCamp Full Stack'];
       } else if (intr.includes('cyber') || intr.includes('security') || intr.includes('network')) {
         targetRoles = ['Information Security Analyst', 'SOC Analyst (L1)', 'Network Security Associate'];
-        coreSkills = ['Network Protocols (TCP/IP, OSI)', 'SIEM Tools & Wireshark', 'Linux System Administration'];
-        targetCompanies = 'State Bank of Pakistan, Nayatel, Jazz, Commercial Banks (HBL/UBL IT), Trillium';
-        entryCertifications = ['CompTIA Security+', 'Certified in Cybersecurity (ISC2)'];
+        coreSkills = ['TCP/IP & OSI Protocols', 'SIEM & Wireshark Analysis', 'Linux Administration'];
+        targetCompanies = 'State Bank of Pakistan, Nayatel, Jazz, Commercial Banks (HBL/UBL IT)';
+        entryCertifications = ['CompTIA Security+', 'ISC2 Certified in Cybersecurity'];
       }
 
       setRoadmap({
@@ -78,8 +77,24 @@ export default function Home() {
       });
 
       setLoadingRoadmap(false);
-    }, 600);
+      setCopied(false);
+    }, 500);
   };
+
+  const copyRoadmap = () => {
+    if (!roadmap) return;
+    const text = `SHANORA Career Roadmap\nDegree: ${roadmap.degreeTitle}\nFocus: ${roadmap.interestArea}\n\nTop Roles:\n${roadmap.targetRoles.map(r => `• ${r}`).join('\n')}\n\nSkills to Master:\n${roadmap.coreSkills.join(', ')}\n\nPakistani Employers:\n${roadmap.targetCompanies}\n\nCertifications:\n${roadmap.entryCertifications.join(' | ')}`;
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
+  };
+
+  const cities = ['All', 'Karachi', 'Lahore', 'Islamabad'];
+
+  const filteredOpportunities = opportunities.filter((item) => {
+    if (selectedCity === 'All') return true;
+    return item.location && item.location.toLowerCase().includes(selectedCity.toLowerCase());
+  });
 
   return (
     <main style={{ minHeight: '100vh', backgroundColor: '#090d16', color: '#f8fafc', padding: '2.5rem 1rem', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
@@ -142,7 +157,13 @@ export default function Home() {
             <div style={{ marginTop: '1.75rem', padding: '1.5rem', backgroundColor: '#0a0f1d', borderRadius: '12px', border: '1px solid #1e293b', borderLeft: '4px solid #38bdf8' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                 <span style={{ fontSize: '0.8rem', color: '#38bdf8', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tailored Blueprint</span>
-                <span style={{ fontSize: '0.8rem', color: '#64748b' }}>{roadmap.degreeTitle} ➔ {roadmap.interestArea}</span>
+                <button
+                  type="button"
+                  onClick={copyRoadmap}
+                  style={{ backgroundColor: '#1e293b', color: '#38bdf8', border: '1px solid #334155', borderRadius: '6px', padding: '0.3rem 0.65rem', fontSize: '0.75rem', cursor: 'pointer', fontWeight: '600' }}
+                >
+                  {copied ? '✓ Copied!' : '📋 Copy Plan'}
+                </button>
               </div>
 
               <div style={{ marginBottom: '1rem' }}>
@@ -176,7 +197,7 @@ export default function Home() {
 
         {/* Real-time Jobs Section */}
         <section style={{ backgroundColor: '#131b2e', padding: '1.75rem', borderRadius: '16px', border: '1px solid #1e293b', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.3)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
             <div>
               <h2 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#ffffff', margin: '0 0 0.25rem 0' }}>
                 💼 Live Opportunities
@@ -189,31 +210,59 @@ export default function Home() {
             </div>
           </div>
 
+          {/* City Filter Pills */}
+          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', overflowX: 'auto', paddingBottom: '0.25rem' }}>
+            {cities.map((city) => (
+              <button
+                key={city}
+                onClick={() => setSelectedCity(city)}
+                style={{
+                  padding: '0.35rem 0.85rem',
+                  fontSize: '0.8rem',
+                  borderRadius: '20px',
+                  border: selectedCity === city ? '1px solid #38bdf8' : '1px solid #334155',
+                  backgroundColor: selectedCity === city ? '#0284c7' : '#0a0f1d',
+                  color: selectedCity === city ? '#ffffff' : '#94a3b8',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                {city}
+              </button>
+            ))}
+          </div>
+
           {loadingJobs ? (
             <p style={{ color: '#94a3b8', fontSize: '0.9rem' }}>Connecting to database...</p>
-          ) : opportunities.length > 0 ? (
+          ) : filteredOpportunities.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-              {opportunities.map((item) => (
+              {filteredOpportunities.map((item) => (
                 <div
                   key={item.id}
-                  style={{ backgroundColor: '#0a0f1d', padding: '1rem 1.25rem', borderRadius: '10px', border: '1px solid #1e293b', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}
+                  style={{ backgroundColor: '#0a0f1d', padding: '1.1rem 1.25rem', borderRadius: '10px', border: '1px solid #1e293b', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}
                 >
                   <div>
-                    <h3 style={{ margin: '0 0 0.25rem 0', fontSize: '1rem', fontWeight: '600', color: '#f1f5f9' }}>{item.title}</h3>
+                    <h3 style={{ margin: '0 0 0.35rem 0', fontSize: '1rem', fontWeight: '600', color: '#f1f5f9' }}>{item.title}</h3>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.85rem', color: '#94a3b8' }}>
-                      <span style={{ color: '#38bdf8' }}>{item.company}</span>
+                      <span style={{ color: '#38bdf8', fontWeight: '500' }}>{item.company}</span>
                       <span>•</span>
                       <span>📍 {item.location || 'Pakistan'}</span>
                     </div>
                   </div>
-                  <span style={{ backgroundColor: '#1e293b', color: '#e2e8f0', fontSize: '0.75rem', padding: '0.35rem 0.75rem', borderRadius: '6px', border: '1px solid #334155' }}>
-                    Open Role
-                  </span>
+                  <a
+                    href={item.apply_url || 'https://www.google.com/search?q=' + encodeURIComponent(item.company + ' ' + item.title + ' jobs pakistan')}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ backgroundColor: '#0284c7', color: '#ffffff', fontSize: '0.8rem', padding: '0.45rem 0.9rem', borderRadius: '6px', textDecoration: 'none', fontWeight: '600', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', boxShadow: '0 2px 8px rgba(2, 132, 199, 0.3)' }}
+                  >
+                    Apply Now ↗
+                  </a>
                 </div>
               ))}
             </div>
           ) : (
-            <p style={{ color: '#94a3b8', fontSize: '0.9rem' }}>No open opportunities found currently.</p>
+            <p style={{ color: '#94a3b8', fontSize: '0.9rem' }}>Is city mein abhi koi open role nahi mila.</p>
           )}
         </section>
 
@@ -225,5 +274,5 @@ export default function Home() {
       </div>
     </main>
   );
-              }
-                
+                       }
+                            
