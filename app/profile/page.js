@@ -69,7 +69,7 @@ export default function ProfilePage() {
         .from('profiles')
         .select('*')
         .eq('email', lookupEmail.trim().toLowerCase())
-        .single();
+        .maybeSingle();
 
       if (data) {
         setFullName(data.full_name || '');
@@ -322,7 +322,7 @@ export default function ProfilePage() {
           </button>
         </div>
 
-        {/* Public Profile Share Card (When saved or loaded) */}
+        {/* Public Profile Share Card (Jab profile load ya save ho) */}
         {savedEmail && (
           <div style={{ marginTop: '1rem', padding: '0.85rem', backgroundColor: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.6rem' }}>
             <span style={{ color: '#86efac', fontSize: '0.82rem', fontWeight: 'bold' }}>
@@ -330,7 +330,7 @@ export default function ProfilePage() {
             </span>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <Link
-                href={`/profile/view?email=${encodeURIComponent(savedEmail)}`}
+                href={`/view-profile?email=${encodeURIComponent(savedEmail)}`}
                 target="_blank"
                 style={{ backgroundColor: '#22c55e', color: '#090d16', padding: '0.4rem 0.8rem', borderRadius: '6px', fontSize: '0.78rem', textDecoration: 'none', fontWeight: 'bold' }}
               >
@@ -339,7 +339,7 @@ export default function ProfilePage() {
               <button
                 type="button"
                 onClick={() => {
-                  const url = `${window.location.origin}/profile/view?email=${encodeURIComponent(savedEmail)}`;
+                  const url = `${window.location.origin}/view-profile?email=${encodeURIComponent(savedEmail)}`;
                   navigator.clipboard.writeText(url);
                   alert('Public link copy ho gaya! Ab HR ya WhatsApp par share karein.');
                 }}
@@ -406,7 +406,8 @@ export default function ProfilePage() {
             </div>
           </div>
         </div>
-{/* 2. Education & About */}
+
+        {/* 2. Education & About */}
         <div style={{ backgroundColor: '#131b2e', padding: '1.25rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
           <h2 style={{ fontSize: '1.1rem', margin: '0 0 1rem 0', color: '#38bdf8' }}>2. Education & Professional Bio</h2>
           
