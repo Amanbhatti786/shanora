@@ -15,18 +15,43 @@ export default function AdminPage() {
   const [posting, setPosting] = useState(false);
   const [postMsg, setPostMsg] = useState('');
 
+  // Jobs list & delete state
+  const [jobs, setJobs] = useState([]);
+  const [loadingJobs, setLoadingJobs] = useState(false);
+
   // Subscribers list
   const [subscribers, setSubscribers] = useState([]);
   const [loadingSubs, setLoadingSubs] = useState(false);
 
-  // Passcode verification (Default: shanora2026)
   const handleLogin = (e) => {
     e.preventDefault();
     if (passcode === 'shanora2026') {
       setIsAuthenticated(true);
-      fetchSubscribers();
+      fetchAdminData();
     } else {
       alert('Ghalat Passcode! Please try again.');
+    }
+  };
+
+  const fetchAdminData = () => {
+    fetchJobs();
+    fetchSubscribers();
+  };
+
+  const fetchJobs = async () => {
+    setLoadingJobs(true);
+    try {
+      const { data, error } = await supabase
+        .from('opportunities')
+        .select('*')
+        .order('id', { ascending: false });
+
+      if (error) throw error;
+      if (data) setJobs(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingJobs(false);
     }
   };
 
@@ -76,11 +101,26 @@ export default function AdminPage() {
       setTitle('');
       setCompany('');
       setApplyUrl('');
+      fetchJobs();
     } catch (err) {
       console.error(err);
-      setPostMsg('Error posting job. Check table permissions.');
+      setPostMsg('Error posting job. Check database permissions.');
     } finally {
       setPosting(false);
+    }
+  };
+
+  const handleDeleteJob = async (id) => {
+    const confirmDelete = window.confirm('Kya aap waqai is job ko delete karna chahte hain?');
+    if (!confirmDelete) return;
+
+    try {
+      const { error } = await supabase.from('opportunities').delete().eq('id', id);
+      if (error) throw error;
+      setJobs(jobs.filter(j => j.id !== id));
+    } catch (err) {
+      alert('Job delete nahi ho saki. Database permissions check karein.');
+      console.error(err);
     }
   };
 
@@ -118,7 +158,7 @@ export default function AdminPage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
           <div>
             <h1 style={{ fontSize: '1.8rem', fontWeight: '800', color: '#ffffff', margin: 0 }}>Admin Control Center</h1>
-            <p style={{ color: '#94a3b8', fontSize: '0.85rem', margin: '0.2rem 0 0 0' }}>Post opportunities & review recent WhatsApp lead signups.</p>
+            <p style={{ color: '#94a3b8', fontSize: '0.85rem', margin: '0.2rem 0 0 0' }}>Post, delete opportunities & review WhatsApp leads.</p>
           </div>
           <button 
             onClick={() => setIsAuthenticated(false)}
@@ -192,7 +232,7 @@ export default function AdminPage() {
             </div>
 
             <div style={{ gridColumn: '1 / -1' }}>
-              <label style={{ display: 'block', fontSize: '0.8rem', color: '#cbd5e1', marginBottom: '0.3rem' }}>Official Apply URL (LinkedIn / Portal)</label>
+              <label style={{ display: 'block', fontSize: '0.8rem', color: '#cbd5e1', marginBottom: '0.3rem' }}>Official Apply URL (LinkedIn / Careers Page)</label>
               <input 
                 type="text" 
                 placeholder="https://company.com/careers/job-id"
@@ -214,6 +254,47 @@ export default function AdminPage() {
           </form>
         </section>
 
+        {/* Manage Live Jobs Section */}
+        <section style={{ backgroundColor: '#131b2e', padding: '1.5rem', borderRadius: '12px', border: '1px solid #1e293b', marginBottom: '2.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <h2 style={{ fontSize: '1.2rem', color: '#ffffff', margin: 0 }}>📋 Manage Active Jobs ({jobs.length})</h2>
+            <button 
+              onClick={fetchJobs} 
+              style={{ backgroundColor: '#0a0f1d', color: '#38bdf8', border: '1px solid #334155', borderRadius: '6px', padding: '0.35rem 0.75rem', fontSize: '0.75rem', cursor: 'pointer' }}
+            >
+              Refresh Jobs
+            </button>
+          </div>
+
+          {loadingJobs ? (
+            <p style={{ color: '#94a3b8', fontSize: '0.85rem' }}>Loading active jobs...</p>
+          ) : jobs.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+              {jobs.map((job) => (
+                <div 
+                  key={job.id} 
+                  style={{ backgroundColor: '#0a0f1d', padding: '0.85rem 1rem', borderRadius: '8px', border: '1px solid #1e293b', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}
+                >
+                  <div>
+                    <strong style={{ color: '#f1f5f9', fontSize: '0.9rem' }}>{job.title}</strong>
+                    <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.15rem' }}>
+                      <span style={{ color: '#38bdf8' }}>{job.company}</span> • {job.location}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleDeleteJob(job.id)}
+                    style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '6px', padding: '0.35rem 0.65rem', fontSize: '0.75rem', cursor: 'pointer', fontWeight: '600' }}
+                  >
+                    Delete ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p style={{ color: '#94a3b8', fontSize: '0.85rem' }}>Koi active job nahi mili.</p>
+          )}
+        </section>
+
         {/* Recent Registered Leads Section */}
         <section style={{ backgroundColor: '#131b2e', padding: '1.5rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
@@ -222,7 +303,7 @@ export default function AdminPage() {
               onClick={fetchSubscribers} 
               style={{ backgroundColor: '#0a0f1d', color: '#38bdf8', border: '1px solid #334155', borderRadius: '6px', padding: '0.35rem 0.75rem', fontSize: '0.75rem', cursor: 'pointer' }}
             >
-              Refresh
+              Refresh Leads
             </button>
           </div>
 
@@ -259,5 +340,4 @@ export default function AdminPage() {
       </div>
     </main>
   );
-        }
-                
+}
