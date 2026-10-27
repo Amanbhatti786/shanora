@@ -15,32 +15,87 @@ export default function ProfilePage() {
   const [resumeUrl, setResumeUrl] = useState('');
   const [uploadMsg, setUploadMsg] = useState('');
 
-  // Pro features modal state
+  // Edit profile state
+  const [isEditing, setIsEditing] = useState(false);
+  const [fullName, setFullName] = useState('');
+  const [degree, setDegree] = useState('');
+  const [university, setUniversity] = useState('');
+  const [city, setCity] = useState('');
+  const [phone, setPhone] = useState('');
+  const [targetRole, setTargetRole] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  // Pro modal state
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   useEffect(() => {
-    async function loadUserData() {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        router.push('/auth');
-        return;
-      }
-      setUser(session.user);
-
-      const { data } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', session.user.id)
-        .single();
-
-      if (data) {
-        setProfile(data);
-        if (data.resume_url) setResumeUrl(data.resume_url);
-      }
-      setLoading(false);
-    }
     loadUserData();
   }, [router]);
+
+  async function loadUserData() {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      router.push('/auth');
+      return;
+    }
+    const currentUser = session.user;
+    setUser(currentUser);
+
+    // Fetch existing profile
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', currentUser.id)
+      .maybeSingle();
+
+    if (data) {
+      setProfile(data);
+      if (data.resume_url) setResumeUrl(data.resume_url);
+      setFullName(data.full_name || '');
+      setDegree(data.degree || '');
+      setUniversity(data.university || '');
+      setCity(data.city || '');
+      setPhone(data.phone || '');
+      setTargetRole(data.target_role || '');
+    } else {
+      // Row exist nahi karti to blank default set karein
+      setFullName(currentUser.user_metadata?.full_name || '');
+    }
+    setLoading(false);
+  }
+
+  const handleUpdateProfile = async (e) => {
+    e.preventDefault();
+    if (!user) return;
+    setSaving(true);
+
+    try {
+      const payload = {
+        id: user.id,
+        full_name: fullName.trim() || 'Pakistani Graduate',
+        degree: degree.trim() || 'Not specified',
+        university: university.trim() || 'University not set',
+        city: city.trim() || 'Pakistan',
+        phone: phone.trim() || 'Not provided',
+        target_role: targetRole.trim() || 'General Tech',
+      };
+
+      const { error } = await supabase
+        .from('profiles')
+        .upsert(payload, { onConflict: 'id' });
+
+      if (error) throw error;
+
+      setProfile(payload);
+      setIsEditing(false);
+      alert('✅ Profile successfully update ho gaya!');
+    } catch (err) {
+      console.error(err);
+      alert('Update error: ' + (err.message || 'Check database connection'));
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleResumeUpload = async (e) => {
     try {
@@ -70,8 +125,7 @@ export default function ProfilePage() {
 
       const { error: dbError } = await supabase
         .from('profiles')
-        .update({ resume_url: publicUrl })
-        .eq('id', user.id);
+        .upsert({ id: user.id, resume_url: publicUrl }, { onConflict: 'id' });
 
       if (dbError) throw dbError;
 
@@ -79,7 +133,7 @@ export default function ProfilePage() {
       setUploadMsg('🎉 CV kamyabi se save ho gaya!');
     } catch (err) {
       console.error(err);
-      alert('Upload fail ho gaya. Supabase storage bucket check karein.');
+      alert('Upload fail ho gaya: ' + err.message);
     } finally {
       setUploading(false);
     }
@@ -99,74 +153,113 @@ export default function ProfilePage() {
   }
 
   return (
-    <main style={{ minHeight: '90vh', padding: '2.5rem 1rem' }}>
-      <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+    <main style={{ minHeight: '90vh', padding: '2rem 1rem' }}>
+      <div style={{ maxWidth: '750px', margin: '0 auto' }}>
         
-        {/* Welcome & Tier Banner */}
-        <div style={{ backgroundColor: '#131b2e', padding: '1.75rem', borderRadius: '16px', border: '1px solid #1e293b', marginBottom: '1.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-              <span style={{ fontSize: '0.8rem', color: '#38bdf8', fontWeight: '700', textTransform: 'uppercase' }}>Student Account</span>
-              {profile?.is_premium ? (
-                <span style={{ backgroundColor: 'rgba(234, 179, 8, 0.15)', color: '#eab308', padding: '0.15rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: '800', border: '1px solid rgba(234, 179, 8, 0.3)' }}>
-                  👑 SHANORA PRO
-                </span>
-              ) : (
-                <span style={{ backgroundColor: '#1e293b', color: '#94a3b8', padding: '0.15rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: '600' }}>
-                  Standard Tier
-                </span>
-              )}
+        {/* Top Header Card */}
+        <div style={{ backgroundColor: '#131b2e', padding: '1.5rem', borderRadius: '16px', border: '1px solid #1e293b', marginBottom: '1.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.3rem' }}>
+                <span style={{ fontSize: '0.75rem', color: '#38bdf8', fontWeight: '700', textTransform: 'uppercase' }}>Candidate Account</span>
+                {profile?.is_premium ? (
+                  <span style={{ backgroundColor: 'rgba(234, 179, 8, 0.15)', color: '#eab308', padding: '0.15rem 0.5rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: '800', border: '1px solid rgba(234, 179, 8, 0.3)' }}>
+                    👑 PRO
+                  </span>
+                ) : (
+                  <span style={{ backgroundColor: '#1e293b', color: '#94a3b8', padding: '0.15rem 0.5rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: '600' }}>
+                    Free Tier
+                  </span>
+                )}
+              </div>
+              <h1 style={{ fontSize: '1.6rem', fontWeight: '800', color: '#ffffff', margin: 0 }}>
+                {profile?.full_name || 'Set Your Full Name'}
+              </h1>
+              <p style={{ color: '#94a3b8', fontSize: '0.85rem', margin: '0.2rem 0 0 0' }}>
+                {user?.email} • {profile?.city || 'Pakistan'}
+              </p>
             </div>
-            <h1 style={{ fontSize: '1.8rem', fontWeight: '800', color: '#ffffff', margin: 0 }}>
-              {profile?.full_name || 'Pakistani Graduate'}
-            </h1>
-            <p style={{ color: '#94a3b8', fontSize: '0.85rem', margin: '0.25rem 0 0 0' }}>
-              {user?.email} • {profile?.city || 'Pakistan'}
-            </p>
-          </div>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            {!profile?.is_premium && (
+            
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
               <button
-                onClick={() => setShowUpgradeModal(true)}
-                style={{ backgroundColor: '#eab308', color: '#090d16', border: 'none', borderRadius: '8px', padding: '0.5rem 0.9rem', fontSize: '0.85rem', cursor: 'pointer', fontWeight: '800' }}
+                onClick={() => setIsEditing(!isEditing)}
+                style={{ backgroundColor: '#0284c7', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.45rem 0.8rem', fontSize: '0.8rem', fontWeight: '700', cursor: 'pointer' }}
               >
-                Upgrade to Pro ⚡
+                {isEditing ? 'Close Edit ✕' : 'Edit Profile ✏️'}
               </button>
-            )}
-            <button
-              onClick={handleLogout}
-              style={{ backgroundColor: '#1e293b', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '8px', padding: '0.5rem 0.85rem', fontSize: '0.85rem', cursor: 'pointer', fontWeight: '600' }}
-            >
-              Sign Out
-            </button>
+              {!profile?.is_premium && (
+                <button
+                  onClick={() => setShowUpgradeModal(true)}
+                  style={{ backgroundColor: '#eab308', color: '#090d16', border: 'none', borderRadius: '6px', padding: '0.45rem 0.8rem', fontSize: '0.8rem', fontWeight: '800', cursor: 'pointer' }}
+                >
+                  Go Pro ⚡
+                </button>
+              )}
+              <button
+                onClick={handleLogout}
+                style={{ backgroundColor: '#1e293b', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '6px', padding: '0.45rem 0.75rem', fontSize: '0.8rem', cursor: 'pointer' }}
+              >
+                Sign Out
+              </button>
+            </div>
           </div>
+
+          {/* Edit Form */}
+          {isEditing && (
+            <form onSubmit={handleUpdateProfile} style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid #1e293b', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
+              <div>
+                <label style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'block', marginBottom: '0.2rem' }}>Full Name</label>
+                <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} required placeholder="Apna Poora Naam" style={{ width: '100%', padding: '0.55rem', borderRadius: '6px', border: '1px solid #334155', backgroundColor: '#0a0f1d', color: '#fff', fontSize: '0.85rem', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'block', marginBottom: '0.2rem' }}>WhatsApp Number</label>
+                <input type="text" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="03xxxxxxxxx" style={{ width: '100%', padding: '0.55rem', borderRadius: '6px', border: '1px solid #334155', backgroundColor: '#0a0f1d', color: '#fff', fontSize: '0.85rem', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'block', marginBottom: '0.2rem' }}>Degree (e.g. BSCS, BBA)</label>
+                <input type="text" value={degree} onChange={(e) => setDegree(e.target.value)} placeholder="BSCS / Inter" style={{ width: '100%', padding: '0.55rem', borderRadius: '6px', border: '1px solid #334155', backgroundColor: '#0a0f1d', color: '#fff', fontSize: '0.85rem', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'block', marginBottom: '0.2rem' }}>University / College</label>
+                <input type="text" value={university} onChange={(e) => setUniversity(e.target.value)} placeholder="Punjab University / FAST" style={{ width: '100%', padding: '0.55rem', borderRadius: '6px', border: '1px solid #334155', backgroundColor: '#0a0f1d', color: '#fff', fontSize: '0.85rem', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'block', marginBottom: '0.2rem' }}>City / District</label>
+                <input type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Lahore / Karachi" style={{ width: '100%', padding: '0.55rem', borderRadius: '6px', border: '1px solid #334155', backgroundColor: '#0a0f1d', color: '#fff', fontSize: '0.85rem', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'block', marginBottom: '0.2rem' }}>Target Specialty</label>
+                <input type="text" value={targetRole} onChange={(e) => setTargetRole(e.target.value)} placeholder="Web Dev, AI, Banking" style={{ width: '100%', padding: '0.55rem', borderRadius: '6px', border: '1px solid #334155', backgroundColor: '#0a0f1d', color: '#fff', fontSize: '0.85rem', boxSizing: 'border-box' }} />
+              </div>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <button type="submit" disabled={saving} style={{ backgroundColor: '#22c55e', color: '#090d16', border: 'none', padding: '0.65rem 1rem', borderRadius: '6px', fontWeight: '800', fontSize: '0.9rem', cursor: 'pointer', width: '100%' }}>
+                  {saving ? 'Saving changes...' : 'Save Profile Changes 💾'}
+                </button>
+              </div>
+            </form>
+          )}
         </div>
 
         {/* Upgrade Pro Modal */}
         {showUpgradeModal && (
-          <div style={{ backgroundColor: '#0f172a', border: '2px solid #eab308', borderRadius: '16px', padding: '1.75rem', marginBottom: '2rem', boxShadow: '0 10px 30px rgba(234, 179, 8, 0.15)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h3 style={{ color: '#facc15', margin: 0, fontSize: '1.3rem', fontWeight: '800' }}>🚀 Unlock Shanora Pro Features</h3>
+          <div style={{ backgroundColor: '#0f172a', border: '2px solid #eab308', borderRadius: '16px', padding: '1.5rem', marginBottom: '1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.8rem' }}>
+              <h3 style={{ color: '#facc15', margin: 0, fontSize: '1.15rem', fontWeight: '800' }}>👑 Shanora Pro Membership</h3>
               <button onClick={() => setShowUpgradeModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer' }}>✕</button>
             </div>
-            <p style={{ color: '#cbd5e1', fontSize: '0.9rem', lineHeight: '1.5' }}>
-              Pakistani graduates ke liye tailored premium tools jo interview calls ke chances barha dete hain:
+            <p style={{ color: '#cbd5e1', fontSize: '0.85rem', lineHeight: '1.4', margin: '0 0 0.8rem 0' }}>
+              Unlock AI Resume Re-write, tailored Cover Letters & Top Recruiter Listing for Pakistani graduates.
             </p>
-            <ul style={{ color: '#94a3b8', fontSize: '0.88rem', margin: '1rem 0', paddingLeft: '1.25rem', lineHeight: '1.6' }}>
-              <li><strong style={{ color: '#ffffff' }}>AI Resume Auto-Rewrite:</strong> Top tech aur banking companies ke format ke mutabiq resume optimize karein.</li>
-              <li><strong style={{ color: '#ffffff' }}>Custom Cover Letter Builder:</strong> Har job ke liye 1-click tailored cover letter.</li>
-              <li><strong style={{ color: '#ffffff' }}>Priority Matching:</strong> Recruiter pool mein aapka CV top par highlight hoga.</li>
-            </ul>
-            <div style={{ backgroundColor: '#131b2e', padding: '1rem', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <div style={{ backgroundColor: '#131b2e', padding: '0.85rem', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
               <div>
-                <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Pro Access (Launch Offer)</span>
-                <div style={{ color: '#4ade80', fontSize: '1.3rem', fontWeight: '900' }}>PKR 999 <span style={{ fontSize: '0.8rem', color: '#94a3b8', textDecoration: 'line-through' }}>PKR 2,500</span></div>
+                <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Lifetime Access</span>
+                <div style={{ color: '#4ade80', fontSize: '1.2rem', fontWeight: '900' }}>PKR 999</div>
               </div>
               <a
                 href="https://wa.me/923000000000?text=Hi%20Shanora%20Team%2C%20I%20want%20to%20upgrade%20to%20Shanora%20Pro"
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ backgroundColor: '#22c55e', color: '#090d16', padding: '0.65rem 1.25rem', borderRadius: '8px', textDecoration: 'none', fontWeight: '800', fontSize: '0.9rem' }}
+                style={{ backgroundColor: '#22c55e', color: '#090d16', padding: '0.5rem 1rem', borderRadius: '6px', textDecoration: 'none', fontWeight: '800', fontSize: '0.8rem' }}
               >
                 Pay via Easypaisa / JazzCash 📲
               </a>
@@ -175,135 +268,105 @@ export default function ProfilePage() {
         )}
 
         {/* CV Upload Section */}
-        <section style={{ backgroundColor: '#131b2e', padding: '1.75rem', borderRadius: '14px', border: '1px solid #1e293b', marginBottom: '1.75rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+        <section style={{ backgroundColor: '#131b2e', padding: '1.5rem', borderRadius: '14px', border: '1px solid #1e293b', marginBottom: '1.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem', flexWrap: 'wrap', gap: '0.5rem' }}>
             <div>
-              <h2 style={{ fontSize: '1.15rem', color: '#ffffff', margin: '0 0 0.2rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span>📄</span> Official Resume / CV
-              </h2>
-              <p style={{ color: '#94a3b8', fontSize: '0.82rem', margin: 0 }}>
-                Upload your updated PDF for recruiter shortlisting.
-              </p>
+              <h2 style={{ fontSize: '1.1rem', color: '#ffffff', margin: 0 }}>📄 Official Resume / CV</h2>
+              <p style={{ color: '#94a3b8', fontSize: '0.8rem', margin: '0.2rem 0 0 0' }}>Save PDF CV to your cloud account.</p>
             </div>
             {resumeUrl && (
-              <span style={{ backgroundColor: 'rgba(34, 197, 94, 0.15)', color: '#4ade80', padding: '0.25rem 0.65rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '700', border: '1px solid #22c55e' }}>
-                ✓ CV Uploaded
+              <span style={{ backgroundColor: 'rgba(34, 197, 94, 0.15)', color: '#4ade80', padding: '0.2rem 0.5rem', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '700', border: '1px solid #22c55e' }}>
+                ✓ Uploaded
               </span>
             )}
           </div>
 
           {uploadMsg && (
-            <div style={{ padding: '0.75rem', backgroundColor: 'rgba(34, 197, 94, 0.15)', color: '#4ade80', borderRadius: '8px', marginBottom: '1rem', fontSize: '0.85rem', border: '1px solid #22c55e' }}>
+            <div style={{ padding: '0.6rem', backgroundColor: 'rgba(34, 197, 94, 0.15)', color: '#4ade80', borderRadius: '6px', marginBottom: '0.8rem', fontSize: '0.8rem' }}>
               {uploadMsg}
             </div>
           )}
 
-          <div style={{ backgroundColor: '#0a0f1d', padding: '1.25rem', borderRadius: '10px', border: '1px dashed #334155', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1rem', textAlign: 'center' }}>
+          <div style={{ backgroundColor: '#0a0f1d', padding: '1.2rem', borderRadius: '10px', border: '1px dashed #334155', textAlign: 'center' }}>
             {resumeUrl ? (
-              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', justifyContent: 'center' }}>
                 <a
                   href={resumeUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  style={{ backgroundColor: '#0284c7', color: '#ffffff', padding: '0.6rem 1.25rem', borderRadius: '8px', textDecoration: 'none', fontSize: '0.85rem', fontWeight: '700', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+                  style={{ backgroundColor: '#0284c7', color: '#ffffff', padding: '0.55rem 1rem', borderRadius: '6px', textDecoration: 'none', fontSize: '0.8rem', fontWeight: '700' }}
                 >
-                  View / Download My CV ↗
+                  View My CV ↗
                 </a>
-
-                <label style={{ backgroundColor: '#1e293b', color: '#cbd5e1', border: '1px solid #334155', padding: '0.6rem 1.25rem', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '600', cursor: 'pointer' }}>
-                  {uploading ? 'Uploading...' : 'Replace CV (PDF)'}
-                  <input
-                    type="file"
-                    accept=".pdf"
-                    onChange={handleResumeUpload}
-                    disabled={uploading}
-                    style={{ display: 'none' }}
-                  />
+                <label style={{ backgroundColor: '#1e293b', color: '#cbd5e1', border: '1px solid #334155', padding: '0.55rem 1rem', borderRadius: '6px', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer' }}>
+                  {uploading ? 'Uploading...' : 'Replace PDF'}
+                  <input type="file" accept=".pdf" onChange={handleResumeUpload} disabled={uploading} style={{ display: 'none' }} />
                 </label>
               </div>
             ) : (
               <div>
-                <p style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: '0.75rem' }}>
-                  Abhi tak koi CV upload nahi hua. Apna updated resume PDF select karein.
-                </p>
-                <label style={{ backgroundColor: '#22c55e', color: '#090d16', padding: '0.65rem 1.5rem', borderRadius: '8px', fontSize: '0.9rem', fontWeight: '700', cursor: 'pointer', display: 'inline-block' }}>
+                <label style={{ backgroundColor: '#22c55e', color: '#090d16', padding: '0.6rem 1.25rem', borderRadius: '6px', fontSize: '0.85rem', fontWeight: '700', cursor: 'pointer', display: 'inline-block' }}>
                   {uploading ? 'Uploading PDF...' : 'Select & Upload PDF CV 📤'}
-                  <input
-                    type="file"
-                    accept=".pdf"
-                    onChange={handleResumeUpload}
-                    disabled={uploading}
-                    style={{ display: 'none' }}
-                  />
+                  <input type="file" accept=".pdf" onChange={handleResumeUpload} disabled={uploading} style={{ display: 'none' }} />
                 </label>
               </div>
             )}
           </div>
         </section>
 
-        {/* Profile Matrix */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1.75rem' }}>
-          <div style={{ backgroundColor: '#0a0f1d', padding: '1.25rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
-            <span style={{ color: '#94a3b8', fontSize: '0.75rem', textTransform: 'uppercase' }}>Academic Background</span>
-            <div style={{ color: '#f1f5f9', fontWeight: '700', fontSize: '1.05rem', marginTop: '0.35rem' }}>
-              {profile?.degree || 'Not specified'}
+        {/* Profile Matrix Cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.85rem', marginBottom: '1.5rem' }}>
+          <div style={{ backgroundColor: '#0a0f1d', padding: '1rem', borderRadius: '10px', border: '1px solid #1e293b' }}>
+            <span style={{ color: '#94a3b8', fontSize: '0.72rem', textTransform: 'uppercase' }}>Academic Background</span>
+            <div style={{ color: '#f1f5f9', fontWeight: '700', fontSize: '0.95rem', marginTop: '0.25rem' }}>
+              {profile?.degree || 'Click Edit Profile'}
             </div>
-            <span style={{ color: '#38bdf8', fontSize: '0.8rem' }}>{profile?.university || 'University not set'}</span>
+            <span style={{ color: '#38bdf8', fontSize: '0.75rem' }}>{profile?.university || 'University not set'}</span>
           </div>
 
-          <div style={{ backgroundColor: '#0a0f1d', padding: '1.25rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
-            <span style={{ color: '#94a3b8', fontSize: '0.75rem', textTransform: 'uppercase' }}>Target Specialization</span>
-            <div style={{ color: '#f1f5f9', fontWeight: '700', fontSize: '1.05rem', marginTop: '0.35rem' }}>
+          <div style={{ backgroundColor: '#0a0f1d', padding: '1rem', borderRadius: '10px', border: '1px solid #1e293b' }}>
+            <span style={{ color: '#94a3b8', fontSize: '0.72rem', textTransform: 'uppercase' }}>Target Specialization</span>
+            <div style={{ color: '#f1f5f9', fontWeight: '700', fontSize: '0.95rem', marginTop: '0.25rem' }}>
               {profile?.target_role || 'General Tech'}
             </div>
-            <span style={{ color: '#22c55e', fontSize: '0.8rem' }}>Active Candidate</span>
+            <span style={{ color: '#22c55e', fontSize: '0.75rem' }}>Active Candidate</span>
           </div>
 
-          <div style={{ backgroundColor: '#0a0f1d', padding: '1.25rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
-            <span style={{ color: '#94a3b8', fontSize: '0.75rem', textTransform: 'uppercase' }}>WhatsApp Direct</span>
-            <div style={{ color: '#f1f5f9', fontWeight: '700', fontSize: '1.05rem', marginTop: '0.35rem' }}>
+          <div style={{ backgroundColor: '#0a0f1d', padding: '1rem', borderRadius: '10px', border: '1px solid #1e293b' }}>
+            <span style={{ color: '#94a3b8', fontSize: '0.72rem', textTransform: 'uppercase' }}>WhatsApp Direct</span>
+            <div style={{ color: '#f1f5f9', fontWeight: '700', fontSize: '0.95rem', marginTop: '0.25rem' }}>
               {profile?.phone || 'No phone added'}
             </div>
-            <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>Alerts Enabled</span>
+            <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>Direct Alerts</span>
           </div>
         </div>
 
-        {/* Tools Section */}
-        <div style={{ backgroundColor: '#131b2e', padding: '1.5rem', borderRadius: '14px', border: '1px solid #1e293b' }}>
-          <h2 style={{ fontSize: '1.15rem', color: '#ffffff', margin: '0 0 1rem 0' }}>🛠️ Student Career Toolkit</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
-            <Link
-              href="/ats-checker"
-              style={{ backgroundColor: '#0a0f1d', padding: '1.1rem', borderRadius: '10px', border: '1px solid #1e293b', textDecoration: 'none', display: 'block' }}
-            >
-              <div style={{ fontSize: '1.2rem', marginBottom: '0.3rem' }}>⚡</div>
-              <strong style={{ color: '#f1f5f9', display: 'block', fontSize: '0.95rem' }}>ATS CV Scanner</strong>
-              <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>Check ATS match score & keywords for Pakistani market.</span>
+        {/* Toolkit Section */}
+        <div style={{ backgroundColor: '#131b2e', padding: '1.25rem', borderRadius: '14px', border: '1px solid #1e293b' }}>
+          <h2 style={{ fontSize: '1.05rem', color: '#ffffff', margin: '0 0 0.85rem 0' }}>🛠️ Student Career Toolkit</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
+            <Link href="/ats-checker" style={{ backgroundColor: '#0a0f1d', padding: '0.9rem', borderRadius: '8px', border: '1px solid #1e293b', textDecoration: 'none', display: 'block' }}>
+              <div style={{ fontSize: '1.1rem', marginBottom: '0.2rem' }}>⚡</div>
+              <strong style={{ color: '#f1f5f9', display: 'block', fontSize: '0.9rem' }}>ATS CV Scanner</strong>
+              <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>Audit resume against Pakistani hiring criteria.</span>
             </Link>
 
-            <div
-              onClick={() => setShowUpgradeModal(true)}
-              style={{ backgroundColor: '#0a0f1d', padding: '1.1rem', borderRadius: '10px', border: '1px solid #1e293b', cursor: 'pointer', position: 'relative' }}
-            >
-              <span style={{ position: 'absolute', top: '10px', right: '10px', backgroundColor: '#eab308', color: '#090d16', fontSize: '0.65rem', fontWeight: '800', padding: '0.15rem 0.4rem', borderRadius: '4px' }}>PRO</span>
-              <div style={{ fontSize: '1.2rem', marginBottom: '0.3rem' }}>✍️</div>
-              <strong style={{ color: '#f1f5f9', display: 'block', fontSize: '0.95rem' }}>AI Cover Letter Builder</strong>
-              <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>Generate 1-click tailored cover letters for any job.</span>
+            <div onClick={() => setShowUpgradeModal(true)} style={{ backgroundColor: '#0a0f1d', padding: '0.9rem', borderRadius: '8px', border: '1px solid #1e293b', cursor: 'pointer', position: 'relative' }}>
+              <span style={{ position: 'absolute', top: '8px', right: '8px', backgroundColor: '#eab308', color: '#090d16', fontSize: '0.6rem', fontWeight: '800', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>PRO</span>
+              <div style={{ fontSize: '1.1rem', marginBottom: '0.2rem' }}>✍️</div>
+              <strong style={{ color: '#f1f5f9', display: 'block', fontSize: '0.9rem' }}>AI Cover Letter Builder</strong>
+              <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>Generate 1-click tailored application letters.</span>
             </div>
 
-            <Link
-              href="/"
-              style={{ backgroundColor: '#0a0f1d', padding: '1.1rem', borderRadius: '10px', border: '1px solid #1e293b', textDecoration: 'none', display: 'block' }}
-            >
-              <div style={{ fontSize: '1.2rem', marginBottom: '0.3rem' }}>💼</div>
-              <strong style={{ color: '#f1f5f9', display: 'block', fontSize: '0.95rem' }}>District Jobs Feed</strong>
-              <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>Browse real-time openings in your home city.</span>
+            <Link href="/" style={{ backgroundColor: '#0a0f1d', padding: '0.9rem', borderRadius: '8px', border: '1px solid #1e293b', textDecoration: 'none', display: 'block' }}>
+              <div style={{ fontSize: '1.1rem', marginBottom: '0.2rem' }}>💼</div>
+              <strong style={{ color: '#f1f5f9', display: 'block', fontSize: '0.9rem' }}>District Jobs Feed</strong>
+              <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>Browse real-time openings in your home city.</span>
             </Link>
-          </div>
+/div>
         </div>
 
       </div>
     </main>
   );
-  }
-                 
+                          }
