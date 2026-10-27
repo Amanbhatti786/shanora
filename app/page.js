@@ -2,6 +2,47 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
+// Pakistan Administrative Hierarchy (Provinces & All Districts)
+const PAKISTAN_REGIONS = {
+  'All Pakistan': [],
+  'Remote / Online': [],
+  'Punjab': [
+    'Lahore', 'Faisalabad', 'Rawalpindi', 'Gujranwala', 'Multan', 'Sialkot',
+    'Bahawalpur', 'Sargodha', 'Gujrat', 'Sheikhupura', 'Jhelum', 'Sahiwal',
+    'Kasur', 'Okara', 'Chiniot', 'Rahim Yar Khan', 'Dera Ghazi Khan', 'Attock',
+    'Bhakkar', 'Chakwal', 'Hafizabad', 'Jhang', 'Khanewal', 'Khushab', 'Layyah',
+    'Lodhran', 'Mandi Bahauddin', 'Mianwali', 'Muzaffargarh', 'Nankana Sahib',
+    'Narowal', 'Pakpattan', 'Rajanpur', 'Toba Tek Singh', 'Vehari', 'Murree',
+    'Talagang', 'Kot Addu', 'Taunsa'
+  ],
+  'Sindh': [
+    'Karachi', 'Hyderabad', 'Sukkur', 'Larkana', 'Mirpur Khas', 'Nawabshah (Shaheed Benazirabad)',
+    'Badin', 'Dadu', 'Ghotki', 'Jacobabad', 'Jamshoro', 'Kashmore', 'Khairpur',
+    'Kambar Shahdadkot', 'Matiari', 'Naushahro Feroze', 'Sanghar', 'Shikarpur',
+    'Sujawal', 'Thatta', 'Tharparkar', 'Umerkot', 'Tando Allahyar', 'Tando Muhammad Khan'
+  ],
+  'KPK (Khyber Pakhtunkhwa)': [
+    'Peshawar', 'Mardan', 'Abbottabad', 'Swat', 'Dera Ismail Khan', 'Kohat',
+    'Haripur', 'Mansehra', 'Charsadda', 'Nowshera', 'Bannu', 'Swabi',
+    'Bajaur', 'Bannu', 'Batagram', 'Buner', 'Hangu', 'Khyber', 'Kurram',
+    'Lower Dir', 'Upper Dir', 'Malakand', 'Mohmand', 'North Waziristan',
+    'South Waziristan', 'Orakzai', 'Shangla', 'Tank', 'Torghar'
+  ],
+  'Islamabad ICT': [
+    'Islamabad Capital Territory'
+  ],
+  'Balochistan': [
+    'Quetta', 'Gwadar', 'Hub', 'Khuzdar', 'Turbat (Kech)', 'Sibi', 'Zhob',
+    'Chaman', 'Loralai', 'Dera Bugti', 'Jafarabad', 'Kharan', 'Lasbela', 'Pishin'
+  ],
+  'Azad Jammu & Kashmir (AJK)': [
+    'Muzaffarabad', 'Mirpur', 'Rawalakot', 'Kotli', 'Bhimber', 'Bagh', 'Neelum'
+  ],
+  'Gilgit-Baltistan (GB)': [
+    'Gilgit', 'Skardu', 'Hunza', 'Diamer', 'Ghizer', 'Kharmang'
+  ]
+};
+
 export default function Home() {
   const [degree, setDegree] = useState('');
   const [interest, setInterest] = useState('');
@@ -11,7 +52,10 @@ export default function Home() {
 
   const [opportunities, setOpportunities] = useState([]);
   const [loadingJobs, setLoadingJobs] = useState(true);
-  const [selectedCity, setSelectedCity] = useState('All');
+
+  // Geographic Filter States
+  const [selectedProvince, setSelectedProvince] = useState('All Pakistan');
+  const [selectedDistrict, setSelectedDistrict] = useState('All');
 
   // WhatsApp Alert Form States
   const [subName, setSubName] = useState('');
@@ -121,16 +165,36 @@ export default function Home() {
     }
   };
 
-  const cities = ['All', 'Karachi', 'Lahore', 'Islamabad'];
+  // Dynamic Hierarchical Filter Logic
+  const handleProvinceChange = (prov) => {
+    setSelectedProvince(prov);
+    setSelectedDistrict('All');
+  };
 
   const filteredOpportunities = opportunities.filter((item) => {
-    if (selectedCity === 'All') return true;
-    return item.location && item.location.toLowerCase().includes(selectedCity.toLowerCase());
+    if (!item.location) return true;
+    const loc = item.location.toLowerCase();
+
+    if (selectedProvince === 'All Pakistan') return true;
+    if (selectedProvince === 'Remote / Online') {
+      return loc.includes('remote') || loc.includes('online') || loc.includes('work from home');
+    }
+
+    if (selectedDistrict !== 'All') {
+      return loc.includes(selectedDistrict.toLowerCase());
+    }
+
+    // Check if the location matches any district of the selected province or the province name itself
+    const provNameLower = selectedProvince.toLowerCase().split(' ')[0];
+    if (loc.includes(provNameLower)) return true;
+
+    const districts = PAKISTAN_REGIONS[selectedProvince] || [];
+    return districts.some((d) => loc.includes(d.toLowerCase()));
   });
 
   return (
     <main style={{ minHeight: '100vh', backgroundColor: '#090d16', color: '#f8fafc', padding: '2.5rem 1rem', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-      <div style={{ maxWidth: '680px', margin: '0 auto' }}>
+      <div style={{ maxWidth: '720px', margin: '0 auto' }}>
         
         {/* Header */}
         <header style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
@@ -141,7 +205,7 @@ export default function Home() {
             SHANORA
           </h1>
           <p style={{ color: '#94a3b8', fontSize: '1rem', lineHeight: '1.5', margin: 0 }}>
-            Curated Career Blueprints & Real-Time Verified Opportunities for Pakistani Graduates
+            Curated Career Blueprints & Real-Time Verified Opportunities across All Pakistani Districts
           </p>
         </header>
 
@@ -227,14 +291,14 @@ export default function Home() {
           )}
         </section>
 
-        {/* Real-time Jobs Section */}
+        {/* Real-time Jobs Section with Provincial & District Filtering */}
         <section style={{ backgroundColor: '#131b2e', padding: '1.75rem', borderRadius: '16px', border: '1px solid #1e293b', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.3)', marginBottom: '2rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
             <div>
               <h2 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#ffffff', margin: '0 0 0.25rem 0' }}>
                 💼 Live Opportunities
               </h2>
-              <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Verified openings in Pakistan tech & banking sectors</span>
+              <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Verified openings categorized by Province & District</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
               <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#22c55e', display: 'inline-block' }}></span>
@@ -242,28 +306,53 @@ export default function Home() {
             </div>
           </div>
 
-          {/* City Filter Pills */}
-          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', overflowX: 'auto', paddingBottom: '0.25rem' }}>
-            {cities.map((city) => (
-              <button
-                key={city}
-                onClick={() => setSelectedCity(city)}
-                style={{
-                  padding: '0.35rem 0.85rem',
-                  fontSize: '0.8rem',
-                  borderRadius: '20px',
-                  border: selectedCity === city ? '1px solid #38bdf8' : '1px solid #334155',
-                  backgroundColor: selectedCity === city ? '#0284c7' : '#0a0f1d',
-                  color: selectedCity === city ? '#ffffff' : '#94a3b8',
-                  cursor: 'pointer',
-                  fontWeight: '600',
-                  transition: 'all 0.15s ease'
-                }}
-              >
-                {city}
-              </button>
-            ))}
+          {/* 1. Province Tabs */}
+          <div style={{ marginBottom: '0.75rem' }}>
+            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: '#94a3b8', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Select Province / Region:
+            </label>
+            <div style={{ display: 'flex', gap: '0.4rem', overflowX: 'auto', paddingBottom: '0.5rem', scrollbarWidth: 'thin' }}>
+              {Object.keys(PAKISTAN_REGIONS).map((prov) => (
+                <button
+                  key={prov}
+                  onClick={() => handleProvinceChange(prov)}
+                  style={{
+                    padding: '0.4rem 0.85rem',
+                    fontSize: '0.8rem',
+                    borderRadius: '20px',
+                    whiteSpace: 'nowrap',
+                    border: selectedProvince === prov ? '1px solid #38bdf8' : '1px solid #334155',
+                    backgroundColor: selectedProvince === prov ? '#0284c7' : '#0a0f1d',
+                    color: selectedProvince === prov ? '#ffffff' : '#94a3b8',
+                    cursor: 'pointer',
+                    fontWeight: '600',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  {prov}
+                </button>
+              ))}
+            </div>
           </div>
+
+          {/* 2. District Sub-Filter (Visible when a province with districts is selected) */}
+          {PAKISTAN_REGIONS[selectedProvince] && PAKISTAN_REGIONS[selectedProvince].length > 0 && (
+            <div style={{ backgroundColor: '#0a0f1d', padding: '0.85rem 1rem', borderRadius: '10px', border: '1px solid #1e293b', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '0.8rem', color: '#38bdf8', fontWeight: '600' }}>
+                📍 Filter by District in {selectedProvince}:
+              </span>
+              <select
+                value={selectedDistrict}
+                onChange={(e) => setSelectedDistrict(e.target.value)}
+                style={{ flex: '1 1 200px', padding: '0.45rem 0.75rem', borderRadius: '8px', border: '1px solid #334155', backgroundColor: '#131b2e', color: '#ffffff', fontSize: '0.85rem', outline: 'none' }}
+              >
+                <option value="All">All Districts in {selectedProvince}</option>
+                {PAKISTAN_REGIONS[selectedProvince].map((dist) => (
+                  <option key={dist} value={dist}>{dist}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {loadingJobs ? (
             <p style={{ color: '#94a3b8', fontSize: '0.9rem' }}>Connecting to database...</p>
@@ -294,7 +383,17 @@ export default function Home() {
               ))}
             </div>
           ) : (
-            <p style={{ color: '#94a3b8', fontSize: '0.9rem' }}>Is city mein abhi koi open role nahi mila.</p>
+            <div style={{ padding: '1.5rem', textAlign: 'center', backgroundColor: '#0a0f1d', borderRadius: '10px', border: '1px dashed #334155' }}>
+              <p style={{ color: '#94a3b8', fontSize: '0.9rem', margin: '0 0 0.5rem 0' }}>
+                {selectedDistrict !== 'All' ? `"${selectedDistrict}"` : `"${selectedProvince}"`} ke liye abhi koi verified role open nahi mila.
+              </p>
+              <button
+                onClick={() => { setSelectedProvince('All Pakistan'); setSelectedDistrict('All'); }}
+                style={{ backgroundColor: '#1e293b', color: '#38bdf8', border: '1px solid #38bdf8', borderRadius: '6px', padding: '0.35rem 0.75rem', fontSize: '0.8rem', cursor: 'pointer', fontWeight: '600' }}
+              >
+                Reset to All Pakistan
+              </button>
+            </div>
           )}
         </section>
 
@@ -342,10 +441,12 @@ export default function Home() {
                   onChange={(e) => setSubCity(e.target.value)}
                   style={{ flex: '0 1 120px', padding: '0.75rem 0.9rem', borderRadius: '8px', border: '1px solid #334155', backgroundColor: '#0a0f1d', color: '#ffffff', fontSize: '0.9rem', outline: 'none' }}
                 >
-                  <option value="Karachi">Karachi</option>
-                  <option value="Lahore">Lahore</option>
+                  <option value="Punjab">Punjab</option>
+                  <option value="Sindh">Sindh</option>
+                  <option value="KPK">KPK</option>
                   <option value="Islamabad">Islamabad</option>
-                  <option value="Other">Other Cities</option>
+                  <option value="Balochistan">Balochistan</option>
+                  <option value="AJK/GB">AJK / GB</option>
                 </select>
               </div>
 
@@ -370,7 +471,7 @@ export default function Home() {
           )}
         </section>
 
-                {/* Footer */}
+        {/* Footer */}
         <footer style={{ textAlign: 'center', marginTop: '2.5rem', color: '#64748b', fontSize: '0.8rem' }}>
           Shanora Career Intelligence © 2026 • Powered by Next.js & Supabase
         </footer>
@@ -378,5 +479,4 @@ export default function Home() {
       </div>
     </main>
   );
-}
-
+                }
