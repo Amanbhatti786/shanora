@@ -4,6 +4,11 @@ import { supabase } from '../../lib/supabaseClient';
 import Link from 'next/link';
 
 export default function AdminDashboard() {
+  // Security PIN
+  const ADMIN_PIN = '1234'; // Apna marzi ka PIN yahan rakhein
+  const [pinInput, setPinInput] = useState('');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
   const [profiles, setProfiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -19,10 +24,13 @@ export default function AdminDashboard() {
   const [jobMessage, setJobMessage] = useState('');
 
   useEffect(() => {
-    fetchRegisteredStudents();
-  }, []);
+    if (isAuthenticated) {
+      fetchRegisteredStudents();
+    }
+  }, [isAuthenticated]);
 
   async function fetchRegisteredStudents() {
+    setLoading(true);
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -73,6 +81,21 @@ export default function AdminDashboard() {
     }
   };
 
+  const toggleProStatus = async (studentId, currentStatus) => {
+    const newStatus = !currentStatus;
+    const { error } = await supabase
+      .from('profiles')
+      .update({ is_premium: newStatus })
+      .eq('id', studentId);
+
+    if (error) {
+      alert('Update fail: ' + error.message);
+    } else {
+      setProfiles(profiles.map(p => p.id === studentId ? { ...p, is_premium: newStatus } : p));
+      alert(`Student ko ${newStatus ? 'PRO 👑' : 'Free'} assign kar diya gaya!`);
+    }
+  };
+
   const filteredStudents = profiles.filter((student) => {
     const q = searchTerm.toLowerCase();
     const matchesQuery =
@@ -88,6 +111,40 @@ export default function AdminDashboard() {
     return matchesQuery && matchesCity;
   });
 
+  // Agar PIN enter nahi kiya toh Lock Screen dikhayein
+  if (!isAuthenticated) {
+    return (
+      <main style={{ minHeight: '85vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', fontFamily: 'sans-serif' }}>
+        <div style={{ backgroundColor: '#131b2e', padding: '2rem', borderRadius: '16px', border: '1px solid #1e293b', width: '100%', maxWidth: '360px', textAlign: 'center' }}>
+          <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>🔒</div>
+          <h2 style={{ color: '#fff', margin: '0 0 0.5rem 0' }}>Admin Restricted Access</h2>
+          <p style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: '1.5rem' }}>Shanora panel kholne ke liye Secret PIN enter karein:</p>
+          
+          <input
+            type="password"
+            placeholder="Enter PIN (Default: 1234)"
+            value={pinInput}
+            onChange={(e) => setPinInput(e.target.value)}
+            style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #334155', backgroundColor: '#0a0f1d', color: '#fff', fontSize: '1rem', textAlign: 'center', boxSizing: 'border-box', marginBottom: '1rem' }}
+          />
+
+          <button
+            onClick={() => {
+              if (pinInput === ADMIN_PIN) {
+                setIsAuthenticated(true);
+              } else {
+                alert('Ghalat PIN! Dobara try karein.');
+              }
+            }}
+            style={{ width: '100%', backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.75rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.9rem' }}
+          >
+            Unlock Dashboard 🔓
+          </button>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main style={{ minHeight: '90vh', padding: '1.5rem 1rem', maxWidth: '1100px', margin: '0 auto', fontFamily: 'sans-serif' }}>
       
@@ -95,7 +152,7 @@ export default function AdminDashboard() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
         <div>
           <span style={{ backgroundColor: 'rgba(56,189,248,0.15)', color: '#38bdf8', padding: '0.2rem 0.6rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold' }}>
-            ADMIN ACCESS
+            VERIFIED ADMIN ACCESS
           </span>
           <h1 style={{ fontSize: '1.8rem', fontWeight: '800', color: '#ffffff', margin: '0.4rem 0 0.2rem 0' }}>
             Shanora Operations & Directory
@@ -105,12 +162,20 @@ export default function AdminDashboard() {
           </p>
         </div>
 
-        <button
-          onClick={fetchRegisteredStudents}
-          style={{ backgroundColor: '#0284c7', color: '#ffffff', border: 'none', padding: '0.6rem 1rem', borderRadius: '8px', fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer' }}
-        >
-          Refresh Data 🔄
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button
+            onClick={fetchRegisteredStudents}
+            style={{ backgroundColor: '#0284c7', color: '#ffffff', border: 'none', padding: '0.6rem 1rem', borderRadius: '8px', fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer' }}
+          >
+            Refresh 🔄
+          </button>
+          <button
+            onClick={() => setIsAuthenticated(false)}
+            style={{ backgroundColor: '#1e293b', color: '#f87171', border: '1px solid #334155', padding: '0.6rem 0.85rem', borderRadius: '8px', fontSize: '0.85rem', cursor: 'pointer' }}
+          >
+            Lock 🔒
+          </button>
+        </div>
       </div>
 
       {/* Post a New Job Form */}
@@ -253,6 +318,7 @@ export default function AdminDashboard() {
                 <th style={{ padding: '0.85rem 1rem' }}>Target Specialty</th>
                 <th style={{ padding: '0.85rem 1rem' }}>WhatsApp</th>
                 <th style={{ padding: '0.85rem 1rem' }}>Resume (CV)</th>
+                <th style={{ padding: '0.85rem 1rem' }}>Membership</th>
               </tr>
             </thead>
             <tbody>
@@ -260,11 +326,6 @@ export default function AdminDashboard() {
                 <tr key={stu.id} style={{ borderBottom: '1px solid #1e293b' }}>
                   <td style={{ padding: '0.85rem 1rem', color: '#ffffff', fontWeight: 'bold' }}>
                     {stu.full_name || 'Anonymous Student'}
-                    {stu.is_premium && (
-                      <span style={{ marginLeft: '0.4rem', backgroundColor: 'rgba(234, 179, 8, 0.2)', color: '#facc15', padding: '0.1rem 0.35rem', borderRadius: '4px', fontSize: '0.65rem' }}>
-                        PRO
-                      </span>
-                    )}
                   </td>
                   <td style={{ padding: '0.85rem 1rem', color: '#cbd5e1' }}>
                     <div>{stu.degree || 'Not Added'}</div>
@@ -300,6 +361,23 @@ export default function AdminDashboard() {
                       <span style={{ color: '#64748b', fontSize: '0.75rem' }}>No CV</span>
                     )}
                   </td>
+                  <td style={{ padding: '0.85rem 1rem' }}>
+                    <button
+                      onClick={() => toggleProStatus(stu.id, stu.is_premium)}
+                      style={{
+                        backgroundColor: stu.is_premium ? 'rgba(234, 179, 8, 0.2)' : '#1e293b',
+                        color: stu.is_premium ? '#facc15' : '#94a3b8',
+                        border: stu.is_premium ? '1px solid #eab308' : '1px solid #334155',
+                        padding: '0.35rem 0.7rem',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontSize: '0.75rem',
+                        fontWeight: 'bold'
+                      }}
+                    >
+                      {stu.is_premium ? '👑 PRO Active' : '+ Make PRO'}
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -313,5 +391,4 @@ export default function AdminDashboard() {
 
     </main>
   );
-    }
-                
+}
