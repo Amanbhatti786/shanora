@@ -370,5 +370,13 @@ export default function Home() {
           )}
         </section>
 
-        {/* Footer */}
-        <footer style={{ textAlig
+                {/* Footer */}
+        <footer style={{ textAlign: 'center', marginTop: '2.5rem', color: '#64748b', fontSize: '0.8rem' }}>
+          Shanora Career Intelligence © 2026 • Powered by Next.js & Supabase
+        </footer>
+
+      </div>
+    </main>
+  );
+}
+
