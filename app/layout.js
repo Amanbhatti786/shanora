@@ -1,8 +1,22 @@
 import Link from 'next/link';
 
 export const metadata = {
-  title: 'Shanora - Pakistan Career Intelligence & Opportunities',
-  description: 'AI Career Roadmaps, ATS Resume Checker & Verified Jobs for Pakistani Graduates',
+  title: 'Shanora - Pakistan Career Intelligence & Verified Opportunities',
+  description: 'AI Career Roadmaps, ATS Resume Checker & Verified Entry-Level Jobs across all Pakistani Districts.',
+  metadataBase: new URL('https://shanora-pk.vercel.app'),
+  openGraph: {
+    title: 'Shanora - Career Intelligence for Pakistani Graduates 🇵🇰',
+    description: 'Find verified tech & banking jobs, scan your resume for ATS score, and get personalized career roadmaps.',
+    url: 'https://shanora-pk.vercel.app',
+    siteName: 'Shanora Pakistan',
+    locale: 'en_PK',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Shanora - Pakistan Career Intelligence & Opportunities',
+    description: 'Find verified tech & banking jobs across Punjab, Sindh, KPK & Islamabad.',
+  },
 };
 
 export default function RootLayout({ children }) {
