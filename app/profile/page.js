@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '../../lib/supabaseClient';
 
-export default function ProfilePage() {
+export default function StudentDashboard() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -24,24 +24,25 @@ export default function ProfilePage() {
   const [skills, setSkills] = useState('');
   const [expectedSalary, setExpectedSalary] = useState('50,000 - 80,000');
   const [relocateOk, setRelocateOk] = useState(true);
+  const [isSearchable, setIsSearchable] = useState(true);
 
-  // Media (Photo & Resume)
+  // Media
   const [photoUrl, setPhotoUrl] = useState('');
   const [resumeUrl, setResumeUrl] = useState('');
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [uploadingResume, setUploadingResume] = useState(false);
 
-  // Final Year Project (FYP)
+  // Final Year Project
   const [fypTitle, setFypTitle] = useState('');
   const [fypDetails, setFypDetails] = useState('');
 
-  // Experience Dynamic List
+  // Experience List
   const [experienceList, setExperienceList] = useState([]);
   const [newExp, setNewExp] = useState({ role: '', company: '', duration: '' });
 
-  // 1. Session Check & Data Fetch
+  // 1. Session Verification & Data Fetching
   useEffect(() => {
-    async function checkUser() {
+    async function loadStudentData() {
       const { data: { session } } = await supabase.auth.getSession();
 
       if (!session) {
@@ -68,7 +69,6 @@ export default function ProfilePage() {
           setGraduationYear(data.graduation_year || '2026');
           setBio(data.bio || '');
           
-          // Skills formatting
           if (Array.isArray(data.skills)) {
             setSkills(data.skills.join(', '));
           } else {
@@ -77,6 +77,7 @@ export default function ProfilePage() {
 
           setExpectedSalary(data.expected_salary || '50,000 - 80,000');
           setRelocateOk(data.relocate_ok !== undefined ? data.relocate_ok : true);
+          setIsSearchable(data.is_searchable !== undefined ? data.is_searchable : true);
           setPhotoUrl(data.photo_url || '');
           setResumeUrl(data.resume_url || '');
           setFypTitle(data.fyp_title || '');
@@ -86,16 +87,28 @@ export default function ProfilePage() {
           setFullName(currentUser.user_metadata?.full_name || '');
         }
       } catch (err) {
-        console.error('Fetch error:', err);
+        console.error('Error loading profile:', err);
       } finally {
         setLoading(false);
       }
     }
 
-    checkUser();
+    loadStudentData();
   }, [router]);
 
-  // Upload Handler (Photo & CV)
+  // Profile Completeness Calculation
+  function calculateCompleteness() {
+    let score = 0;
+    if (fullName) score += 15;
+    if (phone) score += 15;
+    if (university && degree) score += 20;
+    if (skills) score += 15;
+    if (photoUrl) score += 15;
+    if (resumeUrl) score += 20;
+    return score;
+  }
+
+  // Upload handler for Photo / Resume
   async function handleFileUpload(e, type) {
     const file = e.target.files[0];
     if (!file) return;
@@ -121,32 +134,31 @@ export default function ProfilePage() {
 
       if (type === 'photo') {
         setPhotoUrl(publicUrlData.publicUrl);
-        setMsg({ text: 'Profile photo uploaded successfully! 📸', type: 'success' });
+        setMsg({ text: 'Profile picture updated! 📸', type: 'success' });
       } else {
         setResumeUrl(publicUrlData.publicUrl);
-        setMsg({ text: 'Resume / CV uploaded successfully! 📄', type: 'success' });
+        setMsg({ text: 'CV uploaded successfully! 📄', type: 'success' });
       }
     } catch (err) {
-      setMsg({ text: 'Upload failed: ' + (err.message || 'Make sure storage bucket exists'), type: 'error' });
+      setMsg({ text: 'Upload failed: ' + (err.message || 'Check storage permissions'), type: 'error' });
     } finally {
       if (type === 'photo') setUploadingPhoto(false);
       if (type === 'resume') setUploadingResume(false);
     }
   }
 
-  // Add Experience
+  // Experience handlers
   function addExperience() {
     if (!newExp.role || !newExp.company) return;
     setExperienceList([...experienceList, newExp]);
     setNewExp({ role: '', company: '', duration: '' });
   }
 
-  // Remove Experience
   function removeExperience(index) {
     setExperienceList(experienceList.filter((_, i) => i !== index));
   }
 
-  // Save All Details
+  // Save changes
   async function handleSave(e) {
     e.preventDefault();
     setSaving(true);
@@ -170,6 +182,7 @@ export default function ProfilePage() {
         skills: formattedSkills,
         expected_salary: expectedSalary,
         relocate_ok: relocateOk,
+        is_searchable: isSearchable,
         photo_url: photoUrl,
         resume_url: resumeUrl,
         fyp_title: fypTitle.trim(),
@@ -183,9 +196,9 @@ export default function ProfilePage() {
         .upsert(payload, { onConflict: 'email' });
 
       if (error) throw error;
-      setMsg({ text: 'All details updated successfully! 🎉', type: 'success' });
+      setMsg({ text: 'Your profile has been saved successfully! 🎉', type: 'success' });
     } catch (err) {
-      setMsg({ text: err.message || 'Failed to update details', type: 'error' });
+      setMsg({ text: err.message || 'Failed to save changes.', type: 'error' });
     } finally {
       setSaving(false);
     }
@@ -199,22 +212,26 @@ export default function ProfilePage() {
   if (loading) {
     return (
       <div style={{ minHeight: '100vh', backgroundColor: '#070b14', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#38bdf8', fontFamily: 'system-ui' }}>
-        Loading student portal details...
+        Loading student dashboard...
       </div>
     );
   }
 
+  const completeness = calculateCompleteness();
+
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#070b14', color: '#f8fafc', fontFamily: 'system-ui, sans-serif', paddingBottom: '4rem' }}>
       
-      {/* Top Header */}
+      {/* Top Navbar */}
       <header style={{ 
         backgroundColor: '#0f172a', 
         borderBottom: '1px solid #1e293b', 
         padding: '0.85rem 1.5rem', 
         display: 'flex', 
         justifyContent: 'space-between', 
-        alignItems: 'center' 
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: '0.8rem'
       }}>
         <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <span style={{ fontSize: '1.25rem', fontWeight: '900', color: '#ffffff' }}>SHANORA<span style={{ color: '#38bdf8' }}>.PK</span></span>
@@ -224,13 +241,13 @@ export default function ProfilePage() {
           <Link 
             href={`/view-profile?email=${encodeURIComponent(user?.email || '')}`} 
             target="_blank"
-            style={{ backgroundColor: '#1e293b', color: '#38bdf8', padding: '0.45rem 0.9rem', borderRadius: '6px', fontSize: '0.82rem', textDecoration: 'none', border: '1px solid #334155', fontWeight: 'bold' }}
+            style={{ backgroundColor: '#1e293b', color: '#38bdf8', padding: '0.45rem 0.9rem', borderRadius: '8px', fontSize: '0.82rem', textDecoration: 'none', border: '1px solid #334155', fontWeight: 'bold' }}
           >
-            Live Profile 🔗
+            Live Portfolio 🔗
           </Link>
           <button 
             onClick={handleLogout}
-            style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '0.45rem 0.9rem', borderRadius: '6px', fontSize: '0.82rem', fontWeight: 'bold', cursor: 'pointer' }}
+            style={{ backgroundColor: 'rgba(239, 68, 68, 0.12)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '0.45rem 0.9rem', borderRadius: '8px', fontSize: '0.82rem', fontWeight: 'bold', cursor: 'pointer' }}
           >
             Logout 🚪
           </button>
@@ -238,19 +255,35 @@ export default function ProfilePage() {
       </header>
 
       {/* Main Container */}
-      <main style={{ maxWidth: '750px', margin: '2rem auto 0', padding: '0 1rem' }}>
-        <div style={{ backgroundColor: '#0f172a', padding: '2rem', borderRadius: '16px', border: '1px solid #1e293b' }}>
-          
-          <div style={{ marginBottom: '1.5rem' }}>
-            <h1 style={{ fontSize: '1.5rem', fontWeight: '800', margin: '0 0 0.3rem 0', color: '#fff' }}>Student Profile Management 🎓</h1>
-            <p style={{ color: '#94a3b8', fontSize: '0.85rem', margin: 0 }}>Logged in as: <strong style={{ color: '#38bdf8' }}>{user?.email}</strong></p>
+      <main style={{ maxWidth: '800px', margin: '2rem auto 0', padding: '0 1rem' }}>
+        
+        {/* Profile Strength & Welcome Card */}
+        <div style={{ backgroundColor: '#0f172a', padding: '1.5rem', borderRadius: '16px', border: '1px solid #1e293b', marginBottom: '1.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.8rem', marginBottom: '1rem' }}>
+            <div>
+              <h1 style={{ fontSize: '1.4rem', fontWeight: '800', margin: '0 0 0.25rem 0', color: '#fff' }}>Welcome back, {fullName || 'Student'} 👋</h1>
+              <p style={{ color: '#94a3b8', fontSize: '0.85rem', margin: 0 }}>Registered Account: <strong style={{ color: '#38bdf8' }}>{user?.email}</strong></p>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <span style={{ fontSize: '1.1rem', fontWeight: '900', color: completeness >= 80 ? '#22c55e' : '#fbbf24' }}>{completeness}%</span>
+              <span style={{ display: 'block', fontSize: '0.75rem', color: '#64748b' }}>Profile Strength</span>
+            </div>
           </div>
 
+          {/* Progress Bar */}
+          <div style={{ width: '100%', height: '8px', backgroundColor: '#1e293b', borderRadius: '10px', overflow: 'hidden' }}>
+            <div style={{ width: `${completeness}%`, height: '100%', backgroundColor: completeness >= 80 ? '#22c55e' : '#38bdf8', transition: 'width 0.4s ease' }} />
+          </div>
+        </div>
+
+        {/* Form Container */}
+        <div style={{ backgroundColor: '#0f172a', padding: '2rem', borderRadius: '16px', border: '1px solid #1e293b' }}>
+          
           {msg.text && (
             <div style={{ 
-              padding: '0.75rem', 
+              padding: '0.85rem', 
               borderRadius: '8px', 
-              fontSize: '0.85rem', 
+              fontSize: '0.88rem', 
               marginBottom: '1.5rem',
               backgroundColor: msg.type === 'error' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(34, 197, 94, 0.15)',
               border: `1px solid ${msg.type === 'error' ? '#ef4444' : '#22c55e'}`,
@@ -262,16 +295,15 @@ export default function ProfilePage() {
 
           <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '1.4rem' }}>
             
-            {/* 1. MEDIA UPLOADS (PHOTO & CV) */}
-            <div style={{ backgroundColor: '#131b2e', padding: '1.2rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
+            {/* 1. MEDIA SECTION */}
+            <div style={{ backgroundColor: '#131b2e', padding: '1.25rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
               <h3 style={{ fontSize: '1rem', color: '#38bdf8', margin: '0 0 1rem 0' }}>📸 Profile Photo & 📄 CV / Resume</h3>
               
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.2rem' }}>
-                {/* Photo Upload */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.5rem' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.82rem', color: '#cbd5e1', marginBottom: '0.4rem', fontWeight: 'bold' }}>Profile Picture</label>
                   {photoUrl && (
-                    <img src={photoUrl} alt="Preview" style={{ width: '60px', height: '60px', borderRadius: '50%', objectFit: 'cover', marginBottom: '0.5rem', border: '2px solid #38bdf8' }} />
+                    <img src={photoUrl} alt="Preview" style={{ width: '64px', height: '64px', borderRadius: '50%', objectFit: 'cover', marginBottom: '0.6rem', border: '2px solid #38bdf8' }} />
                   )}
                   <input 
                     type="file" 
@@ -279,15 +311,14 @@ export default function ProfilePage() {
                     onChange={(e) => handleFileUpload(e, 'photo')} 
                     style={{ fontSize: '0.8rem', color: '#94a3b8' }} 
                   />
-                  {uploadingPhoto && <span style={{ fontSize: '0.75rem', color: '#fbbf24', display: 'block', marginTop: '0.2rem' }}>Uploading photo...</span>}
+                  {uploadingPhoto && <span style={{ fontSize: '0.75rem', color: '#fbbf24', display: 'block', marginTop: '0.3rem' }}>Uploading picture...</span>}
                 </div>
 
-                {/* Resume Upload */}
                 <div>
                   <label style={{ display: 'block', fontSize: '0.82rem', color: '#cbd5e1', marginBottom: '0.4rem', fontWeight: 'bold' }}>Resume / CV (PDF)</label>
                   {resumeUrl && (
-                    <a href={resumeUrl} target="_blank" rel="noreferrer" style={{ fontSize: '0.8rem', color: '#38bdf8', display: 'block', marginBottom: '0.5rem' }}>
-                      View Current CV 📄
+                    <a href={resumeUrl} target="_blank" rel="noreferrer" style={{ fontSize: '0.82rem', color: '#38bdf8', display: 'block', marginBottom: '0.6rem', textDecoration: 'underline' }}>
+                      View Uploaded CV 📄
                     </a>
                   )}
                   <input 
@@ -296,12 +327,12 @@ export default function ProfilePage() {
                     onChange={(e) => handleFileUpload(e, 'resume')} 
                     style={{ fontSize: '0.8rem', color: '#94a3b8' }} 
                   />
-                  {uploadingResume && <span style={{ fontSize: '0.75rem', color: '#fbbf24', display: 'block', marginTop: '0.2rem' }}>Uploading CV...</span>}
+                  {uploadingResume && <span style={{ fontSize: '0.75rem', color: '#fbbf24', display: 'block', marginTop: '0.3rem' }}>Uploading CV...</span>}
                 </div>
               </div>
             </div>
 
-            {/* 2. BASIC INFO */}
+            {/* 2. BASIC INFORMATION */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '0.82rem', color: '#cbd5e1', marginBottom: '0.4rem', fontWeight: 'bold' }}>Full Name *</label>
@@ -320,6 +351,7 @@ export default function ProfilePage() {
                   required 
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
+                  placeholder="03001234567"
                   style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', backgroundColor: '#1e293b', border: '1px solid #334155', color: '#fff', boxSizing: 'border-box' }}
                 />
               </div>
@@ -328,30 +360,30 @@ export default function ProfilePage() {
             {/* 3. EDUCATION */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '0.82rem', color: '#cbd5e1', marginBottom: '0.4rem', fontWeight: 'bold' }}>University / College *</label>
+                <label style={{ display: 'block', fontSize: '0.82rem', color: '#cbd5e1', marginBottom: '0.4rem', fontWeight: 'bold' }}>University / Institute *</label>
                 <input 
                   type="text" 
                   required 
                   value={university}
                   onChange={(e) => setUniversity(e.target.value)}
-                  placeholder="e.g. UET Lahore"
+                  placeholder="e.g. UET Lahore, FAST, Punjab University"
                   style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', backgroundColor: '#1e293b', border: '1px solid #334155', color: '#fff', boxSizing: 'border-box' }}
                 />
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: '0.82rem', color: '#cbd5e1', marginBottom: '0.4rem', fontWeight: 'bold' }}>Degree / Field *</label>
+                <label style={{ display: 'block', fontSize: '0.82rem', color: '#cbd5e1', marginBottom: '0.4rem', fontWeight: 'bold' }}>Degree / Discipline *</label>
                 <input 
                   type="text" 
                   required 
                   value={degree}
                   onChange={(e) => setDegree(e.target.value)}
-                  placeholder="e.g. BS Computer Science"
+                  placeholder="e.g. BS Computer Science / BBA"
                   style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', backgroundColor: '#1e293b', border: '1px solid #334155', color: '#fff', boxSizing: 'border-box' }}
                 />
               </div>
             </div>
 
-            {/* 4. CITY, YEAR, SALARY & RELOCATE */}
+            {/* 4. PREFERENCES */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '0.82rem', color: '#cbd5e1', marginBottom: '0.4rem', fontWeight: 'bold' }}>City</label>
@@ -372,7 +404,7 @@ export default function ProfilePage() {
                 />
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: '0.82rem', color: '#cbd5e1', marginBottom: '0.4rem', fontWeight: 'bold' }}>Expected Salary</label>
+                <label style={{ display: 'block', fontSize: '0.82rem', color: '#cbd5e1', marginBottom: '0.4rem', fontWeight: 'bold' }}>Expected Salary (PKR)</label>
                 <input 
                   type="text" 
                   value={expectedSalary}
@@ -382,64 +414,76 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <input 
-                type="checkbox" 
-                id="relocate" 
-                checked={relocateOk} 
-                onChange={(e) => setRelocateOk(e.target.checked)} 
-                style={{ width: '18px', height: '18px' }} 
-              />
-              <label htmlFor="relocate" style={{ fontSize: '0.85rem', color: '#cbd5e1' }}>Willing to relocate for work (Other cities / Remote)</label>
+            {/* PRIVACY & RELOCATION TOGGLES */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', padding: '0.8rem', backgroundColor: '#131b2e', borderRadius: '10px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.85rem', color: '#cbd5e1', cursor: 'pointer' }}>
+                <input 
+                  type="checkbox" 
+                  checked={isSearchable} 
+                  onChange={(e) => setIsSearchable(e.target.checked)} 
+                  style={{ width: '17px', height: '17px' }} 
+                />
+                <span>Allow verified employers to discover my profile on Shanora PK</span>
+              </label>
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.85rem', color: '#cbd5e1', cursor: 'pointer' }}>
+                <input 
+                  type="checkbox" 
+                  checked={relocateOk} 
+                  onChange={(e) => setRelocateOk(e.target.checked)} 
+                  style={{ width: '17px', height: '17px' }} 
+                />
+                <span>Willing to relocate or work remote</span>
+              </label>
             </div>
 
-            {/* 5. SKILLS & BIO */}
+            {/* 5. SKILLS & SUMMARY */}
             <div>
               <label style={{ display: 'block', fontSize: '0.82rem', color: '#cbd5e1', marginBottom: '0.4rem', fontWeight: 'bold' }}>Core Skills (Comma separated)</label>
               <input 
                 type="text" 
                 value={skills}
                 onChange={(e) => setSkills(e.target.value)}
-                placeholder="React, Python, Communication, Graphic Design"
+                placeholder="React, Next.js, Financial Analysis, Python, Adobe Illustrator"
                 style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', backgroundColor: '#1e293b', border: '1px solid #334155', color: '#fff', boxSizing: 'border-box' }}
               />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.82rem', color: '#cbd5e1', marginBottom: '0.4rem', fontWeight: 'bold' }}>Professional Summary / Bio</label>
+              <label style={{ display: 'block', fontSize: '0.82rem', color: '#cbd5e1', marginBottom: '0.4rem', fontWeight: 'bold' }}>Professional Summary</label>
               <textarea 
                 rows={3}
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
-                placeholder="Briefly tell employers what makes you great..."
+                placeholder="Mention your key ambitions, background and what you bring to a team..."
                 style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', backgroundColor: '#1e293b', border: '1px solid #334155', color: '#fff', boxSizing: 'border-box', fontFamily: 'inherit' }}
               />
             </div>
 
-            {/* 6. FINAL YEAR PROJECT (FYP) */}
-            <div style={{ backgroundColor: '#131b2e', padding: '1.2rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
+            {/* 6. FINAL YEAR PROJECT */}
+            <div style={{ backgroundColor: '#131b2e', padding: '1.25rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
               <h3 style={{ fontSize: '1rem', color: '#38bdf8', margin: '0 0 0.8rem 0' }}>🚀 Final Year Project (FYP)</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
                 <input 
                   type="text" 
                   value={fypTitle}
                   onChange={(e) => setFypTitle(e.target.value)}
-                  placeholder="FYP Title (e.g. AI-Powered Healthcare System)"
+                  placeholder="Project Title (e.g. Smart E-Commerce Engine)"
                   style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', backgroundColor: '#1e293b', border: '1px solid #334155', color: '#fff', boxSizing: 'border-box' }}
                 />
                 <textarea 
                   rows={2}
                   value={fypDetails}
                   onChange={(e) => setFypDetails(e.target.value)}
-                  placeholder="Project details, tools used, and problem solved..."
+                  placeholder="Summary of tools used and real-world problem addressed..."
                   style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', backgroundColor: '#1e293b', border: '1px solid #334155', color: '#fff', boxSizing: 'border-box', fontFamily: 'inherit' }}
                 />
               </div>
             </div>
 
-            {/* 7. EXPERIENCE LIST */}
-            <div style={{ backgroundColor: '#131b2e', padding: '1.2rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
-              <h3 style={{ fontSize: '1rem', color: '#38bdf8', margin: '0 0 0.8rem 0' }}>💼 Internships / Experience</h3>
+            {/* 7. EXPERIENCE */}
+            <div style={{ backgroundColor: '#131b2e', padding: '1.25rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
+              <h3 style={{ fontSize: '1rem', color: '#38bdf8', margin: '0 0 0.8rem 0' }}>💼 Work / Internships</h3>
               
               {experienceList.length > 0 && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1rem' }}>
@@ -452,7 +496,7 @@ export default function ProfilePage() {
                 </div>
               )}
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.5rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.5rem' }}>
                 <input 
                   type="text" 
                   value={newExp.role}
@@ -501,7 +545,7 @@ export default function ProfilePage() {
                 boxShadow: '0 4px 12px rgba(2, 132, 199, 0.4)'
               }}
             >
-              {saving ? 'Saving Changes...' : 'Save Profile Changes 💾'}
+              {saving ? 'Saving changes...' : 'Save Profile Changes 💾'}
             </button>
 
           </form>
@@ -511,4 +555,4 @@ export default function ProfilePage() {
 
     </div>
   );
-                    }
+}
