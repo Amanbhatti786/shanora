@@ -427,7 +427,7 @@ ${profile.city}, Pakistan`;
         }
       `}</style>
 
-      {/* TOP NAVBAR */}
+      {/* TOP NAVBAR (Clean: No Admin, No Public Link) */}
       <header style={{ backgroundColor: '#0f172a', borderBottom: '1px solid #1e293b', padding: '0.85rem 1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 40 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
           <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
@@ -439,10 +439,7 @@ ${profile.city}, Pakistan`;
         </div>
 
         <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center' }}>
-          <Link href={`/view-profile?email=${encodeURIComponent(user?.email || '')}`} target="_blank" style={{ backgroundColor: '#1e293b', color: '#38bdf8', padding: '0.4rem 0.8rem', borderRadius: '8px', fontSize: '0.8rem', textDecoration: 'none', border: '1px solid #334155', fontWeight: '600' }}>
-            Public Link 🔗
-          </Link>
-          <button onClick={handleLogout} style={{ backgroundColor: 'rgba(239, 68, 68, 0.12)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '0.4rem 0.8rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer' }}>
+          <button onClick={handleLogout} style={{ backgroundColor: 'rgba(239, 68, 68, 0.12)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '0.45rem 0.95rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer' }}>
             Logout 🚪
           </button>
         </div>
@@ -527,7 +524,7 @@ ${profile.city}, Pakistan`;
                 </div>
               </div>
 
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.8rem', marginBottom: '1.2rem' }}>
+  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.8rem', marginBottom: '1.2rem' }}>
                 <div style={{ backgroundColor: '#0f172a', padding: '1rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
                   <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Applications Sent</span>
                   <h3 style={{ margin: '0.3rem 0 0', fontSize: '1.6rem', color: '#38bdf8' }}>{applications.length}</h3>
@@ -600,7 +597,8 @@ ${profile.city}, Pakistan`;
                   <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.3rem', fontWeight: 'bold' }}>Professional Summary</label>
                   <textarea rows={3} value={profile.bio} onChange={e => setProfile({ ...profile, bio: e.target.value })} placeholder="Tell employers about your goals..." style={{ width: '100%', padding: '0.65rem', borderRadius: '8px', backgroundColor: '#1e293b', border: '1px solid #334155', color: '#fff', boxSizing: 'border-box', fontFamily: 'inherit' }} />
                 </div>
-                    {/* Final Year Project */}
+
+                {/* Final Year Project */}
                 <div style={{ backgroundColor: '#131b2e', padding: '0.85rem', borderRadius: '10px' }}>
                   <h4 style={{ margin: '0 0 0.6rem 0', color: '#38bdf8', fontSize: '0.85rem' }}>Final Year Project (FYP)</h4>
                   <input type="text" value={profile.fyp_title} onChange={e => setProfile({ ...profile, fyp_title: e.target.value })} placeholder="FYP Title" style={{ width: '100%', padding: '0.6rem', borderRadius: '6px', backgroundColor: '#1e293b', border: '1px solid #334155', color: '#fff', marginBottom: '0.5rem', boxSizing: 'border-box' }} />
@@ -644,7 +642,7 @@ ${profile.city}, Pakistan`;
             </div>
           )}
 
-          {/* TAB 4: FIND JOBS */}
+{/* TAB 4: FIND JOBS */}
           {activeTab === 'jobs' && (
             <div>
               <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
@@ -712,7 +710,8 @@ ${profile.city}, Pakistan`;
               </div>
             </div>
           )}
-                  {/* TAB 5: APPLICATIONS */}
+
+          {/* TAB 5: APPLICATIONS */}
           {activeTab === 'applications' && (
             <div style={{ backgroundColor: '#0f172a', padding: '1.25rem', borderRadius: '14px', border: '1px solid #1e293b' }}>
               <h2 style={{ margin: '0 0 1rem 0', fontSize: '1.2rem' }}>My Job Applications</h2>
@@ -816,7 +815,7 @@ ${profile.city}, Pakistan`;
             </div>
           )}
 
-{/* TAB 8: SETTINGS */}
+                  {/* TAB 8: SETTINGS */}
           {activeTab === 'settings' && (
             <div style={{ backgroundColor: '#0f172a', padding: '1.25rem', borderRadius: '14px', border: '1px solid #1e293b' }}>
               <h2 style={{ margin: '0 0 1rem 0', fontSize: '1.2rem' }}>Settings & Privacy</h2>
@@ -844,4 +843,7 @@ ${profile.city}, Pakistan`;
 
     </div>
   );
-            }
+                    }
+
+
+              
