@@ -352,7 +352,8 @@ ${profile.city}, Pakistan`;
     return matchesSearch && matchesType;
   });
 
-  const navigationTabs = [
+    const navigationTabs = [
+    { id: 'feed', label: 'Feed 🌐', icon: '🌐' },
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
     { id: 'profile', label: 'My Profile', icon: '👤' },
     { id: 'resume', label: 'My Resume', icon: '📄' },
@@ -362,6 +363,7 @@ ${profile.city}, Pakistan`;
     { id: 'ai-tools', label: 'AI Suite', icon: '⚡' },
     { id: 'settings', label: 'Settings', icon: '⚙️' }
   ];
+
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#070b14', color: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif', display: 'flex', flexDirection: 'column' }}>
