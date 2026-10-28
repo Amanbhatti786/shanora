@@ -353,7 +353,7 @@ ${profile.city}, Pakistan`;
   });
 
     const navigationTabs = [
-    { id: 'feed', label: 'Feed 🌐', icon: '🌐' },
+    { id: 'feed', label: 'Feed ', icon: '🌐' },
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
     { id: 'profile', label: 'My Profile', icon: '👤' },
     { id: 'resume', label: 'My Resume', icon: '📄' },
@@ -429,7 +429,7 @@ ${profile.city}, Pakistan`;
         }
       `}</style>
 
-      {/* TOP NAVBAR (Clean: No Admin, No Public Link) */}
+      {/* TOP NAVBAR */}
       <header style={{ backgroundColor: '#0f172a', borderBottom: '1px solid #1e293b', padding: '0.85rem 1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 40 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
           <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
@@ -441,6 +441,9 @@ ${profile.city}, Pakistan`;
         </div>
 
         <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center' }}>
+          <Link href="/feed" style={{ backgroundColor: '#1e293b', color: '#38bdf8', padding: '0.45rem 0.85rem', borderRadius: '8px', fontSize: '0.8rem', textDecoration: 'none', border: '1px solid #334155', fontWeight: 'bold' }}>
+            Feed 🌐
+          </Link>
           <button onClick={handleLogout} style={{ backgroundColor: 'rgba(239, 68, 68, 0.12)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '0.45rem 0.95rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer' }}>
             Logout 🚪
           </button>
