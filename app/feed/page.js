@@ -16,7 +16,6 @@ export default function FeedPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
-  // Comments & Connections State
   const [comments, setComments] = useState({});
   const [openCommentBox, setOpenCommentBox] = useState({});
   const [newComment, setNewComment] = useState({});
@@ -427,4 +426,6 @@ export default function FeedPage() {
       </div>
 
     </div>
-  )
+  );
+        }
+        
