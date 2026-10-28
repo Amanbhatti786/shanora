@@ -233,9 +233,14 @@ export default function StudentDashboard() {
         flexWrap: 'wrap',
         gap: '0.8rem'
       }}>
-        <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span style={{ fontSize: '1.25rem', fontWeight: '900', color: '#ffffff' }}>SHANORA<span style={{ color: '#38bdf8' }}>.PK</span></span>
-        </Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+          <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ fontSize: '1.25rem', fontWeight: '900', color: '#ffffff' }}>SHANORA<span style={{ color: '#38bdf8' }}>.PK</span></span>
+          </Link>
+          <span style={{ backgroundColor: '#059669', color: '#fff', fontSize: '0.65rem', padding: '0.2rem 0.5rem', borderRadius: '4px', fontWeight: 'bold' }}>
+            PORTAL 2.0
+          </span>
+        </div>
 
         <div style={{ display: 'flex', gap: '0.8rem', alignItems: 'center' }}>
           <Link 
@@ -261,7 +266,7 @@ export default function StudentDashboard() {
         <div style={{ backgroundColor: '#0f172a', padding: '1.5rem', borderRadius: '16px', border: '1px solid #1e293b', marginBottom: '1.5rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.8rem', marginBottom: '1rem' }}>
             <div>
-              <h1 style={{ fontSize: '1.4rem', fontWeight: '800', margin: '0 0 0.25rem 0', color: '#fff' }}>Welcome back, {fullName || 'Student'} 👋</h1>
+              <h1 style={{ fontSize: '1.4rem', fontWeight: '800', margin: '0 0 0.25rem 0', color: '#fff' }}>Welcome, {fullName || 'Student'} 👋</h1>
               <p style={{ color: '#94a3b8', fontSize: '0.85rem', margin: 0 }}>Registered Account: <strong style={{ color: '#38bdf8' }}>{user?.email}</strong></p>
             </div>
             <div style={{ textAlign: 'right' }}>
@@ -555,4 +560,4 @@ export default function StudentDashboard() {
 
     </div>
   );
-}
+                    }
