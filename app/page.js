@@ -98,6 +98,7 @@ export default function HomePage() {
       `}</style>
 
       {/* TOP HEADER */}
+            {/* TOP HEADER */}
       <header style={{ backgroundColor: '#0f172a', borderBottom: '1px solid #1e293b', padding: '0.9rem 1.25rem', position: 'sticky', top: 0, zIndex: 50, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
@@ -108,7 +109,10 @@ export default function HomePage() {
           </span>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '0.8rem', alignItems: 'center' }}>
+          <Link href="/feed" style={{ color: '#38bdf8', fontSize: '0.85rem', textDecoration: 'none', padding: '0.45rem 0.8rem', fontWeight: '700', backgroundColor: 'rgba(56, 189, 248, 0.1)', borderRadius: '8px', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
+            Community Feed 🌐
+          </Link>
           <Link href="/auth" style={{ color: '#cbd5e1', fontSize: '0.85rem', textDecoration: 'none', padding: '0.45rem 0.8rem', fontWeight: '600' }}>
             Sign In
           </Link>
