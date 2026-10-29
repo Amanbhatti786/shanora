@@ -4,23 +4,17 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '../../lib/supabaseClient';
 
-export default function PageMonetizationPage() {
+export default function MonetizationPage() {
   const router = useRouter();
   const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [pages, setPages] = useState([]);
   const [selectedPage, setSelectedPage] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-
-  // Application form fields
-  const [applicantCountry, setApplicantCountry] = useState('Pakistan');
-  const [taxIdentifier, setTaxIdentifier] = useState('');
-  const [primaryMethod, setPrimaryMethod] = useState('sponsored_posts');
-  const [trafficDetails, setTrafficDetails] = useState('');
-  const [applicationSubmitted, setApplicationSubmitted] = useState(false);
+  const [applying, setApplying] = useState(false);
+  const [message, setMessage] = useState({ text: '', type: '' });
 
   useEffect(() => {
-    async function loadMonetizationData() {
+    async function loadData() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) {
@@ -29,61 +23,61 @@ export default function PageMonetizationPage() {
         }
         setUser(session.user);
 
-        // Fetch pages managed by the logged-in user
-        const { data: userPages } = await supabase
+        // Fetch pages owned by current user
+        const { data: userPages, error } = await supabase
           .from('pages')
           .select('*')
           .eq('owner_email', session.user.email);
 
-        if (userPages && userPages.length > 0) {
+        if (!error && userPages) {
           setPages(userPages);
-          setSelectedPage(userPages[0]);
+          if (userPages.length > 0) {
+            setSelectedPage(userPages[0]);
+          }
         }
       } catch (err) {
-        console.error('Monetization loader error:', err);
+        console.error('Error fetching data:', err);
       } finally {
         setLoading(false);
       }
     }
-    loadMonetizationData();
+
+    loadData();
   }, [router]);
 
-  async function handleApplyMonetization(e) {
-    e.preventDefault();
+  async function handleApplyMonetization() {
     if (!selectedPage) return;
-    setSubmitting(true);
+    setApplying(true);
+    setMessage({ text: '', type: '' });
 
     try {
-      const payload = {
-        page_id: selectedPage.id,
-        applicant_email: user.email,
-        country: applicantCountry,
-        tax_identifier: taxIdentifier.trim(),
-        primary_method: primaryMethod,
-        traffic_details: trafficDetails.trim(),
-        status: 'pending'
-      };
+      const { error } = await supabase
+        .from('pages')
+        .update({ monetization_status: 'pending' })
+        .eq('id', selectedPage.id);
 
-      const { error } = await supabase.from('monetization_applications').insert([payload]);
       if (error) throw error;
 
-      await supabase.from('pages').update({ monetization_status: 'pending' }).eq('id', selectedPage.id);
-      setSelectedPage({ ...selectedPage, monetization_status: 'pending' });
-      setApplicationSubmitted(true);
+      setSelectedPage(prev => ({ ...prev, monetization_status: 'pending' }));
+      setPages(prev => prev.map(p => p.id === selectedPage.id ? { ...p, monetization_status: 'pending' } : p));
+      setMessage({ text: 'Monetization application submitted successfully for review!', type: 'success' });
     } catch (err) {
-      alert('Application failed: ' + err.message);
+      setMessage({ text: err.message || 'Failed to submit application.', type: 'error' });
     } finally {
-      setSubmitting(false);
+      setApplying(false);
     }
   }
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', backgroundColor: '#070b14', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#38bdf8' }}>
-        Loading Monetization Dashboard...
+      <div style={{ minHeight: '100vh', backgroundColor: '#070b14', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#38bdf8', fontFamily: 'system-ui' }}>
+        Loading monetization hub...
       </div>
     );
   }
+
+  const followers = selectedPage?.followers_count || 0;
+  const isEligible = followers >= 1000;
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#070b14', color: '#f8fafc', fontFamily: 'system-ui, sans-serif' }}>
@@ -94,140 +88,200 @@ export default function PageMonetizationPage() {
           SHANORA<span style={{ color: '#38bdf8' }}>.PK</span>
         </Link>
         <div style={{ display: 'flex', gap: '0.6rem' }}>
-          <Link href="/feed" style={{ backgroundColor: '#1e293b', color: '#38bdf8', padding: '0.4rem 0.8rem', borderRadius: '6px', fontSize: '0.78rem', textDecoration: 'none', border: '1px solid #334155' }}>
+          <Link href="/feed" style={{ backgroundColor: '#1e293b', color: '#38bdf8', padding: '0.4rem 0.8rem', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', border: '1px solid #334155' }}>
             Feed 🌐
           </Link>
-          <Link href="/profile" style={{ backgroundColor: '#1e293b', color: '#cbd5e1', padding: '0.4rem 0.8rem', borderRadius: '6px', fontSize: '0.78rem', textDecoration: 'none', border: '1px solid #334155' }}>
+          <Link href="/profile" style={{ backgroundColor: '#1e293b', color: '#f8fafc', padding: '0.4rem 0.8rem', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', border: '1px solid #334155' }}>
             Portal 💼
           </Link>
         </div>
       </header>
 
-      <main style={{ maxWidth: '950px', margin: '1.5rem auto', padding: '0 1rem' }}>
+      {/* Main Content */}
+      <main style={{ maxWidth: '850px', margin: '2rem auto', padding: '0 1rem' }}>
+        
         <div style={{ marginBottom: '1.5rem' }}>
-          <h1 style={{ fontSize: '1.6rem', color: '#fff', margin: '0 0 0.3rem 0' }}>Page Monetization Dashboard</h1>
+          <h1 style={{ fontSize: '1.6rem', color: '#fff', margin: '0 0 0.3rem 0', fontWeight: '800' }}>
+            Page Monetization Dashboard
+          </h1>
           <p style={{ fontSize: '0.85rem', color: '#94a3b8', margin: 0 }}>
             Manage monetization applications, creator programs, and financial settings for verified Pages.
           </p>
         </div>
 
-        {/* Integration Notice */}
-        <div style={{ backgroundColor: 'rgba(234, 179, 8, 0.1)', border: '1px solid rgba(234, 179, 8, 0.3)', borderRadius: '10px', padding: '0.9rem', marginBottom: '1.5rem', color: '#fef08a', fontSize: '0.82rem', lineHeight: 1.5 }}>
-          ⚠️ <strong>Integration Status:</strong> Payment gateway webhooks and automated bank payouts are currently pending configuration. Eligible applications will be recorded and audited in Supabase; live bank transfers will activate once financial provider keys are deployed.
+        {/* Integration Status Notice */}
+        <div style={{ backgroundColor: '#1c1917', border: '1px solid #44403c', borderRadius: '12px', padding: '1rem 1.2rem', marginBottom: '1.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#fbbf24', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.3rem' }}>
+            ⚠️ Integration Status: Payment Gateway Notice
+          </div>
+          <p style={{ fontSize: '0.78rem', color: '#d6d3d1', margin: 0, lineHeight: 1.5 }}>
+            Automated bank payouts and webhooks are currently recording via Supabase audit. Eligible applications will be verified, and bank transfers will activate once financial provider keys are deployed.
+          </p>
         </div>
 
+        {message.text && (
+          <div style={{
+            backgroundColor: message.type === 'error' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(34, 197, 94, 0.1)',
+            border: `1px solid ${message.type === 'error' ? 'rgba(239, 68, 68, 0.3)' : 'rgba(34, 197, 94, 0.3)'}`,
+            color: message.type === 'error' ? '#f87171' : '#4ade80',
+            padding: '0.8rem 1rem',
+            borderRadius: '8px',
+            fontSize: '0.85rem',
+            marginBottom: '1.5rem'
+          }}>
+            {message.text}
+          </div>
+        )}
+
+        {/* Case 1: No Pages Found */}
         {pages.length === 0 ? (
-          <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', padding: '2rem', borderRadius: '12px', textAlign: 'center' }}>
-            <h3 style={{ color: '#fff', margin: '0 0 0.5rem 0' }}>No Organization or Creator Pages Found</h3>
-            <p style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: '1.2rem' }}>
+          <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '2.5rem 1.5rem', textAlign: 'center' }}>
+            <h2 style={{ fontSize: '1.25rem', color: '#fff', margin: '0 0 0.5rem 0' }}>
+              No Organization or Creator Pages Found
+            </h2>
+            <p style={{ fontSize: '0.85rem', color: '#94a3b8', maxWidth: '450px', margin: '0 auto 1.5rem auto', lineHeight: 1.5 }}>
               You must own or manage an active Page (Company, Institution, or Creator Community) to apply for monetization.
             </p>
-            <Link href="/profile" style={{ backgroundColor: '#0284c7', color: '#fff', padding: '0.5rem 1.2rem', borderRadius: '8px', fontSize: '0.85rem', textDecoration: 'none', fontWeight: 'bold' }}>
-              Go to Portal & Create Page
-            </Link>
+            <button
+              type="button"
+              onClick={() => router.push('/create-page')}
+              style={{
+                backgroundColor: '#0284c7',
+                color: '#fff',
+                border: 'none',
+                padding: '0.7rem 1.4rem',
+                borderRadius: '8px',
+                fontWeight: '700',
+                fontSize: '0.85rem',
+                cursor: 'pointer'
+              }}
+            >
+              Create Organization or Creator Page 🚀
+            </button>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
+          /* Case 2: Pages Found - Manage & Apply */
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             
-            {/* Left Column: Eligibility & Performance Overview */}
-            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '1.2rem' }}>
-              <h3 style={{ fontSize: '1rem', color: '#fff', margin: '0 0 1rem 0' }}>Monetization Eligibility Checklist</h3>
-              
-              <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 1.5rem 0', display: 'flex', flexDirection: 'column', gap: '0.6rem', fontSize: '0.82rem' }}>
-                <li style={{ color: '#22c55e' }}>✓ Page Ownership Authenticated ({selectedPage?.name})</li>
-                <li style={{ color: '#22c55e' }}>✓ Community Guidelines Compliance: Clean Record</li>
-                <li style={{ color: '#cbd5e1' }}>○ Active Monthly Audience / Engagement Verification</li>
-                <li style={{ color: '#cbd5e1' }}>○ Tax Identification & Identity Check</li>
-              </ul>
-
-              <div style={{ borderTop: '1px solid #1e293b', paddingTop: '1rem' }}>
-                <h4 style={{ fontSize: '0.88rem', color: '#94a3b8', margin: '0 0 0.6rem 0' }}>Financial Ledger Overview</h4>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                  <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Estimated Balance:</span>
-                  <strong style={{ fontSize: '0.85rem', color: '#38bdf8' }}>$0.00 USD</strong>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Available for Payout:</span>
-                  <strong style={{ fontSize: '0.85rem', color: '#22c55e' }}>$0.00 USD</strong>
-                </div>
-              </div>
+            {/* Page Selector */}
+            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.2rem' }}>
+              <label style={{ fontSize: '0.75rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: '700', display: 'block', marginBottom: '0.5rem' }}>
+                Select Your Active Page
+              </label>
+              <select
+                value={selectedPage?.id}
+                onChange={(e) => {
+                  const match = pages.find(p => p.id === e.target.value);
+                  setSelectedPage(match || null);
+                }}
+                style={{ width: '100%', padding: '0.65rem', borderRadius: '8px', backgroundColor: '#1e293b', border: '1px solid #334155', color: '#fff', fontSize: '0.88rem' }}
+              >
+                {pages.map(page => (
+                  <option key={page.id} value={page.id}>
+                    {page.name} ({page.category || 'Creator'}) — Status: {page.monetization_status || 'not_applied'}
+                  </option>
+                ))}
+              </select>
             </div>
 
-            {/* Right Column: Application Form */}
-            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '1.2rem' }}>
-              <h3 style={{ fontSize: '1rem', color: '#fff', margin: '0 0 0.8rem 0' }}>Apply for Page Monetization</h3>
-              
-              {applicationSubmitted || selectedPage?.monetization_status === 'pending' ? (
-                <div style={{ backgroundColor: 'rgba(2, 132, 199, 0.1)', border: '1px solid rgba(2, 132, 199, 0.3)', padding: '1rem', borderRadius: '8px', color: '#38bdf8', fontSize: '0.85rem' }}>
-                  Application submitted and pending review by platform administrators. You will receive an on-platform notification upon status update.
+            {/* Selected Page Overview & Eligibility */}
+            {selectedPage && (
+              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem' }}>
+                
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
+                  <div>
+                    <h2 style={{ fontSize: '1.3rem', color: '#fff', margin: 0 }}>{selectedPage.name}</h2>
+                    <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: '0.2rem 0 0 0' }}>
+                      URL: shanora.pk/page/{selectedPage.slug}
+                    </p>
+                  </div>
+                  <div style={{
+                    backgroundColor: selectedPage.monetization_status === 'approved' ? 'rgba(34, 197, 94, 0.15)' : selectedPage.monetization_status === 'pending' ? 'rgba(234, 179, 8, 0.15)' : 'rgba(148, 163, 184, 0.15)',
+                    color: selectedPage.monetization_status === 'approved' ? '#4ade80' : selectedPage.monetization_status === 'pending' ? '#facc15' : '#94a3b8',
+                    padding: '0.4rem 0.8rem',
+                    borderRadius: '8px',
+                    fontSize: '0.8rem',
+                    fontWeight: '700',
+                    textTransform: 'uppercase'
+                  }}>
+                    {selectedPage.monetization_status || 'Not Applied'}
+                  </div>
                 </div>
-              ) : (
-                <form onSubmit={handleApplyMonetization} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-                  <div>
-                    <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '0.25rem' }}>Applicant Country</label>
-                    <input
-                      type="text"
-                      value={applicantCountry}
-                      onChange={e => setApplicantCountry(e.target.value)}
-                      required
-                      style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', backgroundColor: '#1e293b', border: '1px solid #334155', color: '#fff', fontSize: '0.82rem', boxSizing: 'border-box' }}
-                    />
-                  </div>
 
-                  <div>
-                    <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '0.25rem' }}>Tax / Business ID Number</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. NTN, EIN, or VAT ID"
-                      value={taxIdentifier}
-                      onChange={e => setTaxIdentifier(e.target.value)}
-                      required
-                      style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', backgroundColor: '#1e293b', border: '1px solid #334155', color: '#fff', fontSize: '0.82rem', boxSizing: 'border-box' }}
-                    />
+                {/* Milestone Progress Bar */}
+                <div style={{ backgroundColor: '#1e293b', padding: '1rem', borderRadius: '12px', marginBottom: '1.5rem', border: '1px solid #334155' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '0.4rem' }}>
+                    <span style={{ color: '#cbd5e1', fontWeight: '600' }}>Monetization Target: 1,000 Verified Followers</span>
+                    <span style={{ color: '#38bdf8', fontWeight: '800' }}>{followers} / 1,000</span>
                   </div>
-
-                  <div>
-                    <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '0.25rem' }}>Preferred Monetization Program</label>
-                    <select
-                      value={primaryMethod}
-                      onChange={e => setPrimaryMethod(e.target.value)}
-                      style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', backgroundColor: '#1e293b', border: '1px solid #334155', color: '#fff', fontSize: '0.82rem', boxSizing: 'border-box' }}
-                    >
-                      <option value="sponsored_posts">Sponsored Brand Posts & Campaigns</option>
-                      <option value="subscriptions">Paid Page Subscriptions</option>
-                      <option value="content_sales">Digital Products & Course Sales</option>
-                      <option value="events">Paid Workshops & Online Events</option>
-                    </select>
+                  <div style={{ width: '100%', height: '8px', backgroundColor: '#070b14', borderRadius: '4px', overflow: 'hidden' }}>
+                    <div style={{ width: `${Math.min((followers / 1000) * 100, 100)}%`, height: '100%', backgroundColor: '#38bdf8', transition: 'width 0.4s ease' }} />
                   </div>
+                </div>
 
-                  <div>
-                    <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '0.25rem' }}>Audience & Content Summary</label>
-                    <textarea
-                      rows={3}
-                      placeholder="Describe your content niche and audience metrics..."
-                      value={trafficDetails}
-                      onChange={e => setTrafficDetails(e.target.value)}
-                      required
-                      style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', backgroundColor: '#1e293b', border: '1px solid #334155', color: '#fff', fontSize: '0.82rem', boxSizing: 'border-box' }}
-                    />
+                {/* Eligibility Checklist */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem', marginBottom: '1.5rem' }}>
+                  <div style={{ backgroundColor: '#1e293b', padding: '0.75rem', borderRadius: '8px', fontSize: '0.8rem', color: isEligible ? '#4ade80' : '#94a3b8' }}>
+                    {isEligible ? '✅' : '⚪'} 1,000 Followers Milestone
                   </div>
+                  <div style={{ backgroundColor: '#1e293b', padding: '0.75rem', borderRadius: '8px', fontSize: '0.8rem', color: '#4ade80' }}>
+                    ✅ Clean Community Guidelines
+                  </div>
+                  <div style={{ backgroundColor: '#1e293b', padding: '0.75rem', borderRadius: '8px', fontSize: '0.8rem', color: '#4ade80' }}>
+                    ✅ Account Security (KYC Ready)
+                  </div>
+                </div>
 
+                {/* Submit Application Button */}
+                {selectedPage.monetization_status === 'pending' ? (
+                  <div style={{ textAlign: 'center', padding: '0.8rem', backgroundColor: 'rgba(234, 179, 8, 0.1)', color: '#facc15', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '600' }}>
+                    ⏳ Your application is currently under review by our audit team.
+                  </div>
+                ) : selectedPage.monetization_status === 'approved' ? (
+                  <div style={{ textAlign: 'center', padding: '0.8rem', backgroundColor: 'rgba(34, 197, 94, 0.1)', color: '#4ade80', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '600' }}>
+                    🎉 Congratulations! This page is verified and actively earning.
+                  </div>
+                ) : (
                   <button
-                    type="submit"
-                    disabled={submitting}
-                    style={{ backgroundColor: '#0284c7', color: '#fff', padding: '0.6rem', borderRadius: '8px', border: 'none', fontWeight: 'bold', fontSize: '0.85rem', cursor: submitting ? 'not-allowed' : 'pointer', marginTop: '0.5rem' }}
+                    type="button"
+                    onClick={handleApplyMonetization}
+                    disabled={!isEligible || applying}
+                    style={{
+                      width: '100%',
+                      backgroundColor: isEligible ? '#0284c7' : '#334155',
+                      color: isEligible ? '#fff' : '#64748b',
+                      border: 'none',
+                      padding: '0.75rem',
+                      borderRadius: '8px',
+                      fontSize: '0.9rem',
+                      fontWeight: '700',
+                      cursor: isEligible && !applying ? 'pointer' : 'not-allowed'
+                    }}
                   >
-                    {submitting ? 'Submitting Application...' : 'Submit Application 🚀'}
+                    {applying ? 'Submitting Application...' : isEligible ? 'Submit Application for Review 🚀' : 'Locked: Reach 1,000 Followers to Apply'}
                   </button>
-                </form>
-              )}
+                )}
+
+              </div>
+            )}
+
+            {/* Secondary Action */}
+            <div style={{ textAlign: 'center', marginTop: '0.5rem' }}>
+              <button
+                type="button"
+                onClick={() => router.push('/create-page')}
+                style={{ backgroundColor: 'transparent', color: '#38bdf8', border: '1px solid #1e293b', padding: '0.5rem 1rem', borderRadius: '8px', fontSize: '0.8rem', cursor: 'pointer' }}
+              >
+                + Create Another Organization / Creator Page
+              </button>
             </div>
 
           </div>
         )}
+
       </main>
 
     </div>
   );
-}
-  
+              }
+                      
