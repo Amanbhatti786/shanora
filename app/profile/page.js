@@ -338,7 +338,7 @@ ${profile.city}, Pakistan`;
   if (loading) {
     return (
       <div style={{ minHeight: '100vh', backgroundColor: '#070b14', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#38bdf8', fontFamily: 'system-ui' }}>
-        Loading Student Portal...
+        Loading...
       </div>
     );
   }
@@ -463,7 +463,19 @@ ${profile.city}, Pakistan`;
             key={tab.id}
             type="button"
             className={`tab-btn-mobile ${activeTab === tab.id ? 'active' : ''}`}
-            onClick={() => { setActiveTab(tab.id); setStatusMsg({ text: '', type: '' }); }}
+            onClick={() => {
+  setStatusMsg({ text: '', type: '' });
+  if (tab.id === 'feed') {
+    router.push('/feed');
+  } else if (tab.id === 'messages') {
+    router.push('/messages');
+  } else if (tab.id === 'monetization') {
+    router.push('/monetization');
+  } else {
+    setActiveTab(tab.id);
+  }
+}}
+
           >
             <span>{tab.icon}</span>
             <span>{tab.label}</span>
@@ -480,7 +492,20 @@ ${profile.city}, Pakistan`;
             <button
               key={tab.id}
               type="button"
-              onClick={() => { setActiveTab(tab.id); setStatusMsg({ text: '', type: '' }); }}
+              onClick={() => {
+  setStatusMsg({ text: '', type: '' });
+  if (tab.id === 'feed') {
+    router.push('/feed');
+  } else if (tab.id === 'messages') {
+    router.push('/messages');
+  } else if (tab.id === 'monetization') {
+    router.push('/monetization');
+  } else {
+    setActiveTab(tab.id);
+  }
+}}
+
+
               style={{
                 width: '100%',
                 textAlign: 'left',
