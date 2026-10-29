@@ -548,6 +548,90 @@ ${profile.city}, Pakistan`;
           {/* TAB 1: DASHBOARD */}
           {activeTab === 'dashboard' && (
             <div>
+                {/* 1. TOP CREATOR & SOCIAL STATS BANNER */}
+    <div style={{ 
+      backgroundColor: '#0f172a', 
+      border: '1px solid #1e293b', 
+      borderRadius: '16px', 
+      padding: '1.4rem', 
+      marginBottom: '1.2rem',
+      background: 'linear-gradient(180deg, #0f172a 0%, #070b14 100%)'
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.2rem' }}>
+        <div>
+          <span style={{ fontSize: '0.72rem', backgroundColor: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.25)', padding: '0.2rem 0.55rem', borderRadius: '4px', fontWeight: '700', textTransform: 'uppercase' }}>
+            Creator & Network Hub
+          </span>
+          <h2 style={{ fontSize: '1.35rem', color: '#ffffff', margin: '0.4rem 0 0 0', fontWeight: '800' }}>
+            {profile?.full_name || 'Professional Member'}
+          </h2>
+          <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: '0.2rem 0 0 0' }}>
+            Track network reach, followers growth, and monetization eligibility.
+          </p>
+        </div>
+
+        <button 
+          type="button"
+          onClick={() => router.push('/monetization')}
+          style={{ 
+            backgroundColor: '#0284c7', 
+            color: '#ffffff', 
+            border: 'none', 
+            borderRadius: '8px', 
+            padding: '0.55rem 1.1rem', 
+            fontSize: '0.8rem', 
+            fontWeight: '700', 
+            cursor: 'pointer' 
+          }}
+        >
+          Monetization Hub ➔
+        </button>
+      </div>
+
+      {/* Social Counters */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.75rem', marginBottom: '1.2rem' }}>
+        <div style={{ backgroundColor: '#1e293b', padding: '0.85rem', borderRadius: '10px', textAlign: 'center', border: '1px solid #334155' }}>
+          <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase' }}>Followers</div>
+          <div style={{ fontSize: '1.6rem', fontWeight: '900', color: '#38bdf8', marginTop: '0.2rem' }}>
+            {profile?.followers_count || 0}
+          </div>
+        </div>
+
+        <div style={{ backgroundColor: '#1e293b', padding: '0.85rem', borderRadius: '10px', textAlign: 'center', border: '1px solid #334155' }}>
+          <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase' }}>Following</div>
+          <div style={{ fontSize: '1.6rem', fontWeight: '900', color: '#f8fafc', marginTop: '0.2rem' }}>
+            {profile?.following_count || 0}
+          </div>
+        </div>
+
+        <div style={{ backgroundColor: '#1e293b', padding: '0.85rem', borderRadius: '10px', textAlign: 'center', border: '1px solid #334155' }}>
+          <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase' }}>Partner Status</div>
+          <div style={{ fontSize: '0.95rem', fontWeight: '800', color: (profile?.followers_count || 0) >= 1000 ? '#22c55e' : '#eab308', marginTop: '0.5rem' }}>
+            {(profile?.followers_count || 0) >= 1000 ? 'Verified Partner' : 'In Progress'}
+          </div>
+        </div>
+      </div>
+
+      {/* Milestone Bar */}
+      <div style={{ backgroundColor: 'rgba(30, 41, 59, 0.6)', border: '1px solid #334155', borderRadius: '10px', padding: '0.85rem 1rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem', marginBottom: '0.4rem' }}>
+          <span style={{ color: '#cbd5e1', fontWeight: '600' }}>Target: 1,000 Verified Followers for Creator Monetization</span>
+          <span style={{ color: '#38bdf8', fontWeight: '800' }}>{profile?.followers_count || 0} / 1,000</span>
+        </div>
+        <div style={{ width: '100%', height: '8px', backgroundColor: '#0b1120', borderRadius: '4px', overflow: 'hidden' }}>
+          <div 
+            style={{ 
+              width: `${Math.min(((profile?.followers_count || 0) / 1000) * 100, 100)}%`, 
+              height: '100%', 
+              backgroundColor: '#38bdf8', 
+              borderRadius: '4px',
+              transition: 'width 0.4s ease' 
+            }} 
+          />
+        </div>
+      </div>
+    </div>
+        
               <div style={{ backgroundColor: '#0f172a', padding: '1.25rem', borderRadius: '14px', border: '1px solid #1e293b', marginBottom: '1.2rem' }}>
                 <h2 style={{ margin: '0 0 0.3rem 0', fontSize: '1.3rem' }}>Welcome, {profile.full_name || 'Graduate'} 👋</h2>
                 <p style={{ color: '#94a3b8', fontSize: '0.82rem', margin: '0 0 1rem 0' }}>Manage applications, your CV, and live job opportunities.</p>
