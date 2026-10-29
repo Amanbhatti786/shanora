@@ -444,6 +444,10 @@ ${profile.city}, Pakistan`;
           <Link href="/feed" style={{ backgroundColor: '#1e293b', color: '#38bdf8', padding: '0.45rem 0.85rem', borderRadius: '8px', fontSize: '0.8rem', textDecoration: 'none', border: '1px solid #334155', fontWeight: 'bold' }}>
             Feed 🌐
           </Link>
+              <Link href="/messages" style={{ backgroundColor: '#1e293b', color: '#38bdf8', padding: '0.45rem 0.85rem', borderRadius: '8px', fontSize: '0.8rem', textDecoration: 'none', border: '1px solid #334155', fontWeight: 'bold' }}>
+  Messages 💬
+</Link>
+    
           <button onClick={handleLogout} style={{ backgroundColor: 'rgba(239, 68, 68, 0.12)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '0.45rem 0.95rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer' }}>
             Logout 🚪
           </button>
