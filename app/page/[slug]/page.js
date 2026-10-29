@@ -25,7 +25,6 @@ export default function PublicPageView() {
         const { data: { session } } = await supabase.auth.getSession();
         setCurrentUser(session?.user || null);
 
-        // Fetch Page Data by slug
         const { data: page, error } = await supabase
           .from('pages')
           .select('*')
@@ -38,7 +37,6 @@ export default function PublicPageView() {
           setPageData(page);
           setFollowerCount(page.followers_count || 0);
 
-          // Check if current logged-in user already follows this page
           if (session?.user?.email) {
             const { data: followRecord } = await supabase
               .from('page_followers')
@@ -73,7 +71,6 @@ export default function PublicPageView() {
 
     try {
       if (isFollowing) {
-        // Unfollow
         await supabase
           .from('page_followers')
           .delete()
@@ -89,7 +86,6 @@ export default function PublicPageView() {
         setIsFollowing(false);
         setFollowerCount(newCount);
       } else {
-        // Follow
         await supabase
           .from('page_followers')
           .insert([
@@ -153,7 +149,7 @@ export default function PublicPageView() {
       {/* Main Container */}
       <main style={{ maxWidth: '900px', margin: '0 auto', paddingBottom: '3rem' }}>
         
-        {/* Facebook-style Cover Banner */}
+        {/* Cover Banner */}
         <div style={{ 
           height: '180px', 
           background: 'linear-gradient(135deg, #0284c7 0%, #1e1b4b 100%)', 
@@ -191,7 +187,7 @@ export default function PublicPageView() {
                 {pageData.name?.charAt(0).toUpperCase()}
               </div>
 
-              {/* Follow / Edit Button */}
+              {/* Follow Button */}
               <div style={{ display: 'flex', gap: '0.6rem' }}>
                 <button
                   type="button"
@@ -222,22 +218,22 @@ export default function PublicPageView() {
                 {pageData.name}
               </h1>
               <p style={{ fontSize: '0.88rem', color: '#94a3b8', margin: '0 0 0.5rem 0' }}>
-                {pageData.headline || pageData.category || 'Creator & Organization'}[span_7](start_span)[span_7](end_span)
+                {pageData.headline || pageData.category || 'Creator & Organization'}
               </p>
 
-              {/* Followers & Category Meta */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: '0.82rem', color: '#cbd5e1' }}>
+              {/* Meta Info */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: '0.82rem', color: '#cbd5e1', flexWrap: 'wrap' }}>
                 <div>
                   <strong style={{ color: '#38bdf8' }}>{followerCount}</strong> followers
                 </div>
                 <div>•</div>
                 <div style={{ backgroundColor: '#1e293b', padding: '0.2rem 0.5rem', borderRadius: '4px', border: '1px solid #334155', fontSize: '0.75rem' }}>
-                  {pageData.category || 'Organization'}[span_8](start_span)[span_8](end_span)
+                  {pageData.category || 'Organization'}
                 </div>
                 {pageData.city && (
                   <>
                     <div>•</div>
-                    <div style={{ color: '#94a3b8' }}>📍 {pageData.city}, {pageData.country || 'Pakistan'}</div>[span_9](start_span)[span_9](end_span)
+                    <div style={{ color: '#94a3b8' }}>📍 {pageData.city}, {pageData.country || 'Pakistan'}</div>
                   </>
                 )}
               </div>
@@ -245,7 +241,7 @@ export default function PublicPageView() {
 
           </div>
 
-          {/* Facebook-style Navigation Bar */}
+          {/* Navigation Bar */}
           <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid #1e293b', marginTop: '1.5rem', paddingBottom: '0.5rem' }}>
             {['about', 'posts', 'community'].map(tab => (
               <button
@@ -280,8 +276,8 @@ export default function PublicPageView() {
                 </p>
 
                 <div style={{ marginTop: '1.2rem', paddingTop: '1rem', borderTop: '1px solid #1e293b', display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.82rem', color: '#94a3b8' }}>
-                  <div>🌐 <strong>Official URL:</strong> shanora.pk/page/{pageData.slug}</div>[span_10](start_span)[span_10](end_span)
-                  <div>💼 <strong>Industry:</strong> {pageData.category || 'General'}</div>[span_11](start_span)[span_11](end_span)
+                  <div>🌐 <strong>Official URL:</strong> shanora.pk/page/{pageData.slug}</div>
+                  <div>💼 <strong>Industry:</strong> {pageData.category || 'General'}</div>
                 </div>
               </div>
             )}
@@ -309,5 +305,5 @@ export default function PublicPageView() {
 
     </div>
   );
-             }
-                  
+        }
+                         
