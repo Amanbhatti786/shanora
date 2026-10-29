@@ -357,6 +357,7 @@ ${profile.city}, Pakistan`;
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
     { id: 'profile', label: 'My Profile', icon: '👤' },
     { id: 'resume', label: 'My Resume', icon: '📄' },
+        { id: 'messages', label: 'Messages', icon: '💬' },
     { id: 'jobs', label: 'Find Jobs', icon: '🔍' },
     { id: 'applications', label: `Applications (${applications.length})`, icon: '💼' },
     { id: 'saved', label: `Saved (${savedJobIds.size})`, icon: '⭐' },
