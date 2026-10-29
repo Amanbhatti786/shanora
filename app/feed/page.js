@@ -7,8 +7,16 @@ import { supabase } from '../../lib/supabaseClient';
 export default function FeedPage() {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState(null);
+  const [userPages, setUserPages] = useState([]);
+  const [selectedPageId, setSelectedPageId] = useState('');
   const [feedItems, setFeedItems] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // New Post box state
+  const [postText, setPostText] = useState('');
+  const [postPhoto, setPostPhoto] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState('');
+  const [posting, setPosting] = useState(false);
 
   // Interaction states
   const [likedPosts, setLikedPosts] = useState({});
@@ -19,15 +27,28 @@ export default function FeedPage() {
   const [postComments, setPostComments] = useState({});
   const [commentInputs, setCommentInputs] = useState({});
   const [submittingComment, setSubmittingComment] = useState(false);
-  const [copiedPostId, setCopiedPostId] = useState(null);
 
   useEffect(() => {
-    async function fetchFeed() {
+    async function loadData() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        setCurrentUser(session?.user || null);
+        const user = session?.user || null;
+        setCurrentUser(user);
 
-        // 1. Fetch direct page posts with author page details
+        // Fetch User's Pages to let them publish
+        if (user?.email) {
+          const { data: pages } = await supabase
+            .from('pages')
+            .select('id, name, slug, logo_url')
+            .eq('owner_email', user.email);
+
+          if (pages && pages.length > 0) {
+            setUserPages(pages);
+            setSelectedPageId(pages[0].id);
+          }
+        }
+
+        // 1. Fetch direct posts
         const { data: directPosts } = await supabase
           .from('page_posts')
           .select(`
@@ -46,7 +67,7 @@ export default function FeedPage() {
           .order('created_at', { ascending: false })
           .limit(30);
 
-        // 2. Fetch relayed posts
+        // 2. Fetch relays
         const { data: relays } = await supabase
           .from('page_post_relays')
           .select(`
@@ -71,7 +92,6 @@ export default function FeedPage() {
           .order('created_at', { ascending: false })
           .limit(30);
 
-        // Normalize direct posts
         const formattedDirect = (directPosts || []).map(p => ({
           feedItemId: `post-${p.id}`,
           postId: p.id,
@@ -84,7 +104,6 @@ export default function FeedPage() {
           page: p.pages
         }));
 
-        // Normalize relayed items
         const formattedRelays = (relays || [])
           .filter(r => r.page_posts && r.page_posts.pages)
           .map(r => ({
@@ -93,21 +112,18 @@ export default function FeedPage() {
             content: r.page_posts.content,
             imageUrl: r.page_posts.image_url,
             createdAt: r.page_posts.created_at,
-            sortTime: new Date(r.created_at).getTime(), // sort by when it was relayed
+            sortTime: new Date(r.created_at).getTime(),
             isRelay: true,
             relayedBy: r.user_email?.split('@')[0] || 'A creator',
             page: r.page_posts.pages
           }));
 
-        // Combine & sort descending by date
         const merged = [...formattedDirect, ...formattedRelays].sort((a, b) => b.sortTime - a.sortTime);
         setFeedItems(merged);
 
-        // Extract all post IDs for Likes, Relays & Comments count
         const postIds = Array.from(new Set(merged.map(m => m.postId)));
 
         if (postIds.length > 0) {
-          // Fetch likes
           const { data: allLikes } = await supabase
             .from('page_post_likes')
             .select('*')
@@ -118,7 +134,7 @@ export default function FeedPage() {
             const userLiked = {};
             allLikes.forEach(l => {
               counts[l.post_id] = (counts[l.post_id] || 0) + 1;
-              if (session?.user?.email && l.user_email === session.user.email) {
+              if (user?.email && l.user_email === user.email) {
                 userLiked[l.post_id] = true;
               }
             });
@@ -126,7 +142,6 @@ export default function FeedPage() {
             setLikedPosts(userLiked);
           }
 
-          // Fetch relays
           const { data: allRelays } = await supabase
             .from('page_post_relays')
             .select('*')
@@ -137,7 +152,7 @@ export default function FeedPage() {
             const userRelayed = {};
             allRelays.forEach(r => {
               rCounts[r.post_id] = (rCounts[r.post_id] || 0) + 1;
-              if (session?.user?.email && r.user_email === session.user.email) {
+              if (user?.email && r.user_email === user.email) {
                 userRelayed[r.post_id] = true;
               }
             });
@@ -145,7 +160,6 @@ export default function FeedPage() {
             setRelayedPosts(userRelayed);
           }
 
-          // Fetch comments
           const { data: allComments } = await supabase
             .from('page_post_comments')
             .select('*')
@@ -168,8 +182,87 @@ export default function FeedPage() {
       }
     }
 
-    fetchFeed();
+    loadData();
   }, []);
+
+  // Post Submission from Feed
+  async function handleCreateFeedPost(e) {
+    e.preventDefault();
+    if (!currentUser) {
+      router.push('/auth');
+      return;
+    }
+    if (!selectedPageId) {
+      alert('Pehle ek Page create karein ya select karein post karne ke liye!');
+      return;
+    }
+    if (!postText.trim() && !postPhoto) return;
+
+    setPosting(true);
+    try {
+      let finalImageUrl = null;
+
+      if (postPhoto) {
+        const fileExt = postPhoto.name.split('.').pop();
+        const fileName = `feed_${Date.now()}.${fileExt}`;
+        const filePath = `posts/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('page-media')
+          .upload(filePath, postPhoto);
+
+        if (uploadError) throw uploadError;
+
+        const { data } = supabase.storage.from('page-media').getPublicUrl(filePath);
+        finalImageUrl = data.publicUrl;
+      }
+
+      const { data: newPost, error } = await supabase
+        .from('page_posts')
+        .insert([{
+          page_id: selectedPageId,
+          content: postText,
+          image_url: finalImageUrl
+        }])
+        .select(`
+          id,
+          content,
+          image_url,
+          created_at,
+          pages (
+            id,
+            name,
+            slug,
+            logo_url,
+            monetization_status
+          )
+        `)
+        .single();
+
+      if (error) throw error;
+
+      const formattedNew = {
+        feedItemId: `post-${newPost.id}`,
+        postId: newPost.id,
+        content: newPost.content,
+        imageUrl: newPost.image_url,
+        createdAt: newPost.created_at,
+        sortTime: new Date(newPost.created_at).getTime(),
+        isRelay: false,
+        relayedBy: null,
+        page: newPost.pages
+      };
+
+      setFeedItems([formattedNew, ...feedItems]);
+      setPostText('');
+      setPostPhoto(null);
+      setPhotoPreview('');
+    } catch (err) {
+      alert('Post creation failed: ' + err.message);
+    } finally {
+      setPosting(false);
+    }
+  }
 
   // Like Toggle
   async function handleToggleLike(postId) {
@@ -201,7 +294,7 @@ export default function FeedPage() {
     }
   }
 
-  // Relay Toggle from Feed
+  // Relay Toggle
   async function handleToggleRelay(postId) {
     if (!currentUser) {
       router.push('/auth');
@@ -266,6 +359,8 @@ export default function FeedPage() {
     }
   }
 
+  const activePageObj = userPages.find(p => p.id === selectedPageId) || userPages[0];
+
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#070b14', color: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       
@@ -280,6 +375,72 @@ export default function FeedPage() {
 
       <main style={{ maxWidth: '640px', margin: '0 auto', padding: '1rem 0.8rem 3rem 0.8rem' }}>
         
+        {/* Feed Post Creation Box */}
+        {userPages.length > 0 && (
+          <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1rem', marginBottom: '1.5rem' }}>
+            {userPages.length > 1 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.8rem', fontSize: '0.8rem', color: '#94a3b8' }}>
+                <span>Posting as:</span>
+                <select 
+                  value={selectedPageId} 
+                  onChange={(e) => setSelectedPageId(e.target.value)}
+                  style={{ backgroundColor: '#1e293b', color: '#fff', border: '1px solid #334155', borderRadius: '6px', padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
+                >
+                  {userPages.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <form onSubmit={handleCreateFeedPost}>
+              <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', marginBottom: '0.8rem' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#1e293b', backgroundImage: activePageObj?.logo_url ? `url(${activePageObj.logo_url})` : 'none', backgroundSize: 'cover', backgroundPosition: 'center', flexShrink: 0 }} />
+                <input
+                  type="text"
+                  placeholder="What's on your mind?"
+                  value={postText}
+                  onChange={(e) => setPostText(e.target.value)}
+                  style={{ flex: 1, backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '20px', padding: '0.6rem 1rem', color: '#fff', fontSize: '0.85rem', outline: 'none' }}
+                />
+              </div>
+
+              {photoPreview && (
+                <div style={{ position: 'relative', marginBottom: '0.8rem' }}>
+                  <img src={photoPreview} alt="Preview" style={{ width: '100%', maxHeight: '200px', objectFit: 'cover', borderRadius: '8px' }} />
+                  <button type="button" onClick={() => { setPostPhoto(null); setPhotoPreview(''); }} style={{ position: 'absolute', top: '5px', right: '5px', background: 'rgba(0,0,0,0.7)', color: '#fff', border: 'none', borderRadius: '50%', width: '24px', height: '24px', cursor: 'pointer' }}>✕</button>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #1e293b', paddingTop: '0.7rem' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#22c55e', fontSize: '0.82rem', fontWeight: '700', cursor: 'pointer' }}>
+                  🖼️ Photo
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files[0];
+                      if (file) {
+                        setPostPhoto(file);
+                        setPhotoPreview(URL.createObjectURL(file));
+                      }
+                    }}
+                    style={{ display: 'none' }}
+                  />
+                </label>
+
+                <button
+                  type="submit"
+                  disabled={posting || (!postText.trim() && !postPhoto)}
+                  style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.45rem 1.2rem', borderRadius: '6px', fontSize: '0.82rem', fontWeight: '700', cursor: (postText.trim() || postPhoto) && !posting ? 'pointer' : 'not-allowed' }}
+                >
+                  {posting ? 'Posting...' : 'Post'}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
         {loading ? (
           <div style={{ textAlign: 'center', padding: '3rem', color: '#38bdf8' }}>Loading feed...</div>
         ) : feedItems.length === 0 ? (
@@ -299,7 +460,6 @@ export default function FeedPage() {
               return (
                 <div key={item.feedItemId} style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', overflow: 'hidden' }}>
                   
-                  {/* Relayed By Badge */}
                   {item.isRelay && (
                     <div style={{ padding: '0.5rem 1rem', backgroundColor: '#1e293b', fontSize: '0.76rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.4rem', borderBottom: '1px solid #334155' }}>
                       <span style={{ color: '#4ade80', fontWeight: 'bold' }}>🔄</span> 
@@ -307,7 +467,6 @@ export default function FeedPage() {
                     </div>
                   )}
 
-                  {/* Author Header */}
                   <div style={{ padding: '0.8rem 1rem', display: 'flex', alignItems: 'center', gap: '0.7rem' }}>
                     <Link href={`/page/${item.page?.slug || ''}`}>
                       <div style={{ width: '42px', height: '42px', borderRadius: '50%', backgroundColor: '#1e293b', backgroundImage: item.page?.logo_url ? `url(${item.page.logo_url})` : 'none', backgroundSize: 'cover', backgroundPosition: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#38bdf8' }}>
@@ -325,20 +484,17 @@ export default function FeedPage() {
                     </div>
                   </div>
 
-                  {/* Caption */}
                   {item.content && (
                     <p style={{ padding: '0 1rem 0.8rem 1rem', margin: 0, fontSize: '0.88rem', color: '#cbd5e1', lineHeight: 1.45 }}>
                       {item.content}
                     </p>
                   )}
 
-                  {/* Media */}
                   {item.imageUrl && (
                     <img src={item.imageUrl} alt="Feed Post" style={{ width: '100%', maxHeight: '440px', objectFit: 'cover' }} />
                   )}
 
-                  {/* Counts Bar */}
-                  {(likesCount > 0 || commentsList.length > 0 || relaysCount > 0) && (
+{(likesCount > 0 || commentsList.length > 0 || relaysCount > 0) && (
                     <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 1rem', fontSize: '0.75rem', color: '#94a3b8', borderBottom: '1px solid #1e293b' }}>
                       <span>{likesCount > 0 ? `👍 ${likesCount}` : ''}</span>
                       <div style={{ display: 'flex', gap: '0.8rem' }}>
@@ -348,7 +504,6 @@ export default function FeedPage() {
                     </div>
                   )}
 
-                  {/* Action Bar */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', borderTop: '1px solid #1e293b', padding: '0.3rem 0' }}>
                     <button
                       type="button"
@@ -375,7 +530,6 @@ export default function FeedPage() {
                     </button>
                   </div>
 
-                  {/* Comments Drawer */}
                   {isCommentsOpen && (
                     <div style={{ padding: '0.8rem 1rem', backgroundColor: '#070b14', borderTop: '1px solid #1e293b' }}>
                       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.8rem' }}>
@@ -424,5 +578,4 @@ export default function FeedPage() {
 
     </div>
   );
-          }
-        
+}
