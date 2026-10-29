@@ -11,6 +11,13 @@ export default function FeedPage() {
   const [feedItems, setFeedItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Search Engine State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchFilter, setSearchFilter] = useState('all'); // 'all', 'pages', 'profiles'
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+
   // New Personal Post state
   const [postText, setPostText] = useState('');
   const [postPhoto, setPostPhoto] = useState(null);
@@ -224,6 +231,69 @@ export default function FeedPage() {
     loadData();
   }, []);
 
+  // Live Multi-Search for Pages and Profiles
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(async () => {
+      const q = searchQuery.trim();
+      if (!q) {
+        setSearchResults([]);
+        setShowSearchDropdown(false);
+        return;
+      }
+
+      setIsSearching(true);
+      setShowSearchDropdown(true);
+
+      try {
+        // 1. Search in Pages
+        const { data: pagesData } = await supabase
+          .from('pages')
+          .select('id, name, slug, logo_url, category, monetization_status')
+          .ilike('name', `%${q}%`)
+          .limit(10);
+
+        // 2. Search in Profiles
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('id, name, username, email, avatar_url')
+          .ilike('name', `%${q}%`)
+          .limit(10);
+
+        const formattedPages = (pagesData || []).map(p => ({
+          id: `page-${p.id}`,
+          type: 'page',
+          title: p.name,
+          subtitle: p.category || 'Official Page',
+          avatar: p.logo_url,
+          link: `/page/${p.slug}`,
+          isVerified: p.monetization_status === 'approved'
+        }));
+
+        const formattedProfiles = (profilesData || []).map(u => {
+          const uname = u.username || u.email?.split('@')[0] || 'user';
+          return {
+            id: `profile-${u.id || uname}`,
+            type: 'profile',
+            title: u.name || uname,
+            subtitle: `@${uname} • Personal Account`,
+            avatar: u.avatar_url,
+            link: `/page/${uname}`,
+            isVerified: false
+          };
+        });
+
+        setSearchResults([...formattedPages, ...formattedProfiles]);
+      } catch (err) {
+        console.error('Search error:', err);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchQuery]);
+
+  // Submit Personal Post
   async function handleCreatePersonalPost(e) {
     e.preventDefault();
     if (!currentUser) {
@@ -310,7 +380,6 @@ export default function FeedPage() {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(blobUrl);
     } catch (err) {
-      // Fallback: direct window open agar blob cross-origin restrict kare
       window.open(imageUrl, '_blank');
     }
   }
@@ -399,15 +468,175 @@ export default function FeedPage() {
 
   const currentUserName = userProfile?.name || currentUser?.email?.split('@')[0] || 'You';
 
+  // Filtered search list
+  const filteredResults = searchResults.filter(item => {
+    if (searchFilter === 'pages') return item.type === 'page';
+    if (searchFilter === 'profiles') return item.type === 'profile';
+    return true;
+  });
+
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#070b14', color: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       
-      {/* Top Header */}
-      <header style={{ backgroundColor: '#0f172a', borderBottom: '1px solid #1e293b', padding: '0.75rem 1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 100 }}>
-        <h1 style={{ margin: 0, fontSize: '1.2rem', fontWeight: '900', color: '#38bdf8' }}>SHANORA<span style={{ color: '#fff' }}>.PK</span></h1>
-        <div style={{ display: 'flex', gap: '0.6rem' }}>
-          <Link href="/create-page" style={{ backgroundColor: '#0284c7', color: '#fff', padding: '0.4rem 0.75rem', borderRadius: '6px', fontSize: '0.8rem', fontWeight: '700', textDecoration: 'none' }}>+ Create Page</Link>
-          <Link href="/profile" style={{ backgroundColor: '#1e293b', color: '#fff', padding: '0.4rem 0.75rem', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none' }}>Portal 💼</Link>
+      {/* Top Header with Facebook-Style Search Bar */}
+      <header style={{ backgroundColor: '#0f172a', borderBottom: '1px solid #1e293b', padding: '0.65rem 1rem', position: 'sticky', top: 0, zIndex: 100 }}>
+        <div style={{ maxWidth: '640px', margin: '0 auto', display: 'flex', alignItems: 'center', gap: '0.8rem', justifyContent: 'space-between' }}>
+          
+          <Link href="/feed" style={{ textDecoration: 'none' }}>
+            <h1 style={{ margin: 0, fontSize: '1.15rem', fontWeight: '900', color: '#38bdf8', whiteSpace: 'nowrap' }}>
+              SHANORA<span style={{ color: '#fff' }}>.PK</span>
+            </h1>
+          </Link>
+
+          {/* Facebook Style Search Input */}
+          <div style={{ position: 'relative', flex: 1, maxWidth: '340px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '22px', padding: '0.35rem 0.85rem' }}>
+              <span style={{ color: '#94a3b8', fontSize: '0.85rem', marginRight: '0.4rem' }}>🔍</span>
+              <input
+                type="text"
+                placeholder="Search profiles & pages..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={() => { if (searchQuery.trim()) setShowSearchDropdown(true); }}
+                style={{ width: '100%', background: 'transparent', border: 'none', color: '#fff', fontSize: '0.82rem', outline: 'none' }}
+              />
+              {searchQuery && (
+                <button 
+                  onClick={() => { setSearchQuery(''); setShowSearchDropdown(false); }}
+                  style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '0.8rem', cursor: 'pointer', padding: 0 }}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            {/* Live Search Dropdown Box */}
+            {showSearchDropdown && (
+              <div style={{ 
+                position: 'absolute', 
+                top: '42px', 
+                left: 0, 
+                right: 0, 
+                backgroundColor: '#0f172a', 
+                border: '1px solid #334155', 
+                borderRadius: '12px', 
+                boxShadow: '0 8px 24px rgba(0,0,0,0.6)', 
+                zIndex: 150, 
+                overflow: 'hidden',
+                maxHeight: '380px',
+                display: 'flex',
+                flexDirection: 'column'
+              }}>
+                {/* Search Filter Tabs: All, Pages, Profiles */}
+                <div style={{ display: 'flex', borderBottom: '1px solid #1e293b', backgroundColor: '#1e293b', padding: '0.3rem 0.5rem', gap: '0.4rem' }}>
+                  {['all', 'pages', 'profiles'].map(tab => (
+                    <button
+                      key={tab}
+                      type="button"
+                      onClick={() => setSearchFilter(tab)}
+                      style={{
+                        flex: 1,
+                        padding: '0.3rem 0.6rem',
+                        fontSize: '0.72rem',
+                        fontWeight: '700',
+                        borderRadius: '6px',
+                        border: 'none',
+                        cursor: 'pointer',
+                        textTransform: 'capitalize',
+                        backgroundColor: searchFilter === tab ? '#0284c7' : 'transparent',
+                        color: searchFilter === tab ? '#fff' : '#94a3b8'
+                      }}
+                    >
+                      {tab}
+                    </button>
+                  ))}
+                </div>
+
+                    {/* Results List */}
+                <div style={{ overflowY: 'auto', padding: '0.4rem 0' }}>
+                  {isSearching ? (
+                    <div style={{ padding: '1rem', textAlign: 'center', fontSize: '0.8rem', color: '#94a3b8' }}>
+                      Searching...
+                    </div>
+                  ) : filteredResults.length === 0 ? (
+                    <div style={{ padding: '1rem', textAlign: 'center', fontSize: '0.8rem', color: '#94a3b8' }}>
+                      No {searchFilter === 'all' ? 'results' : searchFilter} found for "{searchQuery}"
+                    </div>
+                  ) : (
+                    filteredResults.map(res => (
+                      <Link
+                        key={res.id}
+                        href={res.link}
+                        onClick={() => setShowSearchDropdown(false)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.7rem',
+                          padding: '0.6rem 0.9rem',
+                          textDecoration: 'none',
+                          borderBottom: '1px solid #1e293b',
+                          transition: 'background 0.2s'
+                        }}
+                      >
+                        {/* Avatar */}
+                        <div style={{
+                          width: '36px',
+                          height: '36px',
+                          borderRadius: '50%',
+                          backgroundColor: res.type === 'page' ? '#1e293b' : '#0284c7',
+                          backgroundImage: res.avatar ? `url(${res.avatar})` : 'none',
+                          backgroundSize: 'cover',
+                          backgroundPosition: 'center',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontWeight: 'bold',
+                          color: '#fff',
+                          fontSize: '0.85rem',
+                          flexShrink: 0
+                        }}>
+                          {!res.avatar && res.title.charAt(0).toUpperCase()}
+                        </div>
+
+                        {/* Title & Subtitle */}
+                        <div style={{ flex: 1, overflow: 'hidden' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                            <span style={{ color: '#fff', fontWeight: '700', fontSize: '0.82rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {res.title}
+                            </span>
+                            {res.isVerified && <span style={{ color: '#22c55e', fontSize: '0.75rem' }}>✓</span>}
+                          </div>
+                          <div style={{ color: '#94a3b8', fontSize: '0.7rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {res.subtitle}
+                          </div>
+                        </div>
+
+                        {/* Distinct Badge: Page vs Profile */}
+                        <span style={{
+                          fontSize: '0.65rem',
+                          fontWeight: '800',
+                          padding: '0.2rem 0.5rem',
+                          borderRadius: '6px',
+                          textTransform: 'uppercase',
+                          backgroundColor: res.type === 'page' ? 'rgba(2, 132, 199, 0.2)' : 'rgba(34, 197, 94, 0.2)',
+                          color: res.type === 'page' ? '#38bdf8' : '#4ade80',
+                          border: res.type === 'page' ? '1px solid rgba(2, 132, 199, 0.4)' : '1px solid rgba(34, 197, 94, 0.4)'
+                        }}>
+                          {res.type}
+                        </span>
+                      </Link>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+            <Link href="/create-page" style={{ backgroundColor: '#0284c7', color: '#fff', padding: '0.4rem 0.65rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '700', textDecoration: 'none' }}>+ Page</Link>
+            <Link href="/profile" style={{ backgroundColor: '#1e293b', color: '#fff', padding: '0.4rem 0.65rem', borderRadius: '6px', fontSize: '0.75rem', textDecoration: 'none' }}>Portal 💼</Link>
+          </div>
+
         </div>
       </header>
 
@@ -499,7 +728,7 @@ export default function FeedPage() {
                     </div>
                   )}
 
-    {/* Header: Clickable Avatar & Name */}
+                  {/* Header */}
                   <div style={{ padding: '0.8rem 1rem', display: 'flex', alignItems: 'center', gap: '0.7rem' }}>
                     <Link href={item.authorLink || '#'} style={{ textDecoration: 'none' }}>
                       <div style={{ 
@@ -533,14 +762,14 @@ export default function FeedPage() {
                     </div>
                   </div>
 
-                  {/* Caption */}
+                  {/* Content */}
                   {item.content && (
                     <div style={{ padding: '0 1rem 0.8rem 1rem', margin: 0, fontSize: '0.88rem', color: '#cbd5e1', lineHeight: 1.45, userSelect: 'text' }}>
                       {item.content}
                     </div>
                   )}
 
-                  {/* Post Image: Tap to open fullscreen modal with Save/Download */}
+                  {/* Image with Click-to-Enlarge */}
                   {item.imageUrl && (
                     <div 
                       onClick={() => setPreviewImage(item.imageUrl)} 
@@ -554,7 +783,7 @@ export default function FeedPage() {
                     </div>
                   )}
 
-                  {/* Counts Bar */}
+                  {/* Counts */}
                   {(likesCount > 0 || commentsList.length > 0 || relaysCount > 0) && (
                     <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 1rem', fontSize: '0.75rem', color: '#94a3b8', borderBottom: '1px solid #1e293b' }}>
                       <span>{likesCount > 0 ? `👍 ${likesCount}` : ''}</span>
@@ -565,7 +794,7 @@ export default function FeedPage() {
                     </div>
                   )}
 
-                  {/* Action Bar */}
+                  {/* Actions */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', borderTop: '1px solid #1e293b', padding: '0.3rem 0' }}>
                     <button
                       type="button"
@@ -641,7 +870,7 @@ export default function FeedPage() {
 
       </main>
 
-      {/* Facebook Style Fullscreen Image Lightbox & Downloader */}
+      {/* Lightbox Modal */}
       {previewImage && (
         <div 
           onClick={() => setPreviewImage(null)}
@@ -656,7 +885,6 @@ export default function FeedPage() {
             alignItems: 'center' 
           }}
         >
-          {/* Top Control Bar */}
           <div 
             onClick={(e) => e.stopPropagation()} 
             style={{ 
@@ -667,11 +895,9 @@ export default function FeedPage() {
               padding: '1rem', 
               display: 'flex', 
               justifyContent: 'space-between', 
-              alignItems: 'center',
-              backgroundColor: 'linear-gradient(to bottom, rgba(0,0,0,0.8), transparent)'
+              alignItems: 'center'
             }}
           >
-            {/* Save / Download Image Button */}
             <button
               type="button"
               onClick={() => handleDownloadImage(previewImage)}
@@ -686,14 +912,12 @@ export default function FeedPage() {
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.4rem',
-                boxShadow: '0 4px 10px rgba(0,0,0,0.5)'
+                gap: '0.4rem'
               }}
             >
               ⬇️ Save Image
             </button>
 
-            {/* Close Button */}
             <button
               type="button"
               onClick={() => setPreviewImage(null)}
@@ -716,8 +940,8 @@ export default function FeedPage() {
             </button>
           </div>
 
-          {/* Full Photo */}
-          <img 
+          
+              <img 
             onClick={(e) => e.stopPropagation()}
             src={previewImage} 
             alt="Enlarged view" 
@@ -725,8 +949,7 @@ export default function FeedPage() {
               maxWidth: '96vw', 
               maxHeight: '82vh', 
               objectFit: 'contain', 
-              borderRadius: '6px',
-              boxShadow: '0 8px 30px rgba(0,0,0,0.9)'
+              borderRadius: '6px'
             }} 
           />
         </div>
@@ -735,4 +958,3 @@ export default function FeedPage() {
     </div>
   );
 }
-
