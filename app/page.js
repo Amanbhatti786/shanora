@@ -48,18 +48,56 @@ export default function HomePage() {
           
         </div>
 
-        <nav style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-          <Link href="/feed" style={{ color: '#cbd5e1', fontSize: '0.85rem', textDecoration: 'none', fontWeight: '600', padding: '0.4rem 0.6rem' }}>
+                <nav style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', whiteSpace: 'nowrap' }}>
+          <Link 
+            href="/feed" 
+            style={{ 
+              backgroundColor: '#1e293b', 
+              color: '#38bdf8', 
+              border: '1px solid #334155', 
+              fontSize: '0.74rem', 
+              textDecoration: 'none', 
+              fontWeight: '600', 
+              padding: '0.35rem 0.6rem', 
+              borderRadius: '6px' 
+            }}
+          >
             Feed 🌐
           </Link>
-  
-          <Link href="/profile" style={{ color: '#cbd5e1', fontSize: '0.85rem', textDecoration: 'none', fontWeight: '600', padding: '0.4rem 0.6rem' }}>
-            Students & Portal 🎓
+
+          <Link 
+            href="/auth" 
+            style={{ 
+              backgroundColor: 'transparent', 
+              color: '#f8fafc', 
+              border: '1px solid #475569', 
+              fontSize: '0.74rem', 
+              textDecoration: 'none', 
+              fontWeight: '600', 
+              padding: '0.35rem 0.6rem', 
+              borderRadius: '6px' 
+            }}
+          >
+            Log In
           </Link>
-          <Link href="/auth" style={{ backgroundColor: '#0284c7', color: '#ffffff', fontSize: '0.85rem', textDecoration: 'none', fontWeight: '700', padding: '0.5rem 1.1rem', borderRadius: '8px' }}>
-            Sign In / Join ➔
+
+          <Link 
+            href="/auth" 
+            style={{ 
+              backgroundColor: '#0284c7', 
+              color: '#ffffff', 
+              border: '1px solid #38bdf8', 
+              fontSize: '0.74rem', 
+              textDecoration: 'none', 
+              fontWeight: '700', 
+              padding: '0.35rem 0.65rem', 
+              borderRadius: '6px' 
+            }}
+          >
+            Sign Up
           </Link>
         </nav>
+
       </header>
 
       {/* 2. Hero Section */}
