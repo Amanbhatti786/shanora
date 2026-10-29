@@ -660,7 +660,7 @@ ${profile.city}, Pakistan`;
               </div>
             </div>
 
-            {/* 3. QUICK ACTION BUTTONS */}
+                       {/* 3. QUICK ACTION BUTTONS */}
             <div style={{ display: 'flex', gap: '0.7rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
               <button 
                 type="button" 
@@ -669,19 +669,8 @@ ${profile.city}, Pakistan`;
               >
                 Browse Jobs 🔍
               </button>
-              <button 
-                type="button" 
-                onClick={() => setActiveTab('resume')}
-                style={{ backgroundColor: '#1e293b', color: '#f8fafc', border: '1px solid #334155', padding: '0.55rem 1rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer' }}
-              >
-                Upload Resume 📄
-              </button>
             </div>
-          </div>
-        )}
-                    
 
-  
 
           {/* TAB 2: PROFILE */}
           {activeTab === 'profile' && (
