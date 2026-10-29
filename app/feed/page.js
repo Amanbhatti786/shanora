@@ -17,6 +17,9 @@ export default function FeedPage() {
   const [photoPreview, setPhotoPreview] = useState('');
   const [posting, setPosting] = useState(false);
 
+  // Fullscreen Photo Viewer (Lightbox Modal)
+  const [previewImage, setPreviewImage] = useState(null);
+
   // Interaction states
   const [likedPosts, setLikedPosts] = useState({});
   const [postLikesCount, setPostLikesCount] = useState({});
@@ -293,6 +296,25 @@ export default function FeedPage() {
     }
   }
 
+  // Direct Image Downloader
+  async function handleDownloadImage(imageUrl) {
+    try {
+      const response = await fetch(imageUrl);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = `shanora_image_${Date.now()}.jpg`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      // Fallback: direct window open agar blob cross-origin restrict kare
+      window.open(imageUrl, '_blank');
+    }
+  }
+
   async function handleToggleLike(postId, postType) {
     if (!currentUser) {
       router.push('/auth');
@@ -466,7 +488,7 @@ export default function FeedPage() {
               return (
                 <div key={item.feedItemId} style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', overflow: 'hidden' }}>
                   
-                  {/* Relayed Banner - Link only on username */}
+                  {/* Relayed Banner */}
                   {item.isRelay && (
                     <div style={{ padding: '0.5rem 1rem', backgroundColor: '#1e293b', fontSize: '0.76rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.4rem', borderBottom: '1px solid #334155' }}>
                       <span style={{ color: '#4ade80', fontWeight: 'bold' }}>🔄</span> 
@@ -477,7 +499,7 @@ export default function FeedPage() {
                     </div>
                   )}
 
-                  {/* Header: Sirf Avatar aur Naam clickable hain */}
+    {/* Header: Clickable Avatar & Name */}
                   <div style={{ padding: '0.8rem 1rem', display: 'flex', alignItems: 'center', gap: '0.7rem' }}>
                     <Link href={item.authorLink || '#'} style={{ textDecoration: 'none' }}>
                       <div style={{ 
@@ -500,7 +522,7 @@ export default function FeedPage() {
                       </div>
                     </Link>
 
-                       <div>
+                    <div>
                       <Link href={item.authorLink || '#'} style={{ textDecoration: 'none' }}>
                         <div style={{ fontWeight: '700', fontSize: '0.9rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.3rem', cursor: 'pointer' }}>
                           <span>{item.authorName}</span>
@@ -511,17 +533,24 @@ export default function FeedPage() {
                     </div>
                   </div>
 
-                  {/* Post Content (Non-clickable regular text) */}
+                  {/* Caption */}
                   {item.content && (
                     <div style={{ padding: '0 1rem 0.8rem 1rem', margin: 0, fontSize: '0.88rem', color: '#cbd5e1', lineHeight: 1.45, userSelect: 'text' }}>
                       {item.content}
                     </div>
                   )}
 
-                  {/* Post Image (Regular display - No redirect link) */}
+                  {/* Post Image: Tap to open fullscreen modal with Save/Download */}
                   {item.imageUrl && (
-                    <div style={{ width: '100%', backgroundColor: '#070b14' }}>
-                      <img src={item.imageUrl} alt="Post image" style={{ width: '100%', maxHeight: '440px', objectFit: 'cover', display: 'block' }} />
+                    <div 
+                      onClick={() => setPreviewImage(item.imageUrl)} 
+                      style={{ width: '100%', backgroundColor: '#070b14', cursor: 'pointer', position: 'relative' }}
+                    >
+                      <img 
+                        src={item.imageUrl} 
+                        alt="Post image" 
+                        style={{ width: '100%', maxHeight: '440px', objectFit: 'cover', display: 'block' }} 
+                      />
                     </div>
                   )}
 
@@ -612,6 +641,98 @@ export default function FeedPage() {
 
       </main>
 
+      {/* Facebook Style Fullscreen Image Lightbox & Downloader */}
+      {previewImage && (
+        <div 
+          onClick={() => setPreviewImage(null)}
+          style={{ 
+            position: 'fixed', 
+            inset: 0, 
+            backgroundColor: 'rgba(0, 0, 0, 0.95)', 
+            zIndex: 999, 
+            display: 'flex', 
+            flexDirection: 'column', 
+            justifyContent: 'center', 
+            alignItems: 'center' 
+          }}
+        >
+          {/* Top Control Bar */}
+          <div 
+            onClick={(e) => e.stopPropagation()} 
+            style={{ 
+              position: 'absolute', 
+              top: 0, 
+              left: 0, 
+              right: 0, 
+              padding: '1rem', 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              backgroundColor: 'linear-gradient(to bottom, rgba(0,0,0,0.8), transparent)'
+            }}
+          >
+            {/* Save / Download Image Button */}
+            <button
+              type="button"
+              onClick={() => handleDownloadImage(previewImage)}
+              style={{
+                backgroundColor: '#0284c7',
+                border: 'none',
+                color: '#fff',
+                padding: '0.55rem 1.1rem',
+                borderRadius: '8px',
+                fontSize: '0.85rem',
+                fontWeight: '700',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                boxShadow: '0 4px 10px rgba(0,0,0,0.5)'
+              }}
+            >
+              ⬇️ Save Image
+            </button>
+
+            {/* Close Button */}
+            <button
+              type="button"
+              onClick={() => setPreviewImage(null)}
+              style={{
+                background: 'rgba(255,255,255,0.15)',
+                border: 'none',
+                color: '#fff',
+                width: '38px',
+                height: '38px',
+                borderRadius: '50%',
+                fontSize: '1.2rem',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* Full Photo */}
+          <img 
+            onClick={(e) => e.stopPropagation()}
+            src={previewImage} 
+            alt="Enlarged view" 
+            style={{ 
+              maxWidth: '96vw', 
+              maxHeight: '82vh', 
+              objectFit: 'contain', 
+              borderRadius: '6px',
+              boxShadow: '0 8px 30px rgba(0,0,0,0.9)'
+            }} 
+          />
+        </div>
+      )}
+
     </div>
   );
-                        }
+}
+
