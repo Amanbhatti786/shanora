@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -10,16 +11,20 @@ export default function BottomNav({ onOpenPostModal }) {
 
   useEffect(() => {
     async function fetchUnreadNotifications() {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user?.email) return;
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user?.email) return;
 
-      const { count } = await supabase
-        .from('notifications')
-        .select('*', { count: 'exact', head: true })
-        .eq('recipient_email', session.user.email)
-        .eq('is_read', false);
+        const { count } = await supabase
+          .from('notifications')
+          .select('*', { count: 'exact', head: true })
+          .eq('recipient_email', session.user.email)
+          .eq('is_read', false);
 
-      setUnreadCount(count || 0);
+        setUnreadCount(count || 0);
+      } catch (err) {
+        console.error('Error fetching unread notifications count:', err);
+      }
     }
 
     fetchUnreadNotifications();
@@ -28,7 +33,7 @@ export default function BottomNav({ onOpenPostModal }) {
   const navItems = [
     { label: 'Home', icon: '🏠', href: '/feed' },
     { label: 'Network', icon: '👥', href: '/profile?tab=pages' },
-    { label: 'Post', icon: '➕', action: onOpenPostModal || (() => window.location.href = '/feed') },
+    { label: 'Post', icon: '➕', action: onOpenPostModal || (() => { window.location.href = '/feed'; }) },
     { label: 'Notifications', icon: '🔔', href: '/profile?tab=notifications', badge: unreadCount },
     { label: 'Jobs', icon: '💼', href: '/profile?tab=jobs' }
   ];
@@ -55,6 +60,7 @@ export default function BottomNav({ onOpenPostModal }) {
           return (
             <button
               key={item.label}
+              type="button"
               onClick={item.action}
               style={{
                 background: 'none',
@@ -126,5 +132,4 @@ export default function BottomNav({ onOpenPostModal }) {
       })}
     </div>
   );
-    }
-              
+}
