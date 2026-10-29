@@ -45,9 +45,7 @@ export default function HomePage() {
               SHANORA<span style={{ color: '#38bdf8' }}>.PK</span>
             </span>
           </Link>
-          <span style={{ fontSize: '0.68rem', backgroundColor: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '0.2rem 0.5rem', borderRadius: '4px', textTransform: 'uppercase', fontWeight: '700' }}>
-            A ShanTech Project
-          </span>
+          
         </div>
 
         <nav style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
