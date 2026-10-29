@@ -1,112 +1,93 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabaseClient';
 
-export default function StudentPortal() {
+export default function ProfilePortal() {
   const router = useRouter();
 
   // Navigation & UI States
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [showMenuDrawer, setShowMenuDrawer] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [actionLoading, setActionLoading] = useState(false);
   const [statusMsg, setStatusMsg] = useState({ text: '', type: '' });
 
-  // Student State
+  // Data States
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState({
     full_name: '',
+    email: '',
     phone: '',
-    city: '',
-    country: '',
-    degree: '',
-    university: '',
-    graduation_year: '',
+    city: 'Pakistan',
+    headline: '',
     bio: '',
-    skills: '',
-    languages: 'English, Urdu',
-    expected_salary: '50,000 - 80,000',
-    relocate_ok: true,
-    is_searchable: true,
-    job_preference: 'hybrid',
-    photo_url: '',
-    resume_url: '',
-    fyp_title: '',
-    fyp_details: '',
-    experience: [],
-    certificates: [],
-    plan: 'free',
+    avatar_url: '',
+    skills: ''
   });
 
-  // Jobs, Applications & Saved Jobs Data
-  const [jobs, setJobs] = useState([]);
+  // Pages & Posts State
+  const [myPages, setMyPages] = useState([]);
+  const [myPosts, setMyPosts] = useState([]);
+
+  // Jobs & Applications Placeholder
   const [applications, setApplications] = useState([]);
   const [savedJobIds, setSavedJobIds] = useState(new Set());
-  const [jobSearch, setJobSearch] = useState('');
-  const [jobTypeFilter, setJobTypeFilter] = useState('All');
-
-  // AI & Scanner State
-  const [aiGeneratedLetter, setAiGeneratedLetter] = useState('');
-  const [scannerResult, setScannerResult] = useState(null);
 
   useEffect(() => {
     async function initPortal() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
+        if (!session?.user) {
           router.push('/auth');
           return;
         }
-        setUser(session.user);
 
-        // Fetch Student Profile
+        const currentUser = session.user;
+        setUser(currentUser);
+
+        // 1. Fetch Profile
         const { data: profileData } = await supabase
           .from('profiles')
           .select('*')
-          .eq('email', session.user.email)
+          .eq('email', currentUser.email)
           .maybeSingle();
 
         if (profileData) {
-          setProfile({
+          setProfile(prev => ({
+            ...prev,
             ...profileData,
-            skills: Array.isArray(profileData.skills) ? profileData.skills.join(', ') : (profileData.skills || ''),
-            languages: Array.isArray(profileData.languages) ? profileData.languages.join(', ') : (profileData.languages || 'English, Urdu'),
-            experience: profileData.experience || [],
-            certificates: profileData.certificates || []
-          });
+            full_name: profileData.name || currentUser.user_metadata?.full_name || currentUser.email.split('@')[0],
+            email: currentUser.email
+          }));
         } else {
           setProfile(prev => ({
             ...prev,
-            full_name: session.user.user_metadata?.full_name || '',
-            email: session.user.email
+            full_name: currentUser.user_metadata?.full_name || currentUser.email.split('@')[0],
+            email: currentUser.email
           }));
         }
 
-        // Fetch Jobs
-        const { data: jobsData } = await supabase.from('jobs').select('*').order('created_at', { ascending: false });
-        if (jobsData) setJobs(jobsData);
-
-        // Fetch Applications
-        const { data: appsData } = await supabase
-          .from('applications')
+        // 2. Fetch User's Pages
+        const { data: pagesData } = await supabase
+          .from('pages')
           .select('*')
-          .eq('student_email', session.user.email)
-          .order('applied_at', { ascending: false });
-        if (appsData) setApplications(appsData);
+          .eq('owner_email', currentUser.email)
+          .order('created_at', { ascending: false });
 
-        // Fetch Saved Jobs
-        const { data: savedData } = await supabase
-          .from('saved_jobs')
-          .select('job_id')
-          .eq('student_email', session.user.email);
-        if (savedData) {
-          setSavedJobIds(new Set(savedData.map(s => Number(s.job_id))));
-        }
+        if (pagesData) setMyPages(pagesData);
+
+        // 3. Fetch User's Posts
+        const { data: postsData } = await supabase
+          .from('user_posts')
+          .select('*')
+          .eq('user_email', currentUser.email)
+          .order('created_at', { ascending: false });
+
+        if (postsData) setMyPosts(postsData);
 
       } catch (err) {
-        console.error('Portal load error:', err);
+        console.error('Portal init error:', err);
       } finally {
         setLoading(false);
       }
@@ -115,922 +96,329 @@ export default function StudentPortal() {
     initPortal();
   }, [router]);
 
-  // Profile Completeness
-  const calculateCompleteness = () => {
-    let score = 0;
-    if (profile.full_name) score += 15;
-    if (profile.phone) score += 15;
-    if (profile.university && profile.degree) score += 20;
-    if (profile.skills) score += 15;
-    if (profile.photo_url) score += 15;
-    if (profile.resume_url) score += 20;
-    return score;
-  };
-
-  // Upload handler for Photo or Resume
-  async function handleFileUpload(e, type) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (type === 'resume' && file.type !== 'application/pdf') {
-      setStatusMsg({ text: 'Please upload a PDF document for your CV.', type: 'error' });
-      return;
-    }
-
-    setActionLoading(true);
-    setStatusMsg({ text: `Uploading ${type}...`, type: 'info' });
-
-    try {
-      const ext = file.name.split('.').pop();
-      const fileName = `${user.id}-${type}-${Date.now()}.${ext}`;
-      const bucketName = type === 'photo' ? 'profile-photos' : 'resumes';
-
-      const { error: uploadErr } = await supabase.storage.from(bucketName).upload(fileName, file, { upsert: true });
-      if (uploadErr) throw uploadErr;
-
-      const { data: { publicUrl } } = supabase.storage.from(bucketName).getPublicUrl(fileName);
-
-      const updateKey = type === 'photo' ? 'photo_url' : 'resume_url';
-      setProfile(prev => ({ ...prev, [updateKey]: publicUrl }));
-
-      await supabase.from('profiles').upsert({
-        email: user.email.toLowerCase().trim(),
-        [updateKey]: publicUrl,
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'email' });
-
-      setStatusMsg({ text: `${type === 'photo' ? 'Profile picture' : 'Resume'} updated successfully!`, type: 'success' });
-    } catch (err) {
-      setStatusMsg({ text: 'Upload failed: ' + err.message, type: 'error' });
-    } finally {
-      setActionLoading(false);
-    }
-  }
-
-  // Profile Save
-  async function handleSaveProfile(e) {
-    e.preventDefault();
-    setSaving(true);
-    setStatusMsg({ text: '', type: '' });
-
-    try {
-      const formattedSkills = profile.skills.split(',').map(s => s.trim()).filter(Boolean);
-      const formattedLangs = profile.languages.split(',').map(l => l.trim()).filter(Boolean);
-
-      const payload = {
-        email: user.email.toLowerCase().trim(),
-        full_name: profile.full_name.trim(),
-        phone: profile.phone.trim(),
-        city: profile.city,
-        country: profile.country,
-        degree: profile.degree.trim(),
-        university: profile.university.trim(),
-        graduation_year: profile.graduation_year,
-        bio: profile.bio.trim(),
-        skills: formattedSkills,
-        languages: formattedLangs,
-        expected_salary: profile.expected_salary,
-        relocate_ok: profile.relocate_ok,
-        is_searchable: profile.is_searchable,
-        job_preference: profile.job_preference,
-        photo_url: profile.photo_url,
-        resume_url: profile.resume_url,
-        fyp_title: profile.fyp_title || '',
-        fyp_details: profile.fyp_details || '',
-        experience: profile.experience,
-        certificates: profile.certificates,
-        updated_at: new Date().toISOString()
-      };
-
-      const { error } = await supabase.from('profiles').upsert(payload, { onConflict: 'email' });
-      if (error) throw error;
-      setStatusMsg({ text: 'Profile changes saved successfully! 🎉', type: 'success' });
-    } catch (err) {
-      setStatusMsg({ text: err.message || 'Failed to save changes.', type: 'error' });
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  // Apply to Job
-  async function handleApplyJob(job) {
-    setStatusMsg({ text: '', type: '' });
-
-    if (!profile.resume_url) {
-      alert('Please upload your PDF Resume in the "My Resume / CV" tab before applying.');
-      setActiveTab('resume');
-      return;
-    }
-
-    const alreadyApplied = applications.some(a => Number(a.job_id) === Number(job.id));
-    if (alreadyApplied) {
-      alert('You have already applied for this position.');
-      return;
-    }
-
-    setActionLoading(true);
-    try {
-      await supabase.from('profiles').upsert({
-        email: user.email.toLowerCase().trim(),
-        full_name: profile.full_name || user.email.split('@')[0],
-        resume_url: profile.resume_url
-      }, { onConflict: 'email' });
-
-      const { data, error } = await supabase.from('applications').insert({
-        job_id: job.id,
-        student_email: user.email.toLowerCase().trim(),
-        resume_url: profile.resume_url,
-        status: 'Applied'
-      }).select().single();
-
-      if (error) throw error;
-
-      const appRecord = {
-        ...data,
-        job_title: job.title,
-        job_company: job.company
-      };
-      setApplications([appRecord, ...applications]);
-
-      alert(`Congratulations! Your application for "${job.title}" has been submitted successfully! 🎉`);
-      setStatusMsg({ text: `Application submitted for ${job.title}! Track it under "My Applications".`, type: 'success' });
-    } catch (err) {
-      console.error('Application Error:', err);
-      alert('Application could not be submitted: ' + (err.message || 'Database error'));
-      setStatusMsg({ text: 'Application failed: ' + err.message, type: 'error' });
-    } finally {
-      setActionLoading(false);
-    }
-  }
-
-  // Toggle Save Job
-  async function handleToggleSave(jobId) {
-    const isSaved = savedJobIds.has(Number(jobId));
-    try {
-      if (isSaved) {
-        await supabase.from('saved_jobs').delete().match({ job_id: jobId, student_email: user.email });
-        const updated = new Set(savedJobIds);
-        updated.delete(Number(jobId));
-        setSavedJobIds(updated);
-      } else {
-        await supabase.from('saved_jobs').insert({ job_id: jobId, student_email: user.email });
-        setSavedJobIds(new Set([...savedJobIds, Number(jobId)]));
-      }
-    } catch (err) {
-      console.error('Save toggle error:', err);
-    }
-  }
-
-  // ATS Keyword Audit
-  function handleRunAtsAudit() {
-    const skillList = profile.skills.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
-    let detectedScore = 40;
-    const suggestions = [];
-
-    if (profile.full_name && profile.phone) detectedScore += 15;
-    if (profile.degree && profile.university) detectedScore += 15;
-    if (skillList.length >= 5) {
-      detectedScore += 15;
-    } else {
-      suggestions.push('Add at least 5 technical or domain skills to improve ATS keyword detection.');
-    }
-    if (profile.fyp_title) {
-      detectedScore += 10;
-    } else {
-      suggestions.push('Add your Final Year Project (FYP) to demonstrate practical experience.');
-    }
-
-    setScannerResult({
-      score: Math.min(detectedScore, 95),
-      suggestions,
-      disclaimer: 'Notice: This score is a structured estimate based on Pakistani graduate hiring standards. It is not an employment guarantee.'
-    });
-  }
-
-  // Cover Letter Generator
-  function handleGenerateCoverLetter() {
-    if (!profile.full_name || !profile.degree) {
-      alert('Please fill in your Full Name and Degree in the "My Profile" tab first.');
-      return;
-    }
-
-    const text = `Dear Hiring Manager,
-
-I am writing to express my strong interest in an entry-level position with your organization. As a fresh graduate in ${profile.degree} from ${profile.university}, I have developed practical competencies suited for dynamic workplace environments.
-
-During my academic tenure, I focused on core domains including ${profile.skills || 'key industry competencies'}.${profile.fyp_title ? ` For my final year project, I worked on "${profile.fyp_title}".` : ''}
-
-I look forward to discussing how my motivation, continuous learning mindset, and technical baseline can contribute to your team.
-
-Sincerely,
-${profile.full_name}
-${profile.phone} | ${user?.email}
-${profile.city}, Pakistan`;
-
-    setAiGeneratedLetter(text);
-  }
-
   async function handleLogout() {
     await supabase.auth.signOut();
     router.push('/auth');
   }
 
+  // Primary 3 Clean Tabs on Screen
+  const primaryTabs = [
+    { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+    { id: 'profile', label: 'My Profile', icon: '👤' },
+    { id: 'pages', label: `Pages (${myPages.length})`, icon: '🚩' }
+  ];
+
+  // Facebook Style Full Menu Items
+  const menuGridItems = [
+    { id: 'dashboard', label: 'Professional Dashboard', icon: '📊', color: '#38bdf8' },
+    { id: 'profile', label: 'My Profile', icon: '👤', color: '#60a5fa' },
+    { id: 'pages', label: `Pages (${myPages.length})`, icon: '🚩', color: '#f97316' },
+    { id: 'resume', label: 'My Resume', icon: '📝', color: '#f59e0b' },
+    { id: 'messages', label: 'Messages', icon: '💬', color: '#ec4899' },
+    { id: 'monetization', label: 'Monetization Hub', icon: '💰', color: '#eab308' },
+    { id: 'jobs', label: 'Find Jobs', icon: '🔍', color: '#38bdf8' },
+    { id: 'applications', label: `Applications (${applications.length})`, icon: '📄', color: '#a855f7' },
+    { id: 'saved', label: `Saved (${savedJobIds.size})`, icon: '★', color: '#6366f1' },
+    { id: 'ai-tools', label: 'Shanora AI Suite', icon: '⚡', color: '#10b981' },
+    { id: 'settings', label: 'Settings & Privacy', icon: '⚙️', color: '#94a3b8' }
+  ];
+
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', backgroundColor: '#070b14', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#38bdf8', fontFamily: 'system-ui' }}>
-        Loading...
+      <div style={{ minHeight: '100vh', backgroundColor: '#070b14', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#38bdf8' }}>
+        Loading Portal...
       </div>
     );
   }
 
-  const completeness = calculateCompleteness();
-  const filteredJobs = jobs.filter(job => {
-    const matchesSearch = job.title?.toLowerCase().includes(jobSearch.toLowerCase()) ||
-                          job.company?.toLowerCase().includes(jobSearch.toLowerCase()) ||
-                          job.city?.toLowerCase().includes(jobSearch.toLowerCase());
-    const matchesType = jobTypeFilter === 'All' || job.type === jobTypeFilter;
-    return matchesSearch && matchesType;
-  });
-
-        const navigationTabs = [
-    { id: 'feed', label: 'Feed', icon: '🌐' },
-    { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-    { id: 'profile', label: 'My Profile', icon: '👤' },
-    { id: 'resume', label: 'My Resume', icon: '📝' },
-    { id: 'pages', label: 'Pages', icon: '🚩' },
-    { id: 'messages', label: 'Messages', icon: '💬' },
-    { id: 'monetization', label: 'Monetization', icon: '💰' },
-    { id: 'jobs', label: 'Find Jobs', icon: '🔍' },
-    { id: 'applications', label: `Applications (${applications.length})`, icon: '📄' },
-    { id: 'saved', label: `Saved (${savedJobIds.size})`, icon: '★' },
-    { id: 'ai-tools', label: 'AI Suite', icon: '⚡' },
-    { id: 'settings', label: 'Settings', icon: '⚙️' }
-  ];
-
- 
-
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#070b14', color: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif', display: 'flex', flexDirection: 'column' }}>
-
-      {/* Embedded Responsive CSS for Clean Mobile View */}
-      <style>{`
-        .portal-layout {
-          display: flex;
-          flex-direction: column;
-        }
-        .portal-desktop-nav {
-          display: none;
-        }
-        .portal-mobile-tabs {
-          display: flex;
-          gap: 0.5rem;
-          padding: 0.75rem 1rem;
-          background: #0b1120;
-          border-bottom: 1px solid #1e293b;
-          overflow-x: auto;
-          white-space: nowrap;
-          scrollbar-width: none;
-          -webkit-overflow-scrolling: touch;
-        }
-        .portal-mobile-tabs::-webkit-scrollbar {
-          display: none;
-        }
-        .tab-btn-mobile {
-          display: inline-flex;
-          align-items: center;
-          gap: 0.35rem;
-          padding: 0.5rem 0.85rem;
-          border-radius: 20px;
-          border: 1px solid #1e293b;
-          background: #0f172a;
-          color: #94a3b8;
-          font-size: 0.8rem;
-          font-weight: 600;
-          cursor: pointer;
-        }
-        .tab-btn-mobile.active {
-          background: #0284c7;
-          border-color: #38bdf8;
-          color: #ffffff;
-        }
-
-        @media (min-width: 850px) {
-          .portal-layout {
-            flex-direction: row;
-          }
-          .portal-mobile-tabs {
-            display: none;
-          }
-          .portal-desktop-nav {
-            display: flex;
-            width: 240px;
-            background: #0b1120;
-            border-right: 1px solid #1e293b;
-            padding: 1.2rem 0.8rem;
-            flex-direction: column;
-            gap: 0.35rem;
-          }
-        }
-      `}</style>
-
-      {/* TOP NAVBAR */}
-      <header style={{ backgroundColor: '#0f172a', borderBottom: '1px solid #1e293b', padding: '0.85rem 1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 40 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-          <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            <span style={{ fontSize: '1.25rem', fontWeight: '900', color: '#ffffff' }}>SHANORA<span style={{ color: '#38bdf8' }}>.PK</span></span>
-          </Link>
+    <div style={{ minHeight: '100vh', backgroundColor: '#070b14', color: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       
-        </div>
-
-        <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center' }}>
-          <Link href="/feed" style={{ backgroundColor: '#1e293b', color: '#38bdf8', padding: '0.45rem 0.85rem', borderRadius: '8px', fontSize: '0.8rem', textDecoration: 'none', border: '1px solid #334155', fontWeight: 'bold' }}>
-            Feed 🌐
+      {/* Top Header */}
+      <header style={{ backgroundColor: '#0f172a', borderBottom: '1px solid #1e293b', padding: '0.75rem 1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 100 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+          <Link href="/feed" style={{ textDecoration: 'none', color: '#38bdf8', fontWeight: '900', fontSize: '1.15rem' }}>
+            SHANORA<span style={{ color: '#fff' }}>.PK</span>
           </Link>
-              <Link href="/messages" style={{ backgroundColor: '#1e293b', color: '#38bdf8', padding: '0.45rem 0.85rem', borderRadius: '8px', fontSize: '0.8rem', textDecoration: 'none', border: '1px solid #334155', fontWeight: 'bold' }}>
-  Messages 💬
-</Link>
-    
-          <button onClick={handleLogout} style={{ backgroundColor: 'rgba(239, 68, 68, 0.12)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '0.45rem 0.95rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer' }}>
-            Logout 🚪
-          </button>
+        </div>
+        <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center' }}>
+          <Link href="/feed" style={{ backgroundColor: '#1e293b', color: '#38bdf8', padding: '0.4rem 0.75rem', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none' }}>Feed 🌐</Link>
+          <button onClick={handleLogout} style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '0.4rem 0.75rem', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 'bold', cursor: 'pointer' }}>Logout</button>
         </div>
       </header>
 
-      {/* MOBILE HORIZONTAL SCROLLABLE TABS */}
-      <nav className="portal-mobile-tabs">
-        {navigationTabs.map(tab => (
-          <button
-            key={tab.id}
-            type="button"
-            className={`tab-btn-mobile ${activeTab === tab.id ? 'active' : ''}`}
-            onClick={() => {
-  setStatusMsg({ text: '', type: '' });
-  if (tab.id === 'feed') {
-    router.push('/feed');
-  } else if (tab.id === 'messages') {
-    router.push('/messages');
-  } else if (tab.id === 'monetization') {
-    router.push('/monetization');
-  } else {
-    setActiveTab(tab.id);
-  }
-}}
+      {/* Main Clean Tab Bar (3 Clean Tabs + Menu Button) */}
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        backgroundColor: '#0f172a', 
+        borderBottom: '1px solid #1e293b', 
+        padding: '0.5rem 0.8rem',
+        maxWidth: '680px',
+        margin: '0 auto'
+      }}>
+        <div style={{ display: 'flex', gap: '0.4rem', flex: 1 }}>
+          {primaryTabs.map(tab => {
+            const isAct = activeTab === tab.id && !showMenuDrawer;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => { setActiveTab(tab.id); setShowMenuDrawer(false); }}
+                style={{
+                  flex: 1,
+                  backgroundColor: isAct ? '#0284c7' : '#1e293b',
+                  color: isAct ? '#fff' : '#94a3b8',
+                  border: 'none',
+                  padding: '0.55rem 0.4rem',
+                  borderRadius: '8px',
+                  fontSize: '0.8rem',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.3rem'
+                }}
+              >
+                <span>{tab.icon}</span>
+                <span style={{ whiteSpace: 'nowrap' }}>{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
 
-          >
-            <span>{tab.icon}</span>
-            <span>{tab.label}</span>
-          </button>
-        ))}
-      </nav>
+        {/* Facebook Style Menu Trigger Button */}
+        <button
+          onClick={() => setShowMenuDrawer(!showMenuDrawer)}
+          style={{
+            marginLeft: '0.5rem',
+            backgroundColor: showMenuDrawer ? '#0284c7' : '#1e293b',
+            color: showMenuDrawer ? '#fff' : '#38bdf8',
+            border: '1px solid #334155',
+            padding: '0.55rem 0.9rem',
+            borderRadius: '8px',
+            fontSize: '0.82rem',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.3rem'
+          }}
+        >
+          <span>☰</span>
+          <span>Menu</span>
+        </button>
+      </div>
 
-      {/* PORTAL BODY */}
-      <div className="portal-layout" style={{ flex: 1 }}>
+      <main style={{ maxWidth: '680px', margin: '0 auto', padding: '1rem 0.8rem 3rem 0.8rem' }}>
 
-        {/* DESKTOP SIDEBAR */}
-        <aside className="portal-desktop-nav">
-          {navigationTabs.map(tab => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => {
-  setStatusMsg({ text: '', type: '' });
-  if (tab.id === 'feed') {
-    router.push('/feed');
-  } else if (tab.id === 'messages') {
-    router.push('/messages');
-  } else if (tab.id === 'monetization') {
-    router.push('/monetization');
-  } else {
-    setActiveTab(tab.id);
-  }
-}}
-
-
+        {/* FACEBOOK STYLE MENU VIEW */}
+        {showMenuDrawer ? (
+          <div>
+            {/* Top User Profile Bar in Menu */}
+            <div 
+              onClick={() => { setActiveTab('profile'); setShowMenuDrawer(false); }}
               style={{
-                width: '100%',
-                textAlign: 'left',
-                padding: '0.7rem 0.9rem',
-                borderRadius: '8px',
-                border: 'none',
-                fontWeight: activeTab === tab.id ? '700' : '500',
-                backgroundColor: activeTab === tab.id ? '#0284c7' : 'transparent',
-                color: activeTab === tab.id ? '#ffffff' : '#94a3b8',
-                cursor: 'pointer',
-                fontSize: '0.88rem',
+                backgroundColor: '#0f172a',
+                border: '1px solid #1e293b',
+                borderRadius: '14px',
+                padding: '0.9rem 1rem',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.5rem'
+                gap: '0.8rem',
+                marginBottom: '1.2rem',
+                cursor: 'pointer'
               }}
             >
-              <span>{tab.icon}</span>
-              <span>{tab.label}</span>
-            </button>
-          ))}
-        </aside>
-
-        {/* WORKSPACE */}
-        <main style={{ flex: 1, padding: '1.25rem 1rem', maxWidth: '850px', margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
-
-          {statusMsg.text && (
-            <div style={{
-              padding: '0.85rem',
-              borderRadius: '8px',
-              fontSize: '0.88rem',
-              marginBottom: '1.2rem',
-              backgroundColor: statusMsg.type === 'error' ? 'rgba(239, 68, 68, 0.15)' : statusMsg.type === 'info' ? 'rgba(56, 189, 248, 0.15)' : 'rgba(34, 197, 94, 0.15)',
-              border: `1px solid ${statusMsg.type === 'error' ? '#ef4444' : statusMsg.type === 'info' ? '#38bdf8' : '#22c55e'}`,
-              color: statusMsg.type === 'error' ? '#fca5a5' : statusMsg.type === 'info' ? '#7dd3fc' : '#86efac'
-            }}>
-              {statusMsg.text}
+              <div style={{ width: '46px', height: '46px', borderRadius: '50%', backgroundColor: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.3rem', fontWeight: 'bold', color: '#fff' }}>
+                {(profile.full_name || 'U').charAt(0).toUpperCase()}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ color: '#fff', fontWeight: '800', fontSize: '0.95rem' }}>{profile.full_name}</div>
+                <div style={{ color: '#38bdf8', fontSize: '0.76rem' }}>View your profile ➔</div>
+              </div>
             </div>
-          )}
 
-                {/* TAB 1: DASHBOARD */}
-        {activeTab === 'dashboard' && (
+            <div style={{ fontSize: '0.82rem', fontWeight: 'bold', color: '#94a3b8', marginBottom: '0.8rem', textTransform: 'uppercase' }}>
+              All Shortcuts
+            </div>
+
+            {/* 2-Column Grid Like Facebook Menu */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              {menuGridItems.map(item => (
+                <div
+                  key={item.id}
+                  onClick={() => { setActiveTab(item.id); setShowMenuDrawer(false); }}
+                  style={{
+                    backgroundColor: '#0f172a',
+                    border: '1px solid #1e293b',
+                    borderRadius: '12px',
+                    padding: '0.9rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    minHeight: '80px',
+                    boxShadow: '0 4px 10px rgba(0,0,0,0.2)',
+                    transition: 'transform 0.1s'
+                  }}
+                >
+                  <div style={{ fontSize: '1.4rem', color: item.color, marginBottom: '0.5rem' }}>
+                    {item.icon}
+                  </div>
+                  <div style={{ color: '#fff', fontSize: '0.85rem', fontWeight: '700' }}>
+                    {item.label}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          /* REGULAR TAB CONTENT */
           <div>
-            {/* 1. MAIN CREATOR & PROFILE HUB */}
-            <div style={{ 
-              backgroundColor: '#0f172a', 
-              border: '1px solid #1e293b', 
-              borderRadius: '16px', 
-              padding: '1.4rem', 
-              marginBottom: '1.2rem',
-              background: 'linear-gradient(180deg, #0f172a 0%, #070b14 100%)'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.2rem' }}>
-                <div>
-                  <span style={{ fontSize: '0.72rem', backgroundColor: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.25)', padding: '0.2rem 0.55rem', borderRadius: '4px', fontWeight: '700', textTransform: 'uppercase' }}>
+            {/* TAB: DASHBOARD */}
+            {activeTab === 'dashboard' && (
+              <div>
+                <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.4rem', marginBottom: '1.2rem', background: 'linear-gradient(180deg, #0f172a 0%, #1e293b 100%)' }}>
+                  <span style={{ fontSize: '0.72rem', backgroundColor: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '0.2rem 0.5rem', borderRadius: '4px', fontWeight: 'bold' }}>
                     Creator & Network Hub
                   </span>
-                  <h2 style={{ fontSize: '1.4rem', color: '#ffffff', margin: '0.4rem 0 0 0', fontWeight: '800' }}>
-                    Welcome, {profile?.full_name || 'Member'} 👋
+                  <h2 style={{ fontSize: '1.3rem', color: '#fff', margin: '0.4rem 0 0.2rem 0' }}>
+                    Welcome, {profile.full_name || 'Member'}
                   </h2>
-                  <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: '0.2rem 0 0 0' }}>
-                    Track network reach, followers growth, and monetization eligibility.
+                  <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: 0 }}>
+                    Track network reach, followers growth, and managed pages.
                   </p>
                 </div>
 
-                <button 
-                  type="button"
-                  onClick={() => router.push('/monetization')}
-                  style={{ 
-                    backgroundColor: '#0284c7', 
-                    color: '#ffffff', 
-                    border: 'none', 
-                    borderRadius: '8px', 
-                    padding: '0.55rem 1.1rem', 
-                    fontSize: '0.8rem', 
-                    fontWeight: '700', 
-                    cursor: 'pointer' 
-                  }}
-                >
-                  Monetization Hub ➔
-                </button>
-              </div>
-
-              {/* Followers, Following & Partner Status */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.75rem', marginBottom: '1.2rem' }}>
-                <div style={{ backgroundColor: '#1e293b', padding: '0.85rem', borderRadius: '10px', textAlign: 'center', border: '1px solid #334155' }}>
-                  <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase' }}>Followers</div>
-                  <div style={{ fontSize: '1.6rem', fontWeight: '900', color: '#38bdf8', marginTop: '0.2rem' }}>
-                    {profile?.followers_count || 0}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.8rem', marginBottom: '1.5rem' }}>
+                  <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '1rem' }}>
+                    <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Total Pages</span>
+                    <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#38bdf8' }}>{myPages.length}</div>
                   </div>
-                </div>
-
-                <div style={{ backgroundColor: '#1e293b', padding: '0.85rem', borderRadius: '10px', textAlign: 'center', border: '1px solid #334155' }}>
-                  <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase' }}>Following</div>
-                  <div style={{ fontSize: '1.6rem', fontWeight: '900', color: '#f8fafc', marginTop: '0.2rem' }}>
-                    {profile?.following_count || 0}
-                  </div>
-                </div>
-
-                <div style={{ backgroundColor: '#1e293b', padding: '0.85rem', borderRadius: '10px', textAlign: 'center', border: '1px solid #334155' }}>
-                  <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase' }}>Partner Status</div>
-                  <div style={{ fontSize: '0.95rem', fontWeight: '800', color: (profile?.followers_count || 0) >= 1000 ? '#22c55e' : '#eab308', marginTop: '0.5rem' }}>
-                    {(profile?.followers_count || 0) >= 1000 ? 'Verified Partner' : 'In Progress'}
+                  <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '1rem' }}>
+                    <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Personal Posts</span>
+                    <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#22c55e' }}>{myPosts.length}</div>
                   </div>
                 </div>
               </div>
+            )}
 
-              {/* Monetization Milestone Bar */}
-              <div style={{ backgroundColor: 'rgba(30, 41, 59, 0.6)', border: '1px solid #334155', borderRadius: '10px', padding: '0.85rem 1rem', marginBottom: '1rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem', marginBottom: '0.4rem' }}>
-                  <span style={{ color: '#cbd5e1', fontWeight: '600' }}>Target: 1,000 Verified Followers for Creator Monetization</span>
-                  <span style={{ color: '#38bdf8', fontWeight: '800' }}>{profile?.followers_count || 0} / 1,000</span>
-                </div>
-                <div style={{ width: '100%', height: '8px', backgroundColor: '#0b1120', borderRadius: '4px', overflow: 'hidden' }}>
-                  <div 
-                    style={{ 
-                      width: `${Math.min(((profile?.followers_count || 0) / 1000) * 100, 100)}%`, 
-                      height: '100%', 
-                      backgroundColor: '#38bdf8', 
-                      borderRadius: '4px',
-                      transition: 'width 0.4s ease' 
-                    }} 
-                  />
+            {/* TAB: MY PROFILE */}
+            {activeTab === 'profile' && (
+              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.4rem' }}>
+                <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', color: '#fff' }}>Personal Details</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', fontSize: '0.88rem', color: '#cbd5e1' }}>
+                  <div>👤 <strong>Full Name:</strong> {profile.full_name}</div>
+                  <div>📧 <strong>Email:</strong> {profile.email}</div>
+                  <div>📱 <strong>Phone:</strong> {profile.phone || 'Not provided'}</div>
+                  <div>💼 <strong>Headline:</strong> {profile.headline || 'Member'}</div>
                 </div>
               </div>
+            )}
 
-              {/* Integrated Profile Strength */}
-              <div style={{ borderTop: '1px solid #1e293b', paddingTop: '0.85rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', marginBottom: '0.35rem' }}>
-                  <span style={{ color: '#94a3b8' }}>Profile Strength</span>
-                  <strong style={{ color: '#22c55e' }}>{profile?.resume_url ? 100 : 70}%</strong>
-                </div>
-                <div style={{ width: '100%', height: '6px', backgroundColor: '#0b1120', borderRadius: '3px', overflow: 'hidden' }}>
-                  <div style={{ width: `${profile?.resume_url ? 100 : 70}%`, height: '100%', backgroundColor: '#22c55e' }} />
-                </div>
-              </div>
-            </div>
-
-            {/* 2. CAREER & APPLICATION STATS */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem', marginBottom: '1.2rem' }}>
-              <div style={{ backgroundColor: '#0f172a', padding: '1rem', borderRadius: '10px', border: '1px solid #1e293b', textAlign: 'center' }}>
-                <span style={{ fontSize: '0.72rem', color: '#94a3b8', textTransform: 'uppercase' }}>Applications Sent</span>
-                <h3 style={{ margin: '0.3rem 0 0', fontSize: '1.4rem', color: '#fff' }}>0</h3>
-              </div>
-              <div style={{ backgroundColor: '#0f172a', padding: '1rem', borderRadius: '10px', border: '1px solid #1e293b', textAlign: 'center' }}>
-                <span style={{ fontSize: '0.72rem', color: '#94a3b8', textTransform: 'uppercase' }}>Saved Jobs</span>
-                <h3 style={{ margin: '0.3rem 0 0', fontSize: '1.4rem', color: '#38bdf8' }}>0</h3>
-              </div>
-              <div style={{ backgroundColor: '#0f172a', padding: '1rem', borderRadius: '10px', border: '1px solid #1e293b', textAlign: 'center' }}>
-                <span style={{ fontSize: '0.72rem', color: '#94a3b8', textTransform: 'uppercase' }}>Resume Status</span>
-                <h3 style={{ margin: '0.3rem 0 0', fontSize: '1.1rem', color: profile?.resume_url ? '#22c55e' : '#94a3b8' }}>
-                  {profile?.resume_url ? 'Uploaded' : 'Pending'}
-                </h3>
-              </div>
-            </div>
-
-            {/* 3. QUICK ACTION BUTTONS */}
-            <div style={{ display: 'flex', gap: '0.7rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
-              <button 
-                type="button" 
-                onClick={() => setActiveTab('jobs')}
-                style={{ backgroundColor: '#1e293b', color: '#f8fafc', border: '1px solid #334155', padding: '0.55rem 1rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer' }}
-              >
-                Browse Jobs 🔍
-              </button>
-            </div>
-          </div>
-        )}
-
-
-          {/* TAB 2: PROFILE */}
-          {activeTab === 'profile' && (
-            <div style={{ backgroundColor: '#0f172a', padding: '1.25rem', borderRadius: '14px', border: '1px solid #1e293b' }}>
-              <h2 style={{ margin: '0 0 1rem 0', fontSize: '1.2rem' }}>Personal & Education Details</h2>
-              <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.8rem' }}>
+            {/* TAB: PAGES */}
+            {activeTab === 'pages' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.3rem', fontWeight: 'bold' }}>Full Name *</label>
-                    <input type="text" required value={profile.full_name} onChange={e => setProfile({ ...profile, full_name: e.target.value })} style={{ width: '100%', padding: '0.65rem', borderRadius: '8px', backgroundColor: '#1e293b', border: '1px solid #334155', color: '#fff', boxSizing: 'border-box' }} />
+                    <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '800', color: '#fff' }}>Official Pages</h3>
+                    <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.8rem', color: '#94a3b8' }}>Create and manage pages for your brand or community</p>
                   </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.3rem', fontWeight: 'bold' }}>WhatsApp / Phone *</label>
-                    <input type="text" required value={profile.phone} onChange={e => setProfile({ ...profile, phone: e.target.value })} placeholder="03001234567" style={{ width: '100%', padding: '0.65rem', borderRadius: '8px', backgroundColor: '#1e293b', border: '1px solid #334155', color: '#fff', boxSizing: 'border-box' }} />
-                  </div>
+                  {myPages?.length > 0 && (
+                    <Link href="/create-page" style={{ backgroundColor: '#0284c7', color: '#fff', padding: '0.45rem 0.85rem', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 'bold', textDecoration: 'none' }}>
+                      + Create Page
+                    </Link>
+                  )}
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.8rem' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.3rem', fontWeight: 'bold' }}>University *</label>
-                    <input type="text" required value={profile.university} onChange={e => setProfile({ ...profile, university: e.target.value })} placeholder="e.g. UET Lahore" style={{ width: '100%', padding: '0.65rem', borderRadius: '8px', backgroundColor: '#1e293b', border: '1px solid #334155', color: '#fff', boxSizing: 'border-box' }} />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.3rem', fontWeight: 'bold' }}>Degree *</label>
-                    <input type="text" required value={profile.degree} onChange={e => setProfile({ ...profile, degree: e.target.value })} placeholder="e.g. BS Computer Science" style={{ width: '100%', padding: '0.65rem', borderRadius: '8px', backgroundColor: '#1e293b', border: '1px solid #334155', color: '#fff', boxSizing: 'border-box' }} />
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.8rem' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.3rem', fontWeight: 'bold' }}>City</label>
-                    <input type="text" value={profile.city} onChange={e => setProfile({ ...profile, city: e.target.value })} style={{ width: '100%', padding: '0.65rem', borderRadius: '8px', backgroundColor: '#1e293b', border: '1px solid #334155', color: '#fff', boxSizing: 'border-box' }} />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.3rem', fontWeight: 'bold' }}>Graduation Year</label>
-                    <input type="text" value={profile.graduation_year} onChange={e => setProfile({ ...profile, graduation_year: e.target.value })} style={{ width: '100%', padding: '0.65rem', borderRadius: '8px', backgroundColor: '#1e293b', border: '1px solid #334155', color: '#fff', boxSizing: 'border-box' }} />
-                  </div>
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.3rem', fontWeight: 'bold' }}>Skills (Comma separated)</label>
-                  <input type="text" value={profile.skills} onChange={e => setProfile({ ...profile, skills: e.target.value })} placeholder="React, Python, Communication" style={{ width: '100%', padding: '0.65rem', borderRadius: '8px', backgroundColor: '#1e293b', border: '1px solid #334155', color: '#fff', boxSizing: 'border-box' }} />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.3rem', fontWeight: 'bold' }}>Professional Summary</label>
-                  <textarea rows={3} value={profile.bio} onChange={e => setProfile({ ...profile, bio: e.target.value })} placeholder="Tell employers about your goals..." style={{ width: '100%', padding: '0.65rem', borderRadius: '8px', backgroundColor: '#1e293b', border: '1px solid #334155', color: '#fff', boxSizing: 'border-box', fontFamily: 'inherit' }} />
-                </div>
-
-                {/* Final Year Project */}
-                <div style={{ backgroundColor: '#131b2e', padding: '0.85rem', borderRadius: '10px' }}>
-                  <h4 style={{ margin: '0 0 0.6rem 0', color: '#38bdf8', fontSize: '0.85rem' }}>Final Year Project (FYP)</h4>
-                  <input type="text" value={profile.fyp_title} onChange={e => setProfile({ ...profile, fyp_title: e.target.value })} placeholder="FYP Title" style={{ width: '100%', padding: '0.6rem', borderRadius: '6px', backgroundColor: '#1e293b', border: '1px solid #334155', color: '#fff', marginBottom: '0.5rem', boxSizing: 'border-box' }} />
-                  <textarea rows={2} value={profile.fyp_details} onChange={e => setProfile({ ...profile, fyp_details: e.target.value })} placeholder="Tools used and problem solved..." style={{ width: '100%', padding: '0.6rem', borderRadius: '6px', backgroundColor: '#1e293b', border: '1px solid #334155', color: '#fff', boxSizing: 'border-box', fontFamily: 'inherit' }} />
-                </div>
-
-                <button type="submit" disabled={saving} style={{ backgroundColor: '#0284c7', color: '#fff', padding: '0.75rem', borderRadius: '8px', border: 'none', fontWeight: 'bold', cursor: saving ? 'not-allowed' : 'pointer' }}>
-                  {saving ? 'Saving...' : 'Save Profile Changes 💾'}
-                </button>
-              </form>
-            </div>
-          )}
-
-          {/* TAB 3: RESUME */}
-          {activeTab === 'resume' && (
-            <div style={{ backgroundColor: '#0f172a', padding: '1.25rem', borderRadius: '14px', border: '1px solid #1e293b' }}>
-              <h2 style={{ margin: '0 0 0.5rem 0', fontSize: '1.2rem' }}>Resume / CV Document</h2>
-              <p style={{ color: '#94a3b8', fontSize: '0.82rem', marginBottom: '1.2rem' }}>Attach your PDF CV for 1-click job applications.</p>
-
-              <div style={{ backgroundColor: '#131b2e', padding: '1.25rem', borderRadius: '12px', border: '1px dashed #334155', textAlign: 'center' }}>
-                <div style={{ fontSize: '2.2rem', marginBottom: '0.4rem' }}>📄</div>
-                {profile.resume_url ? (
-                  <div>
-                    <span style={{ color: '#22c55e', fontWeight: 'bold', display: 'block', marginBottom: '0.8rem', fontSize: '0.85rem' }}>✓ Active PDF Resume</span>
-                    <a href={profile.resume_url} target="_blank" rel="noreferrer" style={{ backgroundColor: '#0284c7', color: '#fff', padding: '0.45rem 0.9rem', borderRadius: '6px', textDecoration: 'none', fontSize: '0.82rem', fontWeight: 'bold' }}>
-                      View / Download PDF
-                    </a>
+                {(!myPages || myPages.length === 0) ? (
+                  <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '2rem 1.5rem', textAlign: 'center' }}>
+                    <div style={{ width: '60px', height: '60px', borderRadius: '50%', backgroundColor: 'rgba(2, 132, 199, 0.15)', color: '#38bdf8', fontSize: '1.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem auto' }}>
+                      🚩
+                    </div>
+                    <h4 style={{ margin: '0 0 0.4rem 0', fontSize: '1.1rem', color: '#fff' }}>Create a Page on Shanora</h4>
+                    <p style={{ color: '#94a3b8', fontSize: '0.84rem', margin: '0 auto 1.2rem auto', maxWidth: '360px', lineHeight: 1.5 }}>
+                      Build an official presence, grow your followers, and unlock creator analytics on Shanora.pk.
+                    </p>
+                    <Link href="/create-page" style={{ display: 'inline-block', backgroundColor: '#0284c7', color: '#fff', padding: '0.65rem 1.4rem', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 'bold', textDecoration: 'none' }}>
+                      + Create Page Now
+                    </Link>
                   </div>
                 ) : (
-                  <span style={{ color: '#94a3b8', fontSize: '0.85rem', display: 'block', marginBottom: '1rem' }}>No PDF resume uploaded yet.</span>
-                )}
-
-                <div style={{ marginTop: '1.2rem' }}>
-                  <label style={{ display: 'inline-block', backgroundColor: '#1e293b', border: '1px solid #334155', color: '#fff', padding: '0.55rem 1rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.82rem', fontWeight: '600' }}>
-                    {actionLoading ? 'Uploading...' : 'Upload / Replace PDF CV'}
-                    <input type="file" accept=".pdf" onChange={e => handleFileUpload(e, 'resume')} style={{ display: 'none' }} />
-                  </label>
-                  <span style={{ display: 'block', fontSize: '0.72rem', color: '#64748b', marginTop: '0.35rem' }}>PDF format only, maximum 5MB</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-        {/* TAB: PAGES */}
-        {activeTab === 'pages' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '800', color: '#fff' }}>Official Pages</h3>
-                <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.8rem', color: '#94a3b8' }}>Create and manage pages for your brand or community</p>
-              </div>
-              {myPages && myPages.length > 0 && (
-                <Link href="/create-page" style={{ backgroundColor: '#0284c7', color: '#fff', padding: '0.45rem 0.85rem', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 'bold', textDecoration: 'none' }}>
-                  + Create Page
-                </Link>
-              )}
-            </div>
-
-            {/* When new user has no pages */}
-            {(!myPages || myPages.length === 0) ? (
-              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '2rem 1.5rem', textAlign: 'center' }}>
-                <div style={{ width: '60px', height: '60px', borderRadius: '50%', backgroundColor: 'rgba(2, 132, 199, 0.15)', color: '#38bdf8', fontSize: '1.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem auto' }}>
-                  🚩
-                </div>
-                <h4 style={{ margin: '0 0 0.4rem 0', fontSize: '1.1rem', color: '#fff' }}>Create a Page on Shanora</h4>
-                <p style={{ color: '#94a3b8', fontSize: '0.84rem', margin: '0 auto 1.2rem auto', maxWidth: '360px', lineHeight: 1.5 }}>
-                  Build an official presence, grow your followers, and unlock creator analytics on Shanora.pk.
-                </p>
-                <Link href="/create-page" style={{ display: 'inline-block', backgroundColor: '#0284c7', color: '#fff', padding: '0.65rem 1.4rem', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 'bold', textDecoration: 'none' }}>
-                  + Create Page Now
-                </Link>
-              </div>
-            ) : (
-              /* User Pages List */
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                {myPages.map(page => (
-                  <div key={page.id} style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '0.9rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Link href={`/page/${page.slug}`} style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', textDecoration: 'none', flex: 1 }}>
-                      <div style={{ width: '44px', height: '44px', borderRadius: '50%', backgroundColor: '#1e293b', backgroundImage: page.logo_url ? `url(${page.logo_url})` : 'none', backgroundSize: 'cover', backgroundPosition: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#38bdf8', border: '1px solid #334155', flexShrink: 0 }}>
-                        {!page.logo_url && page.name.charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <div style={{ color: '#fff', fontWeight: '700', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                          {page.name}
-                          {page.monetization_status === 'approved' && <span style={{ color: '#22c55e', fontSize: '0.8rem' }}>✓</span>}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    {myPages.map(page => (
+                      <div key={page.id} style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '0.9rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Link href={`/page/${page.slug}`} style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', textDecoration: 'none', flex: 1 }}>
+                          <div style={{ width: '44px', height: '44px', borderRadius: '50%', backgroundColor: '#1e293b', backgroundImage: page.logo_url ? `url(${page.logo_url})` : 'none', backgroundSize: 'cover', backgroundPosition: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#38bdf8', border: '1px solid #334155', flexShrink: 0 }}>
+                            {!page.logo_url && (page.name?.charAt(0) || 'P').toUpperCase()}
+                          </div>
+                          <div>
+                            <div style={{ color: '#fff', fontWeight: '700', fontSize: '0.9rem' }}>{page.name}</div>
+                            <div style={{ color: '#94a3b8', fontSize: '0.75rem' }}>{page.followers_count || 0} followers • {page.category || 'Creator'}</div>
+                          </div>
+                        </Link>
+                        <div style={{ display: 'flex', gap: '0.4rem' }}>
+                          <Link href={`/page/${page.slug}`} style={{ backgroundColor: '#1e293b', color: '#38bdf8', border: '1px solid #334155', padding: '0.4rem 0.75rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', textDecoration: 'none' }}>
+                            Visit
+                          </Link>
+                          <Link href="/monetization" style={{ backgroundColor: '#0284c7', color: '#fff', padding: '0.4rem 0.75rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', textDecoration: 'none' }}>
+                            Dashboard
+                          </Link>
                         </div>
-                        <div style={{ color: '#94a3b8', fontSize: '0.75rem' }}>{page.followers_count || 0} followers • {page.category || 'Creator'}</div>
                       </div>
-                    </Link>
-                    <div style={{ display: 'flex', gap: '0.4rem' }}>
-                      <Link href={`/page/${page.slug}`} style={{ backgroundColor: '#1e293b', color: '#38bdf8', border: '1px solid #334155', padding: '0.4rem 0.75rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', textDecoration: 'none' }}>
-                        Visit
-                      </Link>
-                      <Link href="/monetization" style={{ backgroundColor: '#0284c7', color: '#fff', padding: '0.4rem 0.75rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', textDecoration: 'none' }}>
-                        Dashboard
-                      </Link>
-                    </div>
+                    ))}
                   </div>
-                ))}
+                )}
+              </div>
+            )}
+
+            {/* TAB: MY RESUME */}
+            {activeTab === 'resume' && (
+              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.4rem' }}>
+                <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', color: '#fff' }}>My Resume</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem', fontSize: '0.88rem', color: '#cbd5e1' }}>
+                  <div>🎓 <strong>Candidate Name:</strong> {profile.full_name}</div>
+                  <div>🛠️ <strong>Key Skills:</strong> {profile.skills || 'Content Creation, Video Editing'}</div>
+                  <div>📍 <strong>Location:</strong> {profile.city}</div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB: MESSAGES */}
+            {activeTab === 'messages' && (
+              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '2rem', textAlign: 'center', color: '#94a3b8' }}>
+                <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>💬</div>
+                <h4 style={{ color: '#fff', margin: '0 0 0.4rem 0' }}>Messages & Inbox</h4>
+                <p style={{ fontSize: '0.85rem', margin: 0 }}>No new messages yet.</p>
+              </div>
+            )}
+
+             {/* TAB: MONETIZATION */}
+            {activeTab === 'monetization' && (
+              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '2rem', textAlign: 'center' }}>
+                <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>💰</div>
+                <h4 style={{ color: '#fff', margin: '0 0 0.4rem 0' }}>Creator Monetization</h4>
+                <p style={{ color: '#94a3b8', fontSize: '0.85rem', margin: '0 0 1rem 0' }}>Check video earnings, follower milestones, and payouts.</p>
+                <Link href="/monetization" style={{ backgroundColor: '#0284c7', color: '#fff', padding: '0.55rem 1.2rem', borderRadius: '8px', fontSize: '0.82rem', fontWeight: 'bold', textDecoration: 'none' }}>
+                  Open Creator Hub
+                </Link>
+              </div>
+            )}
+
+            {/* OTHER SECTIONS */}
+            {['jobs', 'applications', 'saved', 'ai-tools', 'settings'].includes(activeTab) && (
+              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '2rem', textAlign: 'center', color: '#94a3b8' }}>
+                <h4 style={{ color: '#fff', textTransform: 'capitalize' }}>{activeTab}</h4>
+                <p style={{ fontSize: '0.85rem' }}>This section is active and ready for your data.</p>
               </div>
             )}
           </div>
         )}
 
-                  
-{/* TAB 4: FIND JOBS */}
-          {activeTab === 'jobs' && (
-            <div>
-              <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
-                <input
-                  type="text"
-                  placeholder="Search jobs..."
-                  value={jobSearch}
-                  onChange={e => setJobSearch(e.target.value)}
-                  style={{ flex: 2, minWidth: '160px', padding: '0.65rem', borderRadius: '8px', backgroundColor: '#0f172a', border: '1px solid #1e293b', color: '#fff' }}
-                />
-                <select value={jobTypeFilter} onChange={e => setJobTypeFilter(e.target.value)} style={{ flex: 1, minWidth: '110px', padding: '0.65rem', borderRadius: '8px', backgroundColor: '#0f172a', border: '1px solid #1e293b', color: '#fff' }}>
-                  <option value="All">All Types</option>
-                  <option value="Full-time">Full-time</option>
-                  <option value="Internship">Internship</option>
-                  <option value="Trainee">Trainee</option>
-                </select>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-                {filteredJobs.length === 0 ? (
-                  <div style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8' }}>No jobs found matching criteria.</div>
-                ) : (
-                  filteredJobs.map(job => {
-                    const isApplied = applications.some(a => Number(a.job_id) === Number(job.id));
-                    const isSaved = savedJobIds.has(Number(job.id));
-                    return (
-                      <div key={job.id} style={{ backgroundColor: '#0f172a', padding: '1.1rem', borderRadius: '12px', border: '1px solid #1e293b', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.8rem' }}>
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.2rem' }}>
-                            <h3 style={{ margin: 0, fontSize: '1.05rem', color: '#fff' }}>{job.title}</h3>
-                            {job.is_verified && <span style={{ fontSize: '0.65rem', backgroundColor: 'rgba(34, 197, 94, 0.2)', color: '#22c55e', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>Verified</span>}
-                          </div>
-                          <span style={{ color: '#38bdf8', fontWeight: '600', fontSize: '0.85rem' }}>{job.company}</span>
-                          <span style={{ color: '#64748b', fontSize: '0.78rem' }}> • {job.city || 'Pakistan'} ({job.workplace || 'Onsite'})</span>
-                          <p style={{ color: '#94a3b8', fontSize: '0.8rem', margin: '0.45rem 0' }}>{job.description}</p>
-                          <span style={{ fontSize: '0.78rem', color: '#fbbf24', fontWeight: 'bold' }}>{job.salary || 'Competitive'}</span>
-                        </div>
-
-                        <div style={{ display: 'flex', gap: '0.45rem', alignItems: 'center' }}>
-                          <button type="button" onClick={() => handleToggleSave(job.id)} style={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: isSaved ? '#fbbf24' : '#cbd5e1', padding: '0.45rem 0.75rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.78rem' }}>
-                            {isSaved ? '★ Saved' : '☆ Save'}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleApplyJob(job)}
-                            disabled={isApplied || actionLoading}
-                            style={{
-                              backgroundColor: isApplied ? '#1e293b' : '#0284c7',
-                              color: isApplied ? '#94a3b8' : '#fff',
-                              border: 'none',
-                              padding: '0.45rem 0.95rem',
-                              borderRadius: '8px',
-                              fontWeight: 'bold',
-                              cursor: isApplied ? 'not-allowed' : 'pointer',
-                              fontSize: '0.8rem'
-                            }}
-                          >
-                            {isApplied ? 'Applied ✓' : 'Apply Now ⚡'}
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* TAB 5: APPLICATIONS */}
-          {activeTab === 'applications' && (
-            <div style={{ backgroundColor: '#0f172a', padding: '1.25rem', borderRadius: '14px', border: '1px solid #1e293b' }}>
-              <h2 style={{ margin: '0 0 1rem 0', fontSize: '1.2rem' }}>My Job Applications</h2>
-              {applications.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>No applications submitted yet.</div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  {applications.map(app => {
-                    const matchedJob = jobs.find(j => Number(j.id) === Number(app.job_id));
-                    return (
-                      <div key={app.id} style={{ backgroundColor: '#131b2e', padding: '0.85rem', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                          <h4 style={{ margin: '0 0 0.15rem 0', color: '#fff', fontSize: '0.92rem' }}>{app.job_title || matchedJob?.title || 'Job Opening'}</h4>
-                          <span style={{ color: '#38bdf8', fontSize: '0.78rem' }}>{app.job_company || matchedJob?.company || 'Company'}</span>
-                          <span style={{ color: '#64748b', fontSize: '0.72rem' }}> • Applied: {new Date(app.applied_at).toLocaleDateString()}</span>
-                        </div>
-                        <span style={{ padding: '0.25rem 0.65rem', borderRadius: '20px', fontSize: '0.72rem', fontWeight: 'bold', backgroundColor: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
-                          {app.status || 'Applied'}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* TAB 6: SAVED JOBS */}
-          {activeTab === 'saved' && (
-            <div style={{ backgroundColor: '#0f172a', padding: '1.25rem', borderRadius: '14px', border: '1px solid #1e293b' }}>
-              <h2 style={{ margin: '0 0 1rem 0', fontSize: '1.2rem' }}>Saved Jobs</h2>
-              {jobs.filter(j => savedJobIds.has(Number(j.id))).length === 0 ? (
-                <p style={{ color: '#94a3b8', textAlign: 'center', padding: '2rem' }}>No saved jobs.</p>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  {jobs.filter(j => savedJobIds.has(Number(j.id))).map(job => (
-                    <div key={job.id} style={{ backgroundColor: '#131b2e', padding: '0.85rem', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <h4 style={{ margin: 0, color: '#fff', fontSize: '0.92rem' }}>{job.title}</h4>
-                        <span style={{ color: '#38bdf8', fontSize: '0.78rem' }}>{job.company} • {job.city || 'Pakistan'}</span>
-                      </div>
-                      <div style={{ display: 'flex', gap: '0.45rem' }}>
-                        <button type="button" onClick={() => handleToggleSave(job.id)} style={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#ef4444', padding: '0.35rem 0.65rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem' }}>
-                          Remove
-                        </button>
-                        <button type="button" onClick={() => handleApplyJob(job)} style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.35rem 0.75rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 'bold' }}>
-                          Apply
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* TAB 7: AI SUITE */}
-          {activeTab === 'ai-tools' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div style={{ backgroundColor: '#0f172a', padding: '1.25rem', borderRadius: '14px', border: '1px solid #1e293b' }}>
-                <h3 style={{ margin: '0 0 0.35rem 0', color: '#38bdf8', fontSize: '1.05rem' }}>⚡ Resume ATS Keyword & Structure Audit</h3>
-                <p style={{ color: '#94a3b8', fontSize: '0.8rem' }}>Check your profile against entry-level graduate hiring criteria.</p>
-
-                <button type="button" onClick={handleRunAtsAudit} style={{ backgroundColor: '#0284c7', color: '#fff', padding: '0.55rem 1.1rem', borderRadius: '8px', border: 'none', fontWeight: 'bold', cursor: 'pointer', marginTop: '0.4rem', fontSize: '0.82rem' }}>
-                  Run Instant ATS Audit
-                </button>
-
-                {scannerResult && (
-                  <div style={{ marginTop: '1rem', padding: '0.85rem', backgroundColor: '#131b2e', borderRadius: '10px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.7rem' }}>
-                      <span style={{ fontSize: '1.6rem', fontWeight: '900', color: '#22c55e' }}>{scannerResult.score}/100</span>
-                      <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Profile ATS Readiness</span>
-                    </div>
-                    {scannerResult.suggestions.length > 0 && (
-                      <ul style={{ color: '#fbbf24', fontSize: '0.78rem', margin: '0.4rem 0', paddingLeft: '1.2rem' }}>
-                        {scannerResult.suggestions.map((s, idx) => <li key={idx}>{s}</li>)}
-                      </ul>
-                    )}
-                    <span style={{ display: 'block', fontSize: '0.7rem', color: '#64748b', marginTop: '0.4rem' }}>{scannerResult.disclaimer}</span>
-                  </div>
-                )}
-              </div>
-
-              <div style={{ backgroundColor: '#0f172a', padding: '1.25rem', borderRadius: '14px', border: '1px solid #1e293b' }}>
-                <h3 style={{ margin: '0 0 0.35rem 0', color: '#38bdf8', fontSize: '1.05rem' }}>✍️ Cover Letter Generator</h3>
-                <p style={{ color: '#94a3b8', fontSize: '0.8rem' }}>Generate a professional cover letter draft based on your saved profile credentials.</p>
-
-                <button type="button" onClick={handleGenerateCoverLetter} style={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#fff', padding: '0.55rem 1.1rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', marginTop: '0.4rem', fontSize: '0.82rem' }}>
-                  Generate Structured Draft
-                </button>
-
-                {aiGeneratedLetter && (
-                  <div style={{ marginTop: '0.85rem' }}>
-                    <textarea rows={8} value={aiGeneratedLetter} onChange={e => setAiGeneratedLetter(e.target.value)} style={{ width: '100%', padding: '0.65rem', borderRadius: '8px', backgroundColor: '#131b2e', border: '1px solid #334155', color: '#fff', boxSizing: 'border-box', fontFamily: 'monospace', fontSize: '0.8rem' }} />
-                    <button type="button" onClick={() => { navigator.clipboard.writeText(aiGeneratedLetter); setStatusMsg({ text: 'Cover letter copied to clipboard!', type: 'success' }); }} style={{ marginTop: '0.35rem', backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.35rem 0.75rem', borderRadius: '6px', fontSize: '0.78rem', cursor: 'pointer' }}>
-                      Copy to Clipboard
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-                  {/* TAB 8: SETTINGS */}
-          {activeTab === 'settings' && (
-            <div style={{ backgroundColor: '#0f172a', padding: '1.25rem', borderRadius: '14px', border: '1px solid #1e293b' }}>
-              <h2 style={{ margin: '0 0 1rem 0', fontSize: '1.2rem' }}>Settings & Privacy</h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', color: '#94a3b8', fontSize: '0.85rem' }}>
-                <div>
-                  <span style={{ color: '#fff', fontWeight: 'bold', display: 'block' }}>Account Email</span>
-                  <span>{user?.email}</span>
-                </div>
-                <div>
-                  <span style={{ color: '#fff', fontWeight: 'bold', display: 'block' }}>Password Reset</span>
-                  <p style={{ margin: '0.2rem 0 0.5rem', fontSize: '0.78rem' }}>Request a password change link sent to your registered email address.</p>
-                  <button type="button" onClick={async () => {
-                    await supabase.auth.resetPasswordForEmail(user.email);
-                    setStatusMsg({ text: 'Password reset link sent to your email!', type: 'success' });
-                  }} style={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#fff', padding: '0.45rem 0.85rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.78rem' }}>
-                    Send Reset Link
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-        </main>
-      </div>
+      </main>
 
     </div>
   );
-                    }
-
-
-              
+              }
