@@ -352,19 +352,20 @@ ${profile.city}, Pakistan`;
     return matchesSearch && matchesType;
   });
 
-    const navigationTabs = [
-    { id: 'feed', label: 'Feed ', icon: '🌐' },
+      const navigationTabs = [
+    { id: 'feed', label: 'Feed', icon: '🌐' },
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
     { id: 'profile', label: 'My Profile', icon: '👤' },
-    { id: 'resume', label: 'My Resume', icon: '📄' },
-        { id: 'messages', label: 'Messages', icon: '💬' },
+    { id: 'resume', label: 'My Resume', icon: '📝' },
+    { id: 'messages', label: 'Messages', icon: '💬' },
+    { id: 'monetization', label: 'Monetization', icon: '💰' },
     { id: 'jobs', label: 'Find Jobs', icon: '🔍' },
     { id: 'applications', label: `Applications (${applications.length})`, icon: '💼' },
-    { id: 'saved', label: `Saved (${savedJobIds.size})`, icon: '⭐' },
+    { id: 'saved', label: `Saved (${savedJobIds.size})`, icon: '★' },
     { id: 'ai-tools', label: 'AI Suite', icon: '⚡' },
     { id: 'settings', label: 'Settings', icon: '⚙️' }
   ];
-
+ 
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#070b14', color: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif', display: 'flex', flexDirection: 'column' }}>
