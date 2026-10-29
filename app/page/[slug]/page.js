@@ -520,14 +520,381 @@ export default function PublicPageView() {
                   onClick={() => router.push('/monetization')}
                   style={{ flex: 1, backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.65rem', borderRadius: '8px', fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}
                 >
-                  📊 Creator dashboard
+
+    📊 Creator dashboard
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowEditModal(true)}
                   style={{ backgroundColor: '#1e293b', color: '#fff', border: '1px solid #334155', padding: '0.65rem 1.2rem', borderRadius: '8px', fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
                 >
-                     <span>✏️</span> Edit Post
+                  ✏️ Edit Page
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={handleToggleFollow}
+                disabled={actionLoading}
+                style={{ flex: 1, backgroundColor: isFollowing ? '#1e293b' : '#0284c7', color: '#fff', border: isFollowing ? '1px solid #334155' : 'none', padding: '0.65rem', borderRadius: '8px', fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer' }}
+              >
+                {isFollowing ? '✓ Following' : '+ Follow Page'}
+              </button>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', borderBottom: '1px solid #1e293b', gap: '1rem', marginBottom: '1.2rem' }}>
+            <button
+              type="button"
+              onClick={() => setActiveTab('all')}
+              style={{
+                backgroundColor: 'transparent',
+                border: 'none',
+                borderBottom: activeTab === 'all' ? '2.5px solid #0284c7' : '2.5px solid transparent',
+                color: activeTab === 'all' ? '#38bdf8' : '#94a3b8',
+                padding: '0.6rem 0.5rem',
+                fontSize: '0.9rem',
+                fontWeight: '700',
+                cursor: 'pointer'
+              }}
+            >
+              All
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('photos')}
+              style={{
+                backgroundColor: 'transparent',
+                border: 'none',
+                borderBottom: activeTab === 'photos' ? '2.5px solid #0284c7' : '2.5px solid transparent',
+                color: activeTab === 'photos' ? '#38bdf8' : '#94a3b8',
+                padding: '0.6rem 0.5rem',
+                fontSize: '0.9rem',
+                fontWeight: '700',
+                cursor: 'pointer'
+              }}
+            >
+              Photos ({allPagePhotos.length})
+            </button>
+          </div>
+
+          {activeTab === 'all' && (
+            <>
+              {/* Details Card */}
+              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '1.1rem', marginBottom: '1.2rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.8rem' }}>
+                  <span style={{ fontSize: '0.95rem', fontWeight: '800', color: '#fff' }}>Details & Info</span>
+                  {isOwner && (
+                    <button onClick={() => setShowEditModal(true)} style={{ background: 'none', border: 'none', color: '#38bdf8', fontSize: '0.85rem', fontWeight: '600', cursor: 'pointer' }}>
+                      ✏️ Edit Details
+                    </button>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', fontSize: '0.85rem', color: '#cbd5e1' }}>
+                  <div>🎓 <strong>Profession / Headline:</strong> {pageData.headline || 'Not specified'}</div>
+                  <div>💼 <strong>Category:</strong> {pageData.category || 'Creator'}</div>
+                  <div>📍 <strong>Location:</strong> {pageData.city || 'Sukkur'}, {pageData.country || 'Pakistan'}</div>
+                  <div>🌐 <strong>Official Link:</strong> shanora.pk/page/{pageData.slug}</div>
+                </div>
+              </div>
+
+              {/* What's on your mind? */}
+              {isOwner && (
+                <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '1rem', marginBottom: '1.5rem' }}>
+                  <form onSubmit={handleCreatePost}>
+                    <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', marginBottom: '0.8rem' }}>
+                      <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#1e293b', backgroundImage: pageData.logo_url ? `url(${pageData.logo_url})` : 'none', backgroundSize: 'cover' }} />
+                      <input
+                        type="text"
+                        placeholder="What's on your mind?"
+                        value={postText}
+                        onChange={(e) => setPostText(e.target.value)}
+                        style={{ flex: 1, backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '20px', padding: '0.6rem 1rem', color: '#fff', fontSize: '0.85rem', outline: 'none' }}
+                      />
+                    </div>
+
+                    {photoPreview && (
+                      <div style={{ position: 'relative', marginBottom: '0.8rem' }}>
+                        <img src={photoPreview} alt="Preview" style={{ width: '100%', maxHeight: '200px', objectFit: 'cover', borderRadius: '8px' }} />
+                        <button type="button" onClick={() => { setPostPhoto(null); setPhotoPreview(''); }} style={{ position: 'absolute', top: '5px', right: '5px', background: 'rgba(0,0,0,0.7)', color: '#fff', border: 'none', borderRadius: '50%', width: '24px', height: '24px', cursor: 'pointer' }}>✕</button>
+                      </div>
+                    )}
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #1e293b', paddingTop: '0.7rem' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#22c55e', fontSize: '0.82rem', fontWeight: '700', cursor: 'pointer' }}>
+                        🖼️ Photo
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files[0];
+                            if (file) {
+                              setPostPhoto(file);
+                              setPhotoPreview(URL.createObjectURL(file));
+                            }
+                          }}
+                          style={{ display: 'none' }}
+                        />
+                      </label>
+
+                      <button
+                        type="submit"
+                        disabled={posting || (!postText.trim() && !postPhoto)}
+                        style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.4rem 1.1rem', borderRadius: '6px', fontSize: '0.8rem', fontWeight: '700', cursor: (postText.trim() || postPhoto) && !posting ? 'pointer' : 'not-allowed' }}
+                      >
+                        {posting ? 'Posting...' : 'Post'}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
+
+              {/* Feed with Facebook-Style ••• Menu */}
+              <div>
+                <h3 style={{ fontSize: '0.95rem', fontWeight: '800', marginBottom: '0.8rem', color: '#fff' }}>Posts</h3>
+                
+                {posts.length === 0 ? (
+                  <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '2rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
+                    No posts published yet.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    {posts.map(post => {
+                      const isLiked = !!likedPosts[post.id];
+                      const likesCount = postLikesCount[post.id] || 0;
+                      const commentsList = postComments[post.id] || [];
+                      const isCommentsOpen = activeCommentPostId === post.id;
+
+                      return (
+                        <div id={`post-${post.id}`} key={post.id} style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', overflow: 'hidden' }}>
+                          
+                          {/* Post Head & ••• Button */}
+                          <div style={{ padding: '0.8rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                              <div style={{ width: '36px', height: '36px', borderRadius: '50%', backgroundColor: '#1e293b', backgroundImage: pageData.logo_url ? `url(${pageData.logo_url})` : 'none', backgroundSize: 'cover' }} />
+                              <div>
+                                <div style={{ fontWeight: '700', fontSize: '0.85rem', color: '#fff' }}>{pageData.name}</div>
+                                <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{new Date(post.created_at).toLocaleDateString()}</div>
+                              </div>
+                            </div>
+
+                            {/* Three Dots Button (...) */}
+                            <button
+                              type="button"
+                              onClick={() => setSelectedPostMenu(post)}
+                              style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', padding: '0.3rem 0.6rem', cursor: 'pointer', borderRadius: '4px' }}
+                            >
+                              •••
+                            </button>
+                          </div>
+
+                          {/* Post Content */}
+                          {post.content && (
+                            <p style={{ padding: '0 1rem 0.8rem 1rem', margin: 0, fontSize: '0.85rem', color: '#cbd5e1', lineHeight: 1.4 }}>
+                              {post.content}
+                            </p>
+                          )}
+
+                          {post.image_url && (
+                            <img src={post.image_url} alt="Post image" style={{ width: '100%', maxHeight: '420px', objectFit: 'cover' }} />
+                          )}
+
+                          {/* Counts Bar */}
+                          {(likesCount > 0 || commentsList.length > 0) && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 1rem', fontSize: '0.75rem', color: '#94a3b8', borderBottom: '1px solid #1e293b' }}>
+                              <span>{likesCount > 0 ? `👍 ${likesCount} ${likesCount === 1 ? 'like' : 'likes'}` : ''}</span>
+                              <span>{commentsList.length > 0 ? `${commentsList.length} comments` : ''}</span>
+                            </div>
+                          )}
+
+                          {/* Action Buttons */}
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', borderTop: '1px solid #1e293b', padding: '0.3rem 0' }}>
+                            <button
+                              type="button"
+                              onClick={() => handleToggleLike(post.id)}
+                              style={{
+                                background: 'transparent',
+                                border: 'none',
+                                color: isLiked ? '#38bdf8' : '#94a3b8',
+                                padding: '0.5rem',
+                                fontSize: '0.82rem',
+                                fontWeight: '700',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '0.4rem'
+                              }}
+                            >
+                              {isLiked ? '👍 Liked' : '👍 Like'}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setActiveCommentPostId(isCommentsOpen ? null : post.id)}
+                              style={{
+                                background: 'transparent',
+                                border: 'none',
+                                color: isCommentsOpen ? '#38bdf8' : '#94a3b8',
+                                padding: '0.5rem',
+                                fontSize: '0.82rem',
+                                fontWeight: '700',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '0.4rem'
+                              }}
+                            >
+                              💬 Comment
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleSharePost(post.id)}
+                              style={{
+                                background: 'transparent',
+                                border: 'none',
+                                color: copiedPostId === post.id ? '#4ade80' : '#94a3b8',
+                                padding: '0.5rem',
+                                fontSize: '0.82rem',
+                                fontWeight: '700',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '0.4rem'
+                              }}
+                            >
+                              {copiedPostId === post.id ? '✓ Copied' : '🔁 Repost'}
+                            </button>
+                          </div>
+
+                          {/* Comments Drawer */}
+                          {isCommentsOpen && (
+                            <div style={{ padding: '0.8rem 1rem', backgroundColor: '#070b14', borderTop: '1px solid #1e293b' }}>
+                              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.8rem' }}>
+                                <input
+                                  type="text"
+                                  placeholder="Write a comment..."
+                                  value={commentInputs[post.id] || ''}
+                                  onChange={(e) => setCommentInputs({ ...commentInputs, [post.id]: e.target.value })}
+                                  onKeyDown={(e) => e.key === 'Enter' && handleAddComment(post.id)}
+                                  style={{ flex: 1, backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '18px', padding: '0.45rem 0.9rem', color: '#fff', fontSize: '0.8rem', outline: 'none' }}
+                                />
+                                <button
+                                  type="button"
+                                  disabled={submittingComment || !commentInputs[post.id]?.trim()}
+                                  onClick={() => handleAddComment(post.id)}
+                                  style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.45rem 0.9rem', borderRadius: '18px', fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer' }}
+                                >
+                                  Post
+                                </button>
+                              </div>
+
+                              {commentsList.length === 0 ? (
+                                <div style={{ fontSize: '0.75rem', color: '#64748b', textAlign: 'center', padding: '0.5rem' }}>
+                                  No comments yet.
+                                </div>
+                              ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                  {commentsList.map(c => (
+                                    <div key={c.id} style={{ backgroundColor: '#1e293b', padding: '0.5rem 0.8rem', borderRadius: '10px', fontSize: '0.8rem' }}>
+                                      <div style={{ fontWeight: '700', color: '#38bdf8', fontSize: '0.75rem', marginBottom: '0.15rem' }}>
+                                        {c.user_email.split('@')[0]}
+                                      </div>
+                                      <div style={{ color: '#f8fafc', lineHeight: 1.3 }}>{c.comment_text}</div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {activeTab === 'photos' && (
+            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '1.2rem' }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: '800', color: '#fff', margin: '0 0 1rem 0' }}>
+                Photos ({allPagePhotos.length})
+              </h3>
+
+              {allPagePhotos.length === 0 ? (
+                <div style={{ textAlign: 'center', color: '#94a3b8', padding: '2rem', fontSize: '0.85rem' }}>
+                  No photos uploaded on this page yet.
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '0.6rem' }}>
+                  {allPagePhotos.map((photo, index) => (
+                    <div 
+                      key={`${photo.id}_${index}`} 
+                      style={{ position: 'relative', aspectRatio: '1/1', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#1e293b', border: '1px solid #334155' }}
+                    >
+                      <img src={photo.url} alt={photo.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '0.3rem', backgroundColor: 'rgba(0,0,0,0.6)', fontSize: '0.68rem', color: '#f8fafc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {photo.title}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+        </div>
+
+      </main>
+
+      {/* Facebook-Style Bottom Sheet Menu for (...) Button */}
+      {selectedPostMenu && (
+        <div 
+          onClick={() => setSelectedPostMenu(null)}
+          style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 250, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            style={{ backgroundColor: '#0f172a', borderTopLeftRadius: '20px', borderTopRightRadius: '20px', border: '1px solid #1e293b', padding: '1rem', width: '100%', maxWidth: '680px', margin: '0 auto' }}
+          >
+            {/* Grab handle bar */}
+            <div style={{ width: '40px', height: '4px', backgroundColor: '#334155', borderRadius: '2px', margin: '0 auto 1.2rem auto' }} />
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+              
+              {/* Share */}
+              <button 
+                onClick={() => handleSharePost(selectedPostMenu.id)}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', padding: '0.75rem', background: 'none', border: 'none', color: '#f8fafc', fontSize: '0.9rem', fontWeight: '600', cursor: 'pointer', textAlign: 'left', borderRadius: '8px' }}
+              >
+                <span>↗️</span> Share
+              </button>
+
+              {/* Copy link */}
+              <button 
+                onClick={() => handleSharePost(selectedPostMenu.id)}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', padding: '0.75rem', background: 'none', border: 'none', color: '#f8fafc', fontSize: '0.9rem', fontWeight: '600', cursor: 'pointer', textAlign: 'left', borderRadius: '8px' }}
+              >
+                <span>🔗</span> Copy link
+              </button>
+
+              {/* Owner-Only: Edit Post */}
+              {isOwner && (
+                <button 
+                  onClick={() => {
+                    setEditingPost(selectedPostMenu);
+                    setEditPostContent(selectedPostMenu.content || '');
+                    setSelectedPostMenu(null);
+                  }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', padding: '0.75rem', background: 'none', border: 'none', color: '#38bdf8', fontSize: '0.9rem', fontWeight: '600', cursor: 'pointer', textAlign: 'left', borderRadius: '8px' }}
+                >
+                  <span>✏️</span> Edit Post
                 </button>
               )}
 
