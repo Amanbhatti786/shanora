@@ -257,7 +257,7 @@ export default function PublicPageView() {
     }
   }
 
-  // Delete Post Action
+  // Delete Post
   async function handleDeletePost(postId) {
     if (!confirm('Are you sure you want to delete this post?')) return;
 
@@ -276,7 +276,7 @@ export default function PublicPageView() {
     }
   }
 
-  // Save Edited Post Action
+  // Save Edited Post
   async function handleSaveEditedPost() {
     if (!editingPost) return;
     setSavingEdit(true);
@@ -362,12 +362,35 @@ export default function PublicPageView() {
     }
   }
 
-  function handleSharePost(postId) {
-    const postUrl = `${window.location.origin}/page/${slug}#post-${postId}`;
-    navigator.clipboard.writeText(postUrl);
-    setCopiedPostId(postId);
-    setSelectedPostMenu(null);
-    setTimeout(() => setCopiedPostId(null), 2500);
+  // Relay Action (Native Share ya Link Copy)
+  async function handleRelayPost(post) {
+    const postUrl = `${window.location.origin}/page/${slug}#post-${post.id}`;
+    const shareText = post.content ? `"${post.content.slice(0, 80)}..." - via Shanora.pk` : 'Check out this post on Shanora.pk';
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: pageData?.name || 'Shanora Post',
+          text: shareText,
+          url: postUrl
+        });
+        setSelectedPostMenu(null);
+        return;
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.error('Share failed:', err);
+        }
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(postUrl);
+      setCopiedPostId(post.id);
+      setSelectedPostMenu(null);
+      setTimeout(() => setCopiedPostId(null), 2500);
+    } catch (err) {
+      alert('Post link: ' + postUrl);
+    }
   }
 
   async function handleSaveDetails() {
@@ -520,8 +543,7 @@ export default function PublicPageView() {
                   onClick={() => router.push('/monetization')}
                   style={{ flex: 1, backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.65rem', borderRadius: '8px', fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}
                 >
-
-    📊 Creator dashboard
+                  📊 Creator dashboard
                 </button>
                 <button
                   type="button"
@@ -650,7 +672,7 @@ export default function PublicPageView() {
                 </div>
               )}
 
-              {/* Feed with Facebook-Style ••• Menu */}
+              {/* Feed */}
               <div>
                 <h3 style={{ fontSize: '0.95rem', fontWeight: '800', marginBottom: '0.8rem', color: '#fff' }}>Posts</h3>
                 
@@ -679,7 +701,6 @@ export default function PublicPageView() {
                               </div>
                             </div>
 
-                            {/* Three Dots Button (...) */}
                             <button
                               type="button"
                               onClick={() => setSelectedPostMenu(post)}
@@ -689,7 +710,6 @@ export default function PublicPageView() {
                             </button>
                           </div>
 
-                          {/* Post Content */}
                           {post.content && (
                             <p style={{ padding: '0 1rem 0.8rem 1rem', margin: 0, fontSize: '0.85rem', color: '#cbd5e1', lineHeight: 1.4 }}>
                               {post.content}
@@ -700,7 +720,6 @@ export default function PublicPageView() {
                             <img src={post.image_url} alt="Post image" style={{ width: '100%', maxHeight: '420px', objectFit: 'cover' }} />
                           )}
 
-                          {/* Counts Bar */}
                           {(likesCount > 0 || commentsList.length > 0) && (
                             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 1rem', fontSize: '0.75rem', color: '#94a3b8', borderBottom: '1px solid #1e293b' }}>
                               <span>{likesCount > 0 ? `👍 ${likesCount} ${likesCount === 1 ? 'like' : 'likes'}` : ''}</span>
@@ -708,7 +727,7 @@ export default function PublicPageView() {
                             </div>
                           )}
 
-                          {/* Action Buttons */}
+                          {/* Action Buttons: Like, Comment, Relay */}
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', borderTop: '1px solid #1e293b', padding: '0.3rem 0' }}>
                             <button
                               type="button"
@@ -750,9 +769,10 @@ export default function PublicPageView() {
                               💬 Comment
                             </button>
 
+                            {/* Relay Button */}
                             <button
                               type="button"
-                              onClick={() => handleSharePost(post.id)}
+                              onClick={() => handleRelayPost(post)}
                               style={{
                                 background: 'transparent',
                                 border: 'none',
@@ -767,7 +787,7 @@ export default function PublicPageView() {
                                 gap: '0.4rem'
                               }}
                             >
-                              {copiedPostId === post.id ? '✓ Copied' : '🔁 Repost'}
+                              {copiedPostId === post.id ? '✓ Relayed' : '🔄 Relay'}
                             </button>
                           </div>
 
@@ -853,7 +873,7 @@ export default function PublicPageView() {
 
       </main>
 
-      {/* Facebook-Style Bottom Sheet Menu for (...) Button */}
+      {/* Three Dots (...) Bottom Sheet */}
       {selectedPostMenu && (
         <div 
           onClick={() => setSelectedPostMenu(null)}
@@ -863,28 +883,23 @@ export default function PublicPageView() {
             onClick={(e) => e.stopPropagation()}
             style={{ backgroundColor: '#0f172a', borderTopLeftRadius: '20px', borderTopRightRadius: '20px', border: '1px solid #1e293b', padding: '1rem', width: '100%', maxWidth: '680px', margin: '0 auto' }}
           >
-            {/* Grab handle bar */}
             <div style={{ width: '40px', height: '4px', backgroundColor: '#334155', borderRadius: '2px', margin: '0 auto 1.2rem auto' }} />
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-              
-              {/* Share */}
               <button 
-                onClick={() => handleSharePost(selectedPostMenu.id)}
+                onClick={() => handleRelayPost(selectedPostMenu)}
                 style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', padding: '0.75rem', background: 'none', border: 'none', color: '#f8fafc', fontSize: '0.9rem', fontWeight: '600', cursor: 'pointer', textAlign: 'left', borderRadius: '8px' }}
               >
-                <span>↗️</span> Share
+                <span>🔄</span> Relay Post
               </button>
 
-              {/* Copy link */}
               <button 
-                onClick={() => handleSharePost(selectedPostMenu.id)}
+                onClick={() => handleRelayPost(selectedPostMenu)}
                 style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', padding: '0.75rem', background: 'none', border: 'none', color: '#f8fafc', fontSize: '0.9rem', fontWeight: '600', cursor: 'pointer', textAlign: 'left', borderRadius: '8px' }}
               >
                 <span>🔗</span> Copy link
               </button>
 
-              {/* Owner-Only: Edit Post */}
               {isOwner && (
                 <button 
                   onClick={() => {
@@ -898,7 +913,6 @@ export default function PublicPageView() {
                 </button>
               )}
 
-              {/* Owner-Only: Delete Post */}
               {isOwner && (
                 <button 
                   onClick={() => handleDeletePost(selectedPostMenu.id)}
@@ -907,7 +921,6 @@ export default function PublicPageView() {
                   <span>🗑️</span> Delete Post
                 </button>
               )}
-
             </div>
 
             <button 
