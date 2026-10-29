@@ -16,6 +16,7 @@ export default function PublicPageView() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('about');
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   useEffect(() => {
     async function fetchPageDetails() {
@@ -59,6 +60,40 @@ export default function PublicPageView() {
 
     fetchPageDetails();
   }, [slug]);
+
+  const isOwner = currentUser?.email && pageData?.owner_email === currentUser?.email;
+
+  // Direct In-Page Image Upload (Facebook Style)
+  async function handleMediaUpload(e, type) {
+    const file = e.target.files[0];
+    if (!file || !pageData || uploadingImage) return;
+
+    setUploadingImage(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${type}_${pageData.slug}_${Date.now()}.${fileExt}`;
+      const filePath = `pages/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('page-media')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from('page-media').getPublicUrl(filePath);
+      const publicUrl = data.publicUrl;
+
+      // Update pages table
+      const updateField = type === 'logo' ? { logo_url: publicUrl } : { banner_url: publicUrl };
+      await supabase.from('pages').update(updateField).eq('id', pageData.id);
+
+      setPageData(prev => ({ ...prev, ...updateField }));
+    } catch (err) {
+      alert('Failed to update image: ' + err.message);
+    } finally {
+      setUploadingImage(false);
+    }
+  }
 
   async function handleToggleFollow() {
     if (!currentUser) {
@@ -149,14 +184,25 @@ export default function PublicPageView() {
       {/* Main Container */}
       <main style={{ maxWidth: '900px', margin: '0 auto', paddingBottom: '3rem' }}>
         
-        {/* Cover Banner */}
+        {/* Facebook-style Cover Banner */}
         <div style={{ 
-          height: '180px', 
-          background: 'linear-gradient(135deg, #0284c7 0%, #1e1b4b 100%)', 
+          height: '200px', 
+          backgroundColor: '#1e293b',
+          backgroundImage: pageData.banner_url ? `url(${pageData.banner_url})` : 'linear-gradient(135deg, #0284c7 0%, #1e1b4b 100%)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
           borderBottomLeftRadius: '16px', 
           borderBottomRightRadius: '16px',
           position: 'relative'
         }}>
+          {/* Edit Banner Button for Owner */}
+          {isOwner && (
+            <label style={{ position: 'absolute', bottom: '0.8rem', right: '0.8rem', backgroundColor: 'rgba(15, 23, 42, 0.85)', border: '1px solid #334155', color: '#fff', padding: '0.4rem 0.8rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer' }}>
+              {uploadingImage ? 'Uploading...' : '📷 Edit Cover'}
+              <input type="file" accept="image/*" onChange={(e) => handleMediaUpload(e, 'banner')} style={{ display: 'none' }} />
+            </label>
+          )}
+
           {pageData.monetization_status === 'approved' && (
             <div style={{ position: 'absolute', top: '1rem', right: '1rem', backgroundColor: '#22c55e', color: '#fff', padding: '0.3rem 0.7rem', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '700' }}>
               ✓ Verified Partner
@@ -165,29 +211,58 @@ export default function PublicPageView() {
         </div>
 
         {/* Profile Card Overlay */}
-        <div style={{ padding: '0 1.5rem', marginTop: '-50px', position: 'relative' }}>
+        <div style={{ padding: '0 1.5rem', marginTop: '-55px', position: 'relative' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             
             {/* Avatar & Action Row */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '1rem' }}>
-              <div style={{ 
-                width: '100px', 
-                height: '100px', 
-                borderRadius: '50%', 
-                backgroundColor: '#1e293b', 
-                border: '4px solid #070b14', 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center', 
-                fontSize: '2.5rem', 
-                fontWeight: '900', 
-                color: '#38bdf8',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.5)'
-              }}>
-                {pageData.name?.charAt(0).toUpperCase()}
+              <div style={{ position: 'relative' }}>
+                <div style={{ 
+                  width: '110px', 
+                  height: '110px', 
+                  borderRadius: '50%', 
+                  backgroundColor: '#0f172a', 
+                  backgroundImage: pageData.logo_url ? `url(${pageData.logo_url})` : 'none',
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  border: '4px solid #070b14', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center', 
+                  fontSize: '2.5rem', 
+                  fontWeight: '900', 
+                  color: '#38bdf8',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                  overflow: 'hidden'
+                }}>
+                  {!pageData.logo_url && pageData.name?.charAt(0).toUpperCase()}
+                </div>
+
+                {/* Edit Avatar Icon for Owner */}
+                {isOwner && (
+                  <label style={{ 
+                    position: 'absolute', 
+                    bottom: '0', 
+                    right: '0', 
+                    backgroundColor: '#0284c7', 
+                    color: '#fff', 
+                    borderRadius: '50%', 
+                    width: '32px', 
+                    height: '32px', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
+                    fontSize: '0.9rem'
+                  }}>
+                    📷
+                    <input type="file" accept="image/*" onChange={(e) => handleMediaUpload(e, 'logo')} style={{ display: 'none' }} />
+                  </label>
+                )}
               </div>
 
-              {/* Follow Button */}
+              {/* Action Buttons */}
               <div style={{ display: 'flex', gap: '0.6rem' }}>
                 <button
                   type="button"
@@ -272,7 +347,7 @@ export default function PublicPageView() {
               <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '1.4rem' }}>
                 <h3 style={{ fontSize: '1rem', color: '#fff', margin: '0 0 0.6rem 0' }}>About This Page</h3>
                 <p style={{ fontSize: '0.85rem', color: '#cbd5e1', lineHeight: '1.6', margin: 0 }}>
-                  {pageData.about || pageData.description || 'No detailed description provided yet.'}
+                  {pageData.about || 'No detailed description provided yet.'}
                 </p>
 
                 <div style={{ marginTop: '1.2rem', paddingTop: '1rem', borderTop: '1px solid #1e293b', display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.82rem', color: '#94a3b8' }}>
@@ -305,5 +380,5 @@ export default function PublicPageView() {
 
     </div>
   );
-        }
-                         
+      }
+    
