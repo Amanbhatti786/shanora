@@ -352,19 +352,21 @@ ${profile.city}, Pakistan`;
     return matchesSearch && matchesType;
   });
 
-      const navigationTabs = [
+        const navigationTabs = [
     { id: 'feed', label: 'Feed', icon: '🌐' },
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
     { id: 'profile', label: 'My Profile', icon: '👤' },
     { id: 'resume', label: 'My Resume', icon: '📝' },
+    { id: 'pages', label: 'Pages', icon: '🚩' },
     { id: 'messages', label: 'Messages', icon: '💬' },
     { id: 'monetization', label: 'Monetization', icon: '💰' },
     { id: 'jobs', label: 'Find Jobs', icon: '🔍' },
-    { id: 'applications', label: `Applications (${applications.length})`, icon: '💼' },
+    { id: 'applications', label: `Applications (${applications.length})`, icon: '📄' },
     { id: 'saved', label: `Saved (${savedJobIds.size})`, icon: '★' },
     { id: 'ai-tools', label: 'AI Suite', icon: '⚡' },
     { id: 'settings', label: 'Settings', icon: '⚙️' }
   ];
+
  
 
   return (
@@ -765,6 +767,68 @@ ${profile.city}, Pakistan`;
             </div>
           )}
 
+        {/* TAB: PAGES */}
+        {activeTab === 'pages' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '800', color: '#fff' }}>Official Pages</h3>
+                <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.8rem', color: '#94a3b8' }}>Create and manage pages for your brand or community</p>
+              </div>
+              {myPages && myPages.length > 0 && (
+                <Link href="/create-page" style={{ backgroundColor: '#0284c7', color: '#fff', padding: '0.45rem 0.85rem', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 'bold', textDecoration: 'none' }}>
+                  + Create Page
+                </Link>
+              )}
+            </div>
+
+            {/* When new user has no pages */}
+            {(!myPages || myPages.length === 0) ? (
+              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '2rem 1.5rem', textAlign: 'center' }}>
+                <div style={{ width: '60px', height: '60px', borderRadius: '50%', backgroundColor: 'rgba(2, 132, 199, 0.15)', color: '#38bdf8', fontSize: '1.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem auto' }}>
+                  🚩
+                </div>
+                <h4 style={{ margin: '0 0 0.4rem 0', fontSize: '1.1rem', color: '#fff' }}>Create a Page on Shanora</h4>
+                <p style={{ color: '#94a3b8', fontSize: '0.84rem', margin: '0 auto 1.2rem auto', maxWidth: '360px', lineHeight: 1.5 }}>
+                  Build an official presence, grow your followers, and unlock creator analytics on Shanora.pk.
+                </p>
+                <Link href="/create-page" style={{ display: 'inline-block', backgroundColor: '#0284c7', color: '#fff', padding: '0.65rem 1.4rem', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 'bold', textDecoration: 'none' }}>
+                  + Create Page Now
+                </Link>
+              </div>
+            ) : (
+              /* User Pages List */
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {myPages.map(page => (
+                  <div key={page.id} style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '0.9rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Link href={`/page/${page.slug}`} style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', textDecoration: 'none', flex: 1 }}>
+                      <div style={{ width: '44px', height: '44px', borderRadius: '50%', backgroundColor: '#1e293b', backgroundImage: page.logo_url ? `url(${page.logo_url})` : 'none', backgroundSize: 'cover', backgroundPosition: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#38bdf8', border: '1px solid #334155', flexShrink: 0 }}>
+                        {!page.logo_url && page.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <div style={{ color: '#fff', fontWeight: '700', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                          {page.name}
+                          {page.monetization_status === 'approved' && <span style={{ color: '#22c55e', fontSize: '0.8rem' }}>✓</span>}
+                        </div>
+                        <div style={{ color: '#94a3b8', fontSize: '0.75rem' }}>{page.followers_count || 0} followers • {page.category || 'Creator'}</div>
+                      </div>
+                    </Link>
+                    <div style={{ display: 'flex', gap: '0.4rem' }}>
+                      <Link href={`/page/${page.slug}`} style={{ backgroundColor: '#1e293b', color: '#38bdf8', border: '1px solid #334155', padding: '0.4rem 0.75rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', textDecoration: 'none' }}>
+                        Visit
+                      </Link>
+                      <Link href="/monetization" style={{ backgroundColor: '#0284c7', color: '#fff', padding: '0.4rem 0.75rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', textDecoration: 'none' }}>
+                        Dashboard
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+                  
 {/* TAB 4: FIND JOBS */}
           {activeTab === 'jobs' && (
             <div>
