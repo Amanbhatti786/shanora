@@ -19,11 +19,11 @@ export default function StudentPortal() {
   const [profile, setProfile] = useState({
     full_name: '',
     phone: '',
-    city: 'Lahore',
-    country: 'Pakistan',
+    city: '',
+    country: '',
     degree: '',
     university: '',
-    graduation_year: '2026',
+    graduation_year: '',
     bio: '',
     skills: '',
     languages: 'English, Urdu',
@@ -544,131 +544,144 @@ ${profile.city}, Pakistan`;
               {statusMsg.text}
             </div>
           )}
-
-          {/* TAB 1: DASHBOARD */}
-          {activeTab === 'dashboard' && (
-            <div>
-                {/* 1. TOP CREATOR & SOCIAL STATS BANNER */}
-    <div style={{ 
-      backgroundColor: '#0f172a', 
-      border: '1px solid #1e293b', 
-      borderRadius: '16px', 
-      padding: '1.4rem', 
-      marginBottom: '1.2rem',
-      background: 'linear-gradient(180deg, #0f172a 0%, #070b14 100%)'
-    }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.2rem' }}>
-        <div>
-          <span style={{ fontSize: '0.72rem', backgroundColor: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.25)', padding: '0.2rem 0.55rem', borderRadius: '4px', fontWeight: '700', textTransform: 'uppercase' }}>
-            Creator & Network Hub
-          </span>
-          <h2 style={{ fontSize: '1.35rem', color: '#ffffff', margin: '0.4rem 0 0 0', fontWeight: '800' }}>
-            {profile?.full_name || 'Professional Member'}
-          </h2>
-          <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: '0.2rem 0 0 0' }}>
-            Track network reach, followers growth, and monetization eligibility.
-          </p>
-        </div>
-
-        <button 
-          type="button"
-          onClick={() => router.push('/monetization')}
-          style={{ 
-            backgroundColor: '#0284c7', 
-            color: '#ffffff', 
-            border: 'none', 
-            borderRadius: '8px', 
-            padding: '0.55rem 1.1rem', 
-            fontSize: '0.8rem', 
-            fontWeight: '700', 
-            cursor: 'pointer' 
-          }}
-        >
-          Monetization Hub ➔
-        </button>
-      </div>
-
-      {/* Social Counters */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.75rem', marginBottom: '1.2rem' }}>
-        <div style={{ backgroundColor: '#1e293b', padding: '0.85rem', borderRadius: '10px', textAlign: 'center', border: '1px solid #334155' }}>
-          <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase' }}>Followers</div>
-          <div style={{ fontSize: '1.6rem', fontWeight: '900', color: '#38bdf8', marginTop: '0.2rem' }}>
-            {profile?.followers_count || 0}
-          </div>
-        </div>
-
-        <div style={{ backgroundColor: '#1e293b', padding: '0.85rem', borderRadius: '10px', textAlign: 'center', border: '1px solid #334155' }}>
-          <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase' }}>Following</div>
-          <div style={{ fontSize: '1.6rem', fontWeight: '900', color: '#f8fafc', marginTop: '0.2rem' }}>
-            {profile?.following_count || 0}
-          </div>
-        </div>
-
-        <div style={{ backgroundColor: '#1e293b', padding: '0.85rem', borderRadius: '10px', textAlign: 'center', border: '1px solid #334155' }}>
-          <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase' }}>Partner Status</div>
-          <div style={{ fontSize: '0.95rem', fontWeight: '800', color: (profile?.followers_count || 0) >= 1000 ? '#22c55e' : '#eab308', marginTop: '0.5rem' }}>
-            {(profile?.followers_count || 0) >= 1000 ? 'Verified Partner' : 'In Progress'}
-          </div>
-        </div>
-      </div>
-
-      {/* Milestone Bar */}
-      <div style={{ backgroundColor: 'rgba(30, 41, 59, 0.6)', border: '1px solid #334155', borderRadius: '10px', padding: '0.85rem 1rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem', marginBottom: '0.4rem' }}>
-          <span style={{ color: '#cbd5e1', fontWeight: '600' }}>Target: 1,000 Verified Followers for Creator Monetization</span>
-          <span style={{ color: '#38bdf8', fontWeight: '800' }}>{profile?.followers_count || 0} / 1,000</span>
-        </div>
-        <div style={{ width: '100%', height: '8px', backgroundColor: '#0b1120', borderRadius: '4px', overflow: 'hidden' }}>
-          <div 
-            style={{ 
-              width: `${Math.min(((profile?.followers_count || 0) / 1000) * 100, 100)}%`, 
-              height: '100%', 
-              backgroundColor: '#38bdf8', 
-              borderRadius: '4px',
-              transition: 'width 0.4s ease' 
-            }} 
-          />
-        </div>
-      </div>
-    </div>
-        
-              <div style={{ backgroundColor: '#0f172a', padding: '1.25rem', borderRadius: '14px', border: '1px solid #1e293b', marginBottom: '1.2rem' }}>
-                <h2 style={{ margin: '0 0 0.3rem 0', fontSize: '1.3rem' }}>Welcome, {profile.full_name || 'Graduate'} 👋</h2>
-                <p style={{ color: '#94a3b8', fontSize: '0.82rem', margin: '0 0 1rem 0' }}>Manage applications, your CV, and live job opportunities.</p>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem', fontSize: '0.8rem' }}>
-                  <span>Profile Strength</span>
-                  <strong style={{ color: completeness >= 80 ? '#22c55e' : '#fbbf24' }}>{completeness}%</strong>
+        {/* TAB 1: DASHBOARD */}
+        {activeTab === 'dashboard' && (
+          <div>
+            {/* 1. MAIN CREATOR & PROFILE HUB */}
+            <div style={{ 
+              backgroundColor: '#0f172a', 
+              border: '1px solid #1e293b', 
+              borderRadius: '16px', 
+              padding: '1.4rem', 
+              marginBottom: '1.2rem',
+              background: 'linear-gradient(180deg, #0f172a 0%, #070b14 100%)'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.2rem' }}>
+                <div>
+                  <span style={{ fontSize: '0.72rem', backgroundColor: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.25)', padding: '0.2rem 0.55rem', borderRadius: '4px', fontWeight: '700', textTransform: 'uppercase' }}>
+                    Creator & Network Hub
+                  </span>
+                  <h2 style={{ fontSize: '1.4rem', color: '#ffffff', margin: '0.4rem 0 0 0', fontWeight: '800' }}>
+                    Welcome, {profile?.full_name || 'Member'} 👋
+                  </h2>
+                  <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: '0.2rem 0 0 0' }}>
+                    Track network reach, followers growth, and monetization eligibility.
+                  </p>
                 </div>
-                <div style={{ width: '100%', height: '8px', backgroundColor: '#1e293b', borderRadius: '8px', overflow: 'hidden' }}>
-                  <div style={{ width: `${completeness}%`, height: '100%', backgroundColor: completeness >= 80 ? '#22c55e' : '#0284c7' }} />
+
+                <button 
+                  type="button"
+                  onClick={() => router.push('/monetization')}
+                  style={{ 
+                    backgroundColor: '#0284c7', 
+                    color: '#ffffff', 
+                    border: 'none', 
+                    borderRadius: '8px', 
+                    padding: '0.55rem 1.1rem', 
+                    fontSize: '0.8rem', 
+                    fontWeight: '700', 
+                    cursor: 'pointer' 
+                  }}
+                >
+                  Monetization Hub ➔
+                </button>
+              </div>
+
+              {/* Followers, Following & Partner Status */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.75rem', marginBottom: '1.2rem' }}>
+                <div style={{ backgroundColor: '#1e293b', padding: '0.85rem', borderRadius: '10px', textAlign: 'center', border: '1px solid #334155' }}>
+                  <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase' }}>Followers</div>
+                  <div style={{ fontSize: '1.6rem', fontWeight: '900', color: '#38bdf8', marginTop: '0.2rem' }}>
+                    {profile?.followers_count || 0}
+                  </div>
+                </div>
+
+                <div style={{ backgroundColor: '#1e293b', padding: '0.85rem', borderRadius: '10px', textAlign: 'center', border: '1px solid #334155' }}>
+                  <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase' }}>Following</div>
+                  <div style={{ fontSize: '1.6rem', fontWeight: '900', color: '#f8fafc', marginTop: '0.2rem' }}>
+                    {profile?.following_count || 0}
+                  </div>
+                </div>
+
+                <div style={{ backgroundColor: '#1e293b', padding: '0.85rem', borderRadius: '10px', textAlign: 'center', border: '1px solid #334155' }}>
+                  <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase' }}>Partner Status</div>
+                  <div style={{ fontSize: '0.95rem', fontWeight: '800', color: (profile?.followers_count || 0) >= 1000 ? '#22c55e' : '#eab308', marginTop: '0.5rem' }}>
+                    {(profile?.followers_count || 0) >= 1000 ? 'Verified Partner' : 'In Progress'}
+                  </div>
                 </div>
               </div>
 
-  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.8rem', marginBottom: '1.2rem' }}>
-                <div style={{ backgroundColor: '#0f172a', padding: '1rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
-                  <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Applications Sent</span>
-                  <h3 style={{ margin: '0.3rem 0 0', fontSize: '1.6rem', color: '#38bdf8' }}>{applications.length}</h3>
+              {/* Monetization Milestone Bar */}
+              <div style={{ backgroundColor: 'rgba(30, 41, 59, 0.6)', border: '1px solid #334155', borderRadius: '10px', padding: '0.85rem 1rem', marginBottom: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem', marginBottom: '0.4rem' }}>
+                  <span style={{ color: '#cbd5e1', fontWeight: '600' }}>Target: 1,000 Verified Followers for Creator Monetization</span>
+                  <span style={{ color: '#38bdf8', fontWeight: '800' }}>{profile?.followers_count || 0} / 1,000</span>
                 </div>
-                <div style={{ backgroundColor: '#0f172a', padding: '1rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
-                  <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Saved Jobs</span>
-                  <h3 style={{ margin: '0.3rem 0 0', fontSize: '1.6rem', color: '#fbbf24' }}>{savedJobIds.size}</h3>
-                </div>
-                <div style={{ backgroundColor: '#0f172a', padding: '1rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
-                  <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Live Openings</span>
-                  <h3 style={{ margin: '0.3rem 0 0', fontSize: '1.6rem', color: '#22c55e' }}>{jobs.length}</h3>
+                <div style={{ width: '100%', height: '8px', backgroundColor: '#0b1120', borderRadius: '4px', overflow: 'hidden' }}>
+                  <div 
+                    style={{ 
+                      width: `${Math.min(((profile?.followers_count || 0) / 1000) * 100, 100)}%`, 
+                      height: '100%', 
+                      backgroundColor: '#38bdf8', 
+                      borderRadius: '4px',
+                      transition: 'width 0.4s ease' 
+                    }} 
+                  />
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: '0.7rem', flexWrap: 'wrap' }}>
-                <button type="button" onClick={() => setActiveTab('jobs')} style={{ backgroundColor: '#0284c7', color: '#fff', padding: '0.65rem 1.1rem', borderRadius: '8px', border: 'none', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.85rem' }}>
-                  Browse Jobs 🔍
-                </button>
-                <button type="button" onClick={() => setActiveTab('resume')} style={{ backgroundColor: '#1e293b', color: '#fff', border: '1px solid #334155', padding: '0.65rem 1.1rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.85rem' }}>
-                  Upload Resume 📄
-                </button>
+              {/* Integrated Profile Strength */}
+              <div style={{ borderTop: '1px solid #1e293b', paddingTop: '0.85rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', marginBottom: '0.35rem' }}>
+                  <span style={{ color: '#94a3b8' }}>Profile Strength</span>
+                  <strong style={{ color: '#22c55e' }}>{completeness || 100}%</strong>
+                </div>
+                <div style={{ width: '100%', height: '6px', backgroundColor: '#0b1120', borderRadius: '3px', overflow: 'hidden' }}>
+                  <div style={{ width: `${completeness || 100}%`, height: '100%', backgroundColor: '#22c55e' }} />
+                </div>
               </div>
             </div>
-          )}
+
+            {/* 2. CAREER & APPLICATION STATS */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem', marginBottom: '1.2rem' }}>
+              <div style={{ backgroundColor: '#0f172a', padding: '1rem', borderRadius: '10px', border: '1px solid #1e293b', textAlign: 'center' }}>
+                <span style={{ fontSize: '0.72rem', color: '#94a3b8', textTransform: 'uppercase' }}>Applications Sent</span>
+                <h3 style={{ margin: '0.3rem 0 0', fontSize: '1.4rem', color: '#fff' }}>{appliedJobs?.length || 0}</h3>
+              </div>
+              <div style={{ backgroundColor: '#0f172a', padding: '1rem', borderRadius: '10px', border: '1px solid #1e293b', textAlign: 'center' }}>
+                <span style={{ fontSize: '0.72rem', color: '#94a3b8', textTransform: 'uppercase' }}>Saved Jobs</span>
+                <h3 style={{ margin: '0.3rem 0 0', fontSize: '1.4rem', color: '#38bdf8' }}>{savedJobs?.length || 0}</h3>
+              </div>
+              <div style={{ backgroundColor: '#0f172a', padding: '1rem', borderRadius: '10px', border: '1px solid #1e293b', textAlign: 'center' }}>
+                <span style={{ fontSize: '0.72rem', color: '#94a3b8', textTransform: 'uppercase' }}>Resume Status</span>
+                <h3 style={{ margin: '0.3rem 0 0', fontSize: '1.1rem', color: resumeFile ? '#22c55e' : '#94a3b8' }}>
+                  {resumeFile ? 'Uploaded' : 'Pending'}
+                </h3>
+              </div>
+            </div>
+
+            {/* 3. QUICK ACTION BUTTONS */}
+            <div style={{ display: 'flex', gap: '0.7rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
+              <button 
+                type="button" 
+                onClick={() => setActiveTab('jobs')}
+                style={{ backgroundColor: '#1e293b', color: '#f8fafc', border: '1px solid #334155', padding: '0.55rem 1rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer' }}
+              >
+                Browse Jobs 🔍
+              </button>
+              <button 
+                type="button" 
+                onClick={() => setActiveTab('resume')}
+                style={{ backgroundColor: '#1e293b', color: '#f8fafc', border: '1px solid #334155', padding: '0.55rem 1rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer' }}
+              >
+                Upload Resume 📄
+              </button>
+            </div>
+          </div>
+        )}
+                    
+
+  
 
           {/* TAB 2: PROFILE */}
           {activeTab === 'profile' && (
