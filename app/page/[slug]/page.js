@@ -24,13 +24,18 @@ export default function PublicPageView() {
   const [photoPreview, setPhotoPreview] = useState('');
   const [posting, setPosting] = useState(false);
 
-  // Likes & Comments State
+  // Likes, Comments & Relays State
   const [likedPosts, setLikedPosts] = useState({});
   const [postLikesCount, setPostLikesCount] = useState({});
+  const [relayedPosts, setRelayedPosts] = useState({});
+  const [postRelaysCount, setPostRelaysCount] = useState({});
   const [activeCommentPostId, setActiveCommentPostId] = useState(null);
   const [postComments, setPostComments] = useState({});
   const [commentInputs, setCommentInputs] = useState({});
   const [submittingComment, setSubmittingComment] = useState(false);
+  
+  // Relay Sheet Modal
+  const [relayModalPost, setRelayModalPost] = useState(null);
   const [copiedPostId, setCopiedPostId] = useState(null);
 
   // Facebook-Style Post Options Menu (...)
@@ -98,6 +103,8 @@ export default function PublicPageView() {
             setPosts(postList);
 
             const postIds = postList.map(p => p.id);
+
+            // 1. Fetch Likes
             const { data: allLikes } = await supabase
               .from('page_post_likes')
               .select('*')
@@ -116,6 +123,26 @@ export default function PublicPageView() {
               setLikedPosts(userLiked);
             }
 
+            // 2. Fetch Relays
+            const { data: allRelays } = await supabase
+              .from('page_post_relays')
+              .select('*')
+              .in('post_id', postIds);
+
+            if (allRelays) {
+              const rCounts = {};
+              const userRelayed = {};
+              allRelays.forEach(r => {
+                rCounts[r.post_id] = (rCounts[r.post_id] || 0) + 1;
+                if (session?.user?.email && r.user_email === session.user.email) {
+                  userRelayed[r.post_id] = true;
+                }
+              });
+              setPostRelaysCount(rCounts);
+              setRelayedPosts(userRelayed);
+            }
+
+            // 3. Fetch Comments
             const { data: allComments } = await supabase
               .from('page_post_comments')
               .select('*')
@@ -257,7 +284,6 @@ export default function PublicPageView() {
     }
   }
 
-  // Delete Post
   async function handleDeletePost(postId) {
     if (!confirm('Are you sure you want to delete this post?')) return;
 
@@ -276,7 +302,6 @@ export default function PublicPageView() {
     }
   }
 
-  // Save Edited Post
   async function handleSaveEditedPost() {
     if (!editingPost) return;
     setSavingEdit(true);
@@ -328,6 +353,67 @@ export default function PublicPageView() {
     }
   }
 
+  // Instant In-App Relay Action
+  async function handleInstantRelay(postId) {
+    if (!currentUser) {
+      router.push('/auth');
+      return;
+    }
+
+    const isRelayed = relayedPosts[postId];
+    const currentCount = postRelaysCount[postId] || 0;
+
+    setRelayedPosts(prev => ({ ...prev, [postId]: !isRelayed }));
+    setPostRelaysCount(prev => ({ ...prev, [postId]: isRelayed ? Math.max(0, currentCount - 1) : currentCount + 1 }));
+    setRelayModalPost(null);
+
+    try {
+      if (isRelayed) {
+        await supabase
+          .from('page_post_relays')
+          .delete()
+          .eq('post_id', postId)
+          .eq('user_email', currentUser.email);
+      } else {
+        await supabase
+          .from('page_post_relays')
+          .insert([{ post_id: postId, user_email: currentUser.email }]);
+      }
+    } catch (err) {
+      console.error('Relay error:', err);
+    }
+  }
+
+  // External Share Sheet
+  async function handleExternalShare(post) {
+    const postUrl = `${window.location.origin}/page/${slug}#post-${post.id}`;
+    const shareText = post.content ? `"${post.content.slice(0, 80)}..." - via Shanora.pk` : 'Check out this post on Shanora.pk';
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: pageData?.name || 'Shanora Post',
+          text: shareText,
+          url: postUrl
+        });
+        setRelayModalPost(null);
+        return;
+      } catch (err) {
+        if (err.name !== 'AbortError') console.error(err);
+      }
+    }
+
+    handleCopyLink(post.id);
+  }
+
+  function handleCopyLink(postId) {
+    const postUrl = `${window.location.origin}/page/${slug}#post-${postId}`;
+    navigator.clipboard.writeText(postUrl);
+    setCopiedPostId(postId);
+    setRelayModalPost(null);
+    setTimeout(() => setCopiedPostId(null), 2500);
+  }
+
   async function handleAddComment(postId) {
     if (!currentUser) {
       router.push('/auth');
@@ -359,37 +445,6 @@ export default function PublicPageView() {
       alert('Comment failed: ' + err.message);
     } finally {
       setSubmittingComment(false);
-    }
-  }
-
-  // Relay Action (Native Share ya Link Copy)
-  async function handleRelayPost(post) {
-    const postUrl = `${window.location.origin}/page/${slug}#post-${post.id}`;
-    const shareText = post.content ? `"${post.content.slice(0, 80)}..." - via Shanora.pk` : 'Check out this post on Shanora.pk';
-
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: pageData?.name || 'Shanora Post',
-          text: shareText,
-          url: postUrl
-        });
-        setSelectedPostMenu(null);
-        return;
-      } catch (err) {
-        if (err.name !== 'AbortError') {
-          console.error('Share failed:', err);
-        }
-      }
-    }
-
-    try {
-      await navigator.clipboard.writeText(postUrl);
-      setCopiedPostId(post.id);
-      setSelectedPostMenu(null);
-      setTimeout(() => setCopiedPostId(null), 2500);
-    } catch (err) {
-      alert('Post link: ' + postUrl);
     }
   }
 
@@ -525,7 +580,7 @@ export default function PublicPageView() {
             </div>
           </div>
 
-          <div style={{ textAlign: 'center', marginTop: '0.6rem' }}>
+              <div style={{ textAlign: 'center', marginTop: '0.6rem' }}>
             <h1 style={{ fontSize: '1.45rem', fontWeight: '800', margin: 0, color: '#fff' }}>{pageData.name}</h1>
             <p style={{ fontSize: '0.85rem', color: '#94a3b8', margin: '0.2rem 0' }}>
               <strong style={{ color: '#fff' }}>{followerCount}</strong> followers • <strong style={{ color: '#fff' }}>0</strong> following
@@ -608,7 +663,7 @@ export default function PublicPageView() {
                   <span style={{ fontSize: '0.95rem', fontWeight: '800', color: '#fff' }}>Details & Info</span>
                   {isOwner && (
                     <button onClick={() => setShowEditModal(true)} style={{ background: 'none', border: 'none', color: '#38bdf8', fontSize: '0.85rem', fontWeight: '600', cursor: 'pointer' }}>
-                      ✏️ Edit Details
+                    ✏️ Edit Details
                     </button>
                   )}
                 </div>
@@ -672,7 +727,7 @@ export default function PublicPageView() {
                 </div>
               )}
 
-              {/* Feed */}
+              {/* Feed with Relays */}
               <div>
                 <h3 style={{ fontSize: '0.95rem', fontWeight: '800', marginBottom: '0.8rem', color: '#fff' }}>Posts</h3>
                 
@@ -685,6 +740,8 @@ export default function PublicPageView() {
                     {posts.map(post => {
                       const isLiked = !!likedPosts[post.id];
                       const likesCount = postLikesCount[post.id] || 0;
+                      const isRelayed = !!relayedPosts[post.id];
+                      const relaysCount = postRelaysCount[post.id] || 0;
                       const commentsList = postComments[post.id] || [];
                       const isCommentsOpen = activeCommentPostId === post.id;
 
@@ -720,10 +777,14 @@ export default function PublicPageView() {
                             <img src={post.image_url} alt="Post image" style={{ width: '100%', maxHeight: '420px', objectFit: 'cover' }} />
                           )}
 
-                          {(likesCount > 0 || commentsList.length > 0) && (
+                          {/* Social Counts Bar: Likes, Comments, Relays */}
+                          {(likesCount > 0 || commentsList.length > 0 || relaysCount > 0) && (
                             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 1rem', fontSize: '0.75rem', color: '#94a3b8', borderBottom: '1px solid #1e293b' }}>
-                              <span>{likesCount > 0 ? `👍 ${likesCount} ${likesCount === 1 ? 'like' : 'likes'}` : ''}</span>
-                              <span>{commentsList.length > 0 ? `${commentsList.length} comments` : ''}</span>
+                              <span>{likesCount > 0 ? `👍 ${likesCount}` : ''}</span>
+                              <div style={{ display: 'flex', gap: '0.8rem' }}>
+                                {commentsList.length > 0 && <span>{commentsList.length} comments</span>}
+                                {relaysCount > 0 && <span>{relaysCount} relays</span>}
+                              </div>
                             </div>
                           )}
 
@@ -769,14 +830,14 @@ export default function PublicPageView() {
                               💬 Comment
                             </button>
 
-                            {/* Relay Button */}
+                            {/* Relay Button - Opens Custom Relay Drawer */}
                             <button
                               type="button"
-                              onClick={() => handleRelayPost(post)}
+                              onClick={() => setRelayModalPost(post)}
                               style={{
                                 background: 'transparent',
                                 border: 'none',
-                                color: copiedPostId === post.id ? '#4ade80' : '#94a3b8',
+                                color: isRelayed ? '#4ade80' : '#94a3b8',
                                 padding: '0.5rem',
                                 fontSize: '0.82rem',
                                 fontWeight: '700',
@@ -787,7 +848,7 @@ export default function PublicPageView() {
                                 gap: '0.4rem'
                               }}
                             >
-                              {copiedPostId === post.id ? '✓ Relayed' : '🔄 Relay'}
+                              {isRelayed ? '🔄 Relayed' : '🔄 Relay'}
                             </button>
                           </div>
 
@@ -873,6 +934,59 @@ export default function PublicPageView() {
 
       </main>
 
+      {/* Shanora Custom Relay Bottom Sheet Modal */}
+      {relayModalPost && (
+        <div 
+          onClick={() => setRelayModalPost(null)}
+          style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 260, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            style={{ backgroundColor: '#0f172a', borderTopLeftRadius: '20px', borderTopRightRadius: '20px', border: '1px solid #1e293b', padding: '1.2rem', width: '100%', maxWidth: '680px', margin: '0 auto' }}
+          >
+            <div style={{ width: '40px', height: '4px', backgroundColor: '#334155', borderRadius: '2px', margin: '0 auto 1.2rem auto' }} />
+
+            <h4 style={{ margin: '0 0 1rem 0', fontSize: '0.95rem', color: '#94a3b8', textAlign: 'center' }}>
+              Relay this post
+            </h4>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+              {/* Option 1: Instant In-App Relay */}
+              <button 
+                onClick={() => handleInstantRelay(relayModalPost.id)}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', padding: '0.8rem', backgroundColor: '#1e293b', border: '1px solid #334155', color: relayedPosts[relayModalPost.id] ? '#ef4444' : '#4ade80', fontSize: '0.92rem', fontWeight: '700', cursor: 'pointer', textAlign: 'left', borderRadius: '10px' }}
+              >
+                <span style={{ fontSize: '1.2rem' }}>🔄</span> 
+                {relayedPosts[relayModalPost.id] ? 'Undo Relay' : 'Relay Now (Spread on Shanora)'}
+              </button>
+
+              {/* Option 2: Share via WhatsApp/Apps */}
+              <button 
+                onClick={() => handleExternalShare(relayModalPost)}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', padding: '0.8rem', background: 'none', border: 'none', color: '#f8fafc', fontSize: '0.9rem', fontWeight: '600', cursor: 'pointer', textAlign: 'left', borderRadius: '8px' }}
+              >
+                <span style={{ fontSize: '1.1rem' }}>📲</span> Share to WhatsApp / Other Apps
+              </button>
+
+              {/* Option 3: Copy Link */}
+              <button 
+                onClick={() => handleCopyLink(relayModalPost.id)}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', padding: '0.8rem', background: 'none', border: 'none', color: '#f8fafc', fontSize: '0.9rem', fontWeight: '600', cursor: 'pointer', textAlign: 'left', borderRadius: '8px' }}
+              >
+                <span style={{ fontSize: '1.1rem' }}>🔗</span> {copiedPostId === relayModalPost.id ? 'Copied to Clipboard!' : 'Copy Link'}
+              </button>
+            </div>
+
+            <button 
+              onClick={() => setRelayModalPost(null)}
+              style={{ marginTop: '1rem', width: '100%', padding: '0.75rem', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '10px', color: '#cbd5e1', fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer' }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Three Dots (...) Bottom Sheet */}
       {selectedPostMenu && (
         <div 
@@ -887,14 +1001,21 @@ export default function PublicPageView() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
               <button 
-                onClick={() => handleRelayPost(selectedPostMenu)}
+                onClick={() => {
+                  const p = selectedPostMenu;
+                  setSelectedPostMenu(null);
+                  setRelayModalPost(p);
+                }}
                 style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', padding: '0.75rem', background: 'none', border: 'none', color: '#f8fafc', fontSize: '0.9rem', fontWeight: '600', cursor: 'pointer', textAlign: 'left', borderRadius: '8px' }}
               >
                 <span>🔄</span> Relay Post
               </button>
 
               <button 
-                onClick={() => handleRelayPost(selectedPostMenu)}
+                onClick={() => {
+                  handleCopyLink(selectedPostMenu.id);
+                  setSelectedPostMenu(null);
+                }}
                 style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', padding: '0.75rem', background: 'none', border: 'none', color: '#f8fafc', fontSize: '0.9rem', fontWeight: '600', cursor: 'pointer', textAlign: 'left', borderRadius: '8px' }}
               >
                 <span>🔗</span> Copy link
@@ -1026,4 +1147,4 @@ export default function PublicPageView() {
 
     </div>
   );
-}
+                    }
