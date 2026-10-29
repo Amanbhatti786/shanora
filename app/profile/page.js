@@ -544,7 +544,8 @@ ${profile.city}, Pakistan`;
               {statusMsg.text}
             </div>
           )}
-        {/* TAB 1: DASHBOARD */}
+
+                {/* TAB 1: DASHBOARD */}
         {activeTab === 'dashboard' && (
           <div>
             {/* 1. MAIN CREATOR & PROFILE HUB */}
@@ -634,10 +635,10 @@ ${profile.city}, Pakistan`;
               <div style={{ borderTop: '1px solid #1e293b', paddingTop: '0.85rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', marginBottom: '0.35rem' }}>
                   <span style={{ color: '#94a3b8' }}>Profile Strength</span>
-                  <strong style={{ color: '#22c55e' }}>{completeness || 100}%</strong>
+                  <strong style={{ color: '#22c55e' }}>{profile?.resume_url ? 100 : 70}%</strong>
                 </div>
                 <div style={{ width: '100%', height: '6px', backgroundColor: '#0b1120', borderRadius: '3px', overflow: 'hidden' }}>
-                  <div style={{ width: `${completeness || 100}%`, height: '100%', backgroundColor: '#22c55e' }} />
+                  <div style={{ width: `${profile?.resume_url ? 100 : 70}%`, height: '100%', backgroundColor: '#22c55e' }} />
                 </div>
               </div>
             </div>
@@ -646,21 +647,21 @@ ${profile.city}, Pakistan`;
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem', marginBottom: '1.2rem' }}>
               <div style={{ backgroundColor: '#0f172a', padding: '1rem', borderRadius: '10px', border: '1px solid #1e293b', textAlign: 'center' }}>
                 <span style={{ fontSize: '0.72rem', color: '#94a3b8', textTransform: 'uppercase' }}>Applications Sent</span>
-                <h3 style={{ margin: '0.3rem 0 0', fontSize: '1.4rem', color: '#fff' }}>{appliedJobs?.length || 0}</h3>
+                <h3 style={{ margin: '0.3rem 0 0', fontSize: '1.4rem', color: '#fff' }}>0</h3>
               </div>
               <div style={{ backgroundColor: '#0f172a', padding: '1rem', borderRadius: '10px', border: '1px solid #1e293b', textAlign: 'center' }}>
                 <span style={{ fontSize: '0.72rem', color: '#94a3b8', textTransform: 'uppercase' }}>Saved Jobs</span>
-                <h3 style={{ margin: '0.3rem 0 0', fontSize: '1.4rem', color: '#38bdf8' }}>{savedJobs?.length || 0}</h3>
+                <h3 style={{ margin: '0.3rem 0 0', fontSize: '1.4rem', color: '#38bdf8' }}>0</h3>
               </div>
               <div style={{ backgroundColor: '#0f172a', padding: '1rem', borderRadius: '10px', border: '1px solid #1e293b', textAlign: 'center' }}>
                 <span style={{ fontSize: '0.72rem', color: '#94a3b8', textTransform: 'uppercase' }}>Resume Status</span>
-                <h3 style={{ margin: '0.3rem 0 0', fontSize: '1.1rem', color: resumeFile ? '#22c55e' : '#94a3b8' }}>
-                  {resumeFile ? 'Uploaded' : 'Pending'}
+                <h3 style={{ margin: '0.3rem 0 0', fontSize: '1.1rem', color: profile?.resume_url ? '#22c55e' : '#94a3b8' }}>
+                  {profile?.resume_url ? 'Uploaded' : 'Pending'}
                 </h3>
               </div>
             </div>
 
-                       {/* 3. QUICK ACTION BUTTONS */}
+            {/* 3. QUICK ACTION BUTTONS */}
             <div style={{ display: 'flex', gap: '0.7rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
               <button 
                 type="button" 
@@ -670,6 +671,8 @@ ${profile.city}, Pakistan`;
                 Browse Jobs 🔍
               </button>
             </div>
+          </div>
+        )}
 
 
           {/* TAB 2: PROFILE */}
