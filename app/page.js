@@ -54,9 +54,7 @@ export default function HomePage() {
           <Link href="/feed" style={{ color: '#cbd5e1', fontSize: '0.85rem', textDecoration: 'none', fontWeight: '600', padding: '0.4rem 0.6rem' }}>
             Feed 🌐
           </Link>
-          <Link href="/messages" style={{ color: '#cbd5e1', fontSize: '0.85rem', textDecoration: 'none', fontWeight: '600', padding: '0.4rem 0.6rem' }}>
-            Messages 💬
-          </Link>
+  
           <Link href="/profile" style={{ color: '#cbd5e1', fontSize: '0.85rem', textDecoration: 'none', fontWeight: '600', padding: '0.4rem 0.6rem' }}>
             Students & Portal 🎓
           </Link>
