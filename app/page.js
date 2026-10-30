@@ -45,10 +45,9 @@ export default function HomePage() {
               SHANORA<span style={{ color: '#38bdf8' }}>.PK</span>
             </span>
           </Link>
-          
         </div>
 
-                <nav style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', whiteSpace: 'nowrap' }}>
+        <nav style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', whiteSpace: 'nowrap' }}>
           <Link 
             href="/feed" 
             style={{ 
@@ -97,7 +96,6 @@ export default function HomePage() {
             Sign Up
           </Link>
         </nav>
-
       </header>
 
       {/* 2. Hero Section */}
@@ -219,5 +217,4 @@ export default function HomePage() {
 
     </div>
   );
-                         }
-              
+}
