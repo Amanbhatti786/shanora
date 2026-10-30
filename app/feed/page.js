@@ -74,7 +74,7 @@ export default function FeedPage() {
           if (followsData) {
             const map = {};
             followsData.forEach(f => {
-              map[f.following_email] = true;
+              if (f.following_email) map[f.following_email.toLowerCase()] = true;
             });
             setFollowingMap(map);
           }
@@ -135,11 +135,12 @@ export default function FeedPage() {
 
         // Format Personal Posts
         const formattedPersonal = (personalPosts || []).map(p => {
-          const uname = p.user_email?.split('@')[0] || 'user';
+          const rawEmail = p.user_email || '';
+          const uname = rawEmail.split('@')[0] || p.user_name || 'user';
           return {
             feedItemId: `user-${p.id}`,
             postId: p.id,
-            authorEmail: p.user_email,
+            authorEmail: rawEmail.toLowerCase(),
             postType: 'personal',
             authorName: p.user_name || uname,
             authorAvatar: p.avatar_url,
@@ -155,43 +156,49 @@ export default function FeedPage() {
         });
 
         // Format Page Posts
-        const formattedPages = (pagePosts || []).map(p => ({
-          feedItemId: `page-${p.id}`,
-          postId: p.id,
-          authorEmail: p.pages?.owner_email || null,
-          postType: 'page',
-          authorName: p.pages?.name || 'Shanora Page',
-          authorAvatar: p.pages?.logo_url,
-          authorLink: `/page/${p.pages?.slug || ''}`,
-          isVerified: p.pages?.monetization_status === 'approved',
-          content: p.content,
-          imageUrl: p.image_url,
-          createdAt: p.created_at,
-          sortTime: new Date(p.created_at).getTime(),
-          isRelay: false,
-          relayedBy: null
-        }));
+        const formattedPages = (pagePosts || []).map(p => {
+          const ownerEmail = (p.pages?.owner_email || '').toLowerCase();
+          return {
+            feedItemId: `page-${p.id}`,
+            postId: p.id,
+            authorEmail: ownerEmail,
+            postType: 'page',
+            authorName: p.pages?.name || 'Shanora Page',
+            authorAvatar: p.pages?.logo_url,
+            authorLink: `/page/${p.pages?.slug || ''}`,
+            isVerified: p.pages?.monetization_status === 'approved',
+            content: p.content,
+            imageUrl: p.image_url,
+            createdAt: p.created_at,
+            sortTime: new Date(p.created_at).getTime(),
+            isRelay: false,
+            relayedBy: null
+          };
+        });
 
         // Format Relays
         const formattedRelays = (relays || [])
           .filter(r => r.page_posts && r.page_posts.pages)
-          .map(r => ({
-            feedItemId: `relay-${r.id}`,
-            postId: r.page_posts.id,
-            authorEmail: r.page_posts.pages?.owner_email || null,
-            postType: 'page',
-            authorName: r.page_posts.pages?.name || 'Shanora Page',
-            authorAvatar: r.page_posts.pages?.logo_url,
-            authorLink: `/page/${r.page_posts.pages?.slug || ''}`,
-            isVerified: r.page_posts.pages?.monetization_status === 'approved',
-            content: r.page_posts.content,
-            imageUrl: r.page_posts.image_url,
-            createdAt: r.page_posts.created_at,
-            sortTime: new Date(r.created_at).getTime(),
-            isRelay: true,
-            relayedBy: r.user_email?.split('@')[0] || 'A creator',
-            relayedByLink: `/page/${r.user_email?.split('@')[0] || ''}`
-          }));
+          .map(r => {
+            const ownerEmail = (r.page_posts.pages?.owner_email || '').toLowerCase();
+            return {
+              feedItemId: `relay-${r.id}`,
+              postId: r.page_posts.id,
+              authorEmail: ownerEmail,
+              postType: 'page',
+              authorName: r.page_posts.pages?.name || 'Shanora Page',
+              authorAvatar: r.page_posts.pages?.logo_url,
+              authorLink: `/page/${r.page_posts.pages?.slug || ''}`,
+              isVerified: r.page_posts.pages?.monetization_status === 'approved',
+              content: r.page_posts.content,
+              imageUrl: r.page_posts.image_url,
+              createdAt: r.page_posts.created_at,
+              sortTime: new Date(r.created_at).getTime(),
+              isRelay: true,
+              relayedBy: r.user_email?.split('@')[0] || 'A creator',
+              relayedByLink: `/page/${r.user_email?.split('@')[0] || ''}`
+            };
+          });
 
         const merged = [...formattedPersonal, ...formattedPages, ...formattedRelays]
           .sort((a, b) => b.sortTime - a.sortTime);
@@ -274,32 +281,37 @@ export default function FeedPage() {
       router.push('/auth');
       return;
     }
-    if (!targetEmail || targetEmail === currentUser.email) return;
+    if (!targetEmail) return;
 
-    const isFollowing = !!followingMap[targetEmail];
-    setFollowingLoading(prev => ({ ...prev, [targetEmail]: true }));
+    const cleanTarget = targetEmail.toLowerCase();
+    const cleanCurrent = currentUser.email.toLowerCase();
+
+    if (cleanTarget === cleanCurrent) return;
+
+    const isFollowing = !!followingMap[cleanTarget];
+    setFollowingLoading(prev => ({ ...prev, [cleanTarget]: true }));
 
     // Optimistic UI update
-    setFollowingMap(prev => ({ ...prev, [targetEmail]: !isFollowing }));
+    setFollowingMap(prev => ({ ...prev, [cleanTarget]: !isFollowing }));
 
     try {
       if (isFollowing) {
         await supabase
           .from('user_follows')
           .delete()
-          .eq('follower_email', currentUser.email)
-          .eq('following_email', targetEmail);
+          .eq('follower_email', cleanCurrent)
+          .eq('following_email', cleanTarget);
       } else {
         await supabase
           .from('user_follows')
-          .insert([{ follower_email: currentUser.email, following_email: targetEmail }]);
+          .insert([{ follower_email: cleanCurrent, following_email: cleanTarget }]);
 
-        // Send Notification to author
+        // Notification
         await supabase
           .from('notifications')
           .insert([{
-            recipient_email: targetEmail,
-            sender_name: userProfile?.name || currentUser.email.split('@')[0],
+            recipient_email: cleanTarget,
+            sender_name: userProfile?.name || cleanCurrent.split('@')[0],
             action_type: 'follow',
             content: 'started following you.',
             is_read: false
@@ -307,10 +319,9 @@ export default function FeedPage() {
       }
     } catch (err) {
       console.error('Follow error:', err);
-      // Revert if error
-      setFollowingMap(prev => ({ ...prev, [targetEmail]: isFollowing }));
+      setFollowingMap(prev => ({ ...prev, [cleanTarget]: isFollowing }));
     } finally {
-      setFollowingLoading(prev => ({ ...prev, [targetEmail]: false }));
+      setFollowingLoading(prev => ({ ...prev, [cleanTarget]: false }));
     }
   }
 
@@ -334,7 +345,7 @@ export default function FeedPage() {
     setOpenMenuPostId(null);
   }
 
-  // Delete Post (Only for personal posts by author)
+  // Delete Post
   async function handleDeletePost(postId, e) {
     e.stopPropagation();
     if (!confirm('Are you sure you want to delete this post?')) return;
@@ -464,7 +475,7 @@ export default function FeedPage() {
       const formattedNew = {
         feedItemId: `user-${newPost.id}`,
         postId: newPost.id,
-        authorEmail: currentUser.email,
+        authorEmail: (currentUser.email || '').toLowerCase(),
         postType: 'personal',
         authorName: senderName,
         authorAvatar: senderAvatar,
@@ -590,6 +601,7 @@ export default function FeedPage() {
   }
 
   const currentUserName = userProfile?.name || currentUser?.email?.split('@')[0] || 'You';
+  const cleanCurrentUserEmail = (currentUser?.email || '').toLowerCase();
 
   const filteredResults = searchResults.filter(item => {
     if (searchFilter === 'pages') return item.type === 'page';
@@ -600,7 +612,7 @@ export default function FeedPage() {
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#070b14', color: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       
-      {/* Top Header with Facebook-Style Search Bar */}
+      {/* Top Header */}
       <header style={{ backgroundColor: '#0f172a', borderBottom: '1px solid #1e293b', padding: '0.65rem 1rem', position: 'sticky', top: 0, zIndex: 100 }}>
         <div style={{ maxWidth: '640px', margin: '0 auto', display: 'flex', alignItems: 'center', gap: '0.8rem', justifyContent: 'space-between' }}>
           
@@ -610,7 +622,7 @@ export default function FeedPage() {
             </h1>
           </Link>
 
-          {/* Facebook Style Search Input */}
+          {/* Search Box */}
           <div style={{ position: 'relative', flex: 1, maxWidth: '340px' }}>
             <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '22px', padding: '0.35rem 0.85rem' }}>
               <span style={{ color: '#94a3b8', fontSize: '0.85rem', marginRight: '0.4rem' }}>🔍</span>
@@ -632,7 +644,7 @@ export default function FeedPage() {
               )}
             </div>
 
-            {/* Live Search Dropdown Box */}
+            {/* Dropdown */}
             {showSearchDropdown && (
               <div style={{ 
                 position: 'absolute', 
@@ -694,8 +706,7 @@ export default function FeedPage() {
                           gap: '0.7rem',
                           padding: '0.6rem 0.9rem',
                           textDecoration: 'none',
-                          borderBottom: '1px solid #1e293b',
-                          transition: 'background 0.2s'
+                          borderBottom: '1px solid #1e293b'
                         }}
                       >
                         <div style={{
@@ -758,7 +769,7 @@ export default function FeedPage() {
 
       <main style={{ maxWidth: '640px', margin: '0 auto', padding: '1rem 0.8rem 3rem 0.8rem' }}>
         
-        {/* Personal Post Box */}
+        {/* Post Creation Box */}
         {currentUser && (
           <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1rem', marginBottom: '1.5rem' }}>
             <form onSubmit={handleCreatePersonalPost}>
@@ -830,8 +841,9 @@ export default function FeedPage() {
               const commentsList = postComments[item.postId] || [];
               const isCommentsOpen = activeCommentPostId === item.feedItemId;
 
-              const isOwnPost = currentUser?.email && item.authorEmail === currentUser.email;
-              const isFollowingAuthor = item.authorEmail ? !!followingMap[item.authorEmail] : false;
+              const authorEmailClean = (item.authorEmail || '').toLowerCase();
+              const isOwnPost = cleanCurrentUserEmail && authorEmailClean === cleanCurrentUserEmail;
+              const isFollowingAuthor = authorEmailClean ? !!followingMap[authorEmailClean] : false;
               const isMenuOpen = openMenuPostId === item.feedItemId;
 
               return (
@@ -875,7 +887,7 @@ export default function FeedPage() {
                       </Link>
 
                       <div style={{ overflow: 'hidden' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                           <Link href={item.authorLink || '#'} style={{ textDecoration: 'none' }}>
                             <span style={{ fontWeight: '700', fontSize: '0.9rem', color: '#fff', cursor: 'pointer' }}>
                               {item.authorName}
@@ -883,18 +895,18 @@ export default function FeedPage() {
                           </Link>
                           {item.isVerified && <span style={{ color: '#22c55e', fontSize: '0.8rem' }}>✓</span>}
 
-                          {/* + Follow / Following Button */}
-                          {!isOwnPost && item.authorEmail && (
+                          {/* + Follow / Following Button (Visible when NOT own post) */}
+                          {!isOwnPost && (
                             <button
                               type="button"
-                              onClick={(e) => handleToggleFollow(item.authorEmail, e)}
-                              disabled={followingLoading[item.authorEmail]}
+                              onClick={(e) => handleToggleFollow(authorEmailClean, e)}
+                              disabled={followingLoading[authorEmailClean]}
                               style={{
-                                background: isFollowingAuthor ? 'transparent' : 'rgba(2, 132, 199, 0.15)',
+                                background: isFollowingAuthor ? 'transparent' : 'rgba(2, 132, 199, 0.2)',
                                 color: isFollowingAuthor ? '#94a3b8' : '#38bdf8',
-                                border: isFollowingAuthor ? '1px solid #334155' : '1px solid rgba(2, 132, 199, 0.4)',
-                                padding: '0.2rem 0.55rem',
-                                borderRadius: '14px',
+                                border: isFollowingAuthor ? '1px solid #334155' : '1px solid #0284c7',
+                                padding: '0.18rem 0.55rem',
+                                borderRadius: '12px',
                                 fontSize: '0.72rem',
                                 fontWeight: '700',
                                 cursor: 'pointer',
@@ -913,7 +925,7 @@ export default function FeedPage() {
                       </div>
                     </div>
 
-                    {/* Three-Dots Action Button & Dropdown */}
+                    {/* Three-Dots Menu */}
                     <div style={{ position: 'relative' }}>
                       <button
                         type="button"
@@ -934,7 +946,6 @@ export default function FeedPage() {
                         •••
                       </button>
 
-                      {/* Dropdown Box */}
                       {isMenuOpen && (
                         <div
                           onClick={(e) => e.stopPropagation()}
@@ -1026,7 +1037,7 @@ export default function FeedPage() {
                     </div>
                   )}
 
-                  {/* Image with Click-to-Enlarge */}
+                  {/* Image */}
                   {item.imageUrl && (
                     <div 
                       onClick={() => setPreviewImage(item.imageUrl)} 
