@@ -41,12 +41,12 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body style={{ margin: 0, padding: 0, backgroundColor: '#070b14', color: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
         
-        {/* Main App Content */}
+        {/* Main Body Content */}
         <div style={{ paddingBottom: '70px' }}>
           {children}
         </div>
 
-        {/* Global Bottom Navigation Bar */}
+        {/* Global Bottom Navigation */}
         <div style={{
           position: 'fixed',
           bottom: 0,
