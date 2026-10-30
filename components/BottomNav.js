@@ -1,11 +1,10 @@
-
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { supabase } from '../lib/supabaseClient';
 
-export default function BottomNav({ onOpenPostModal }) {
+export default function BottomNav() {
   const pathname = usePathname();
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -33,9 +32,9 @@ export default function BottomNav({ onOpenPostModal }) {
   const navItems = [
     { label: 'Home', icon: '🏠', href: '/feed' },
     { label: 'Network', icon: '👥', href: '/profile?tab=pages' },
-    { label: 'Post', icon: '➕', action: onOpenPostModal || (() => { window.location.href = '/feed'; }) },
+    { label: 'Post', icon: '➕', href: '/feed' },
     { label: 'Notifications', icon: '🔔', href: '/profile?tab=notifications', badge: unreadCount },
-    { label: 'Jobs', icon: '💼', href: '/profile?tab=jobs' }
+    { label: 'Jobs', icon: '💼', href: '/profile?tab=dashboard' }
   ];
 
   return (
@@ -44,32 +43,29 @@ export default function BottomNav({ onOpenPostModal }) {
       bottom: 0,
       left: 0,
       right: 0,
-      height: '60px',
+      height: '62px',
       backgroundColor: '#0f172a',
       borderTop: '1px solid #1e293b',
       display: 'flex',
       justifyContent: 'space-around',
       alignItems: 'center',
-      zIndex: 900,
+      zIndex: 999,
       boxShadow: '0 -4px 20px rgba(0,0,0,0.5)'
     }}>
       {navItems.map(item => {
         const isCurrent = item.href && pathname === item.href.split('?')[0];
 
-        if (item.action) {
+        if (item.label === 'Post') {
           return (
-            <button
+            <Link
               key={item.label}
-              type="button"
-              onClick={item.action}
+              href={item.href}
               style={{
-                background: 'none',
-                border: 'none',
+                textDecoration: 'none',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
                 gap: '2px',
-                cursor: 'pointer',
                 color: '#38bdf8'
               }}
             >
@@ -88,7 +84,7 @@ export default function BottomNav({ onOpenPostModal }) {
                 +
               </div>
               <span style={{ fontSize: '0.68rem', fontWeight: '700' }}>{item.label}</span>
-            </button>
+            </Link>
           );
         }
 
