@@ -1,10 +1,10 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '../../lib/supabaseClient';
 
-export default function ProfilePortal() {
+function ProfilePortalContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -210,7 +210,7 @@ export default function ProfilePortal() {
           })}
         </div>
 
-        {/* Facebook Menu Drawer Button */}
+        {/* Menu Drawer Button */}
         <button
           onClick={() => setShowMenuDrawer(!showMenuDrawer)}
           style={{
@@ -398,5 +398,16 @@ export default function ProfilePortal() {
 
     </div>
   );
-                  }
-                     
+}
+
+export default function ProfilePortal() {
+  return (
+    <Suspense fallback={
+      <div style={{ minHeight: '100vh', backgroundColor: '#070b14', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#38bdf8' }}>
+        Loading Portal...
+      </div>
+    }>
+      <ProfilePortalContent />
+    </Suspense>
+  );
+}
