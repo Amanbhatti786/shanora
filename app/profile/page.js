@@ -17,7 +17,8 @@ function ProfilePortalContent() {
     full_name: '',
     email: '',
     phone: '',
-    city: 'Pakistan'
+    city: 'Pakistan',
+    resume_url: ''
   });
 
   const [myPages, setMyPages] = useState([]);
@@ -42,7 +43,19 @@ function ProfilePortalContent() {
     description: ''
   });
   const [submittingJob, setSubmittingJob] = useState(false);
-  const [applyingJobId, setApplyingJobId] = useState(null);
+
+  // Apply Modal & Form State
+  const [selectedJobForApply, setSelectedJobForApply] = useState(null);
+  const [submittingApplication, setSubmittingApplication] = useState(false);
+  const [applyForm, setApplyForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    city: '',
+    experience: 'Fresh Graduate',
+    resume_link: '',
+    cover_note: ''
+  });
 
   useEffect(() => {
     const tabParam = searchParams?.get('tab');
@@ -74,14 +87,16 @@ function ProfilePortalContent() {
             full_name: profileData.full_name || profileData.name || currentUser.user_metadata?.full_name || myEmail.split('@')[0],
             email: currentUser.email,
             phone: profileData.phone || '',
-            city: profileData.city || 'Pakistan'
+            city: profileData.city || 'Pakistan',
+            resume_url: profileData.resume_url || profileData.resume_link || ''
           });
         } else {
           setProfile({
             full_name: currentUser.user_metadata?.full_name || myEmail.split('@')[0],
             email: currentUser.email,
             phone: '',
-            city: 'Pakistan'
+            city: 'Pakistan',
+            resume_url: ''
           });
         }
 
@@ -113,7 +128,7 @@ function ProfilePortalContent() {
           setFollowingMap(curMap);
         }
 
-        // 4. Fetch Discover Users (People you may know)
+        // 4. Fetch Discover Users
         const { data: allProfiles } = await supabase
           .from('profiles')
           .select('*')
@@ -134,7 +149,6 @@ function ProfilePortalContent() {
             }));
         }
 
-        // Fallback: Agar profiles table mein na milein toh posts table se collect karein
         if (discoveredList.length === 0) {
           const { data: postUsers } = await supabase
             .from('user_posts')
@@ -218,7 +232,6 @@ function ProfilePortalContent() {
       setFollowingList(prev => prev.filter(item => (item.following_email || '').toLowerCase() !== cleanTarget));
     } else {
       setFollowingList(prev => [...prev, { id: Date.now(), following_email: cleanTarget, follower_email: myEmail, created_at: new Date().toISOString() }]);
-      // Discover list se foran hata dein
       setDiscoverUsers(prev => prev.filter(item => (item.email || '').toLowerCase() !== cleanTarget));
     }
 
@@ -271,35 +284,60 @@ function ProfilePortalContent() {
     }
   }
 
-  // 1-Click Apply Handler
-  async function handleApplyJob(jobId) {
+  // Open Form Modal with Auto-filled Profile Data
+  function openApplyModal(job) {
     if (!user) {
       router.push('/auth');
       return;
     }
 
-    setApplyingJobId(jobId);
-    try {
-      const myEmail = user.email.toLowerCase();
-      const myName = profile.full_name || myEmail.split('@')[0];
+    setApplyForm({
+      name: profile.full_name || user.user_metadata?.full_name || user.email.split('@')[0],
+      email: user.email,
+      phone: profile.phone || '',
+      city: profile.city || 'Pakistan',
+      experience: 'Fresh Graduate',
+      resume_link: profile.resume_url || '',
+      cover_note: ''
+    });
 
+    setSelectedJobForApply(job);
+  }
+
+  // Submit Job Application Form
+  async function handleSubmitApplication(e) {
+    e.preventDefault();
+    if (!selectedJobForApply || !user) return;
+
+    if (!applyForm.phone.trim()) {
+      alert('Kripya apna phone/WhatsApp number darj karein.');
+      return;
+    }
+
+    setSubmittingApplication(true);
+    try {
       const { error } = await supabase
         .from('job_applications')
         .insert([{
-          job_id: jobId,
-          applicant_email: myEmail,
-          applicant_name: myName,
-          phone: profile.phone || ''
+          job_id: selectedJobForApply.id,
+          applicant_email: user.email.toLowerCase(),
+          applicant_name: applyForm.name,
+          phone: applyForm.phone,
+          city: applyForm.city,
+          experience: applyForm.experience,
+          resume_link: applyForm.resume_link,
+          cover_note: applyForm.cover_note
         }]);
 
       if (error) throw error;
 
-      setAppliedJobsMap(prev => ({ ...prev, [jobId]: true }));
-      alert('Application submitted successfully! 🚀');
+      setAppliedJobsMap(prev => ({ ...prev, [selectedJobForApply.id]: true }));
+      setSelectedJobForApply(null);
+      alert('Aapki application successfully submit ho gayi hai! 🚀');
     } catch (err) {
-      alert('Apply error: ' + err.message);
+      alert('Application submit nahi ho saki: ' + err.message);
     } finally {
-      setApplyingJobId(null);
+      setSubmittingApplication(false);
     }
   }
 
@@ -484,7 +522,6 @@ function ProfilePortalContent() {
         {/* TAB: NETWORK / FOLLOWERS */}
         {activeTab === 'network' && (
           <div>
-            {/* Segment Switcher */}
             <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.2rem', backgroundColor: '#0f172a', padding: '0.35rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
               <button
                 onClick={() => setNetworkSubTab('followers')}
@@ -523,7 +560,6 @@ function ProfilePortalContent() {
               </button>
             </div>
 
-            {/* Followers List View */}
             {networkSubTab === 'followers' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 {followersList.length === 0 ? (
@@ -599,7 +635,6 @@ function ProfilePortalContent() {
               </div>
             )}
 
-            {/* Following List View */}
             {networkSubTab === 'following' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 {followingList.length === 0 ? (
@@ -673,7 +708,7 @@ function ProfilePortalContent() {
               </div>
             )}
 
-            {/* People You May Know / Discover */}
+            {/* People You May Know */}
             <div style={{ marginTop: '2.2rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
                 <span style={{ fontSize: '0.88rem', fontWeight: '800', color: '#fff' }}>
@@ -818,7 +853,6 @@ function ProfilePortalContent() {
                     ? `/view-profile?email=${encodeURIComponent(senderEmail)}`
                     : (n.sender_name ? `/view-profile?email=${encodeURIComponent(n.sender_name)}` : '#');
 
-                  // Time ago calculation
                   const createdTime = new Date(n.created_at).getTime();
                   const diffMinutes = Math.floor((Date.now() - createdTime) / (1000 * 60));
                   let timeLabel = 'Just now';
@@ -852,7 +886,6 @@ function ProfilePortalContent() {
                         position: 'relative'
                       }}
                     >
-                      {/* Avatar with Action Badge */}
                       <div style={{ position: 'relative', flexShrink: 0 }}>
                         <div style={{
                           width: '46px',
@@ -888,7 +921,6 @@ function ProfilePortalContent() {
                         </div>
                       </div>
 
-                      {/* Content Details */}
                       <div style={{ flex: 1, overflow: 'hidden' }}>
                         <div style={{ fontSize: '0.86rem', color: '#cbd5e1', lineHeight: '1.35' }}>
                           <strong style={{ color: '#fff', fontWeight: '700' }}>{senderName}</strong> {n.content || 'interacted with you.'}
@@ -898,7 +930,6 @@ function ProfilePortalContent() {
                         </div>
                       </div>
 
-                      {/* Blue Unread Indicator Dot */}
                       {!n.is_read && (
                         <div style={{
                           width: '8px',
@@ -925,6 +956,9 @@ function ProfilePortalContent() {
               <div>📧 <strong>Email:</strong> {profile.email}</div>
               <div>📱 <strong>Phone:</strong> {profile.phone || 'Not provided'}</div>
               <div>📍 <strong>Location:</strong> {profile.city || 'Pakistan'}</div>
+              {profile.resume_url && (
+                <div>📄 <strong>Resume Link:</strong> <a href={profile.resume_url} target="_blank" rel="noreferrer" style={{ color: '#38bdf8' }}>View uploaded CV</a></div>
+              )}
             </div>
           </div>
         )}
@@ -978,7 +1012,7 @@ function ProfilePortalContent() {
               </button>
             </div>
 
-            {/* Post Job Inline Drawer / Form */}
+            {/* Post Job Form */}
             {showPostJobModal && (
               <form onSubmit={handleCreateJob} style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.2rem', marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
                 <h4 style={{ margin: 0, color: '#38bdf8', fontSize: '0.95rem' }}>Post New Opening</h4>
@@ -1059,7 +1093,6 @@ function ProfilePortalContent() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
                 {jobsList.map(job => {
                   const isApplied = !!appliedJobsMap[job.id];
-                  const isApplying = applyingJobId === job.id;
                   const isOwner = user?.email && (job.employer_email || '').toLowerCase() === user.email.toLowerCase();
 
                   return (
@@ -1111,8 +1144,8 @@ function ProfilePortalContent() {
                         ) : (
                           <button
                             type="button"
-                            disabled={isApplied || isApplying}
-                            onClick={() => handleApplyJob(job.id)}
+                            disabled={isApplied}
+                            onClick={() => openApplyModal(job)}
                             style={{
                               backgroundColor: isApplied ? '#1e293b' : '#0284c7',
                               color: isApplied ? '#94a3b8' : '#fff',
@@ -1121,10 +1154,10 @@ function ProfilePortalContent() {
                               borderRadius: '8px',
                               fontSize: '0.78rem',
                               fontWeight: '700',
-                              cursor: isApplied || isApplying ? 'default' : 'pointer'
+                              cursor: isApplied ? 'default' : 'pointer'
                             }}
                           >
-                            {isApplying ? 'Submitting...' : isApplied ? 'Applied ✓' : 'Easy Apply ⚡'}
+                            {isApplied ? 'Applied ✓' : 'Easy Apply ⚡'}
                           </button>
                         )}
                       </div>
@@ -1145,6 +1178,157 @@ function ProfilePortalContent() {
         )}
 
       </main>
+
+      {/* POP-UP FORM MODAL (EASY APPLY WITH AUTO-FILL) */}
+      {selectedJobForApply && (
+        <div 
+          onClick={() => setSelectedJobForApply(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.85)',
+            zIndex: 999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem'
+          }}
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: '#0f172a',
+              border: '1px solid #334155',
+              borderRadius: '16px',
+              width: '100%',
+              maxWidth: '480px',
+              padding: '1.4rem',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.7)',
+              maxHeight: '90vh',
+              overflowY: 'auto'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', borderBottom: '1px solid #1e293b', paddingBottom: '0.8rem' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#fff', fontWeight: '800' }}>Apply for {selectedJobForApply.title}</h3>
+                <span style={{ fontSize: '0.78rem', color: '#38bdf8' }}>{selectedJobForApply.company_name}</span>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setSelectedJobForApply(null)}
+                style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer', padding: 0 }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitApplication} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.72rem', color: '#94a3b8', marginBottom: '0.25rem', fontWeight: '600' }}>Full Name (Auto-filled)</label>
+                <input
+                  type="text"
+                  value={applyForm.name}
+                  onChange={(e) => setApplyForm({ ...applyForm, name: e.target.value })}
+                  style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }}
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.72rem', color: '#94a3b8', marginBottom: '0.25rem', fontWeight: '600' }}>Email Address</label>
+                <input
+                  type="email"
+                  value={applyForm.email}
+                  disabled
+                  style={{ width: '100%', backgroundColor: 'rgba(30, 41, 59, 0.5)', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#94a3b8', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box', cursor: 'not-allowed' }}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.72rem', color: '#94a3b8', marginBottom: '0.25rem', fontWeight: '600' }}>WhatsApp / Phone *</label>
+                  <input
+                    type="text"
+                    placeholder="0300-1234567"
+                    value={applyForm.phone}
+                    onChange={(e) => setApplyForm({ ...applyForm, phone: e.target.value })}
+                    style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }}
+                    required
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.72rem', color: '#94a3b8', marginBottom: '0.25rem', fontWeight: '600' }}>Current City</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Sukkur, Karachi"
+                    value={applyForm.city}
+                    onChange={(e) => setApplyForm({ ...applyForm, city: e.target.value })}
+                    style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.72rem', color: '#94a3b8', marginBottom: '0.25rem', fontWeight: '600' }}>Experience Level</label>
+                <select
+                  value={applyForm.experience}
+                  onChange={(e) => setApplyForm({ ...applyForm, experience: e.target.value })}
+                  style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }}
+                >
+                  <option value="Fresh Graduate">Fresh Graduate / Student</option>
+                  <option value="1-2 Years">1 - 2 Years Experience</option>
+                  <option value="3-5 Years">3 - 5 Years Experience</option>
+                  <option value="5+ Years">Senior (5+ Years)</option>
+                </select>
+              </div>
+
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                  <label style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: '600' }}>Resume / Portfolio Link</label>
+                  {profile.resume_url && (
+                    <span style={{ fontSize: '0.68rem', color: '#22c55e', fontWeight: '700' }}>Auto-linked from profile ✓</span>
+                  )}
+                </div>
+                <input
+                  type="url"
+                  placeholder="Paste Google Drive or LinkedIn CV link"
+                  value={applyForm.resume_link}
+                  onChange={(e) => setApplyForm({ ...applyForm, resume_link: e.target.value })}
+                  style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.72rem', color: '#94a3b8', marginBottom: '0.25rem', fontWeight: '600' }}>Short Note (Optional)</label>
+                <textarea
+                  placeholder="Why are you suitable for this role?"
+                  rows={2}
+                  value={applyForm.cover_note}
+                  onChange={(e) => setApplyForm({ ...applyForm, cover_note: e.target.value })}
+                  style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.6rem', marginTop: '0.5rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setSelectedJobForApply(null)}
+                  style={{ flex: 1, backgroundColor: '#1e293b', border: '1px solid #334155', color: '#94a3b8', padding: '0.6rem', borderRadius: '8px', fontWeight: '700', fontSize: '0.82rem', cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingApplication}
+                  style={{ flex: 2, backgroundColor: '#0284c7', border: 'none', color: '#fff', padding: '0.6rem', borderRadius: '8px', fontWeight: '700', fontSize: '0.82rem', cursor: submittingApplication ? 'not-allowed' : 'pointer' }}
+                >
+                  {submittingApplication ? 'Submitting...' : 'Submit Application 🚀'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
     </div>
   );
