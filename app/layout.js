@@ -45,9 +45,12 @@ export default function RootLayout({ children }) {
 
   return (
     <html lang="en">
-      <body style={{ margin: 0, padding: 0, backgroundColor: '#070b14', color: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+      </head>
+      <body style={{ margin: 0, padding: 0, backgroundColor: '#070b14', color: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif', width: '100%', overflowX: 'hidden' }}>
         
-        <div style={{ paddingBottom: hideBottomNav ? '0px' : '70px' }}>
+        <div style={{ paddingBottom: hideBottomNav ? '0px' : '70px', width: '100%', maxWidth: '100vw', overflowX: 'hidden' }}>
           {children}
         </div>
 
@@ -57,6 +60,8 @@ export default function RootLayout({ children }) {
             bottom: 0,
             left: 0,
             right: 0,
+            width: '100%',
+            maxWidth: '100vw',
             height: '62px',
             backgroundColor: '#0f172a',
             borderTop: '1px solid #1e293b',
@@ -65,7 +70,8 @@ export default function RootLayout({ children }) {
             alignItems: 'center',
             zIndex: 9999,
             boxShadow: '0 -4px 20px rgba(0,0,0,0.5)',
-            padding: '0 4px'
+            padding: '0 4px',
+            boxSizing: 'border-box'
           }}>
             {navItems.map(item => {
               const isCurrent = item.href && pathname === item.href.split('?')[0];
@@ -147,4 +153,4 @@ export default function RootLayout({ children }) {
       </body>
     </html>
   );
-}
+                    }
