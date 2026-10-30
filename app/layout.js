@@ -9,7 +9,6 @@ export default function RootLayout({ children }) {
   const pathname = usePathname();
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // Landing page ('/') aur Login/Signup ('/auth') par bottom bar nahi dikhana
   const hideBottomNav = pathname === '/' || pathname === '/auth';
 
   useEffect(() => {
@@ -37,22 +36,21 @@ export default function RootLayout({ children }) {
 
   const navItems = [
     { label: 'Home', icon: '🏠', href: '/feed' },
-    { label: 'Network', icon: '👥', href: '/profile?tab=pages' },
+    { label: 'Network', icon: '👥', href: '/profile?tab=network' },
     { label: 'Post', icon: '➕', href: '/feed' },
-    { label: 'Notifications', icon: '🔔', href: '/profile?tab=notifications', badge: unreadCount },
-    { label: 'Jobs', icon: '💼', href: '/profile?tab=dashboard' }
+    { label: 'Alerts', icon: '🔔', href: '/profile?tab=notifications', badge: unreadCount },
+    { label: 'Jobs', icon: '💼', href: '/profile?tab=jobs' },
+    { label: 'Menu', icon: '☰', href: '/profile?tab=menu' }
   ];
 
   return (
     <html lang="en">
       <body style={{ margin: 0, padding: 0, backgroundColor: '#070b14', color: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
         
-        {/* Main Content Area */}
         <div style={{ paddingBottom: hideBottomNav ? '0px' : '70px' }}>
           {children}
         </div>
 
-        {/* Global Bottom Navigation Bar (Sirf App pages par dikhega) */}
         {!hideBottomNav && (
           <div style={{
             position: 'fixed',
@@ -66,7 +64,8 @@ export default function RootLayout({ children }) {
             justifyContent: 'space-around',
             alignItems: 'center',
             zIndex: 9999,
-            boxShadow: '0 -4px 20px rgba(0,0,0,0.5)'
+            boxShadow: '0 -4px 20px rgba(0,0,0,0.5)',
+            padding: '0 4px'
           }}>
             {navItems.map(item => {
               const isCurrent = item.href && pathname === item.href.split('?')[0];
@@ -88,18 +87,18 @@ export default function RootLayout({ children }) {
                     <div style={{
                       backgroundColor: '#0284c7',
                       color: '#fff',
-                      width: '32px',
-                      height: '32px',
+                      width: '30px',
+                      height: '30px',
                       borderRadius: '8px',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      fontSize: '1.2rem',
+                      fontSize: '1.1rem',
                       fontWeight: 'bold'
                     }}>
                       +
                     </div>
-                    <span style={{ fontSize: '0.68rem', fontWeight: '700' }}>{item.label}</span>
+                    <span style={{ fontSize: '0.65rem', fontWeight: '700' }}>{item.label}</span>
                   </Link>
                 );
               }
@@ -118,7 +117,7 @@ export default function RootLayout({ children }) {
                     color: isCurrent ? '#38bdf8' : '#94a3b8'
                   }}
                 >
-                  <div style={{ fontSize: '1.25rem', position: 'relative' }}>
+                  <div style={{ fontSize: '1.2rem', position: 'relative' }}>
                     {item.icon}
                     {item.badge > 0 && (
                       <span style={{
@@ -127,16 +126,16 @@ export default function RootLayout({ children }) {
                         right: '-8px',
                         backgroundColor: '#ef4444',
                         color: '#fff',
-                        fontSize: '0.65rem',
+                        fontSize: '0.62rem',
                         fontWeight: 'bold',
-                        padding: '1px 5px',
+                        padding: '1px 4px',
                         borderRadius: '10px'
                       }}>
                         {item.badge}
                       </span>
                     )}
                   </div>
-                  <span style={{ fontSize: '0.68rem', fontWeight: isCurrent ? '700' : '500' }}>
+                  <span style={{ fontSize: '0.65rem', fontWeight: isCurrent ? '700' : '500' }}>
                     {item.label}
                   </span>
                 </Link>
