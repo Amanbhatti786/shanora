@@ -56,7 +56,7 @@ function ProfilePortalContent() {
 
         if (profileData) {
           setProfile({
-            full_name: profileData.name || currentUser.user_metadata?.full_name || myEmail.split('@')[0],
+            full_name: profileData.full_name || profileData.name || currentUser.user_metadata?.full_name || myEmail.split('@')[0],
             email: currentUser.email,
             phone: profileData.phone || '',
             city: profileData.city || 'Pakistan'
@@ -84,6 +84,7 @@ function ProfilePortalContent() {
           .from('user_follows')
           .select('id, follower_email, following_email, created_at');
 
+        const curMap = {};
         if (followsData) {
           const myFollowers = followsData.filter(f => (f.following_email || '').toLowerCase() === myEmail);
           const myFollowings = followsData.filter(f => (f.follower_email || '').toLowerCase() === myEmail);
@@ -91,35 +92,45 @@ function ProfilePortalContent() {
           setFollowersList(myFollowers);
           setFollowingList(myFollowings);
 
-          const curMap = {};
           myFollowings.forEach(f => {
             if (f.following_email) curMap[f.following_email.toLowerCase()] = true;
           });
           setFollowingMap(curMap);
         }
 
-        // 4. Fetch Discover Users
+        // 4. Fetch Discover Users (People you may know)
         const { data: allProfiles } = await supabase
           .from('profiles')
-          .select('id, name, email, avatar_url')
-          .limit(30);
+          .select('*')
+          .limit(50);
 
         let discoveredList = [];
         if (allProfiles && allProfiles.length > 0) {
-          discoveredList = allProfiles.filter(p => (p.email || '').toLowerCase() !== myEmail);
+          discoveredList = allProfiles
+            .filter(p => {
+              const pEmail = (p.email || '').toLowerCase();
+              return pEmail && pEmail !== myEmail && !curMap[pEmail];
+            })
+            .map(p => ({
+              id: p.id || p.email,
+              name: p.full_name || p.name || (p.email ? p.email.split('@')[0] : 'User'),
+              email: p.email,
+              avatar_url: p.avatar_url || null
+            }));
         }
 
+        // Fallback: Agar profiles table mein na milein toh posts table se collect karein
         if (discoveredList.length === 0) {
           const { data: postUsers } = await supabase
             .from('user_posts')
             .select('user_email, user_name')
-            .limit(25);
+            .limit(30);
 
           if (postUsers) {
             const uniqueUsers = {};
             postUsers.forEach(u => {
               const uEmail = (u.user_email || '').toLowerCase();
-              if (uEmail && uEmail !== myEmail && !uniqueUsers[uEmail]) {
+              if (uEmail && uEmail !== myEmail && !curMap[uEmail] && !uniqueUsers[uEmail]) {
                 uniqueUsers[uEmail] = {
                   id: uEmail,
                   name: u.user_name || uEmail.split('@')[0],
@@ -171,6 +182,8 @@ function ProfilePortalContent() {
       setFollowingList(prev => prev.filter(item => (item.following_email || '').toLowerCase() !== cleanTarget));
     } else {
       setFollowingList(prev => [...prev, { id: Date.now(), following_email: cleanTarget, follower_email: myEmail, created_at: new Date().toISOString() }]);
+      // Discover list se foran hata dein
+      setDiscoverUsers(prev => prev.filter(item => (item.email || '').toLowerCase() !== cleanTarget));
     }
 
     try {
@@ -421,7 +434,6 @@ function ProfilePortalContent() {
                         justifyContent: 'space-between',
                         gap: '0.8rem'
                       }}>
-                        {/* Correct Profile Link */}
                         <Link href={`/view-profile?email=${encodeURIComponent(cleanEmail)}`} style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', textDecoration: 'none', overflow: 'hidden', flex: 1 }}>
                           <div style={{
                             width: '46px',
@@ -497,7 +509,6 @@ function ProfilePortalContent() {
                         justifyContent: 'space-between',
                         gap: '0.8rem'
                       }}>
-                        {/* Correct Profile Link */}
                         <Link href={`/view-profile?email=${encodeURIComponent(cleanEmail)}`} style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', textDecoration: 'none', overflow: 'hidden', flex: 1 }}>
                           <div style={{
                             width: '46px',
@@ -553,16 +564,16 @@ function ProfilePortalContent() {
             <div style={{ marginTop: '2.2rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
                 <span style={{ fontSize: '0.88rem', fontWeight: '800', color: '#fff' }}>
-                  People you may know
+                  People you may know[cite: 12]
                 </span>
                 <span style={{ fontSize: '0.74rem', color: '#38bdf8', fontWeight: '700' }}>
-                  Discover
+                  Discover[cite: 12]
                 </span>
               </div>
 
               {discoverUsers.length === 0 ? (
                 <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.5rem', textAlign: 'center', color: '#64748b', fontSize: '0.82rem' }}>
-                  Koi naya creator daryaft nahi hua.
+                  Koi naya creator daryaft nahi hua[cite: 12].
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
@@ -581,7 +592,6 @@ function ProfilePortalContent() {
                         justifyContent: 'space-between',
                         gap: '0.8rem'
                       }}>
-                        {/* Correct Profile Link */}
                         <Link href={`/view-profile?email=${encodeURIComponent(cleanEmail)}`} style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', textDecoration: 'none', overflow: 'hidden', flex: 1 }}>
                           <div style={{
                             width: '46px',
