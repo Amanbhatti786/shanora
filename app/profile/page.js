@@ -79,14 +79,14 @@ function ProfilePortalContent() {
 
         if (pagesData) setMyPages(pagesData);
 
-        // 3. Fetch Real Followers
-        const { data: followersData } = await supabase
+        // 3. Fetch Real Followers & Following
+        const { data: followsData } = await supabase
           .from('user_follows')
           .select('id, follower_email, following_email, created_at');
 
-        if (followersData) {
-          const myFollowers = followersData.filter(f => (f.following_email || '').toLowerCase() === myEmail);
-          const myFollowings = followersData.filter(f => (f.follower_email || '').toLowerCase() === myEmail);
+        if (followsData) {
+          const myFollowers = followsData.filter(f => (f.following_email || '').toLowerCase() === myEmail);
+          const myFollowings = followsData.filter(f => (f.follower_email || '').toLowerCase() === myEmail);
 
           setFollowersList(myFollowers);
           setFollowingList(myFollowings);
@@ -98,24 +98,22 @@ function ProfilePortalContent() {
           setFollowingMap(curMap);
         }
 
-        // 4. Fetch Discover Users (profiles + active post authors)
+        // 4. Fetch Discover Users (Facebook style People You May Know)
         const { data: allProfiles } = await supabase
           .from('profiles')
           .select('id, name, email, avatar_url')
           .limit(30);
 
         let discoveredList = [];
-
         if (allProfiles && allProfiles.length > 0) {
           discoveredList = allProfiles.filter(p => (p.email || '').toLowerCase() !== myEmail);
         }
 
-        // Agar profiles table mein users kam hon toh posts se creators le lo
         if (discoveredList.length === 0) {
           const { data: postUsers } = await supabase
             .from('user_posts')
             .select('user_email, user_name')
-            .limit(20);
+            .limit(25);
 
           if (postUsers) {
             const uniqueUsers = {};
@@ -167,8 +165,6 @@ function ProfilePortalContent() {
     const isFollowing = !!followingMap[cleanTarget];
 
     setActionLoading(prev => ({ ...prev, [cleanTarget]: true }));
-
-    // Optimistic UI updates
     setFollowingMap(prev => ({ ...prev, [cleanTarget]: !isFollowing }));
 
     if (isFollowing) {
@@ -229,7 +225,7 @@ function ProfilePortalContent() {
   const allMenuItems = [
     { id: 'dashboard', label: 'Dashboard', desc: 'Analytics & Overview', icon: '📊', bg: 'rgba(56, 189, 248, 0.12)', border: 'rgba(56, 189, 248, 0.25)' },
     { id: 'profile', label: 'My Profile', desc: 'View & Edit Details', icon: '👤', bg: 'rgba(129, 140, 248, 0.12)', border: 'rgba(129, 140, 248, 0.25)' },
-    { id: 'network', label: 'Network', desc: 'Followers & Following', icon: '👥', bg: 'rgba(6, 182, 212, 0.12)', border: 'rgba(6, 182, 212, 0.25)' },
+    { id: 'network', label: 'Followers', desc: 'Followers & Following', icon: '👥', bg: 'rgba(6, 182, 212, 0.12)', border: 'rgba(6, 182, 212, 0.25)' },
     { id: 'pages', label: `Pages (${myPages.length})`, desc: 'Manage your pages', icon: '🚩', bg: 'rgba(249, 115, 22, 0.12)', border: 'rgba(249, 115, 22, 0.25)' },
     { id: 'monetization', label: 'Monetization', desc: 'Earning Hub', icon: '💰', bg: 'rgba(234, 179, 8, 0.12)', border: 'rgba(234, 179, 8, 0.25)' },
     { id: 'resume', label: 'My Resume', desc: 'ATS Resume Builder', icon: '📝', bg: 'rgba(245, 158, 11, 0.12)', border: 'rgba(245, 158, 11, 0.25)' },
@@ -250,14 +246,14 @@ function ProfilePortalContent() {
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#070b14', color: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       
-      {/* Header */}
+      {/* Top Header */}
       <header style={{ backgroundColor: '#0f172a', borderBottom: '1px solid #1e293b', padding: '0.85rem 1.2rem', display: 'flex', alignItems: 'center', position: 'sticky', top: 0, zIndex: 100 }}>
         <Link href="/feed" style={{ textDecoration: 'none', color: '#38bdf8', fontWeight: '900', fontSize: '1.25rem', letterSpacing: '-0.5px' }}>
           SHANORA<span style={{ color: '#fff' }}>.PK</span>
         </Link>
       </header>
 
-      {/* Main Content */}
+      {/* Main Container */}
       <main style={{ maxWidth: '640px', margin: '0 auto', padding: '1rem 0.9rem 80px 0.9rem' }}>
 
         {/* TAB: MENU */}
@@ -359,10 +355,10 @@ function ProfilePortalContent() {
           </div>
         )}
 
-        {/* TAB: NETWORK / FOLLOWERS */}
+        {/* TAB: NETWORK / FOLLOWERS (Facebook Style) */}
         {activeTab === 'network' && (
           <div>
-            {/* 2-Way Tab Bar: Followers vs Following */}
+            {/* Facebook Style Segment Switcher */}
             <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.2rem', backgroundColor: '#0f172a', padding: '0.35rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
               <button
                 onClick={() => setNetworkSubTab('followers')}
@@ -371,11 +367,12 @@ function ProfilePortalContent() {
                   backgroundColor: networkSubTab === 'followers' ? '#0284c7' : 'transparent',
                   color: networkSubTab === 'followers' ? '#fff' : '#94a3b8',
                   border: 'none',
-                  padding: '0.6rem',
+                  padding: '0.55rem',
                   borderRadius: '8px',
                   fontSize: '0.82rem',
                   fontWeight: '700',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  transition: 'background 0.2s'
                 }}
               >
                 Followers ({followersList.length})
@@ -388,57 +385,86 @@ function ProfilePortalContent() {
                   backgroundColor: networkSubTab === 'following' ? '#0284c7' : 'transparent',
                   color: networkSubTab === 'following' ? '#fff' : '#94a3b8',
                   border: 'none',
-                  padding: '0.6rem',
+                  padding: '0.55rem',
                   borderRadius: '8px',
                   fontSize: '0.82rem',
                   fontWeight: '700',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  transition: 'background 0.2s'
                 }}
               >
                 Following ({followingList.length})
               </button>
             </div>
 
-            {/* Sub-Tab 1: Followers List */}
+            {/* Followers List View */}
             {networkSubTab === 'followers' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 {followersList.length === 0 ? (
-                  <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '2.5rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
-                    Abhi tak aapka koi follower nahi hai.
+                  <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '2.5rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
+                    Abhi tak aapka koi follower nahi hai[cite: 7].
                   </div>
                 ) : (
                   followersList.map(item => {
                     const email = item.follower_email;
-                    const isFollowingBack = !!followingMap[(email || '').toLowerCase()];
+                    const cleanEmail = (email || '').toLowerCase();
+                    const isFollowingBack = !!followingMap[cleanEmail];
                     return (
-                      <div key={item.id} style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '0.8rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
-                          <div style={{ width: '38px', height: '38px', borderRadius: '50%', backgroundColor: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#fff', fontSize: '0.95rem' }}>
-                            {(email || 'U').charAt(0).toUpperCase()}
+                      <div key={item.id} style={{
+                        backgroundColor: '#0f172a',
+                        border: '1px solid #1e293b',
+                        borderRadius: '12px',
+                        padding: '0.75rem 0.9rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '0.8rem'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', overflow: 'hidden' }}>
+                          <div style={{
+                            width: '46px',
+                            height: '46px',
+                            borderRadius: '50%',
+                            backgroundColor: '#0284c7',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontWeight: 'bold',
+                            color: '#fff',
+                            fontSize: '1.1rem',
+                            flexShrink: 0
+                          }}>
+                            {(cleanEmail || 'U').charAt(0).toUpperCase()}
                           </div>
-                          <div>
-                            <div style={{ color: '#fff', fontWeight: '700', fontSize: '0.88rem' }}>{email?.split('@')[0]}</div>
-                            <div style={{ color: '#64748b', fontSize: '0.72rem' }}>{email}</div>
+                          <div style={{ overflow: 'hidden' }}>
+                            <div style={{ color: '#fff', fontWeight: '700', fontSize: '0.9rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                              {cleanEmail.split('@')[0]}
+                            </div>
+                            <div style={{ color: '#64748b', fontSize: '0.73rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                              Follows you
+                            </div>
                           </div>
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() => handleToggleFollow(email)}
-                          disabled={actionLoading[(email || '').toLowerCase()]}
-                          style={{
-                            backgroundColor: isFollowingBack ? 'transparent' : '#0284c7',
-                            color: isFollowingBack ? '#94a3b8' : '#fff',
-                            border: isFollowingBack ? '1px solid #334155' : 'none',
-                            padding: '0.35rem 0.8rem',
-                            borderRadius: '14px',
-                            fontSize: '0.75rem',
-                            fontWeight: '700',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          {isFollowingBack ? 'Following' : 'Follow Back'}
-                        </button>
+                        <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0 }}>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleFollow(cleanEmail)}
+                            disabled={actionLoading[cleanEmail]}
+                            style={{
+                              backgroundColor: isFollowingBack ? '#1e293b' : '#0284c7',
+                              color: isFollowingBack ? '#94a3b8' : '#fff',
+                              border: isFollowingBack ? '1px solid #334155' : 'none',
+                              padding: '0.4rem 0.85rem',
+                              borderRadius: '8px',
+                              fontSize: '0.75rem',
+                              fontWeight: '700',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            {isFollowingBack ? 'Following' : 'Follow Back'}
+                          </button>
+                        </div>
                       </div>
                     );
                   })
@@ -446,38 +472,65 @@ function ProfilePortalContent() {
               </div>
             )}
 
-            {/* Sub-Tab 2: Following List */}
+            {/* Following List View */}
             {networkSubTab === 'following' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 {followingList.length === 0 ? (
-                  <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '2.5rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
+                  <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '2.5rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
                     Aap kisi ko follow nahi kar rahe.
                   </div>
                 ) : (
                   followingList.map(item => {
                     const email = item.following_email;
+                    const cleanEmail = (email || '').toLowerCase();
                     return (
-                      <div key={item.id} style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '0.8rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
-                          <div style={{ width: '38px', height: '38px', borderRadius: '50%', backgroundColor: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#38bdf8', fontSize: '0.95rem' }}>
-                            {(email || 'U').charAt(0).toUpperCase()}
+                      <div key={item.id} style={{
+                        backgroundColor: '#0f172a',
+                        border: '1px solid #1e293b',
+                        borderRadius: '12px',
+                        padding: '0.75rem 0.9rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '0.8rem'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', overflow: 'hidden' }}>
+                          <div style={{
+                            width: '46px',
+                            height: '46px',
+                            borderRadius: '50%',
+                            backgroundColor: '#1e293b',
+                            border: '1px solid #334155',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontWeight: 'bold',
+                            color: '#38bdf8',
+                            fontSize: '1.1rem',
+                            flexShrink: 0
+                          }}>
+                            {(cleanEmail || 'U').charAt(0).toUpperCase()}
                           </div>
-                          <div>
-                            <div style={{ color: '#fff', fontWeight: '700', fontSize: '0.88rem' }}>{email?.split('@')[0]}</div>
-                            <div style={{ color: '#64748b', fontSize: '0.72rem' }}>{email}</div>
+                          <div style={{ overflow: 'hidden' }}>
+                            <div style={{ color: '#fff', fontWeight: '700', fontSize: '0.9rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                              {cleanEmail.split('@')[0]}
+                            </div>
+                            <div style={{ color: '#64748b', fontSize: '0.73rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                              Following
+                            </div>
                           </div>
                         </div>
 
                         <button
                           type="button"
-                          onClick={() => handleToggleFollow(email)}
-                          disabled={actionLoading[(email || '').toLowerCase()]}
+                          onClick={() => handleToggleFollow(cleanEmail)}
+                          disabled={actionLoading[cleanEmail]}
                           style={{
-                            backgroundColor: 'transparent',
+                            backgroundColor: '#1e293b',
                             color: '#ef4444',
-                            border: '1px solid rgba(239, 68, 68, 0.4)',
-                            padding: '0.35rem 0.8rem',
-                            borderRadius: '14px',
+                            border: '1px solid rgba(239, 68, 68, 0.3)',
+                            padding: '0.4rem 0.85rem',
+                            borderRadius: '8px',
                             fontSize: '0.75rem',
                             fontWeight: '700',
                             cursor: 'pointer'
@@ -492,48 +545,83 @@ function ProfilePortalContent() {
               </div>
             )}
 
-            {/* Discover People Section */}
-            <div style={{ marginTop: '2rem' }}>
-              <div style={{ fontSize: '0.8rem', fontWeight: '700', color: '#64748b', marginBottom: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                Discover People & Creators
+            {/* Facebook Style "People You May Know" / Discover */}
+            <div style={{ marginTop: '2.2rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
+                <span style={{ fontSize: '0.88rem', fontWeight: '800', color: '#fff' }}>
+                  People you may know
+                </span>
+                <span style={{ fontSize: '0.74rem', color: '#38bdf8', fontWeight: '700' }}>
+                  Discover
+                </span>
               </div>
 
               {discoverUsers.length === 0 ? (
-                <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '1.5rem', textAlign: 'center', color: '#64748b', fontSize: '0.82rem' }}>
-                  Koi naya creator daryaft nahi hua.
+                <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.5rem', textAlign: 'center', color: '#64748b', fontSize: '0.82rem' }}>
+                  Koi naya creator daryaft nahi hua[cite: 7].
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
                   {discoverUsers.map(creator => {
-                    const isFollowing = !!followingMap[(creator.email || '').toLowerCase()];
+                    const cleanEmail = (creator.email || '').toLowerCase();
+                    const isFollowing = !!followingMap[cleanEmail];
                     return (
-                      <div key={creator.id || creator.email} style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '0.75rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
-                          <div style={{ width: '38px', height: '38px', borderRadius: '50%', backgroundColor: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#fff', fontSize: '0.95rem' }}>
-                            {(creator.name || creator.email || 'U').charAt(0).toUpperCase()}
+                      <div key={creator.id || cleanEmail} style={{
+                        backgroundColor: '#0f172a',
+                        border: '1px solid #1e293b',
+                        borderRadius: '12px',
+                        padding: '0.75rem 0.95rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '0.8rem'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', overflow: 'hidden' }}>
+                          <div style={{
+                            width: '46px',
+                            height: '46px',
+                            borderRadius: '50%',
+                            backgroundColor: '#0284c7',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontWeight: 'bold',
+                            color: '#fff',
+                            fontSize: '1.1rem',
+                            flexShrink: 0
+                          }}>
+                            {(creator.name || cleanEmail || 'U').charAt(0).toUpperCase()}
                           </div>
-                          <div>
-                            <div style={{ color: '#fff', fontWeight: '700', fontSize: '0.88rem' }}>{creator.name || creator.email?.split('@')[0]}</div>
-                            <div style={{ color: '#64748b', fontSize: '0.72rem' }}>{creator.email}</div>
+                          <div style={{ overflow: 'hidden' }}>
+                            <div style={{ color: '#fff', fontWeight: '700', fontSize: '0.9rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                              {creator.name || cleanEmail.split('@')[0]}
+                            </div>
+                            <div style={{ color: '#64748b', fontSize: '0.73rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                              {cleanEmail}
+                            </div>
                           </div>
                         </div>
 
                         <button
                           type="button"
-                          onClick={() => handleToggleFollow(creator.email)}
-                          disabled={actionLoading[(creator.email || '').toLowerCase()]}
+                          onClick={() => handleToggleFollow(cleanEmail)}
+                          disabled={actionLoading[cleanEmail]}
                           style={{
-                            backgroundColor: isFollowing ? 'transparent' : '#0284c7',
+                            backgroundColor: isFollowing ? '#1e293b' : '#0284c7',
                             color: isFollowing ? '#94a3b8' : '#fff',
                             border: isFollowing ? '1px solid #334155' : 'none',
-                            padding: '0.35rem 0.85rem',
-                            borderRadius: '14px',
-                            fontSize: '0.75rem',
+                            padding: '0.45rem 1rem',
+                            borderRadius: '8px',
+                            fontSize: '0.78rem',
                             fontWeight: '700',
-                            cursor: 'pointer'
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.3rem',
+                            flexShrink: 0
                           }}
                         >
-                          {isFollowing ? '✓ Following' : '+ Follow'}
+                          {isFollowing ? 'Following' : '+ Follow'}
                         </button>
                       </div>
                     );
