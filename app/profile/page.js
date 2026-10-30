@@ -672,48 +672,136 @@ function ProfilePortalContent() {
           </div>
         )}
 
-        {/* TAB: NOTIFICATIONS */}
+       {/* TAB: NOTIFICATIONS */}
         {activeTab === 'notifications' && (
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '800', color: '#fff' }}>Notifications 🔔</h3>
-              <button onClick={markNotificationsAsRead} style={{ background: 'none', border: 'none', color: '#38bdf8', fontSize: '0.78rem', cursor: 'pointer', fontWeight: 'bold' }}>
-                Mark all as read
-              </button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem', padding: '0 0.2rem' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800', color: '#fff' }}>Notifications</h3>
+                <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Earlier updates & interactions</span>
+              </div>
+              {unreadCount > 0 && (
+                <button 
+                  onClick={markNotificationsAsRead} 
+                  style={{ background: 'none', border: 'none', color: '#38bdf8', fontSize: '0.8rem', cursor: 'pointer', fontWeight: '700', padding: '0.3rem 0.5rem', borderRadius: '6px' }}
+                >
+                  Mark all as read
+                </button>
+              )}
             </div>
 
             {notifications.length === 0 ? (
-              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '2rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
-                Koi naya notification nahi hai.
+              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '3.5rem 1rem', textAlign: 'center', color: '#94a3b8' }}>
+                <div style={{ fontSize: '2.5rem', marginBottom: '0.6rem' }}>🔔</div>
+                <div style={{ fontSize: '0.95rem', fontWeight: '700', color: '#e2e8f0', marginBottom: '0.2rem' }}>No notifications yet</div>
+                <div style={{ fontSize: '0.78rem', color: '#64748b' }}>When someone follows you or interacts with your posts, you'll see it here.</div>
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
-                {notifications.map(n => (
-                  <div key={n.id} style={{
-                    backgroundColor: n.is_read ? '#0f172a' : '#1e293b',
-                    border: '1px solid #334155',
-                    borderRadius: '10px',
-                    padding: '0.75rem 0.9rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.7rem'
-                  }}>
-                    <div style={{ fontSize: '1.1rem' }}>
-                      {n.action_type === 'like' && '👍'}
-                      {n.action_type === 'comment' && '💬'}
-                      {n.action_type === 'relay' && '🔄'}
-                      {n.action_type === 'follow' && '👥'}
-                    </div>
-                    <div style={{ flex: 1, fontSize: '0.82rem', color: '#cbd5e1' }}>
-                      <strong style={{ color: '#fff' }}>{n.sender_name || 'A user'}</strong> {n.content || 'interacted with your content.'}
-                    </div>
-                  </div>
-                ))}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {notifications.map(n => {
+                  const senderEmail = n.sender_email || '';
+                  const senderName = n.sender_name || (senderEmail ? senderEmail.split('@')[0] : 'Someone');
+                  const targetProfileUrl = senderEmail 
+                    ? `/view-profile?email=${encodeURIComponent(senderEmail)}`
+                    : (n.sender_name ? `/view-profile?email=${encodeURIComponent(n.sender_name)}` : '#');
+
+                  // Time ago calculation
+                  const createdTime = new Date(n.created_at).getTime();
+                  const diffMinutes = Math.floor((Date.now() - createdTime) / (1000 * 60));
+                  let timeLabel = 'Just now';
+                  if (diffMinutes >= 1440) {
+                    timeLabel = `${Math.floor(diffMinutes / 1440)}d ago`;
+                  } else if (diffMinutes >= 60) {
+                    timeLabel = `${Math.floor(diffMinutes / 60)}h ago`;
+                  } else if (diffMinutes > 0) {
+                    timeLabel = `${diffMinutes}m ago`;
+                  }
+
+                  return (
+                    <Link
+                      key={n.id}
+                      href={targetProfileUrl}
+                      onClick={() => {
+                        if (!n.is_read) {
+                          supabase.from('notifications').update({ is_read: true }).eq('id', n.id);
+                        }
+                      }}
+                      style={{
+                        backgroundColor: n.is_read ? '#0f172a' : 'rgba(2, 132, 199, 0.1)',
+                        border: n.is_read ? '1px solid #1e293b' : '1px solid rgba(2, 132, 199, 0.35)',
+                        borderRadius: '14px',
+                        padding: '0.85rem 1rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.9rem',
+                        textDecoration: 'none',
+                        transition: 'background 0.2s',
+                        position: 'relative'
+                      }}
+                    >
+                      {/* Avatar with Action Badge */}
+                      <div style={{ position: 'relative', flexShrink: 0 }}>
+                        <div style={{
+                          width: '46px',
+                          height: '46px',
+                          borderRadius: '50%',
+                          backgroundColor: '#0284c7',
+                          color: '#fff',
+                          fontWeight: '800',
+                          fontSize: '1.15rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          border: '2px solid #1e293b'
+                        }}>
+                          {senderName.charAt(0).toUpperCase()}
+                        </div>
+                        <div style={{
+                          position: 'absolute',
+                          bottom: '-2px',
+                          right: '-2px',
+                          width: '20px',
+                          height: '20px',
+                          borderRadius: '50%',
+                          backgroundColor: n.action_type === 'follow' ? '#0284c7' : (n.action_type === 'like' ? '#38bdf8' : '#22c55e'),
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '0.65rem',
+                          border: '2px solid #0f172a',
+                          color: '#fff'
+                        }}>
+                          {n.action_type === 'follow' ? '👤' : (n.action_type === 'like' ? '👍' : '💬')}
+                        </div>
+                      </div>
+
+                      {/* Content Details */}
+                      <div style={{ flex: 1, overflow: 'hidden' }}>
+                        <div style={{ fontSize: '0.86rem', color: '#cbd5e1', lineHeight: '1.35' }}>
+                          <strong style={{ color: '#fff', fontWeight: '700' }}>{senderName}</strong> {n.content || 'interacted with you.'}
+                        </div>
+                        <div style={{ fontSize: '0.72rem', color: n.is_read ? '#64748b' : '#38bdf8', marginTop: '0.2rem', fontWeight: n.is_read ? '500' : '700' }}>
+                          {timeLabel}
+                        </div>
+                      </div>
+
+                      {/* Blue Unread Indicator Dot */}
+                      {!n.is_read && (
+                        <div style={{
+                          width: '8px',
+                          height: '8px',
+                          borderRadius: '50%',
+                          backgroundColor: '#38bdf8',
+                          flexShrink: 0
+                        }} />
+                      )}
+                    </Link>
+                  );
+                })}
               </div>
             )}
           </div>
         )}
-
         {/* TAB: PROFILE DETAILS */}
         {activeTab === 'profile' && (
           <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.2rem' }}>
