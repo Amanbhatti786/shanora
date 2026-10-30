@@ -421,8 +421,8 @@ function ProfilePortalContent() {
                         justifyContent: 'space-between',
                         gap: '0.8rem'
                       }}>
-                        {/* Clickable Profile Card */}
-                        <Link href={`/page/${username}`} style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', textDecoration: 'none', overflow: 'hidden', flex: 1 }}>
+                        {/* Correct Profile Link */}
+                        <Link href={`/view-profile?email=${encodeURIComponent(cleanEmail)}`} style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', textDecoration: 'none', overflow: 'hidden', flex: 1 }}>
                           <div style={{
                             width: '46px',
                             height: '46px',
@@ -497,8 +497,8 @@ function ProfilePortalContent() {
                         justifyContent: 'space-between',
                         gap: '0.8rem'
                       }}>
-                        {/* Clickable Profile Card */}
-                        <Link href={`/page/${username}`} style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', textDecoration: 'none', overflow: 'hidden', flex: 1 }}>
+                        {/* Correct Profile Link */}
+                        <Link href={`/view-profile?email=${encodeURIComponent(cleanEmail)}`} style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', textDecoration: 'none', overflow: 'hidden', flex: 1 }}>
                           <div style={{
                             width: '46px',
                             height: '46px',
@@ -581,8 +581,8 @@ function ProfilePortalContent() {
                         justifyContent: 'space-between',
                         gap: '0.8rem'
                       }}>
-                        {/* Clickable Profile Card */}
-                        <Link href={`/page/${username}`} style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', textDecoration: 'none', overflow: 'hidden', flex: 1 }}>
+                        {/* Correct Profile Link */}
+                        <Link href={`/view-profile?email=${encodeURIComponent(cleanEmail)}`} style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', textDecoration: 'none', overflow: 'hidden', flex: 1 }}>
                           <div style={{
                             width: '46px',
                             height: '46px',
