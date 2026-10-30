@@ -11,10 +11,18 @@ export default function FeedPage() {
   const [feedItems, setFeedItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Follow State
+  const [followingMap, setFollowingMap] = useState({});
+  const [followingLoading, setFollowingLoading] = useState({});
+
+  // Three-Dots Actions State
+  const [openMenuPostId, setOpenMenuPostId] = useState(null);
+  const [savedPosts, setSavedPosts] = useState({});
+
   // Search Engine State
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
-  const [searchFilter, setSearchFilter] = useState('all'); // 'all', 'pages', 'profiles'
+  const [searchFilter, setSearchFilter] = useState('all');
   const [isSearching, setIsSearching] = useState(false);
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
 
@@ -56,6 +64,20 @@ export default function FeedPage() {
             username: user.email.split('@')[0],
             avatar_url: null
           });
+
+          // Fetch user's following list
+          const { data: followsData } = await supabase
+            .from('user_follows')
+            .select('following_email')
+            .eq('follower_email', user.email);
+
+          if (followsData) {
+            const map = {};
+            followsData.forEach(f => {
+              map[f.following_email] = true;
+            });
+            setFollowingMap(map);
+          }
         }
 
         // 1. Fetch Personal Posts
@@ -78,6 +100,7 @@ export default function FeedPage() {
               name,
               slug,
               logo_url,
+              owner_email,
               monetization_status
             )
           `)
@@ -102,6 +125,7 @@ export default function FeedPage() {
                 name,
                 slug,
                 logo_url,
+                owner_email,
                 monetization_status
               )
             )
@@ -115,6 +139,7 @@ export default function FeedPage() {
           return {
             feedItemId: `user-${p.id}`,
             postId: p.id,
+            authorEmail: p.user_email,
             postType: 'personal',
             authorName: p.user_name || uname,
             authorAvatar: p.avatar_url,
@@ -133,6 +158,7 @@ export default function FeedPage() {
         const formattedPages = (pagePosts || []).map(p => ({
           feedItemId: `page-${p.id}`,
           postId: p.id,
+          authorEmail: p.pages?.owner_email || null,
           postType: 'page',
           authorName: p.pages?.name || 'Shanora Page',
           authorAvatar: p.pages?.logo_url,
@@ -152,6 +178,7 @@ export default function FeedPage() {
           .map(r => ({
             feedItemId: `relay-${r.id}`,
             postId: r.page_posts.id,
+            authorEmail: r.page_posts.pages?.owner_email || null,
             postType: 'page',
             authorName: r.page_posts.pages?.name || 'Shanora Page',
             authorAvatar: r.page_posts.pages?.logo_url,
@@ -231,6 +258,103 @@ export default function FeedPage() {
     loadData();
   }, []);
 
+  // Close Three-Dots Menu on document click
+  useEffect(() => {
+    function handleClickOutside() {
+      setOpenMenuPostId(null);
+    }
+    window.addEventListener('click', handleClickOutside);
+    return () => window.removeEventListener('click', handleClickOutside);
+  }, []);
+
+  // Follow / Unfollow logic
+  async function handleToggleFollow(targetEmail, e) {
+    e.stopPropagation();
+    if (!currentUser) {
+      router.push('/auth');
+      return;
+    }
+    if (!targetEmail || targetEmail === currentUser.email) return;
+
+    const isFollowing = !!followingMap[targetEmail];
+    setFollowingLoading(prev => ({ ...prev, [targetEmail]: true }));
+
+    // Optimistic UI update
+    setFollowingMap(prev => ({ ...prev, [targetEmail]: !isFollowing }));
+
+    try {
+      if (isFollowing) {
+        await supabase
+          .from('user_follows')
+          .delete()
+          .eq('follower_email', currentUser.email)
+          .eq('following_email', targetEmail);
+      } else {
+        await supabase
+          .from('user_follows')
+          .insert([{ follower_email: currentUser.email, following_email: targetEmail }]);
+
+        // Send Notification to author
+        await supabase
+          .from('notifications')
+          .insert([{
+            recipient_email: targetEmail,
+            sender_name: userProfile?.name || currentUser.email.split('@')[0],
+            action_type: 'follow',
+            content: 'started following you.',
+            is_read: false
+          }]);
+      }
+    } catch (err) {
+      console.error('Follow error:', err);
+      // Revert if error
+      setFollowingMap(prev => ({ ...prev, [targetEmail]: isFollowing }));
+    } finally {
+      setFollowingLoading(prev => ({ ...prev, [targetEmail]: false }));
+    }
+  }
+
+  // Copy Post Link
+  function handleCopyPostLink(item, e) {
+    e.stopPropagation();
+    const url = `${window.location.origin}/feed#${item.feedItemId}`;
+    navigator.clipboard.writeText(url);
+    alert('Link copied to clipboard! 📋');
+    setOpenMenuPostId(null);
+  }
+
+  // Toggle Save Post
+  function handleToggleSavePost(postId, e) {
+    e.stopPropagation();
+    setSavedPosts(prev => ({
+      ...prev,
+      [postId]: !prev[postId]
+    }));
+    alert(savedPosts[postId] ? 'Post removed from saved!' : 'Post saved successfully! 🔖');
+    setOpenMenuPostId(null);
+  }
+
+  // Delete Post (Only for personal posts by author)
+  async function handleDeletePost(postId, e) {
+    e.stopPropagation();
+    if (!confirm('Are you sure you want to delete this post?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('user_posts')
+        .delete()
+        .eq('id', postId)
+        .eq('user_email', currentUser.email);
+
+      if (error) throw error;
+
+      setFeedItems(prev => prev.filter(item => item.postId !== postId));
+      setOpenMenuPostId(null);
+    } catch (err) {
+      alert('Delete failed: ' + err.message);
+    }
+  }
+
   // Live Multi-Search for Pages and Profiles
   useEffect(() => {
     const delayDebounceFn = setTimeout(async () => {
@@ -245,14 +369,12 @@ export default function FeedPage() {
       setShowSearchDropdown(true);
 
       try {
-        // 1. Search in Pages
         const { data: pagesData } = await supabase
           .from('pages')
           .select('id, name, slug, logo_url, category, monetization_status')
           .ilike('name', `%${q}%`)
           .limit(10);
 
-        // 2. Search in Profiles
         const { data: profilesData } = await supabase
           .from('profiles')
           .select('id, name, username, email, avatar_url')
@@ -342,6 +464,7 @@ export default function FeedPage() {
       const formattedNew = {
         feedItemId: `user-${newPost.id}`,
         postId: newPost.id,
+        authorEmail: currentUser.email,
         postType: 'personal',
         authorName: senderName,
         authorAvatar: senderAvatar,
@@ -468,7 +591,6 @@ export default function FeedPage() {
 
   const currentUserName = userProfile?.name || currentUser?.email?.split('@')[0] || 'You';
 
-  // Filtered search list
   const filteredResults = searchResults.filter(item => {
     if (searchFilter === 'pages') return item.type === 'page';
     if (searchFilter === 'profiles') return item.type === 'profile';
@@ -522,12 +644,11 @@ export default function FeedPage() {
                 borderRadius: '12px', 
                 boxShadow: '0 8px 24px rgba(0,0,0,0.6)', 
                 zIndex: 150, 
-                overflow: 'hidden',
-                maxHeight: '380px',
-                display: 'flex',
-                flexDirection: 'column'
+                overflow: 'hidden', 
+                maxHeight: '380px', 
+                display: 'flex', 
+                flexDirection: 'column' 
               }}>
-                {/* Search Filter Tabs: All, Pages, Profiles */}
                 <div style={{ display: 'flex', borderBottom: '1px solid #1e293b', backgroundColor: '#1e293b', padding: '0.3rem 0.5rem', gap: '0.4rem' }}>
                   {['all', 'pages', 'profiles'].map(tab => (
                     <button
@@ -552,7 +673,6 @@ export default function FeedPage() {
                   ))}
                 </div>
 
-                    {/* Results List */}
                 <div style={{ overflowY: 'auto', padding: '0.4rem 0' }}>
                   {isSearching ? (
                     <div style={{ padding: '1rem', textAlign: 'center', fontSize: '0.8rem', color: '#94a3b8' }}>
@@ -578,7 +698,6 @@ export default function FeedPage() {
                           transition: 'background 0.2s'
                         }}
                       >
-                        {/* Avatar */}
                         <div style={{
                           width: '36px',
                           height: '36px',
@@ -598,7 +717,6 @@ export default function FeedPage() {
                           {!res.avatar && res.title.charAt(0).toUpperCase()}
                         </div>
 
-                        {/* Title & Subtitle */}
                         <div style={{ flex: 1, overflow: 'hidden' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
                             <span style={{ color: '#fff', fontWeight: '700', fontSize: '0.82rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -611,7 +729,6 @@ export default function FeedPage() {
                           </div>
                         </div>
 
-                        {/* Distinct Badge: Page vs Profile */}
                         <span style={{
                           fontSize: '0.65rem',
                           fontWeight: '800',
@@ -634,7 +751,6 @@ export default function FeedPage() {
 
           <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
             <Link href="/create-page" style={{ backgroundColor: '#0284c7', color: '#fff', padding: '0.4rem 0.65rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '700', textDecoration: 'none' }}>+ Page</Link>
-            <Link href="/profile" style={{ backgroundColor: '#1e293b', color: '#fff', padding: '0.4rem 0.65rem', borderRadius: '6px', fontSize: '0.75rem', textDecoration: 'none' }}>Portal 💼</Link>
           </div>
 
         </div>
@@ -714,8 +830,12 @@ export default function FeedPage() {
               const commentsList = postComments[item.postId] || [];
               const isCommentsOpen = activeCommentPostId === item.feedItemId;
 
+              const isOwnPost = currentUser?.email && item.authorEmail === currentUser.email;
+              const isFollowingAuthor = item.authorEmail ? !!followingMap[item.authorEmail] : false;
+              const isMenuOpen = openMenuPostId === item.feedItemId;
+
               return (
-                <div key={item.feedItemId} style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', overflow: 'hidden' }}>
+                <div key={item.feedItemId} id={item.feedItemId} style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', overflow: 'visible', position: 'relative' }}>
                   
                   {/* Relayed Banner */}
                   {item.isRelay && (
@@ -728,38 +848,175 @@ export default function FeedPage() {
                     </div>
                   )}
 
-                  {/* Header */}
-                  <div style={{ padding: '0.8rem 1rem', display: 'flex', alignItems: 'center', gap: '0.7rem' }}>
-                    <Link href={item.authorLink || '#'} style={{ textDecoration: 'none' }}>
-                      <div style={{ 
-                        width: '42px', 
-                        height: '42px', 
-                        borderRadius: '50%', 
-                        backgroundColor: '#1e293b', 
-                        backgroundImage: item.authorAvatar ? `url(${item.authorAvatar})` : 'none', 
-                        backgroundSize: 'cover', 
-                        backgroundPosition: 'center', 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        justifyContent: 'center', 
-                        fontWeight: 'bold', 
-                        color: '#38bdf8',
-                        cursor: 'pointer',
-                        border: '1px solid #334155'
-                      }}>
-                        {!item.authorAvatar && item.authorName.charAt(0).toUpperCase()}
-                      </div>
-                    </Link>
-
-                    <div>
+                  {/* Header: Author + Follow Button + Three-Dots */}
+                  <div style={{ padding: '0.8rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.7rem' }}>
+                    
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', flex: 1, overflow: 'hidden' }}>
                       <Link href={item.authorLink || '#'} style={{ textDecoration: 'none' }}>
-                        <div style={{ fontWeight: '700', fontSize: '0.9rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.3rem', cursor: 'pointer' }}>
-                          <span>{item.authorName}</span>
-                          {item.isVerified && <span style={{ color: '#22c55e', fontSize: '0.8rem' }}>✓</span>}
+                        <div style={{ 
+                          width: '42px', 
+                          height: '42px', 
+                          borderRadius: '50%', 
+                          backgroundColor: '#1e293b', 
+                          backgroundImage: item.authorAvatar ? `url(${item.authorAvatar})` : 'none', 
+                          backgroundSize: 'cover', 
+                          backgroundPosition: 'center', 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center', 
+                          fontWeight: 'bold', 
+                          color: '#38bdf8',
+                          cursor: 'pointer',
+                          border: '1px solid #334155',
+                          flexShrink: 0
+                        }}>
+                          {!item.authorAvatar && item.authorName.charAt(0).toUpperCase()}
                         </div>
                       </Link>
-                      <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{new Date(item.createdAt).toLocaleDateString()}</div>
+
+                      <div style={{ overflow: 'hidden' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                          <Link href={item.authorLink || '#'} style={{ textDecoration: 'none' }}>
+                            <span style={{ fontWeight: '700', fontSize: '0.9rem', color: '#fff', cursor: 'pointer' }}>
+                              {item.authorName}
+                            </span>
+                          </Link>
+                          {item.isVerified && <span style={{ color: '#22c55e', fontSize: '0.8rem' }}>✓</span>}
+
+                          {/* + Follow / Following Button */}
+                          {!isOwnPost && item.authorEmail && (
+                            <button
+                              type="button"
+                              onClick={(e) => handleToggleFollow(item.authorEmail, e)}
+                              disabled={followingLoading[item.authorEmail]}
+                              style={{
+                                background: isFollowingAuthor ? 'transparent' : 'rgba(2, 132, 199, 0.15)',
+                                color: isFollowingAuthor ? '#94a3b8' : '#38bdf8',
+                                border: isFollowingAuthor ? '1px solid #334155' : '1px solid rgba(2, 132, 199, 0.4)',
+                                padding: '0.2rem 0.55rem',
+                                borderRadius: '14px',
+                                fontSize: '0.72rem',
+                                fontWeight: '700',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.2rem'
+                              }}
+                            >
+                              {isFollowingAuthor ? '✓ Following' : '+ Follow'}
+                            </button>
+                          )}
+                        </div>
+                        <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
+                          {new Date(item.createdAt).toLocaleDateString()}
+                        </div>
+                      </div>
                     </div>
+
+                    {/* Three-Dots Action Button & Dropdown */}
+                    <div style={{ position: 'relative' }}>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpenMenuPostId(isMenuOpen ? null : item.feedItemId);
+                        }}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#94a3b8',
+                          fontSize: '1.25rem',
+                          cursor: 'pointer',
+                          padding: '0.2rem 0.5rem',
+                          borderRadius: '6px'
+                        }}
+                      >
+                        •••
+                      </button>
+
+                      {/* Dropdown Box */}
+                      {isMenuOpen && (
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                          style={{
+                            position: 'absolute',
+                            top: '30px',
+                            right: 0,
+                            backgroundColor: '#0f172a',
+                            border: '1px solid #334155',
+                            borderRadius: '10px',
+                            boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
+                            width: '150px',
+                            zIndex: 200,
+                            overflow: 'hidden',
+                            display: 'flex',
+                            flexDirection: 'column'
+                          }}
+                        >
+                          <button
+                            type="button"
+                            onClick={(e) => handleCopyPostLink(item, e)}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: '#f8fafc',
+                              padding: '0.6rem 0.9rem',
+                              textAlign: 'left',
+                              fontSize: '0.8rem',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.5rem',
+                              borderBottom: '1px solid #1e293b'
+                            }}
+                          >
+                            <span>🔗</span> Copy Link
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={(e) => handleToggleSavePost(item.postId, e)}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: savedPosts[item.postId] ? '#38bdf8' : '#f8fafc',
+                              padding: '0.6rem 0.9rem',
+                              textAlign: 'left',
+                              fontSize: '0.8rem',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.5rem',
+                              borderBottom: isOwnPost ? '1px solid #1e293b' : 'none'
+                            }}
+                          >
+                            <span>🔖</span> {savedPosts[item.postId] ? 'Saved' : 'Save Post'}
+                          </button>
+
+                          {isOwnPost && item.postType === 'personal' && (
+                            <button
+                              type="button"
+                              onClick={(e) => handleDeletePost(item.postId, e)}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                color: '#ef4444',
+                                padding: '0.6rem 0.9rem',
+                                textAlign: 'left',
+                                fontSize: '0.8rem',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem'
+                              }}
+                            >
+                              <span>🗑️</span> Delete Post
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
                   </div>
 
                   {/* Content */}
@@ -873,7 +1130,7 @@ export default function FeedPage() {
       {/* Lightbox Modal */}
       {previewImage && (
         <div 
-          onClick={() => setPreviewImage(null)}
+          onClick={() => setPreviewImage(null)} 
           style={{ 
             position: 'fixed', 
             inset: 0, 
@@ -895,7 +1152,7 @@ export default function FeedPage() {
               padding: '1rem', 
               display: 'flex', 
               justifyContent: 'space-between', 
-              alignItems: 'center'
+              alignItems: 'center' 
             }}
           >
             <button
@@ -940,8 +1197,7 @@ export default function FeedPage() {
             </button>
           </div>
 
-          
-              <img 
+          <img 
             onClick={(e) => e.stopPropagation()}
             src={previewImage} 
             alt="Enlarged view" 
@@ -949,7 +1205,7 @@ export default function FeedPage() {
               maxWidth: '96vw', 
               maxHeight: '82vh', 
               objectFit: 'contain', 
-              borderRadius: '6px'
+              borderRadius: '6px' 
             }} 
           />
         </div>
