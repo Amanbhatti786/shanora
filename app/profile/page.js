@@ -18,8 +18,25 @@ function ProfilePortalContent() {
     email: '',
     phone: '',
     city: 'Pakistan',
+    bio: '',
+    resume_url: '',
+    is_pro: false
+  });
+
+  // Profile Edit Modal States
+  const [showEditProfileModal, setShowEditProfileModal] = useState(false);
+  const [editProfileForm, setEditProfileForm] = useState({
+    full_name: '',
+    phone: '',
+    city: 'Pakistan',
+    bio: '',
     resume_url: ''
   });
+  const [updatingProfile, setUpdatingProfile] = useState(false);
+
+  // Pro Upgrade States
+  const [trxId, setTrxId] = useState('');
+  const [submittingPro, setSubmittingPro] = useState(false);
 
   const [myPages, setMyPages] = useState([]);
   const [followersList, setFollowersList] = useState([]);
@@ -33,6 +50,7 @@ function ProfilePortalContent() {
   // Jobs States
   const [jobsList, setJobsList] = useState([]);
   const [appliedJobsMap, setAppliedJobsMap] = useState({});
+  const [myApplicationsList, setMyApplicationsList] = useState([]);
   const [showPostJobModal, setShowPostJobModal] = useState(false);
   const [jobFormData, setJobFormData] = useState({
     title: '',
@@ -44,7 +62,7 @@ function ProfilePortalContent() {
   });
   const [submittingJob, setSubmittingJob] = useState(false);
 
-  // Apply Modal & Form State
+  // Apply Modal State
   const [selectedJobForApply, setSelectedJobForApply] = useState(null);
   const [submittingApplication, setSubmittingApplication] = useState(false);
   const [applyForm, setApplyForm] = useState({
@@ -82,25 +100,26 @@ function ProfilePortalContent() {
           .ilike('email', myEmail)
           .maybeSingle();
 
-        if (profileData) {
-          setProfile({
-            full_name: profileData.full_name || profileData.name || currentUser.user_metadata?.full_name || myEmail.split('@')[0],
-            email: currentUser.email,
-            phone: profileData.phone || '',
-            city: profileData.city || 'Pakistan',
-            resume_url: profileData.resume_url || profileData.resume_link || ''
-          });
-        } else {
-          setProfile({
-            full_name: currentUser.user_metadata?.full_name || myEmail.split('@')[0],
-            email: currentUser.email,
-            phone: '',
-            city: 'Pakistan',
-            resume_url: ''
-          });
-        }
+        const defaultProfile = {
+          full_name: profileData?.full_name || profileData?.name || currentUser.user_metadata?.full_name || myEmail.split('@')[0],
+          email: currentUser.email,
+          phone: profileData?.phone || '',
+          city: profileData?.city || 'Pakistan',
+          bio: profileData?.bio || 'Passionate creator & professional on Shanora.pk',
+          resume_url: profileData?.resume_url || profileData?.resume_link || '',
+          is_pro: !!profileData?.is_pro
+        };
 
-        // 2. Fetch Pages (For Menu only)
+        setProfile(defaultProfile);
+        setEditProfileForm({
+          full_name: defaultProfile.full_name,
+          phone: defaultProfile.phone,
+          city: defaultProfile.city,
+          bio: defaultProfile.bio,
+          resume_url: defaultProfile.resume_url
+        });
+
+        // 2. Fetch Pages
         const { data: pagesData } = await supabase
           .from('pages')
           .select('*')
@@ -197,10 +216,12 @@ function ProfilePortalContent() {
 
         const { data: myApps } = await supabase
           .from('job_applications')
-          .select('job_id')
-          .ilike('applicant_email', myEmail);
+          .select('*, jobs(*)')
+          .ilike('applicant_email', myEmail)
+          .order('created_at', { ascending: false });
 
         if (myApps) {
+          setMyApplicationsList(myApps);
           const appMap = {};
           myApps.forEach(a => {
             if (a.job_id) appMap[a.job_id] = true;
@@ -217,6 +238,66 @@ function ProfilePortalContent() {
 
     initPortal();
   }, [router]);
+
+  async function handleSaveProfile(e) {
+    e.preventDefault();
+    if (!user) return;
+
+    setUpdatingProfile(true);
+    try {
+      const myEmail = user.email.toLowerCase();
+      const updates = {
+        email: myEmail,
+        full_name: editProfileForm.full_name,
+        phone: editProfileForm.phone,
+        city: editProfileForm.city,
+        bio: editProfileForm.bio,
+        resume_url: editProfileForm.resume_url,
+        updated_at: new Date().toISOString()
+      };
+
+      const { error } = await supabase
+        .from('profiles')
+        .upsert(updates, { onConflict: 'email' });
+
+      if (error) throw error;
+
+      setProfile(prev => ({ ...prev, ...updates }));
+      setShowEditProfileModal(false);
+      alert('Profile updated successfully! ✨');
+    } catch (err) {
+      alert('Profile update error: ' + err.message);
+    } finally {
+      setUpdatingProfile(false);
+    }
+  }
+
+  // Handle Pro Activation Request
+  async function handleProActivation(e) {
+    e.preventDefault();
+    if (!trxId.trim()) {
+      alert('Kripya EasyPaisa/JazzCash Transaction ID darj karein.');
+      return;
+    }
+
+    setSubmittingPro(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ is_pro: true, pro_plan: 'PRO_MONTHLY' })
+        .ilike('email', user.email.toLowerCase());
+
+      if (error) throw error;
+
+      setProfile(prev => ({ ...prev, is_pro: true }));
+      setTrxId('');
+      alert('Mubarak ho! Aapka Shanora PRO aur Blue Tick activate ho chuka hai! 💎✨');
+    } catch (err) {
+      alert('Pro activation error: ' + err.message);
+    } finally {
+      setSubmittingPro(false);
+    }
+  }
 
   async function handleToggleFollow(targetEmail) {
     if (!user || !targetEmail) return;
@@ -284,7 +365,6 @@ function ProfilePortalContent() {
     }
   }
 
-  // Open Form Modal with Auto-filled Profile Data
   function openApplyModal(job) {
     if (!user) {
       router.push('/auth');
@@ -304,7 +384,6 @@ function ProfilePortalContent() {
     setSelectedJobForApply(job);
   }
 
-  // Submit Job Application Form
   async function handleSubmitApplication(e) {
     e.preventDefault();
     if (!selectedJobForApply || !user) return;
@@ -316,7 +395,7 @@ function ProfilePortalContent() {
 
     setSubmittingApplication(true);
     try {
-      const { error } = await supabase
+      const { data: insertedApp, error } = await supabase
         .from('job_applications')
         .insert([{
           job_id: selectedJobForApply.id,
@@ -327,21 +406,23 @@ function ProfilePortalContent() {
           experience: applyForm.experience,
           resume_link: applyForm.resume_link,
           cover_note: applyForm.cover_note
-        }]);
+        }])
+        .select('*, jobs(*)')
+        .single();
 
       if (error) throw error;
 
       setAppliedJobsMap(prev => ({ ...prev, [selectedJobForApply.id]: true }));
+      if (insertedApp) setMyApplicationsList(prev => [insertedApp, ...prev]);
       setSelectedJobForApply(null);
-      alert('Aapki application successfully submit ho gayi hai! 🚀');
+      alert('Application submitted successfully! 🚀');
     } catch (err) {
-      alert('Application submit nahi ho saki: ' + err.message);
+      alert('Application submit error: ' + err.message);
     } finally {
       setSubmittingApplication(false);
     }
   }
 
-  // Post New Job Handler
   async function handleCreateJob(e) {
     e.preventDefault();
     if (!user) return;
@@ -386,17 +467,18 @@ function ProfilePortalContent() {
     }
   }
 
+  // Clean Menu Items: NO duplicates from bottom bar
   const allMenuItems = [
+    { id: 'pro', label: 'Shanora PRO 💎', desc: 'Blue Tick & Perks', icon: '⭐', bg: 'rgba(234, 179, 8, 0.15)', border: 'rgba(234, 179, 8, 0.4)' },
     { id: 'dashboard', label: 'Dashboard', desc: 'Analytics & Overview', icon: '📊', bg: 'rgba(56, 189, 248, 0.12)', border: 'rgba(56, 189, 248, 0.25)' },
     { id: 'profile', label: 'My Profile', desc: 'View & Edit Details', icon: '👤', bg: 'rgba(129, 140, 248, 0.12)', border: 'rgba(129, 140, 248, 0.25)' },
-    { id: 'network', label: 'Followers', desc: 'Followers & Following', icon: '👥', bg: 'rgba(6, 182, 212, 0.12)', border: 'rgba(6, 182, 212, 0.25)' },
-    { id: 'pages', label: `Pages (${myPages.length})`, desc: 'Manage your pages', icon: '🚩', bg: 'rgba(249, 115, 22, 0.12)', border: 'rgba(249, 115, 22, 0.25)' },
-    { id: 'monetization', label: 'Monetization', desc: 'Earning Hub', icon: '💰', bg: 'rgba(234, 179, 8, 0.12)', border: 'rgba(234, 179, 8, 0.25)' },
-    { id: 'resume', label: 'My Resume', desc: 'ATS Resume Builder', icon: '📝', bg: 'rgba(245, 158, 11, 0.12)', border: 'rgba(245, 158, 11, 0.25)' },
-    { id: 'jobs', label: 'Find Jobs', desc: 'Internships & Careers', icon: '💼', bg: 'rgba(34, 197, 94, 0.12)', border: 'rgba(34, 197, 94, 0.25)' },
     { id: 'messages', label: 'Messages', desc: 'Direct 1-on-1 Chat', icon: '💬', bg: 'rgba(236, 72, 153, 0.12)', border: 'rgba(236, 72, 153, 0.25)' },
-    { id: 'notifications', label: `Alerts ${unreadCount > 0 ? `(${unreadCount})` : ''}`, desc: 'Recent Updates', icon: '🔔', bg: 'rgba(239, 68, 68, 0.12)', border: 'rgba(239, 68, 68, 0.25)' },
-    { id: 'settings', label: 'Settings', desc: 'Privacy & Account', icon: '⚙️', bg: 'rgba(148, 163, 184, 0.12)', border: 'rgba(148, 163, 184, 0.25)' }
+    { id: 'pages', label: `Pages (${myPages.length})`, desc: 'Manage your pages', icon: '🚩', bg: 'rgba(249, 115, 22, 0.12)', border: 'rgba(249, 115, 22, 0.25)' },
+    { id: 'applications', label: `Applications (${myApplicationsList.length})`, desc: 'Track applied jobs', icon: '📋', bg: 'rgba(34, 197, 94, 0.12)', border: 'rgba(34, 197, 94, 0.25)' },
+    { id: 'resume', label: 'My Resume', desc: 'ATS Resume Builder', icon: '📝', bg: 'rgba(245, 158, 11, 0.12)', border: 'rgba(245, 158, 11, 0.25)' },
+    { id: 'monetization', label: 'Monetization', desc: 'Earning Hub', icon: '💰', bg: 'rgba(16, 185, 129, 0.12)', border: 'rgba(16, 185, 129, 0.25)' },
+    { id: 'saved', label: 'Saved Posts', desc: 'Your Bookmarks', icon: '🔖', bg: 'rgba(168, 85, 247, 0.12)', border: 'rgba(168, 85, 247, 0.25)' },
+    { id: 'settings', label: 'Settings', desc: 'Privacy & Security', icon: '⚙️', bg: 'rgba(148, 163, 184, 0.12)', border: 'rgba(148, 163, 184, 0.25)' }
   ];
 
   if (loading) {
@@ -410,11 +492,33 @@ function ProfilePortalContent() {
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#070b14', color: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       
-      {/* Top Header */}
-      <header style={{ backgroundColor: '#0f172a', borderBottom: '1px solid #1e293b', padding: '0.85rem 1.2rem', display: 'flex', alignItems: 'center', position: 'sticky', top: 0, zIndex: 100 }}>
+      {/* Top Header with LinkedIn-style Chat Icon */}
+      <header style={{ backgroundColor: '#0f172a', borderBottom: '1px solid #1e293b', padding: '0.85rem 1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100 }}>
         <Link href="/feed" style={{ textDecoration: 'none', color: '#38bdf8', fontWeight: '900', fontSize: '1.25rem', letterSpacing: '-0.5px' }}>
           SHANORA<span style={{ color: '#fff' }}>.PK</span>
         </Link>
+
+        {/* Header Right: Messenger Icon Button */}
+        <button
+          type="button"
+          onClick={() => setActiveTab('messages')}
+          style={{
+            backgroundColor: activeTab === 'messages' ? '#0284c7' : '#1e293b',
+            border: '1px solid #334155',
+            color: activeTab === 'messages' ? '#fff' : '#38bdf8',
+            padding: '0.45rem 0.85rem',
+            borderRadius: '20px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.4rem',
+            fontSize: '0.8rem',
+            fontWeight: '700'
+          }}
+        >
+          <span>💬</span>
+          <span>Chat</span>
+        </button>
       </header>
 
       {/* Main Container */}
@@ -441,7 +545,10 @@ function ProfilePortalContent() {
                 {(profile.full_name || 'U').charAt(0).toUpperCase()}
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ color: '#fff', fontWeight: '700', fontSize: '0.95rem' }}>{profile.full_name}</div>
+                <div style={{ color: '#fff', fontWeight: '700', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <span>{profile.full_name}</span>
+                  {profile.is_pro && <span title="Verified Pro" style={{ color: '#38bdf8', fontSize: '0.9rem' }}>✓</span>}
+                </div>
                 <div style={{ color: '#38bdf8', fontSize: '0.74rem' }}>View your profile →</div>
               </div>
             </div>
@@ -454,10 +561,7 @@ function ProfilePortalContent() {
               {allMenuItems.map(item => (
                 <div
                   key={item.id}
-                  onClick={() => {
-                    setActiveTab(item.id);
-                    if (item.id === 'notifications') markNotificationsAsRead();
-                  }}
+                  onClick={() => setActiveTab(item.id)}
                   style={{
                     backgroundColor: '#0f172a',
                     border: '1px solid #1e293b',
@@ -484,7 +588,7 @@ function ProfilePortalContent() {
                     {item.icon}
                   </div>
                   <div style={{ overflow: 'hidden' }}>
-                    <div style={{ color: '#f8fafc', fontSize: '0.82rem', fontWeight: '700', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                    <div style={{ color: item.id === 'pro' ? '#facc15' : '#f8fafc', fontSize: '0.82rem', fontWeight: '800', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
                       {item.label}
                     </div>
                     <div style={{ color: '#64748b', fontSize: '0.68rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
@@ -516,6 +620,183 @@ function ProfilePortalContent() {
               <span>🚪</span>
               <span>Log Out</span>
             </button>
+          </div>
+        )}
+
+        {/* TAB: SHANORA PRO (BLUE TICK & MONETIZATION) */}
+        {activeTab === 'pro' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(234, 179, 8, 0.15) 0%, rgba(2, 132, 199, 0.15) 100%)',
+              border: '1px solid rgba(234, 179, 8, 0.35)',
+              borderRadius: '16px',
+              padding: '1.5rem',
+              textAlign: 'center'
+            }}>
+              <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>💎</div>
+              <h2 style={{ fontSize: '1.35rem', fontWeight: '900', color: '#facc15', margin: '0 0 0.3rem 0' }}>Shanora PRO</h2>
+              <p style={{ color: '#cbd5e1', fontSize: '0.85rem', margin: '0 0 1rem 0' }}>Get the official Blue Tick and unlock premium privileges.</p>
+
+              {profile.is_pro ? (
+                <div style={{ backgroundColor: 'rgba(34, 197, 94, 0.2)', border: '1px solid #22c55e', color: '#4ade80', padding: '0.75rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.9rem' }}>
+                  ✓ You are a verified Shanora PRO Member!
+                </div>
+              ) : (
+                <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.8)', border: '1px solid #334155', borderRadius: '12px', padding: '1.2rem', textAlign: 'left' }}>
+                  <div style={{ fontSize: '0.9rem', fontWeight: '800', color: '#fff', marginBottom: '0.6rem' }}>Exclusive PRO Perks:</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', fontSize: '0.8rem', color: '#94a3b8', marginBottom: '1.2rem' }}>
+                    <div>🔹 <strong>Verified Blue Tick:</strong> Stand out across all feeds & posts.</div>
+                    <div>🔹 <strong>Priority Job Application:</strong> Featured at the top for employers.</div>
+                    <div>🔹 <strong>Direct Messenger:</strong> Reach top creators & businesses.</div>
+                    <div>🔹 <strong>Profile Boost:</strong> 5x higher reach on your published posts.</div>
+                  </div>
+
+                  <div style={{ borderTop: '1px solid #1e293b', paddingTop: '1rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.8rem' }}>
+                      <span style={{ color: '#fff', fontWeight: '700', fontSize: '0.85rem' }}>Monthly Subscription:</span>
+                      <span style={{ color: '#facc15', fontWeight: '900', fontSize: '1.1rem' }}>Rs. 499 / mo</span>
+                    </div>
+
+                    <div style={{ backgroundColor: '#1e293b', padding: '0.75rem', borderRadius: '8px', fontSize: '0.78rem', color: '#cbd5e1', marginBottom: '0.8rem', lineHeight: '1.4' }}>
+                      <strong>Payment Details:</strong><br />
+                      EasyPaisa / JazzCash: <code>0300-1234567</code><br />
+                      Account Title: <code>Shanora Network</code>
+                    </div>
+
+                    <form onSubmit={handleProActivation} style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                      <input
+                        type="text"
+                        placeholder="Enter Transaction ID (TID) after payment"
+                        value={trxId}
+                        onChange={(e) => setTrxId(e.target.value)}
+                        style={{ width: '100%', backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }}
+                        required
+                      />
+                      <button
+                        type="submit"
+                        disabled={submittingPro}
+                        style={{ backgroundColor: '#eab308', color: '#000', border: 'none', padding: '0.65rem', borderRadius: '8px', fontWeight: '800', fontSize: '0.85rem', cursor: submittingPro ? 'not-allowed' : 'pointer' }}
+                      >
+                        {submittingPro ? 'Verifying...' : 'Upgrade Now & Get Blue Tick 💎'}
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* TAB: MESSAGES (LINKEDIN STYLE MESSENGER) */}
+        {activeTab === 'messages' && (
+          <div>
+            <div style={{ marginBottom: '1.2rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800', color: '#fff' }}>Direct Messages</h3>
+              <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>1-on-1 private conversations</span>
+            </div>
+
+            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '3.5rem 1rem', textAlign: 'center', color: '#94a3b8' }}>
+              <div style={{ fontSize: '2.5rem', marginBottom: '0.6rem' }}>💬</div>
+              <div style={{ fontSize: '0.95rem', fontWeight: '700', color: '#e2e8f0', marginBottom: '0.2rem' }}>No conversations yet</div>
+              <div style={{ fontSize: '0.78rem', color: '#64748b' }}>Connect with creators or employers to start direct messaging.</div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB: MY PROFILE (VIEW & EDIT DETAILS) */}
+        {activeTab === 'profile' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.4rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <div style={{
+                    width: '60px',
+                    height: '60px',
+                    borderRadius: '50%',
+                    backgroundColor: '#0284c7',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: '800',
+                    fontSize: '1.6rem',
+                    color: '#fff',
+                    border: '2px solid #38bdf8'
+                  }}>
+                    {(profile.full_name || 'U').charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <span>{profile.full_name}</span>
+                      {profile.is_pro && <span title="Verified Pro" style={{ color: '#38bdf8', fontSize: '0.95rem' }}>✓</span>}
+                    </h3>
+                    <span style={{ fontSize: '0.78rem', color: '#38bdf8' }}>{profile.email}</span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowEditProfileModal(true)}
+                  style={{
+                    backgroundColor: '#1e293b',
+                    border: '1px solid #334155',
+                    color: '#38bdf8',
+                    padding: '0.45rem 0.9rem',
+                    borderRadius: '8px',
+                    fontSize: '0.78rem',
+                    fontWeight: '700',
+                    cursor: 'pointer'
+                  }}
+                >
+                  ✏️ Edit Profile
+                </button>
+              </div>
+
+              {profile.bio && (
+                <div style={{ backgroundColor: 'rgba(30, 41, 59, 0.4)', borderRadius: '10px', padding: '0.75rem', fontSize: '0.83rem', color: '#cbd5e1', lineHeight: '1.4', marginBottom: '1rem' }}>
+                  {profile.bio}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.85rem', color: '#94a3b8', borderTop: '1px solid #1e293b', paddingTop: '1rem' }}>
+                <div>📱 <strong style={{ color: '#fff' }}>Phone:</strong> {profile.phone || 'Not provided'}</div>
+                <div>📍 <strong style={{ color: '#fff' }}>Location:</strong> {profile.city || 'Pakistan'}</div>
+                <div>📄 <strong style={{ color: '#fff' }}>Resume Link:</strong> {profile.resume_url ? <a href={profile.resume_url} target="_blank" rel="noreferrer" style={{ color: '#38bdf8', textDecoration: 'none', marginLeft: '0.3rem' }}>View Linked CV ↗</a> : 'No resume URL linked'}</div>
+                <div>💎 <strong style={{ color: '#fff' }}>Status:</strong> {profile.is_pro ? <span style={{ color: '#facc15', fontWeight: '800' }}>Shanora PRO (Verified ✓)</span> : 'Standard Member'}</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB: MY APPLICATIONS */}
+        {activeTab === 'applications' && (
+          <div>
+            <div style={{ marginBottom: '1.2rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800', color: '#fff' }}>My Applications</h3>
+              <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Positions you have applied for</span>
+            </div>
+
+            {myApplicationsList.length === 0 ? (
+              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '3.5rem 1rem', textAlign: 'center', color: '#94a3b8' }}>
+                <div style={{ fontSize: '2.5rem', marginBottom: '0.6rem' }}>📋</div>
+                <div style={{ fontSize: '0.95rem', fontWeight: '700', color: '#e2e8f0', marginBottom: '0.2rem' }}>No job applications submitted yet</div>
+                <div style={{ fontSize: '0.78rem', color: '#64748b' }}>Explore current openings in the Jobs tab to apply.</div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {myApplicationsList.map(app => (
+                  <div key={app.id} style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontSize: '0.95rem', fontWeight: '800', color: '#fff' }}>{app.jobs?.title || 'Job Opening'}</div>
+                      <div style={{ fontSize: '0.8rem', color: '#38bdf8' }}>{app.jobs?.company_name || 'Employer'}</div>
+                      <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '0.2rem' }}>Applied on {new Date(app.created_at).toLocaleDateString()}</div>
+                    </div>
+                    <span style={{ backgroundColor: 'rgba(34, 197, 94, 0.15)', color: '#4ade80', border: '1px solid rgba(34, 197, 94, 0.3)', borderRadius: '6px', padding: '0.25rem 0.6rem', fontSize: '0.72rem', fontWeight: '700' }}>
+                      In Review ✓
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -947,22 +1228,6 @@ function ProfilePortalContent() {
           </div>
         )}
 
-        {/* TAB: PROFILE DETAILS */}
-        {activeTab === 'profile' && (
-          <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.2rem' }}>
-            <h3 style={{ margin: '0 0 0.9rem 0', fontSize: '1.1rem', color: '#fff' }}>Personal Details</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.86rem', color: '#cbd5e1' }}>
-              <div>👤 <strong>Full Name:</strong> {profile.full_name}</div>
-              <div>📧 <strong>Email:</strong> {profile.email}</div>
-              <div>📱 <strong>Phone:</strong> {profile.phone || 'Not provided'}</div>
-              <div>📍 <strong>Location:</strong> {profile.city || 'Pakistan'}</div>
-              {profile.resume_url && (
-                <div>📄 <strong>Resume Link:</strong> <a href={profile.resume_url} target="_blank" rel="noreferrer" style={{ color: '#38bdf8' }}>View uploaded CV</a></div>
-              )}
-            </div>
-          </div>
-        )}
-
         {/* TAB: DASHBOARD */}
         {activeTab === 'dashboard' && (
           <div>
@@ -988,7 +1253,6 @@ function ProfilePortalContent() {
         {/* TAB: JOBS */}
         {activeTab === 'jobs' && (
           <div>
-            {/* Header + Post Job Button */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem', padding: '0 0.2rem' }}>
               <div>
                 <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800', color: '#fff' }}>Opportunities & Careers</h3>
@@ -1012,7 +1276,6 @@ function ProfilePortalContent() {
               </button>
             </div>
 
-            {/* Post Job Form */}
             {showPostJobModal && (
               <form onSubmit={handleCreateJob} style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.2rem', marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
                 <h4 style={{ margin: 0, color: '#38bdf8', fontSize: '0.95rem' }}>Post New Opening</h4>
@@ -1082,7 +1345,6 @@ function ProfilePortalContent() {
               </form>
             )}
 
-            {/* Jobs List */}
             {jobsList.length === 0 ? (
               <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '3.5rem 1rem', textAlign: 'center', color: '#94a3b8' }}>
                 <div style={{ fontSize: '2.5rem', marginBottom: '0.6rem' }}>💼</div>
@@ -1170,14 +1432,132 @@ function ProfilePortalContent() {
         )}
 
         {/* OTHER SERVICE TABS */}
-        {['monetization', 'resume', 'messages', 'settings'].includes(activeTab) && (
-          <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.5rem', textAlign: 'center' }}>
-            <h3 style={{ color: '#fff', margin: '0 0 0.4rem 0', fontSize: '1.05rem', textTransform: 'capitalize' }}>{activeTab}</h3>
-            <p style={{ color: '#94a3b8', fontSize: '0.82rem' }}>Feature hub is connected and active.</p>
+        {['monetization', 'resume', 'saved', 'settings'].includes(activeTab) && (
+          <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '2rem 1.5rem', textAlign: 'center' }}>
+            <h3 style={{ color: '#fff', margin: '0 0 0.5rem 0', fontSize: '1.1rem', textTransform: 'capitalize' }}>{activeTab}</h3>
+            <p style={{ color: '#94a3b8', fontSize: '0.82rem', margin: 0 }}>This module is ready for full functional configuration.</p>
           </div>
         )}
 
       </main>
+
+      {/* EDIT PROFILE MODAL */}
+      {showEditProfileModal && (
+        <div 
+          onClick={() => setShowEditProfileModal(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.85)',
+            zIndex: 999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem'
+          }}
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: '#0f172a',
+              border: '1px solid #334155',
+              borderRadius: '16px',
+              width: '100%',
+              maxWidth: '480px',
+              padding: '1.4rem',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.7)',
+              maxHeight: '90vh',
+              overflowY: 'auto'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem', borderBottom: '1px solid #1e293b', paddingBottom: '0.8rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#fff', fontWeight: '800' }}>Edit Profile Details</h3>
+              <button 
+                type="button" 
+                onClick={() => setShowEditProfileModal(false)}
+                style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer', padding: 0 }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.72rem', color: '#94a3b8', marginBottom: '0.25rem', fontWeight: '600' }}>Full Name *</label>
+                <input
+                  type="text"
+                  value={editProfileForm.full_name}
+                  onChange={(e) => setEditProfileForm({ ...editProfileForm, full_name: e.target.value })}
+                  style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }}
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.72rem', color: '#94a3b8', marginBottom: '0.25rem', fontWeight: '600' }}>Bio / Headline</label>
+                <textarea
+                  rows={2}
+                  placeholder="Tell others what you do..."
+                  value={editProfileForm.bio}
+                  onChange={(e) => setEditProfileForm({ ...editProfileForm, bio: e.target.value })}
+                  style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.72rem', color: '#94a3b8', marginBottom: '0.25rem', fontWeight: '600' }}>Phone / WhatsApp</label>
+                  <input
+                    type="text"
+                    placeholder="0300-1234567"
+                    value={editProfileForm.phone}
+                    onChange={(e) => setEditProfileForm({ ...editProfileForm, phone: e.target.value })}
+                    style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.72rem', color: '#94a3b8', marginBottom: '0.25rem', fontWeight: '600' }}>City / Location</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Sukkur, Karachi"
+                    value={editProfileForm.city}
+                    onChange={(e) => setEditProfileForm({ ...editProfileForm, city: e.target.value })}
+                    style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.72rem', color: '#94a3b8', marginBottom: '0.25rem', fontWeight: '600' }}>CV / Resume URL (Google Drive / LinkedIn)</label>
+                <input
+                  type="url"
+                  placeholder="https://drive.google.com/..."
+                  value={editProfileForm.resume_url}
+                  onChange={(e) => setEditProfileForm({ ...editProfileForm, resume_url: e.target.value })}
+                  style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.6rem', marginTop: '0.6rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowEditProfileModal(false)}
+                  style={{ flex: 1, backgroundColor: '#1e293b', border: '1px solid #334155', color: '#94a3b8', padding: '0.6rem', borderRadius: '8px', fontWeight: '700', fontSize: '0.82rem', cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={updatingProfile}
+                  style={{ flex: 2, backgroundColor: '#0284c7', border: 'none', color: '#fff', padding: '0.6rem', borderRadius: '8px', fontWeight: '700', fontSize: '0.82rem', cursor: updatingProfile ? 'not-allowed' : 'pointer' }}
+                >
+                  {updatingProfile ? 'Saving...' : 'Save Profile'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* POP-UP FORM MODAL (EASY APPLY WITH AUTO-FILL) */}
       {selectedJobForApply && (
