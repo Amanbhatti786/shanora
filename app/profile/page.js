@@ -29,6 +29,21 @@ function ProfilePortalContent() {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
+  // Jobs States
+  const [jobsList, setJobsList] = useState([]);
+  const [appliedJobsMap, setAppliedJobsMap] = useState({});
+  const [showPostJobModal, setShowPostJobModal] = useState(false);
+  const [jobFormData, setJobFormData] = useState({
+    title: '',
+    company_name: '',
+    location: '',
+    job_type: 'Full-time',
+    salary_range: '',
+    description: ''
+  });
+  const [submittingJob, setSubmittingJob] = useState(false);
+  const [applyingJobId, setApplyingJobId] = useState(null);
+
   useEffect(() => {
     const tabParam = searchParams?.get('tab');
     if (tabParam) setActiveTab(tabParam);
@@ -158,6 +173,27 @@ function ProfilePortalContent() {
           setUnreadCount(notifData.filter(n => !n.is_read).length);
         }
 
+        // 6. Fetch Jobs & User Applications
+        const { data: allJobs } = await supabase
+          .from('jobs')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (allJobs) setJobsList(allJobs);
+
+        const { data: myApps } = await supabase
+          .from('job_applications')
+          .select('job_id')
+          .ilike('applicant_email', myEmail);
+
+        if (myApps) {
+          const appMap = {};
+          myApps.forEach(a => {
+            if (a.job_id) appMap[a.job_id] = true;
+          });
+          setAppliedJobsMap(appMap);
+        }
+
       } catch (err) {
         console.error('Portal init error:', err);
       } finally {
@@ -232,6 +268,83 @@ function ProfilePortalContent() {
         .from('notifications')
         .update({ is_read: true })
         .ilike('recipient_email', user.email.toLowerCase());
+    }
+  }
+
+  // 1-Click Apply Handler
+  async function handleApplyJob(jobId) {
+    if (!user) {
+      router.push('/auth');
+      return;
+    }
+
+    setApplyingJobId(jobId);
+    try {
+      const myEmail = user.email.toLowerCase();
+      const myName = profile.full_name || myEmail.split('@')[0];
+
+      const { error } = await supabase
+        .from('job_applications')
+        .insert([{
+          job_id: jobId,
+          applicant_email: myEmail,
+          applicant_name: myName,
+          phone: profile.phone || ''
+        }]);
+
+      if (error) throw error;
+
+      setAppliedJobsMap(prev => ({ ...prev, [jobId]: true }));
+      alert('Application submitted successfully! 🚀');
+    } catch (err) {
+      alert('Apply error: ' + err.message);
+    } finally {
+      setApplyingJobId(null);
+    }
+  }
+
+  // Post New Job Handler
+  async function handleCreateJob(e) {
+    e.preventDefault();
+    if (!user) return;
+    if (!jobFormData.title || !jobFormData.company_name) {
+      alert('Title and Company Name are required.');
+      return;
+    }
+
+    setSubmittingJob(true);
+    try {
+      const { data: newJob, error } = await supabase
+        .from('jobs')
+        .insert([{
+          employer_email: user.email.toLowerCase(),
+          company_name: jobFormData.company_name,
+          title: jobFormData.title,
+          location: jobFormData.location || 'Pakistan',
+          job_type: jobFormData.job_type,
+          salary_range: jobFormData.salary_range,
+          description: jobFormData.description
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setJobsList([newJob, ...jobsList]);
+      setShowPostJobModal(false);
+      setJobFormData({
+        title: '',
+        company_name: '',
+        location: '',
+        job_type: 'Full-time',
+        salary_range: '',
+        description: ''
+      });
+      alert('Job posted successfully! 💼');
+    } catch (err) {
+      alert('Failed to post job: ' + err.message);
+    } finally {
+      setSubmittingJob(false);
     }
   }
 
@@ -564,16 +677,16 @@ function ProfilePortalContent() {
             <div style={{ marginTop: '2.2rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
                 <span style={{ fontSize: '0.88rem', fontWeight: '800', color: '#fff' }}>
-                  People you may know[cite: 12]
+                  People you may know
                 </span>
                 <span style={{ fontSize: '0.74rem', color: '#38bdf8', fontWeight: '700' }}>
-                  Discover[cite: 12]
+                  Discover
                 </span>
               </div>
 
               {discoverUsers.length === 0 ? (
                 <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.5rem', textAlign: 'center', color: '#64748b', fontSize: '0.82rem' }}>
-                  Koi naya creator daryaft nahi hua[cite: 12].
+                  Koi naya creator daryaft nahi hua.
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
@@ -672,7 +785,7 @@ function ProfilePortalContent() {
           </div>
         )}
 
-       {/* TAB: NOTIFICATIONS */}
+        {/* TAB: NOTIFICATIONS */}
         {activeTab === 'notifications' && (
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem', padding: '0 0.2rem' }}>
@@ -802,6 +915,7 @@ function ProfilePortalContent() {
             )}
           </div>
         )}
+
         {/* TAB: PROFILE DETAILS */}
         {activeTab === 'profile' && (
           <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.2rem' }}>
@@ -839,10 +953,186 @@ function ProfilePortalContent() {
 
         {/* TAB: JOBS */}
         {activeTab === 'jobs' && (
-          <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.5rem', textAlign: 'center' }}>
-            <div style={{ fontSize: '2.2rem', marginBottom: '0.4rem' }}>💼</div>
-            <h3 style={{ color: '#fff', margin: '0 0 0.4rem 0', fontSize: '1.05rem' }}>Jobs & Internships</h3>
-            <p style={{ color: '#94a3b8', fontSize: '0.82rem' }}>Browse opportunities and track your job applications.</p>
+          <div>
+            {/* Header + Post Job Button */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem', padding: '0 0.2rem' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800', color: '#fff' }}>Opportunities & Careers</h3>
+                <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Explore internships and full-time roles</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPostJobModal(!showPostJobModal)}
+                style={{
+                  backgroundColor: '#0284c7',
+                  color: '#fff',
+                  border: 'none',
+                  padding: '0.45rem 0.9rem',
+                  borderRadius: '8px',
+                  fontSize: '0.78rem',
+                  fontWeight: '700',
+                  cursor: 'pointer'
+                }}
+              >
+                {showPostJobModal ? '✕ Close' : '+ Post a Job'}
+              </button>
+            </div>
+
+            {/* Post Job Inline Drawer / Form */}
+            {showPostJobModal && (
+              <form onSubmit={handleCreateJob} style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.2rem', marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                <h4 style={{ margin: 0, color: '#38bdf8', fontSize: '0.95rem' }}>Post New Opening</h4>
+                
+                <input
+                  type="text"
+                  placeholder="Job Title (e.g. Frontend Developer, Video Editor)"
+                  value={jobFormData.title}
+                  onChange={(e) => setJobFormData({ ...jobFormData, title: e.target.value })}
+                  style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none' }}
+                  required
+                />
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
+                  <input
+                    type="text"
+                    placeholder="Company / Page Name"
+                    value={jobFormData.company_name}
+                    onChange={(e) => setJobFormData({ ...jobFormData, company_name: e.target.value })}
+                    style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none' }}
+                    required
+                  />
+                  <input
+                    type="text"
+                    placeholder="Location (e.g. Remote, Karachi)"
+                    value={jobFormData.location}
+                    onChange={(e) => setJobFormData({ ...jobFormData, location: e.target.value })}
+                    style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none' }}
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
+                  <select
+                    value={jobFormData.job_type}
+                    onChange={(e) => setJobFormData({ ...jobFormData, job_type: e.target.value })}
+                    style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none' }}
+                  >
+                    <option value="Full-time">Full-time</option>
+                    <option value="Part-time">Part-time</option>
+                    <option value="Internship">Internship</option>
+                    <option value="Remote">Remote</option>
+                  </select>
+                  <input
+                    type="text"
+                    placeholder="Salary / Stipend (e.g. 50k - 80k PKR)"
+                    value={jobFormData.salary_range}
+                    onChange={(e) => setJobFormData({ ...jobFormData, salary_range: e.target.value })}
+                    style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none' }}
+                  />
+                </div>
+
+                <textarea
+                  placeholder="Job brief description and requirements..."
+                  rows={3}
+                  value={jobFormData.description}
+                  onChange={(e) => setJobFormData({ ...jobFormData, description: e.target.value })}
+                  style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none', resize: 'vertical' }}
+                />
+
+                <button
+                  type="submit"
+                  disabled={submittingJob}
+                  style={{ backgroundColor: '#22c55e', color: '#fff', border: 'none', padding: '0.6rem', borderRadius: '8px', fontWeight: '700', fontSize: '0.82rem', cursor: submittingJob ? 'not-allowed' : 'pointer' }}
+                >
+                  {submittingJob ? 'Publishing...' : 'Publish Vacancy'}
+                </button>
+              </form>
+            )}
+
+            {/* Jobs List */}
+            {jobsList.length === 0 ? (
+              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '3.5rem 1rem', textAlign: 'center', color: '#94a3b8' }}>
+                <div style={{ fontSize: '2.5rem', marginBottom: '0.6rem' }}>💼</div>
+                <div style={{ fontSize: '0.95rem', fontWeight: '700', color: '#e2e8f0', marginBottom: '0.2rem' }}>No job openings active yet</div>
+                <div style={{ fontSize: '0.78rem', color: '#64748b' }}>Be the first company or creator to post an opening!</div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                {jobsList.map(job => {
+                  const isApplied = !!appliedJobsMap[job.id];
+                  const isApplying = applyingJobId === job.id;
+                  const isOwner = user?.email && (job.employer_email || '').toLowerCase() === user.email.toLowerCase();
+
+                  return (
+                    <div key={job.id} style={{
+                      backgroundColor: '#0f172a',
+                      border: '1px solid #1e293b',
+                      borderRadius: '14px',
+                      padding: '1.1rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.7rem'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.8rem' }}>
+                        <div>
+                          <div style={{ fontSize: '1rem', fontWeight: '800', color: '#fff' }}>{job.title}</div>
+                          <div style={{ fontSize: '0.82rem', color: '#38bdf8', fontWeight: '600', marginTop: '0.15rem' }}>{job.company_name}</div>
+                          <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem' }}>
+                            📍 {job.location || 'Pakistan'} • ⏱️ {job.job_type || 'Full-time'}
+                          </div>
+                        </div>
+
+                        <span style={{
+                          fontSize: '0.72rem',
+                          fontWeight: '800',
+                          padding: '0.25rem 0.6rem',
+                          borderRadius: '6px',
+                          backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                          color: '#38bdf8',
+                          border: '1px solid rgba(56, 189, 248, 0.25)',
+                          flexShrink: 0
+                        }}>
+                          {job.salary_range || 'Market Competitive'}
+                        </span>
+                      </div>
+
+                      {job.description && (
+                        <div style={{ fontSize: '0.8rem', color: '#cbd5e1', lineHeight: '1.4' }}>
+                          {job.description}
+                        </div>
+                      )}
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #1e293b', paddingTop: '0.7rem', marginTop: '0.2rem' }}>
+                        <span style={{ fontSize: '0.7rem', color: '#64748b' }}>
+                          Posted {new Date(job.created_at).toLocaleDateString()}
+                        </span>
+
+                        {isOwner ? (
+                          <span style={{ fontSize: '0.75rem', color: '#4ade80', fontWeight: '700' }}>Your Listing ✓</span>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={isApplied || isApplying}
+                            onClick={() => handleApplyJob(job.id)}
+                            style={{
+                              backgroundColor: isApplied ? '#1e293b' : '#0284c7',
+                              color: isApplied ? '#94a3b8' : '#fff',
+                              border: isApplied ? '1px solid #334155' : 'none',
+                              padding: '0.42rem 1.1rem',
+                              borderRadius: '8px',
+                              fontSize: '0.78rem',
+                              fontWeight: '700',
+                              cursor: isApplied || isApplying ? 'default' : 'pointer'
+                            }}
+                          >
+                            {isApplying ? 'Submitting...' : isApplied ? 'Applied ✓' : 'Easy Apply ⚡'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
