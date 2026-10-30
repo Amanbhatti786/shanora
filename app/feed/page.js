@@ -518,6 +518,7 @@ export default function FeedPage() {
     }
   }
 
+  // Toggle Like with Instant Notification
   async function handleToggleLike(postId, postType) {
     if (!currentUser) {
       router.push('/auth');
@@ -536,6 +537,21 @@ export default function FeedPage() {
           await supabase.from('page_post_likes').delete().eq('post_id', postId).eq('user_email', currentUser.email);
         } else {
           await supabase.from('page_post_likes').insert([{ post_id: postId, user_email: currentUser.email }]);
+
+          // Send Like Notification to Post Author
+          const targetPost = feedItems.find(item => item.postId === postId);
+          const authorEmail = targetPost?.authorEmail;
+          if (authorEmail && authorEmail !== currentUser.email.toLowerCase()) {
+            await supabase.from('notifications').insert([{
+              recipient_email: authorEmail,
+              sender_name: userProfile?.name || currentUser.user_metadata?.full_name || currentUser.email.split('@')[0],
+              sender_email: currentUser.email.toLowerCase(),
+              action_type: 'like',
+              post_id: postId,
+              content: 'liked your post.',
+              is_read: false
+            }]);
+          }
         }
       }
     } catch (err) {
@@ -566,6 +582,7 @@ export default function FeedPage() {
     }
   }
 
+  // Add Comment with Instant Notification
   async function handleAddComment(postId) {
     if (!currentUser) {
       router.push('/auth');
@@ -593,6 +610,21 @@ export default function FeedPage() {
         [postId]: [...(prev[postId] || []), newComment]
       }));
       setCommentInputs(prev => ({ ...prev, [postId]: '' }));
+
+      // Send Comment Notification to Post Author
+      const targetPost = feedItems.find(item => item.postId === postId);
+      const authorEmail = targetPost?.authorEmail;
+      if (authorEmail && authorEmail !== currentUser.email.toLowerCase()) {
+        await supabase.from('notifications').insert([{
+          recipient_email: authorEmail,
+          sender_name: userProfile?.name || currentUser.user_metadata?.full_name || currentUser.email.split('@')[0],
+          sender_email: currentUser.email.toLowerCase(),
+          action_type: 'comment',
+          post_id: postId,
+          content: 'commented on your post.',
+          is_read: false
+        }]);
+      }
     } catch (err) {
       alert('Comment failed: ' + err.message);
     } finally {
@@ -878,8 +910,8 @@ export default function FeedPage() {
                           justifyContent: 'center', 
                           fontWeight: 'bold', 
                           color: '#38bdf8',
-                          cursor: 'pointer',
-                          border: '1px solid #334155',
+                          cursor: 'pointer', 
+                          border: '1px solid #334155', 
                           flexShrink: 0
                         }}>
                           {!item.authorAvatar && item.authorName.charAt(0).toUpperCase()}
