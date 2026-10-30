@@ -36,7 +36,9 @@ function ProfilePortalContent() {
 
   // Pro Upgrade States
   const [trxId, setTrxId] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('EasyPaisa');
   const [submittingPro, setSubmittingPro] = useState(false);
+  const [latestProRequest, setLatestProRequest] = useState(null);
 
   const [myPages, setMyPages] = useState([]);
   const [followersList, setFollowersList] = useState([]);
@@ -119,7 +121,18 @@ function ProfilePortalContent() {
           resume_url: defaultProfile.resume_url
         });
 
-        // 2. Fetch Pages
+        // 2. Fetch Latest Pro Request
+        const { data: proReqData } = await supabase
+          .from('pro_requests')
+          .select('*')
+          .ilike('user_email', myEmail)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (proReqData) setLatestProRequest(proReqData);
+
+        // 3. Fetch Pages
         const { data: pagesData } = await supabase
           .from('pages')
           .select('*')
@@ -128,7 +141,7 @@ function ProfilePortalContent() {
 
         if (pagesData) setMyPages(pagesData);
 
-        // 3. Fetch Real Followers & Following
+        // 4. Fetch Real Followers & Following
         const { data: followsData } = await supabase
           .from('user_follows')
           .select('id, follower_email, following_email, created_at');
@@ -147,7 +160,7 @@ function ProfilePortalContent() {
           setFollowingMap(curMap);
         }
 
-        // 4. Fetch Discover Users
+        // 5. Fetch Discover Users
         const { data: allProfiles } = await supabase
           .from('profiles')
           .select('*')
@@ -193,7 +206,7 @@ function ProfilePortalContent() {
 
         setDiscoverUsers(discoveredList);
 
-        // 5. Fetch Notifications
+        // 6. Fetch Notifications
         const { data: notifData } = await supabase
           .from('notifications')
           .select('*')
@@ -206,7 +219,7 @@ function ProfilePortalContent() {
           setUnreadCount(notifData.filter(n => !n.is_read).length);
         }
 
-        // 6. Fetch Jobs & User Applications
+        // 7. Fetch Jobs & User Applications
         const { data: allJobs } = await supabase
           .from('jobs')
           .select('*')
@@ -272,28 +285,35 @@ function ProfilePortalContent() {
     }
   }
 
-  // Handle Pro Activation Request
+  // Handle Pro Verification Request
   async function handleProActivation(e) {
     e.preventDefault();
     if (!trxId.trim()) {
-      alert('Kripya EasyPaisa/JazzCash Transaction ID darj karein.');
+      alert('Kripya valid Transaction ID (TID) darj karein.');
       return;
     }
 
     setSubmittingPro(true);
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ is_pro: true, pro_plan: 'PRO_MONTHLY' })
-        .ilike('email', user.email.toLowerCase());
+      const { data: newReq, error } = await supabase
+        .from('pro_requests')
+        .insert([{
+          user_email: user.email.toLowerCase(),
+          transaction_id: trxId.trim(),
+          payment_method: paymentMethod,
+          amount: 499,
+          status: 'pending'
+        }])
+        .select()
+        .single();
 
       if (error) throw error;
 
-      setProfile(prev => ({ ...prev, is_pro: true }));
+      setLatestProRequest(newReq);
       setTrxId('');
-      alert('Mubarak ho! Aapka Shanora PRO aur Blue Tick activate ho chuka hai! 💎✨');
+      alert('Aapki request submit ho gayi hai! Admin verification ke baad Blue Tick 24 ghantay ke andar activate ho jayega. 💎');
     } catch (err) {
-      alert('Pro activation error: ' + err.message);
+      alert('Pro request error: ' + err.message);
     } finally {
       setSubmittingPro(false);
     }
@@ -467,7 +487,7 @@ function ProfilePortalContent() {
     }
   }
 
-  // Clean Menu Items: NO duplicates from bottom bar
+  // Refined Clean Menu
   const allMenuItems = [
     { id: 'pro', label: 'Shanora PRO 💎', desc: 'Blue Tick & Perks', icon: '⭐', bg: 'rgba(234, 179, 8, 0.15)', border: 'rgba(234, 179, 8, 0.4)' },
     { id: 'dashboard', label: 'Dashboard', desc: 'Analytics & Overview', icon: '📊', bg: 'rgba(56, 189, 248, 0.12)', border: 'rgba(56, 189, 248, 0.25)' },
@@ -492,13 +512,12 @@ function ProfilePortalContent() {
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#070b14', color: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       
-      {/* Top Header with LinkedIn-style Chat Icon */}
+      {/* Top Header */}
       <header style={{ backgroundColor: '#0f172a', borderBottom: '1px solid #1e293b', padding: '0.85rem 1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100 }}>
         <Link href="/feed" style={{ textDecoration: 'none', color: '#38bdf8', fontWeight: '900', fontSize: '1.25rem', letterSpacing: '-0.5px' }}>
           SHANORA<span style={{ color: '#fff' }}>.PK</span>
         </Link>
 
-        {/* Header Right: Messenger Icon Button */}
         <button
           type="button"
           onClick={() => setActiveTab('messages')}
@@ -623,7 +642,7 @@ function ProfilePortalContent() {
           </div>
         )}
 
-        {/* TAB: SHANORA PRO (BLUE TICK & MONETIZATION) */}
+        {/* TAB 1: SHANORA PRO (LIVE PAYMENT INTEGRATION) */}
         {activeTab === 'pro' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div style={{
@@ -638,17 +657,35 @@ function ProfilePortalContent() {
               <p style={{ color: '#cbd5e1', fontSize: '0.85rem', margin: '0 0 1rem 0' }}>Get the official Blue Tick and unlock premium privileges.</p>
 
               {profile.is_pro ? (
-                <div style={{ backgroundColor: 'rgba(34, 197, 94, 0.2)', border: '1px solid #22c55e', color: '#4ade80', padding: '0.75rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.9rem' }}>
-                  ✓ You are a verified Shanora PRO Member!
+                <div style={{ backgroundColor: '#0f172a', border: '1px solid #22c55e', borderRadius: '12px', padding: '1.2rem', textAlign: 'left' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.8rem' }}>
+                    <span style={{ backgroundColor: '#22c55e', color: '#000', borderRadius: '50%', width: '22px', height: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.8rem' }}>✓</span>
+                    <strong style={{ color: '#4ade80', fontSize: '1rem' }}>Your Shanora PRO Membership is ACTIVE!</strong>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.82rem', color: '#cbd5e1' }}>
+                    <div>🌟 <strong>Verified Badge:</strong> Blue Tick is live across your entire profile & posts.</div>
+                    <div>🚀 <strong>Application Boost:</strong> Employers see your job applications on top.</div>
+                    <div>📈 <strong>Feed Reach:</strong> 5x higher reach on your published articles and updates.</div>
+                  </div>
+                </div>
+              ) : latestProRequest?.status === 'pending' ? (
+                <div style={{ backgroundColor: '#0f172a', border: '1px solid #facc15', borderRadius: '12px', padding: '1.2rem', textAlign: 'left' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                    <span style={{ fontSize: '1.1rem' }}>⏳</span>
+                    <strong style={{ color: '#facc15', fontSize: '0.95rem' }}>Verification in Progress</strong>
+                  </div>
+                  <p style={{ margin: 0, fontSize: '0.8rem', color: '#94a3b8', lineHeight: '1.4' }}>
+                    Aapki payment request (TID: <strong style={{ color: '#fff' }}>{latestProRequest.transaction_id}</strong>) review ke liye submit ho chuki hai. Admin verification ke baad aapka Blue Tick live ho jayega.
+                  </p>
                 </div>
               ) : (
                 <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.8)', border: '1px solid #334155', borderRadius: '12px', padding: '1.2rem', textAlign: 'left' }}>
                   <div style={{ fontSize: '0.9rem', fontWeight: '800', color: '#fff', marginBottom: '0.6rem' }}>Exclusive PRO Perks:</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', fontSize: '0.8rem', color: '#94a3b8', marginBottom: '1.2rem' }}>
-                    <div>🔹 <strong>Verified Blue Tick:</strong> Stand out across all feeds & posts.</div>
-                    <div>🔹 <strong>Priority Job Application:</strong> Featured at the top for employers.</div>
-                    <div>🔹 <strong>Direct Messenger:</strong> Reach top creators & businesses.</div>
-                    <div>🔹 <strong>Profile Boost:</strong> 5x higher reach on your published posts.</div>
+                    <div>🔹 <strong>Verified Blue Tick:</strong> Stand out across all feeds & comments.</div>
+                    <div>🔹 <strong>Priority Job Application:</strong> Featured at the top for hiring managers.</div>
+                    <div>🔹 <strong>Direct Messenger:</strong> Reach verified creators & companies.</div>
+                    <div>🔹 <strong>Profile Boost:</strong> Enhanced organic reach on all posts.</div>
                   </div>
 
                   <div style={{ borderTop: '1px solid #1e293b', paddingTop: '1rem' }}>
@@ -658,26 +695,38 @@ function ProfilePortalContent() {
                     </div>
 
                     <div style={{ backgroundColor: '#1e293b', padding: '0.75rem', borderRadius: '8px', fontSize: '0.78rem', color: '#cbd5e1', marginBottom: '0.8rem', lineHeight: '1.4' }}>
-                      <strong>Payment Details:</strong><br />
-                      EasyPaisa / JazzCash: <code>0300-1234567</code><br />
-                      Account Title: <code>Shanora Network</code>
+                      <strong>Payment Procedure:</strong><br />
+                      1. Send <strong>Rs. 499</strong> to EasyPaisa / JazzCash: <code>03033639664</code><br />
+                      2. Account Title: <code>Amanullah</code><br />
+                      3. Enter Transaction ID (TID) below and submit.
                     </div>
 
                     <form onSubmit={handleProActivation} style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                      <input
-                        type="text"
-                        placeholder="Enter Transaction ID (TID) after payment"
-                        value={trxId}
-                        onChange={(e) => setTrxId(e.target.value)}
-                        style={{ width: '100%', backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }}
-                        required
-                      />
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '0.5rem' }}>
+                        <select
+                          value={paymentMethod}
+                          onChange={(e) => setPaymentMethod(e.target.value)}
+                          style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem', color: '#fff', fontSize: '0.82rem', outline: 'none' }}
+                        >
+                          <option value="EasyPaisa">EasyPaisa</option>
+                          <option value="JazzCash">JazzCash</option>
+                          <option value="Raast">Raast / Bank</option>
+                        </select>
+                        <input
+                          type="text"
+                          placeholder="Enter Transaction ID (TID)"
+                          value={trxId}
+                          onChange={(e) => setTrxId(e.target.value)}
+                          style={{ width: '100%', backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }}
+                          required
+                        />
+                      </div>
                       <button
                         type="submit"
                         disabled={submittingPro}
                         style={{ backgroundColor: '#eab308', color: '#000', border: 'none', padding: '0.65rem', borderRadius: '8px', fontWeight: '800', fontSize: '0.85rem', cursor: submittingPro ? 'not-allowed' : 'pointer' }}
                       >
-                        {submittingPro ? 'Verifying...' : 'Upgrade Now & Get Blue Tick 💎'}
+                        {submittingPro ? 'Submitting Request...' : 'Upgrade Now & Submit TID 💎'}
                       </button>
                     </form>
                   </div>
@@ -687,7 +736,7 @@ function ProfilePortalContent() {
           </div>
         )}
 
-        {/* TAB: MESSAGES (LINKEDIN STYLE MESSENGER) */}
+        {/* TAB: MESSAGES */}
         {activeTab === 'messages' && (
           <div>
             <div style={{ marginBottom: '1.2rem' }}>
@@ -703,7 +752,7 @@ function ProfilePortalContent() {
           </div>
         )}
 
-        {/* TAB: MY PROFILE (VIEW & EDIT DETAILS) */}
+        {/* TAB: MY PROFILE */}
         {activeTab === 'profile' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.4rem' }}>
