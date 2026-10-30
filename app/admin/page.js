@@ -60,7 +60,7 @@ export default function AdminPanel() {
 
   // --- PRO SUBSCRIPTION ACTIONS ---
   async function handleApprovePro(reqItem) {
-    if (!confirm(`Kya aap ${reqItem.user_email} ko Blue Tick aur Shanora PRO grant karna chahte hain?`)) return;
+    if (!confirm(`Are you sure you want to grant Blue Tick and Shanora PRO to ${reqItem.user_email}?`)) return;
 
     setActionLoading(prev => ({ ...prev, [reqItem.id]: true }));
     try {
@@ -80,20 +80,20 @@ export default function AdminPanel() {
 
       if (profileError) throw profileError;
 
-      // 3. Send Notification to User
+      // 3. Send Notification to User in English
       await supabase
         .from('notifications')
         .insert([{
           recipient_email: reqItem.user_email.toLowerCase(),
           sender_name: 'Shanora Team',
           action_type: 'pro',
-          content: 'Mubarak ho! Aapka Shanora PRO aur Blue Tick activate ho chuka hai. 💎✨',
+          content: 'Congratulations! Your Shanora PRO membership and Blue Tick have been activated. 💎✨',
           is_read: false
         }]);
 
       setProRequests(prev => prev.map(r => r.id === reqItem.id ? { ...r, status: 'approved' } : r));
       setProfiles(prev => prev.map(p => (p.email || '').toLowerCase() === reqItem.user_email.toLowerCase() ? { ...p, is_pro: true } : p));
-      alert('Approved! User ko Blue Tick aur PRO features mil chuke hain. 💎');
+      alert('Approved! User has been granted Shanora PRO with Blue Tick. 💎');
     } catch (err) {
       alert('Approval Error: ' + err.message);
     } finally {
@@ -102,7 +102,7 @@ export default function AdminPanel() {
   }
 
   async function handleRejectPro(reqItem) {
-    if (!confirm(`Kya aap ${reqItem.user_email} ki PRO request reject karna chahte hain?`)) return;
+    if (!confirm(`Reject PRO request for ${reqItem.user_email}?`)) return;
 
     setActionLoading(prev => ({ ...prev, [reqItem.id]: true }));
     try {
@@ -168,7 +168,7 @@ export default function AdminPanel() {
       </div>
 
       {/* SECTION 1: SHANORA PRO REQUESTS MANAGER */}
-      <div style={{ maxWidth: '1000px', margin: '0 auto 1.5rem', backgroundColor: '#0f172a', padding: '1.5rem', borderRadius: '14px', border: '1px solid rgba(250, 204, 21, 0.3)' }}>
+      <div style={{ maxWidth: '1000px', margin: '0 auto 1.5rem', backgroundColor: '#0f172a', padding: '1.5rem', borderRadius: '14px', border: '1px solid rgba(250, 204, 21, 0.35)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
           <div>
             <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#facc15', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
@@ -180,7 +180,7 @@ export default function AdminPanel() {
 
         {proRequests.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b', fontSize: '0.85rem' }}>
-            Abhi tak kisi user ne PRO subscription ke liye apply nahi kiya.
+            No PRO subscription requests submitted yet.
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
