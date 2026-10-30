@@ -98,7 +98,7 @@ function ProfilePortalContent() {
           setFollowingMap(curMap);
         }
 
-        // 4. Fetch Discover Users (Facebook style People You May Know)
+        // 4. Fetch Discover Users
         const { data: allProfiles } = await supabase
           .from('profiles')
           .select('id, name, email, avatar_url')
@@ -355,10 +355,10 @@ function ProfilePortalContent() {
           </div>
         )}
 
-        {/* TAB: NETWORK / FOLLOWERS (Facebook Style) */}
+        {/* TAB: NETWORK / FOLLOWERS */}
         {activeTab === 'network' && (
           <div>
-            {/* Facebook Style Segment Switcher */}
+            {/* Segment Switcher */}
             <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.2rem', backgroundColor: '#0f172a', padding: '0.35rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
               <button
                 onClick={() => setNetworkSubTab('followers')}
@@ -402,12 +402,13 @@ function ProfilePortalContent() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 {followersList.length === 0 ? (
                   <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '2.5rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
-                    Abhi tak aapka koi follower nahi hai[cite: 7].
+                    Abhi tak aapka koi follower nahi hai.
                   </div>
                 ) : (
                   followersList.map(item => {
                     const email = item.follower_email;
                     const cleanEmail = (email || '').toLowerCase();
+                    const username = cleanEmail.split('@')[0];
                     const isFollowingBack = !!followingMap[cleanEmail];
                     return (
                       <div key={item.id} style={{
@@ -420,7 +421,8 @@ function ProfilePortalContent() {
                         justifyContent: 'space-between',
                         gap: '0.8rem'
                       }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', overflow: 'hidden' }}>
+                        {/* Clickable Profile Card */}
+                        <Link href={`/page/${username}`} style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', textDecoration: 'none', overflow: 'hidden', flex: 1 }}>
                           <div style={{
                             width: '46px',
                             height: '46px',
@@ -438,13 +440,13 @@ function ProfilePortalContent() {
                           </div>
                           <div style={{ overflow: 'hidden' }}>
                             <div style={{ color: '#fff', fontWeight: '700', fontSize: '0.9rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                              {cleanEmail.split('@')[0]}
+                              {username}
                             </div>
                             <div style={{ color: '#64748b', fontSize: '0.73rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
                               Follows you
                             </div>
                           </div>
-                        </div>
+                        </Link>
 
                         <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0 }}>
                           <button
@@ -483,6 +485,7 @@ function ProfilePortalContent() {
                   followingList.map(item => {
                     const email = item.following_email;
                     const cleanEmail = (email || '').toLowerCase();
+                    const username = cleanEmail.split('@')[0];
                     return (
                       <div key={item.id} style={{
                         backgroundColor: '#0f172a',
@@ -494,7 +497,8 @@ function ProfilePortalContent() {
                         justifyContent: 'space-between',
                         gap: '0.8rem'
                       }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', overflow: 'hidden' }}>
+                        {/* Clickable Profile Card */}
+                        <Link href={`/page/${username}`} style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', textDecoration: 'none', overflow: 'hidden', flex: 1 }}>
                           <div style={{
                             width: '46px',
                             height: '46px',
@@ -513,13 +517,13 @@ function ProfilePortalContent() {
                           </div>
                           <div style={{ overflow: 'hidden' }}>
                             <div style={{ color: '#fff', fontWeight: '700', fontSize: '0.9rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                              {cleanEmail.split('@')[0]}
+                              {username}
                             </div>
                             <div style={{ color: '#64748b', fontSize: '0.73rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
                               Following
                             </div>
                           </div>
-                        </div>
+                        </Link>
 
                         <button
                           type="button"
@@ -545,7 +549,7 @@ function ProfilePortalContent() {
               </div>
             )}
 
-            {/* Facebook Style "People You May Know" / Discover */}
+            {/* People You May Know / Discover */}
             <div style={{ marginTop: '2.2rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
                 <span style={{ fontSize: '0.88rem', fontWeight: '800', color: '#fff' }}>
@@ -558,12 +562,13 @@ function ProfilePortalContent() {
 
               {discoverUsers.length === 0 ? (
                 <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.5rem', textAlign: 'center', color: '#64748b', fontSize: '0.82rem' }}>
-                  Koi naya creator daryaft nahi hua[cite: 7].
+                  Koi naya creator daryaft nahi hua.
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
                   {discoverUsers.map(creator => {
                     const cleanEmail = (creator.email || '').toLowerCase();
+                    const username = creator.name || cleanEmail.split('@')[0];
                     const isFollowing = !!followingMap[cleanEmail];
                     return (
                       <div key={creator.id || cleanEmail} style={{
@@ -576,7 +581,8 @@ function ProfilePortalContent() {
                         justifyContent: 'space-between',
                         gap: '0.8rem'
                       }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', overflow: 'hidden' }}>
+                        {/* Clickable Profile Card */}
+                        <Link href={`/page/${username}`} style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', textDecoration: 'none', overflow: 'hidden', flex: 1 }}>
                           <div style={{
                             width: '46px',
                             height: '46px',
@@ -594,13 +600,13 @@ function ProfilePortalContent() {
                           </div>
                           <div style={{ overflow: 'hidden' }}>
                             <div style={{ color: '#fff', fontWeight: '700', fontSize: '0.9rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                              {creator.name || cleanEmail.split('@')[0]}
+                              {username}
                             </div>
                             <div style={{ color: '#64748b', fontSize: '0.73rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
                               {cleanEmail}
                             </div>
                           </div>
-                        </div>
+                        </Link>
 
                         <button
                           type="button"
