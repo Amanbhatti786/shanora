@@ -1,141 +1,352 @@
 'use client';
-import { useState, useEffect, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { Suspense, useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabaseClient';
 
-function ProfileContent() {
+function ViewProfileContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const emailParam = searchParams.get('email');
-  const [profile, setProfile] = useState(null);
+  const targetEmail = searchParams?.get('email')?.trim().toLowerCase() || '';
+
+  const [currentUser, setCurrentUser] = useState(null);
+  const [profileData, setProfileData] = useState(null);
+  const [userPosts, setUserPosts] = useState([]);
+  const [followersCount, setFollowersCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function loadCandidate() {
-      if (!emailParam) {
+    async function loadProfile() {
+      if (!targetEmail) {
         setLoading(false);
         return;
       }
+
       try {
-        const { data } = await supabase
-          .from('profiles')
+        const { data: { session } } = await supabase.auth.getSession();
+        const loggedUser = session?.user || null;
+        setCurrentUser(loggedUser);
+
+        // 1. Check if this is a Page
+        const slugAttempt = targetEmail.split('@')[0];
+        const { data: pageMatch } = await supabase
+          .from('pages')
           .select('*')
-          .eq('email', emailParam.toLowerCase().trim())
+          .or(`owner_email.ilike.${targetEmail},slug.eq.${slugAttempt}`)
           .maybeSingle();
 
-        if (data) setProfile(data);
+        // 2. Fetch User Profile
+        const { data: prof } = await supabase
+          .from('profiles')
+          .select('*')
+          .ilike('email', targetEmail)
+          .maybeSingle();
+
+        const displayName = prof?.name || pageMatch?.name || slugAttempt;
+        const displayAvatar = prof?.avatar_url || pageMatch?.logo_url || null;
+        const displayBio = prof?.bio || pageMatch?.description || 'Creator on SHANORA.PK';
+        const displayCity = prof?.city || 'Pakistan';
+
+        setProfileData({
+          email: targetEmail,
+          name: displayName,
+          avatar_url: displayAvatar,
+          bio: displayBio,
+          city: displayCity,
+          isPage: !!pageMatch,
+          pageSlug: pageMatch?.slug || null
+        });
+
+        // 3. Fetch Real Followers & Following Counts
+        const { count: fCount } = await supabase
+          .from('user_follows')
+          .select('*', { count: 'exact', head: true })
+          .ilike('following_email', targetEmail);
+
+        const { count: ingCount } = await supabase
+          .from('user_follows')
+          .select('*', { count: 'exact', head: true })
+          .ilike('follower_email', targetEmail);
+
+        setFollowersCount(fCount || 0);
+        setFollowingCount(ingCount || 0);
+
+        // 4. Check if Current Logged-in User Follows this target
+        if (loggedUser?.email) {
+          const { data: followRel } = await supabase
+            .from('user_follows')
+            .select('id')
+            .ilike('follower_email', loggedUser.email.toLowerCase())
+            .ilike('following_email', targetEmail)
+            .maybeSingle();
+
+          setIsFollowing(!!followRel);
+        }
+
+        // 5. Fetch Posts of this User/Creator
+        const { data: posts } = await supabase
+          .from('user_posts')
+          .select('*')
+          .ilike('user_email', targetEmail)
+          .order('created_at', { ascending: false })
+          .limit(20);
+
+        if (posts) setUserPosts(posts);
+
       } catch (err) {
-        console.error('Candidate load error:', err);
+        console.error('Error loading profile:', err);
       } finally {
         setLoading(false);
       }
     }
-    loadCandidate();
-  }, [emailParam]);
+
+    loadProfile();
+  }, [targetEmail]);
+
+  async function handleToggleFollow() {
+    if (!currentUser) {
+      router.push('/auth');
+      return;
+    }
+
+    const myEmail = currentUser.email.toLowerCase();
+    if (myEmail === targetEmail) return;
+
+    setFollowLoading(true);
+    const nextState = !isFollowing;
+    setIsFollowing(nextState);
+    setFollowersCount(prev => (nextState ? prev + 1 : Math.max(0, prev - 1)));
+
+    try {
+      if (nextState) {
+        await supabase
+          .from('user_follows')
+          .insert([{ follower_email: myEmail, following_email: targetEmail }]);
+
+        await supabase
+          .from('notifications')
+          .insert([{
+            recipient_email: targetEmail,
+            sender_name: currentUser.user_metadata?.full_name || myEmail.split('@')[0],
+            action_type: 'follow',
+            content: 'started following your profile.',
+            is_read: false
+          }]);
+      } else {
+        await supabase
+          .from('user_follows')
+          .delete()
+          .ilike('follower_email', myEmail)
+          .ilike('following_email', targetEmail);
+      }
+    } catch (err) {
+      console.error('Follow error:', err);
+      setIsFollowing(!nextState);
+      setFollowersCount(prev => (!nextState ? prev + 1 : Math.max(0, prev - 1)));
+    } finally {
+      setFollowLoading(false);
+    }
+  }
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', backgroundColor: '#070b14', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#38bdf8', fontFamily: 'system-ui' }}>
-        Loading Candidate Portfolio...
+      <div style={{ minHeight: '100vh', backgroundColor: '#070b14', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#38bdf8' }}>
+        Loading profile...
       </div>
     );
   }
 
-  if (!profile) {
+  if (!profileData) {
     return (
-      <div style={{ minHeight: '100vh', backgroundColor: '#070b14', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '1rem', textAlign: 'center' }}>
-        <h2>Candidate Profile Not Found</h2>
-        <Link href="/" style={{ color: '#38bdf8', marginTop: '1rem' }}>Return Home</Link>
+      <div style={{ minHeight: '100vh', backgroundColor: '#070b14', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', gap: '1rem' }}>
+        <div style={{ fontSize: '1.2rem', color: '#fff', fontWeight: 'bold' }}>Profile Not Found</div>
+        <Link href="/feed" style={{ color: '#38bdf8', textDecoration: 'none', fontWeight: 'bold' }}>← Back to Feed</Link>
       </div>
     );
   }
 
-  const skillsList = Array.isArray(profile.skills) ? profile.skills : (profile.skills ? profile.skills.split(',') : []);
+  const isSelf = currentUser?.email?.toLowerCase() === targetEmail;
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#070b14', color: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif', padding: '1.25rem 1rem' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: '#070b14', color: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       
-      {/* Top Bar */}
-      <header style={{ maxWidth: '750px', margin: '0 auto 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Link href="/" style={{ textDecoration: 'none', color: '#fff', fontWeight: '900', fontSize: '1.15rem' }}>
-          SHANORA<span style={{ color: '#38bdf8' }}>.PK</span>
+      {/* Top Header */}
+      <header style={{ backgroundColor: '#0f172a', borderBottom: '1px solid #1e293b', padding: '0.85rem 1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100 }}>
+        <button onClick={() => router.back()} style={{ background: 'none', border: 'none', color: '#38bdf8', fontSize: '1.1rem', cursor: 'pointer', fontWeight: 'bold' }}>
+          ← Back
+        </button>
+        <Link href="/feed" style={{ textDecoration: 'none', color: '#38bdf8', fontWeight: '900', fontSize: '1.15rem' }}>
+          SHANORA<span style={{ color: '#fff' }}>.PK</span>
         </Link>
-        <Link href={`/messages?chatWith=${encodeURIComponent(profile.email)}`} style={{ backgroundColor: '#0284c7', color: '#fff', padding: '0.45rem 1rem', borderRadius: '8px', textDecoration: 'none', fontSize: '0.8rem', fontWeight: 'bold' }}>
-          Send Direct Message 💬
-        </Link>
+        <div style={{ width: '40px' }}></div>
       </header>
 
-      {/* Profile Card */}
-      <div style={{ maxWidth: '750px', margin: '0 auto', backgroundColor: '#0f172a', borderRadius: '16px', border: '1px solid #1e293b', overflow: 'hidden' }}>
-        {/* Banner */}
-        <div style={{ height: '110px', background: 'linear-gradient(90deg, #0284c7, #0f172a)' }} />
+      {/* Main Container */}
+      <main style={{ maxWidth: '640px', margin: '0 auto', padding: '0 0 80px 0' }}>
 
-        {/* Info */}
-        <div style={{ padding: '0 1.5rem 1.5rem', position: 'relative' }}>
-          <div style={{ width: '84px', height: '84px', borderRadius: '50%', backgroundColor: '#1e293b', border: '4px solid #0f172a', position: 'absolute', top: '-42px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', fontWeight: 'bold', color: '#38bdf8' }}>
-            {profile.photo_url ? <img src={profile.photo_url} alt="" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} /> : (profile.full_name || 'U')[0].toUpperCase()}
+        {/* Facebook Style Cover Banner */}
+        <div style={{ height: '140px', background: 'linear-gradient(135deg, #0284c7 0%, #0f172a 100%)', position: 'relative' }}></div>
+
+        {/* Profile Card Header */}
+        <div style={{ padding: '0 1.2rem 1.2rem 1.2rem', backgroundColor: '#0f172a', borderBottom: '1px solid #1e293b', position: 'relative' }}>
+          
+          {/* Large Round Avatar */}
+          <div style={{
+            width: '90px',
+            height: '90px',
+            borderRadius: '50%',
+            backgroundColor: '#0284c7',
+            backgroundImage: profileData.avatar_url ? `url(${profileData.avatar_url})` : 'none',
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            border: '4px solid #0f172a',
+            marginTop: '-45px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '2.2rem',
+            fontWeight: 'bold',
+            color: '#fff',
+            boxShadow: '0 4px 14px rgba(0,0,0,0.5)'
+          }}>
+            {!profileData.avatar_url && (profileData.name || 'U').charAt(0).toUpperCase()}
           </div>
 
-          <div style={{ paddingTop: '50px' }}>
-            <h1 style={{ margin: 0, fontSize: '1.45rem', color: '#fff' }}>{profile.full_name || 'Anonymous Graduate'}</h1>
-            <span style={{ color: '#38bdf8', fontSize: '0.88rem', fontWeight: '600', display: 'block', marginTop: '0.2rem' }}>
-              {profile.degree} • {profile.university}
-            </span>
-            <span style={{ color: '#94a3b8', fontSize: '0.78rem' }}>
-              📍 {profile.city || 'Pakistan'} | Class of {profile.graduation_year || '2026'}
-            </span>
+          {/* Name & Username */}
+          <div style={{ marginTop: '0.8rem' }}>
+            <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: '800', color: '#fff' }}>
+              {profileData.name}
+            </h2>
+            <div style={{ color: '#94a3b8', fontSize: '0.84rem', marginTop: '0.2rem' }}>
+              @{profileData.email.split('@')[0]}
+            </div>
+          </div>
 
-            {profile.resume_url && (
-              <div style={{ marginTop: '0.9rem' }}>
-                <a href={profile.resume_url} target="_blank" rel="noreferrer" style={{ backgroundColor: 'rgba(34, 197, 94, 0.15)', color: '#22c55e', border: '1px solid #22c55e', padding: '0.45rem 0.9rem', borderRadius: '8px', textDecoration: 'none', fontSize: '0.8rem', fontWeight: 'bold', display: 'inline-block' }}>
-                  Download Verified CV 📄
-                </a>
-              </div>
+          {/* Bio */}
+          <div style={{ color: '#cbd5e1', fontSize: '0.88rem', marginTop: '0.6rem', lineHeight: 1.4 }}>
+            {profileData.bio}
+          </div>
+
+          <div style={{ color: '#64748b', fontSize: '0.78rem', marginTop: '0.4rem' }}>
+            📍 {profileData.city}
+          </div>
+
+          {/* Followers & Following Counters */}
+          <div style={{ display: 'flex', gap: '1.2rem', marginTop: '1rem', borderTop: '1px solid #1e293b', paddingTop: '0.8rem' }}>
+            <div>
+              <strong style={{ color: '#fff', fontSize: '1rem' }}>{followersCount}</strong>
+              <span style={{ color: '#94a3b8', fontSize: '0.82rem', marginLeft: '0.3rem' }}>Followers</span>
+            </div>
+            <div>
+              <strong style={{ color: '#fff', fontSize: '1rem' }}>{followingCount}</strong>
+              <span style={{ color: '#94a3b8', fontSize: '0.82rem', marginLeft: '0.3rem' }}>Following</span>
+            </div>
+          </div>
+
+          {/* Action Buttons: Follow / Unfollow / Visit Page */}
+          <div style={{ display: 'flex', gap: '0.6rem', marginTop: '1.2rem' }}>
+            {!isSelf && (
+              <button
+                onClick={handleToggleFollow}
+                disabled={followLoading}
+                style={{
+                  flex: 1,
+                  backgroundColor: isFollowing ? '#1e293b' : '#0284c7',
+                  color: isFollowing ? '#94a3b8' : '#fff',
+                  border: isFollowing ? '1px solid #334155' : 'none',
+                  padding: '0.65rem',
+                  borderRadius: '10px',
+                  fontSize: '0.88rem',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.4rem'
+                }}
+              >
+                {isFollowing ? '✓ Following' : '+ Follow'}
+              </button>
+            )}
+
+            {profileData.isPage && profileData.pageSlug && (
+              <Link
+                href={`/page/${profileData.pageSlug}`}
+                style={{
+                  flex: 1,
+                  backgroundColor: '#1e293b',
+                  color: '#38bdf8',
+                  border: '1px solid #334155',
+                  padding: '0.65rem',
+                  borderRadius: '10px',
+                  fontSize: '0.88rem',
+                  fontWeight: '700',
+                  textDecoration: 'none',
+                  textAlign: 'center',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                🚩 Visit Official Page
+              </Link>
             )}
           </div>
+
         </div>
 
-        {/* Bio & Details */}
-        <div style={{ padding: '1.5rem', borderTop: '1px solid #1e293b', display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
-          {profile.bio && (
-            <div>
-              <h3 style={{ margin: '0 0 0.4rem 0', fontSize: '0.95rem', color: '#38bdf8' }}>About Candidate</h3>
-              <p style={{ margin: 0, color: '#cbd5e1', fontSize: '0.85rem', lineHeight: 1.5 }}>{profile.bio}</p>
-            </div>
-          )}
+        {/* User Posts Feed */}
+        <div style={{ padding: '1rem' }}>
+          <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#94a3b8', marginBottom: '0.8rem', textTransform: 'uppercase' }}>
+            Posts ({userPosts.length})
+          </div>
 
-          {skillsList.length > 0 && (
-            <div>
-              <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '0.95rem', color: '#38bdf8' }}>Key Technical Competencies</h3>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                {skillsList.map((s, idx) => (
-                  <span key={idx} style={{ backgroundColor: '#1e293b', color: '#cbd5e1', padding: '0.3rem 0.65rem', borderRadius: '6px', fontSize: '0.75rem', border: '1px solid #334155' }}>
-                    {s.trim()}
-                  </span>
-                ))}
-              </div>
+          {userPosts.length === 0 ? (
+            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '2.5rem', textAlign: 'center', color: '#64748b', fontSize: '0.85rem' }}>
+              Is user ne abhi tak koi post share nahi ki.
             </div>
-          )}
-
-          {profile.fyp_title && (
-            <div>
-              <h3 style={{ margin: '0 0 0.4rem 0', fontSize: '0.95rem', color: '#38bdf8' }}>Final Year Project (FYP)</h3>
-              <strong style={{ color: '#fff', fontSize: '0.85rem' }}>{profile.fyp_title}</strong>
-              <p style={{ margin: '0.2rem 0 0', color: '#94a3b8', fontSize: '0.8rem' }}>{profile.fyp_details}</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              {userPosts.map(post => (
+                <div key={post.id} style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '0.9rem' }}>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.4rem' }}>
+                    {new Date(post.created_at).toLocaleDateString()}
+                  </div>
+                  {post.content && (
+                    <div style={{ color: '#cbd5e1', fontSize: '0.88rem', lineHeight: 1.45 }}>
+                      {post.content}
+                    </div>
+                  )}
+                  {post.image_url && (
+                    <img 
+                      src={post.image_url} 
+                      alt="Post" 
+                      style={{ width: '100%', maxHeight: '350px', objectFit: 'cover', borderRadius: '8px', marginTop: '0.7rem' }} 
+                    />
+                  )}
+                </div>
+              ))}
             </div>
           )}
         </div>
-      </div>
+
+      </main>
 
     </div>
   );
 }
 
-export default function ViewProfile() {
+export default function ViewProfilePage() {
   return (
-    <Suspense fallback={<div style={{ minHeight: '100vh', backgroundColor: '#070b14', color: '#38bdf8', padding: '2rem' }}>Loading...</div>}>
-      <ProfileContent />
+    <Suspense fallback={
+      <div style={{ minHeight: '100vh', backgroundColor: '#070b14', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#38bdf8' }}>
+        Loading...
+      </div>
+    }>
+      <ViewProfileContent />
     </Suspense>
   );
-                  }
-          
+}
