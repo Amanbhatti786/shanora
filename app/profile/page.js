@@ -45,13 +45,13 @@ function ProfilePortalContent() {
 
         const currentUser = session.user;
         setUser(currentUser);
-        const myEmail = currentUser.email.toLowerCase();
+        const myEmail = (currentUser.email || '').trim().toLowerCase();
 
         // 1. Fetch Profile
         const { data: profileData } = await supabase
           .from('profiles')
           .select('*')
-          .eq('email', currentUser.email)
+          .ilike('email', myEmail)
           .maybeSingle();
 
         if (profileData) {
@@ -74,7 +74,7 @@ function ProfilePortalContent() {
         const { data: pagesData } = await supabase
           .from('pages')
           .select('*')
-          .eq('owner_email', currentUser.email)
+          .ilike('owner_email', myEmail)
           .order('created_at', { ascending: false });
 
         if (pagesData) setMyPages(pagesData);
@@ -82,40 +82,65 @@ function ProfilePortalContent() {
         // 3. Fetch Real Followers
         const { data: followersData } = await supabase
           .from('user_follows')
-          .select('id, follower_email, created_at')
-          .ilike('following_email', myEmail);
+          .select('id, follower_email, following_email, created_at');
 
-        if (followersData) setFollowersList(followersData);
+        if (followersData) {
+          const myFollowers = followersData.filter(f => (f.following_email || '').toLowerCase() === myEmail);
+          const myFollowings = followersData.filter(f => (f.follower_email || '').toLowerCase() === myEmail);
 
-        // 4. Fetch Real Following
-        const { data: followingData } = await supabase
-          .from('user_follows')
-          .select('id, following_email, created_at')
-          .ilike('follower_email', myEmail);
+          setFollowersList(myFollowers);
+          setFollowingList(myFollowings);
 
-        const currentFollowingMap = {};
-        if (followingData) {
-          setFollowingList(followingData);
-          followingData.forEach(f => {
-            if (f.following_email) currentFollowingMap[f.following_email.toLowerCase()] = true;
+          const curMap = {};
+          myFollowings.forEach(f => {
+            if (f.following_email) curMap[f.following_email.toLowerCase()] = true;
           });
-          setFollowingMap(currentFollowingMap);
+          setFollowingMap(curMap);
         }
 
-        // 5. Fetch Discover Users (profiles excluding yourself)
+        // 4. Fetch Discover Users (profiles + active post authors)
         const { data: allProfiles } = await supabase
           .from('profiles')
           .select('id, name, email, avatar_url')
-          .neq('email', currentUser.email)
-          .limit(20);
+          .limit(30);
 
-        if (allProfiles) setDiscoverUsers(allProfiles);
+        let discoveredList = [];
 
-        // 6. Fetch Notifications
+        if (allProfiles && allProfiles.length > 0) {
+          discoveredList = allProfiles.filter(p => (p.email || '').toLowerCase() !== myEmail);
+        }
+
+        // Agar profiles table mein users kam hon toh posts se creators le lo
+        if (discoveredList.length === 0) {
+          const { data: postUsers } = await supabase
+            .from('user_posts')
+            .select('user_email, user_name')
+            .limit(20);
+
+          if (postUsers) {
+            const uniqueUsers = {};
+            postUsers.forEach(u => {
+              const uEmail = (u.user_email || '').toLowerCase();
+              if (uEmail && uEmail !== myEmail && !uniqueUsers[uEmail]) {
+                uniqueUsers[uEmail] = {
+                  id: uEmail,
+                  name: u.user_name || uEmail.split('@')[0],
+                  email: uEmail,
+                  avatar_url: null
+                };
+              }
+            });
+            discoveredList = Object.values(uniqueUsers);
+          }
+        }
+
+        setDiscoverUsers(discoveredList);
+
+        // 5. Fetch Notifications
         const { data: notifData } = await supabase
           .from('notifications')
           .select('*')
-          .eq('recipient_email', currentUser.email)
+          .ilike('recipient_email', myEmail)
           .order('created_at', { ascending: false })
           .limit(30);
 
@@ -137,8 +162,8 @@ function ProfilePortalContent() {
   async function handleToggleFollow(targetEmail) {
     if (!user || !targetEmail) return;
 
-    const myEmail = user.email.toLowerCase();
-    const cleanTarget = targetEmail.toLowerCase();
+    const myEmail = (user.email || '').trim().toLowerCase();
+    const cleanTarget = targetEmail.trim().toLowerCase();
     const isFollowing = !!followingMap[cleanTarget];
 
     setActionLoading(prev => ({ ...prev, [cleanTarget]: true }));
@@ -147,9 +172,9 @@ function ProfilePortalContent() {
     setFollowingMap(prev => ({ ...prev, [cleanTarget]: !isFollowing }));
 
     if (isFollowing) {
-      setFollowingList(prev => prev.filter(item => item.following_email?.toLowerCase() !== cleanTarget));
+      setFollowingList(prev => prev.filter(item => (item.following_email || '').toLowerCase() !== cleanTarget));
     } else {
-      setFollowingList(prev => [...prev, { id: Date.now(), following_email: cleanTarget, created_at: new Date().toISOString() }]);
+      setFollowingList(prev => [...prev, { id: Date.now(), following_email: cleanTarget, follower_email: myEmail, created_at: new Date().toISOString() }]);
     }
 
     try {
@@ -176,7 +201,6 @@ function ProfilePortalContent() {
       }
     } catch (err) {
       console.error('Follow toggle error:', err);
-      // Revert if error
       setFollowingMap(prev => ({ ...prev, [cleanTarget]: isFollowing }));
     } finally {
       setActionLoading(prev => ({ ...prev, [cleanTarget]: false }));
@@ -198,7 +222,7 @@ function ProfilePortalContent() {
       await supabase
         .from('notifications')
         .update({ is_read: true })
-        .eq('recipient_email', user.email);
+        .ilike('recipient_email', user.email.toLowerCase());
     }
   }
 
@@ -226,7 +250,7 @@ function ProfilePortalContent() {
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#070b14', color: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       
-      {/* Top Header */}
+      {/* Header */}
       <header style={{ backgroundColor: '#0f172a', borderBottom: '1px solid #1e293b', padding: '0.85rem 1.2rem', display: 'flex', alignItems: 'center', position: 'sticky', top: 0, zIndex: 100 }}>
         <Link href="/feed" style={{ textDecoration: 'none', color: '#38bdf8', fontWeight: '900', fontSize: '1.25rem', letterSpacing: '-0.5px' }}>
           SHANORA<span style={{ color: '#fff' }}>.PK</span>
@@ -335,10 +359,10 @@ function ProfilePortalContent() {
           </div>
         )}
 
-        {/* TAB: NETWORK / FOLLOWERS (Pages removed from here) */}
+        {/* TAB: NETWORK / FOLLOWERS */}
         {activeTab === 'network' && (
           <div>
-            {/* Clean 2-Way Tab Bar: Followers vs Following */}
+            {/* 2-Way Tab Bar: Followers vs Following */}
             <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.2rem', backgroundColor: '#0f172a', padding: '0.35rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
               <button
                 onClick={() => setNetworkSubTab('followers')}
@@ -385,7 +409,7 @@ function ProfilePortalContent() {
                 ) : (
                   followersList.map(item => {
                     const email = item.follower_email;
-                    const isFollowingBack = !!followingMap[email?.toLowerCase()];
+                    const isFollowingBack = !!followingMap[(email || '').toLowerCase()];
                     return (
                       <div key={item.id} style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '0.8rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
@@ -401,7 +425,7 @@ function ProfilePortalContent() {
                         <button
                           type="button"
                           onClick={() => handleToggleFollow(email)}
-                          disabled={actionLoading[email?.toLowerCase()]}
+                          disabled={actionLoading[(email || '').toLowerCase()]}
                           style={{
                             backgroundColor: isFollowingBack ? 'transparent' : '#0284c7',
                             color: isFollowingBack ? '#94a3b8' : '#fff',
@@ -447,7 +471,7 @@ function ProfilePortalContent() {
                         <button
                           type="button"
                           onClick={() => handleToggleFollow(email)}
-                          disabled={actionLoading[email?.toLowerCase()]}
+                          disabled={actionLoading[(email || '').toLowerCase()]}
                           style={{
                             backgroundColor: 'transparent',
                             color: '#ef4444',
@@ -481,9 +505,9 @@ function ProfilePortalContent() {
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
                   {discoverUsers.map(creator => {
-                    const isFollowing = !!followingMap[creator.email?.toLowerCase()];
+                    const isFollowing = !!followingMap[(creator.email || '').toLowerCase()];
                     return (
-                      <div key={creator.id} style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '0.75rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div key={creator.id || creator.email} style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '0.75rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
                           <div style={{ width: '38px', height: '38px', borderRadius: '50%', backgroundColor: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#fff', fontSize: '0.95rem' }}>
                             {(creator.name || creator.email || 'U').charAt(0).toUpperCase()}
@@ -497,7 +521,7 @@ function ProfilePortalContent() {
                         <button
                           type="button"
                           onClick={() => handleToggleFollow(creator.email)}
-                          disabled={actionLoading[creator.email?.toLowerCase()]}
+                          disabled={actionLoading[(creator.email || '').toLowerCase()]}
                           style={{
                             backgroundColor: isFollowing ? 'transparent' : '#0284c7',
                             color: isFollowing ? '#94a3b8' : '#fff',
@@ -521,7 +545,7 @@ function ProfilePortalContent() {
           </div>
         )}
 
-        {/* TAB: PAGES (Direct from Menu) */}
+        {/* TAB: PAGES */}
         {activeTab === 'pages' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
