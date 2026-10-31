@@ -1594,106 +1594,61 @@ function ProfilePortalContent() {
 
 
 
-  async function handleRequestPayout(e) {
-
+async function handleRequestPayout(e) {
     e.preventDefault();
-
     const withdrawAmount = Number(payoutForm.amount);
 
-
-
     if (!withdrawAmount || withdrawAmount < 1000) {
-
-      alert('Minimum payout withdrawal amount is Rs. 1,000.');
-
+      alert('Minimum withdrawal amount is Rs. 1,000.');
       return;
-
     }
-
-
 
     if (withdrawAmount > profile.wallet_balance) {
-
-      alert('Insufficient wallet funds for this withdrawal amount.');
-
+      alert('Insufficient wallet balance in your account.');
       return;
-
     }
 
-
-
     setSubmittingPayout(true);
-
     try {
-
-      const { data: newPayout, error } = await supabase
-
-        .from('payout_requests')
-
-        .insert([{
-
-          user_email: user.email.toLowerCase(),
-
-          amount: withdrawAmount,
-
-          type: 'withdrawal',
-
-          payment_method: payoutForm.payment_method,
-
-          account_number: payoutForm.account_number,
-
-          account_title: payoutForm.account_title,
-
-          status: 'pending'
-
-        }])
-
-        .select()
-
-        .single();
-
-
+      // Secure Database Procedure Call
+      const { data, error } = await supabase.rpc('request_wallet_payout', {
+        p_user_email: user.email.toLowerCase(),
+        p_amount: withdrawAmount,
+        p_payment_method: payoutForm.payment_method,
+        p_account_number: payoutForm.account_number,
+        p_account_title: payoutForm.account_title
+      });
 
       if (error) throw error;
 
+      if (!data?.success) {
+        alert(data?.message || 'Payout request failed.');
+        return;
+      }
 
+      // Sync wallet balance locally
+      setProfile(prev => ({ ...prev, wallet_balance: data.new_balance }));
 
-      const newBal = profile.wallet_balance - withdrawAmount;
-
-      await supabase
-
-        .from('profiles')
-
-        .update({ wallet_balance: newBal })
-
-        .ilike('email', user.email.toLowerCase());
-
-
-
-      setProfile(prev => ({ ...prev, wallet_balance: newBal }));
-
-      if (newPayout) setPayoutsHistory([newPayout, ...payoutsHistory]);
-
-
+      const newLog = {
+        id: data.payout_id,
+        amount: withdrawAmount,
+        type: 'withdrawal',
+        payment_method: payoutForm.payment_method,
+        account_number: payoutForm.account_number,
+        account_title: payoutForm.account_title,
+        status: 'pending',
+        created_at: new Date().toISOString()
+      };
+      setPayoutsHistory(prev => [newLog, ...prev]);
 
       setPayoutForm({ amount: '', payment_method: 'EasyPaisa', account_number: '', account_title: '' });
-
-      alert('Withdrawal request successfully dispatched! Funds will transfer within 24 business hours.');
-
+      alert('Withdrawal request submitted successfully! Funds will be dispatched within 24 hours.');
     } catch (err) {
-
-      alert('Payout request error: ' + err.message);
-
+      alert('Payout processing error: ' + err.message);
     } finally {
-
       setSubmittingPayout(false);
-
     }
-
   }
-
-
-
   // TAB 9: SAVED POSTS REMOVE
 
   async function handleRemoveSavedPost(savedId) {
