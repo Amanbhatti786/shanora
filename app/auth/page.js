@@ -113,62 +113,66 @@ export default function AuthPage() {
       fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       color: '#f8fafc'
     }}>
+{/* Premium Unified Brand Header */}
+<div style={{ textAlign: 'center', marginBottom: '1.8rem' }}>
+  <Link href="/" style={{ 
+    textDecoration: 'none', 
+    display: 'inline-flex', 
+    alignItems: 'center', 
+    gap: '0.75rem',
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    padding: '0.45rem 1.1rem 0.45rem 0.55rem',
+    borderRadius: '16px',
+    border: '1px solid rgba(56, 189, 248, 0.2)',
+    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.35)'
+  }}>
+    
+    {/* Crisp Gradient "S" Icon Badge */}
+    <div style={{
+      width: '38px',
+      height: '38px',
+      borderRadius: '10px',
+      background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+      border: '1px solid rgba(255, 255, 255, 0.25)',
+      boxShadow: '0 0 15px rgba(2, 132, 199, 0.5)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0
+    }}>
+      <span style={{ 
+        color: '#ffffff', 
+        fontSize: '1.3rem', 
+        fontWeight: '900', 
+        fontFamily: 'system-ui, sans-serif',
+        lineHeight: 1
+      }}>
+        S
+      </span>
+    </div>
 
-      {/* Official Header with Stylized Gradient "S" Card Logo + SHANORA.PK */}
-      <div style={{ textAlign: 'center', marginBottom: '1.8rem' }}>
-        <Link href="/" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.8rem' }}>
-          
-          {/* Custom Modern "S" Logo Badge */}
-          <div style={{
-            width: '42px',
-            height: '42px',
-            borderRadius: '12px',
-            background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 50%, #0c4a6e 100%)',
-            border: '1.5px solid rgba(56, 189, 248, 0.5)',
-            boxShadow: '0 0 20px rgba(2, 132, 199, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.3)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0
-          }}>
-            <svg 
-              width="24" 
-              height="24" 
-              viewBox="0 0 24 24" 
-              fill="none" 
-              xmlns="http://www.w3.org/2000/svg"
-              style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.4))' }}
-            >
-              <defs>
-                <linearGradient id="sGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#ffffff" />
-                  <stop offset="100%" stopColor="#38bdf8" />
-                </linearGradient>
-              </defs>
-              <path 
-                d="M17.5 7.2C17.5 5.43 16.07 4 14.3 4H9.7C7.93 4 6.5 5.43 6.5 7.2C6.5 8.97 7.93 10.4 9.7 10.4H14.3C16.07 10.4 17.5 11.83 17.5 13.6C17.5 15.37 16.07 16.8 14.3 16.8H9.7C7.93 16.8 6.5 15.37 6.5 13.6" 
-                stroke="url(#sGradient)" 
-                strokeWidth="3.2" 
-                strokeLinecap="round" 
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
+    {/* Brand Text */}
+    <span style={{ 
+      fontSize: '1.5rem', 
+      fontWeight: '900', 
+      color: '#f8fafc', 
+      letterSpacing: '0.5px' 
+    }}>
+      SHANORA
+      <span style={{
+        fontSize: '0.62rem',
+        fontWeight: '900',
+        color: '#38bdf8',
+        verticalAlign: 'super',
+        marginLeft: '4px',
+        letterSpacing: '1px'
+      }}>
+        .PK
+      </span>
+    </span>
 
-          {/* Wordmark: SHANORA + small .PK on top right */}
-          <span style={{ fontSize: '1.65rem', fontWeight: '900', color: '#ffffff', letterSpacing: '-0.5px' }}>
-            SHANORA<span style={{
-              fontSize: '0.65rem',
-              fontWeight: '800',
-              color: '#38bdf8',
-              verticalAlign: 'super',
-              marginLeft: '3px',
-              letterSpacing: '0.5px'
-            }}>.PK</span>
-          </span>
-        </Link>
-      </div>
-
+  </Link>
+</div>
       {/* Main Form Card */}
       <div style={{
         width: '100%',
