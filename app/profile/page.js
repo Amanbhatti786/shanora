@@ -1072,11 +1072,18 @@ function ProfilePortalContent() {
               </div>
             </div>
 
-            <div style={{ fontSize: '0.75rem', fontWeight: '700', color: '#64748b', marginBottom: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+           <div style={{ fontSize: '0.72rem', fontWeight: '800', color: '#64748b', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
               Shortcuts & Services
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.55rem', marginBottom: '1.5rem' }}>
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', 
+              gap: '0.45rem', 
+              marginBottom: '1.2rem',
+              width: '100%',
+              boxSizing: 'border-box'
+            }}>
               {allMenuItems.map(item => (
                 <div
                   key={item.id}
@@ -1084,40 +1091,57 @@ function ProfilePortalContent() {
                   style={{
                     backgroundColor: '#0f172a',
                     border: '1px solid #1e293b',
-                    borderRadius: '12px',
-                    padding: '0.65rem 0.75rem',
+                    borderRadius: '10px',
+                    padding: '0.45rem 0.55rem',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '0.65rem'
+                    gap: '0.45rem',
+                    minWidth: 0,
+                    width: '100%',
+                    boxSizing: 'border-box'
                   }}
                 >
                   <div style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '10px',
+                    width: '30px',
+                    height: '30px',
+                    borderRadius: '7px',
                     backgroundColor: item.bg,
                     border: `1px solid ${item.border}`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: '1.15rem',
+                    fontSize: '0.9rem',
                     flexShrink: 0
                   }}>
                     {item.icon}
                   </div>
-                  <div style={{ overflow: 'hidden' }}>
-                    <div style={{ color: item.id === 'pro' || item.id === 'resume' ? '#facc15' : '#f8fafc', fontSize: '0.82rem', fontWeight: '800', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                  <div style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
+                    <div style={{ 
+                      color: item.id === 'pro' || item.id === 'resume' ? '#facc15' : '#f8fafc', 
+                      fontSize: '0.74rem', 
+                      fontWeight: '800', 
+                      whiteSpace: 'nowrap', 
+                      textOverflow: 'ellipsis', 
+                      overflow: 'hidden',
+                      lineHeight: '1.2'
+                    }}>
                       {item.label}
                     </div>
-                    <div style={{ color: '#64748b', fontSize: '0.68rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                    <div style={{ 
+                      color: '#64748b', 
+                      fontSize: '0.62rem', 
+                      whiteSpace: 'nowrap', 
+                      textOverflow: 'ellipsis', 
+                      overflow: 'hidden',
+                      marginTop: '0.1rem'
+                    }}>
                       {item.desc}
                     </div>
                   </div>
                 </div>
               ))}
             </div>
-
             <button
               type="button"
               onClick={() => setShowLogoutModal(true)}
