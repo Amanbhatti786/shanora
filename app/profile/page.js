@@ -709,100 +709,54 @@ function ProfilePortalContent() {
   }, [router]);
 
 
-
+// Load Thread with Active Chat User (Fixed Memory Leak)
   useEffect(() => {
-
     if (!activeChatUser || !user) return;
 
-
-
-    let sub;
+    let channel;
+    const myEmail = user.email.toLowerCase();
+    const otherEmail = activeChatUser.email.toLowerCase();
 
     async function loadThread() {
-
-      const myEmail = user.email.toLowerCase();
-
-      const otherEmail = activeChatUser.email.toLowerCase();
-
-
-
       const { data } = await supabase
-
         .from('direct_messages')
-
         .select('*')
-
         .or(`and(sender_email.ilike.${myEmail},receiver_email.ilike.${otherEmail}),and(sender_email.ilike.${otherEmail},receiver_email.ilike.${myEmail})`)
-
         .order('created_at', { ascending: true });
 
-
-
       setChatMessages(data || []);
-
       scrollToBottom();
-
     }
-
-
 
     loadThread();
 
-
-
-    sub = supabase
-
-      .channel('public:direct_messages')
-
+    // Unique channel per chat taake crash na ho
+    const channelId = `chat_${[myEmail, otherEmail].sort().join('_')}`;
+    channel = supabase
+      .channel(channelId)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'direct_messages' }, payload => {
-
         const msg = payload.new;
-
-        const myEmail = user.email.toLowerCase();
-
-        const otherEmail = activeChatUser.email.toLowerCase();
-
-
-
         if (
-
           (msg.sender_email.toLowerCase() === myEmail && msg.receiver_email.toLowerCase() === otherEmail) ||
-
           (msg.sender_email.toLowerCase() === otherEmail && msg.receiver_email.toLowerCase() === myEmail)
-
         ) {
-
           setChatMessages(prev => [...prev, msg]);
-
           scrollToBottom();
 
-
-
           setUserLastMessagesMap(prev => ({
-
             ...prev,
-
             [otherEmail]: { text: msg.message, time: new Date(msg.created_at).getTime() }
-
           }));
-
         }
-
       })
-
       .subscribe();
 
-
-
     return () => {
-
-      if (sub) supabase.removeChannel(sub);
-
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
     };
-
   }, [activeChatUser, user]);
-
-
 
   function scrollToBottom() {
 
