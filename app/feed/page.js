@@ -857,34 +857,50 @@ export default function FeedPage() {
       {/* Top Header */}
       <header style={{ backgroundColor: '#0f172a', borderBottom: '1px solid #1e293b', padding: '0.65rem 1rem', position: 'sticky', top: 0, zIndex: 100 }}>
         <div style={{ maxWidth: '640px', margin: '0 auto', display: 'flex', alignItems: 'center', gap: '0.8rem', justifyContent: 'space-between' }}>
-          
-        <Link href="/feed" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-  {/* Modern "S" Logo Badge */}
+         <Link href="/feed" style={{
+  textDecoration: 'none',
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '0.65rem',
+  backgroundColor: '#0b1322',
+  border: '1px solid #1e293b',
+  borderRadius: '10px',
+  padding: '0.28rem 0.65rem 0.28rem 0.35rem',
+  boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+  flexShrink: 0
+}}>
+  {/* Official "S" Badge */}
   <div style={{
-    width: '32px',
-    height: '32px',
-    borderRadius: '8px',
+    width: '28px',
+    height: '28px',
+    borderRadius: '7px',
     background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
-    border: '1px solid rgba(255, 255, 255, 0.25)',
-    boxShadow: '0 0 10px rgba(2, 132, 199, 0.45)',
+    border: '1px solid rgba(255, 255, 255, 0.2)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+    boxShadow: '0 0 10px rgba(2, 132, 199, 0.45)',
     flexShrink: 0
   }}>
-    <span style={{ color: '#ffffff', fontSize: '1.1rem', fontWeight: '900', lineHeight: 1 }}>
+    <span style={{ color: '#ffffff', fontSize: '0.95rem', fontWeight: '900', lineHeight: 1 }}>
       S
     </span>
   </div>
 
   {/* Brand Wordmark */}
-  <span style={{ fontSize: '1.25rem', fontWeight: '900', color: '#f8fafc', letterSpacing: '0.3px', whiteSpace: 'nowrap' }}>
+  <span style={{
+    fontSize: '1.05rem',
+    fontWeight: '900',
+    color: '#ffffff',
+    letterSpacing: '-0.3px',
+    whiteSpace: 'nowrap'
+  }}>
     SHANORA<span style={{
       fontSize: '0.55rem',
-      fontWeight: '900',
+      fontWeight: '800',
       color: '#38bdf8',
       verticalAlign: 'super',
-      marginLeft: '3px',
+      marginLeft: '2px',
       letterSpacing: '0.5px'
     }}>.PK</span>
   </span>
