@@ -4,15 +4,19 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabaseClient';
 
-// Universal Web Audio API Synthesizer (Instant & Offline-friendly)
+// Universal Web Audio API Synthesizer (Enhanced Loud & Crisp for Like, Comment & Relay)
 function playActionSound(type = 'like') {
   if (typeof window === 'undefined') return;
 
   try {
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContext) return;
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return;
 
-    const ctx = new AudioContext();
+    const ctx = new AudioContextClass();
+    if (ctx.state === 'suspended') {
+      ctx.resume();
+    }
+
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
 
@@ -22,27 +26,27 @@ function playActionSound(type = 'like') {
     const now = ctx.currentTime;
 
     if (type === 'like' || type === 'relay') {
-      // Facebook-style soft bubbly "POP"
+      // Crisp Facebook-style Pop-Click (Loud & Audible on all mobile speakers)
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(320, now);
-      osc.frequency.exponentialRampToValueAtTime(780, now + 0.07);
+      osc.frequency.setValueAtTime(450, now);
+      osc.frequency.exponentialRampToValueAtTime(1100, now + 0.12);
 
-      gain.gain.setValueAtTime(0.35, now);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.07);
+      gain.gain.setValueAtTime(0.5, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
 
       osc.start(now);
-      osc.stop(now + 0.07);
+      osc.stop(now + 0.12);
     } else if (type === 'comment') {
-      // Pleasant Ding / Notification Tone
+      // Pleasant Ding Tone
       osc.type = 'triangle';
-      osc.frequency.setValueAtTime(587.33, now); // D5
-      osc.frequency.setValueAtTime(880, now + 0.06); // A5
+      osc.frequency.setValueAtTime(587.33, now);
+      osc.frequency.setValueAtTime(880, now + 0.06);
 
-      gain.gain.setValueAtTime(0.3, now);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.16);
+      gain.gain.setValueAtTime(0.4, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.18);
 
       osc.start(now);
-      osc.stop(now + 0.16);
+      osc.stop(now + 0.18);
     }
   } catch (err) {
     console.error('Audio play error:', err);
@@ -715,14 +719,14 @@ export default function FeedPage() {
     }
   }
 
-  // Toggle Like with Instant Notification & Pop Sound
+  // Toggle Like with Instant Notification & Loud Pop Sound
   async function handleToggleLike(postId, postType) {
     if (!currentUser) {
       router.push('/auth');
       return;
     }
 
-    playActionSound('like'); // 🔊 Native In-Browser Pop Sound Effect
+    playActionSound('like'); // 🔊 Instant Pop Sound
 
     const isLiked = likedPosts[postId];
     const currentCount = postLikesCount[postId] || 0;
@@ -764,7 +768,7 @@ export default function FeedPage() {
       return;
     }
 
-    playActionSound('relay'); // 🔊 Native In-Browser Pop Sound Effect
+    playActionSound('relay'); // 🔊 Instant Relay Pop Sound
 
     const isRelayed = relayedPosts[postId];
     const currentCount = postRelaysCount[postId] || 0;
@@ -792,7 +796,7 @@ export default function FeedPage() {
     const text = commentInputs[postId]?.trim();
     if (!text || submittingComment) return;
 
-    playActionSound('comment'); // 🔊 Native In-Browser Ding Tone
+    playActionSound('comment'); // 🔊 Instant Comment Sent Chime Sound
 
     setSubmittingComment(true);
     try {
