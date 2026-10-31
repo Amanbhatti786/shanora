@@ -858,12 +858,37 @@ export default function FeedPage() {
       <header style={{ backgroundColor: '#0f172a', borderBottom: '1px solid #1e293b', padding: '0.65rem 1rem', position: 'sticky', top: 0, zIndex: 100 }}>
         <div style={{ maxWidth: '640px', margin: '0 auto', display: 'flex', alignItems: 'center', gap: '0.8rem', justifyContent: 'space-between' }}>
           
-          <Link href="/feed" style={{ textDecoration: 'none' }}>
-            <h1 style={{ margin: 0, fontSize: '1.15rem', fontWeight: '900', color: '#38bdf8', whiteSpace: 'nowrap' }}>
-              SHANORA<span style={{ color: '#fff' }}>.PK</span>
-            </h1>
-          </Link>
+        <Link href="/feed" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+  {/* Modern "S" Logo Badge */}
+  <div style={{
+    width: '32px',
+    height: '32px',
+    borderRadius: '8px',
+    background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+    border: '1px solid rgba(255, 255, 255, 0.25)',
+    boxShadow: '0 0 10px rgba(2, 132, 199, 0.45)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0
+  }}>
+    <span style={{ color: '#ffffff', fontSize: '1.1rem', fontWeight: '900', lineHeight: 1 }}>
+      S
+    </span>
+  </div>
 
+  {/* Brand Wordmark */}
+  <span style={{ fontSize: '1.25rem', fontWeight: '900', color: '#f8fafc', letterSpacing: '0.3px', whiteSpace: 'nowrap' }}>
+    SHANORA<span style={{
+      fontSize: '0.55rem',
+      fontWeight: '900',
+      color: '#38bdf8',
+      verticalAlign: 'super',
+      marginLeft: '3px',
+      letterSpacing: '0.5px'
+    }}>.PK</span>
+  </span>
+</Link>
           {/* Search Box */}
           <div style={{ position: 'relative', flex: 1, maxWidth: '340px' }}>
             <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '22px', padding: '0.35rem 0.85rem' }}>
