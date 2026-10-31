@@ -224,6 +224,33 @@ function BottomNavigation() {
     </div>
   );
 }
+export const metadata = {
+  title: 'Shanora.pk | Pakistan’s Professional Networking & Career Hub',
+  description: 'Connect with verified creators, discover executive career opportunities, build ATS-friendly resumes, and grow your professional network on Shanora.',
+  metadataBase: new URL('https://shanora-pk.vercel.app'),
+  openGraph: {
+    title: 'Shanora.pk | Professional Networking & Creator Platform',
+    description: 'Empowering Pakistan’s talent with executive networking, verified credentials, and ATS resume tools.',
+    url: 'https://shanora-pk.vercel.app',
+    siteName: 'SHANORA.PK',
+    images: [
+      {
+        url: 'https://shanora-pk.vercel.app/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'Shanora.pk Professional Platform'
+      }
+    ],
+    locale: 'en_US',
+    type: 'website'
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Shanora.pk | Professional Networking Hub',
+    description: 'Connect, apply for jobs, and monetize your influence on Shanora.pk.',
+    images: ['https://shanora-pk.vercel.app/og-image.png']
+  }
+};
 
 export default function RootLayout({ children }) {
   return (
