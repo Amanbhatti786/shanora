@@ -10,6 +10,11 @@ export default function FeedPage() {
   const [userProfile, setUserProfile] = useState(null);
   const [feedItems, setFeedItems] = useState([]);
   const [loading, setLoading] = useState(true);
+    const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const POSTS_PER_PAGE = 10;
+  
 
   // Follow State
   const [followingMap, setFollowingMap] = useState({});
