@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabaseClient';
 
-// Universal Web Audio API Synthesizer (Enhanced Loud & Crisp for Like, Comment & Relay)
+// Universal Web Audio API Synthesizer (Enhanced Loud & Crisp for Like, Relay, Comment & New Post)
 function playActionSound(type = 'like') {
   if (typeof window === 'undefined') return;
 
@@ -36,17 +36,18 @@ function playActionSound(type = 'like') {
 
       osc.start(now);
       osc.stop(now + 0.12);
-    } else if (type === 'comment') {
-      // Pleasant Ding Tone
+    } else if (type === 'comment' || type === 'post') {
+      // Pleasant Ascending Tone for Comments & Successful New Post Publish
       osc.type = 'triangle';
-      osc.frequency.setValueAtTime(587.33, now);
-      osc.frequency.setValueAtTime(880, now + 0.06);
+      osc.frequency.setValueAtTime(523.25, now);         // Note C5
+      osc.frequency.setValueAtTime(659.25, now + 0.08);  // Note E5
+      osc.frequency.setValueAtTime(783.99, now + 0.16);  // Note G5
 
-      gain.gain.setValueAtTime(0.4, now);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.18);
+      gain.gain.setValueAtTime(0.45, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.28);
 
       osc.start(now);
-      osc.stop(now + 0.18);
+      osc.stop(now + 0.28);
     }
   } catch (err) {
     console.error('Audio play error:', err);
@@ -627,7 +628,7 @@ export default function FeedPage() {
     }
   }
 
-  // Submit Personal Post
+  // Submit Personal Post (With Instant Post Success Chime Sound)
   async function handleCreatePersonalPost(e) {
     e.preventDefault();
     if (!currentUser) {
@@ -672,6 +673,9 @@ export default function FeedPage() {
         .single();
 
       if (error) throw error;
+
+      // 🔊 Instant Chime Sound jab post create ho jaye
+      playActionSound('post');
 
       const formattedNew = {
         feedItemId: `user-${newPost.id}`,
