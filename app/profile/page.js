@@ -11,7 +11,8 @@ function ProfilePortalContent() {
   const [activeTab, setActiveTab] = useState(searchParams?.get('tab') || 'network');
   const [networkSubTab, setNetworkSubTab] = useState('followers');
   const [loading, setLoading] = useState(true);
-
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState({
     full_name: '',
@@ -649,11 +650,11 @@ function ProfilePortalContent() {
     }
   }
 
-  async function handleLogout() {
-    if (!confirm('Kya aap logout karna chahte hain?')) return;
-    await supabase.auth.signOut();
-    router.push('/auth');
-  }
+ async function executeLogout() {
+  setShowLogoutModal(false);
+  await supabase.auth.signOut();
+  router.push('/auth');
+}
 
   async function markNotificationsAsRead() {
     if (unreadCount === 0) return;
@@ -2388,7 +2389,7 @@ function ProfilePortalContent() {
                 <div style={{ borderTop: '1px solid #1e293b', paddingTop: '0.8rem' }}>
                   <button
                     type="button"
-                    onClick={handleLogout}
+                    onClick={() => setShowLogoutModal(true)}
                     style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#ef4444', padding: '0.6rem', width: '100%', borderRadius: '8px', fontSize: '0.82rem', fontWeight: 'bold', cursor: 'pointer' }}
                   >
                     Logout All Active Sessions 🚪
@@ -3492,7 +3493,98 @@ function ProfilePortalContent() {
           </div>
         </div>
       )}
+{/* PROFESSIONAL LOGOUT CONFIRMATION MODAL */}
+      {showLogoutModal && (
+        <div
+          onClick={() => setShowLogoutModal(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(3, 7, 18, 0.75)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 999999,
+            padding: '1rem'
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: '#0f172a',
+              border: '1px solid rgba(239, 68, 68, 0.35)',
+              borderRadius: '16px',
+              padding: '1.6rem',
+              maxWidth: '380px',
+              width: '100%',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.7), 0 0 25px rgba(239, 68, 68, 0.15)',
+              textAlign: 'center'
+            }}
+          >
+            <div
+              style={{
+                width: '52px',
+                height: '52px',
+                borderRadius: '50%',
+                backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 1rem auto',
+                fontSize: '1.4rem'
+              }}
+            >
+              🚪
+            </div>
 
+            <h3 style={{ margin: '0 0 0.4rem 0', fontSize: '1.15rem', fontWeight: '800', color: '#ffffff' }}>
+              Log Out of Shanora?
+            </h3>
+            <p style={{ margin: '0 0 1.5rem 0', fontSize: '0.82rem', color: '#94a3b8', lineHeight: '1.45' }}>
+              Are you sure you want to end your current session? You will need to sign in again to access your account.
+            </p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              <button
+                type="button"
+                onClick={() => setShowLogoutModal(false)}
+                style={{
+                  backgroundColor: '#1e293b',
+                  border: '1px solid #334155',
+                  color: '#cbd5e1',
+                  padding: '0.65rem',
+                  borderRadius: '12px',
+                  fontSize: '0.82rem',
+                  fontWeight: '700',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={executeLogout}
+                style={{
+                  background: 'linear-gradient(180deg, rgba(239, 68, 68, 0.25) 0%, rgba(15, 23, 42, 0.95) 100%)',
+                  border: '1px solid rgba(239, 68, 68, 0.65)',
+                  boxShadow: '0 4px 14px rgba(239, 68, 68, 0.35)',
+                  color: '#f87171',
+                  padding: '0.65rem',
+                  borderRadius: '12px',
+                  fontSize: '0.82rem',
+                  fontWeight: '800',
+                  cursor: 'pointer'
+                }}
+              >
+                Log Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
