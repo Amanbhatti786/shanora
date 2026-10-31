@@ -56,6 +56,7 @@ function ProfilePortalContent() {
   const [followingList, setFollowingList] = useState([]);
   const [discoverUsers, setDiscoverUsers] = useState([]);
   const [allUsersList, setAllUsersList] = useState([]);
+  const [userLastMessagesMap, setUserLastMessagesMap] = useState({});
   const [followingMap, setFollowingMap] = useState({});
   const [actionLoading, setActionLoading] = useState({});
   const [notifications, setNotifications] = useState([]);
@@ -115,13 +116,13 @@ function ProfilePortalContent() {
         setUser(currentUser);
         const myEmail = (currentUser.email || '').trim().toLowerCase();
 
-        // Update Online Heartbeat
+        // 1. Update Online Heartbeat
         await supabase
           .from('profiles')
           .update({ last_seen: new Date().toISOString() })
           .ilike('email', myEmail);
 
-        // 1. Fetch Profile
+        // 2. Fetch Profile
         const { data: profileData } = await supabase
           .from('profiles')
           .select('*')
@@ -153,7 +154,7 @@ function ProfilePortalContent() {
           resume_url: defaultProfile.resume_url
         });
 
-        // 2. Fetch Latest Pro Request
+        // 3. Fetch Latest Pro Request
         const { data: proReqData } = await supabase
           .from('pro_requests')
           .select('*')
@@ -164,7 +165,7 @@ function ProfilePortalContent() {
 
         if (proReqData) setLatestProRequest(proReqData);
 
-        // 3. Fetch User Posts Count
+        // 4. Fetch User Posts Count
         const { count: postsCount } = await supabase
           .from('user_posts')
           .select('id', { count: 'exact', head: true })
@@ -172,7 +173,7 @@ function ProfilePortalContent() {
 
         if (postsCount !== null) setMyPostsCount(postsCount);
 
-        // 4. Fetch Pages
+        // 5. Fetch Pages
         const { data: pagesData } = await supabase
           .from('pages')
           .select('*')
@@ -181,7 +182,7 @@ function ProfilePortalContent() {
 
         if (pagesData) setMyPages(pagesData);
 
-        // 5. Fetch Real Followers & Following
+        // 6. Fetch Real Followers & Following
         const { data: followsData } = await supabase
           .from('user_follows')
           .select('id, follower_email, following_email, created_at');
@@ -200,7 +201,26 @@ function ProfilePortalContent() {
           setFollowingMap(curMap);
         }
 
-        // 6. Fetch All Users for Messenger & Discover
+        // 7. Fetch All User Conversations & Map Last Message Time
+        const { data: allUserMsgs } = await supabase
+          .from('direct_messages')
+          .select('sender_email, receiver_email, message, created_at')
+          .or(`sender_email.ilike.${myEmail},receiver_email.ilike.${myEmail}`)
+          .order('created_at', { ascending: true });
+
+        const lastMsgs = {};
+        if (allUserMsgs) {
+          allUserMsgs.forEach(m => {
+            const other = (m.sender_email.toLowerCase() === myEmail ? m.receiver_email : m.sender_email).toLowerCase();
+            lastMsgs[other] = {
+              text: m.message,
+              time: new Date(m.created_at).getTime()
+            };
+          });
+          setUserLastMessagesMap(lastMsgs);
+        }
+
+        // 8. Fetch All Users for Messenger & Discover
         const { data: allProfiles } = await supabase
           .from('profiles')
           .select('*')
@@ -214,7 +234,7 @@ function ProfilePortalContent() {
           setDiscoverUsers(discoveredList);
         }
 
-        // 7. Fetch Notifications
+        // 9. Fetch Notifications
         const { data: notifData } = await supabase
           .from('notifications')
           .select('*')
@@ -227,7 +247,7 @@ function ProfilePortalContent() {
           setUnreadCount(notifData.filter(n => !n.is_read).length);
         }
 
-        // 8. Fetch Jobs & User Applications
+        // 10. Fetch Jobs & Applications
         const { data: allJobs } = await supabase
           .from('jobs')
           .select('*')
@@ -260,7 +280,7 @@ function ProfilePortalContent() {
     initPortal();
   }, [router]);
 
-  // Load Chat Messages with Active User
+  // Load Thread with Active Chat User
   useEffect(() => {
     if (!activeChatUser || !user) return;
 
@@ -281,7 +301,6 @@ function ProfilePortalContent() {
 
     loadThread();
 
-    // Real-time Chat Subscription
     sub = supabase
       .channel('public:direct_messages')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'direct_messages' }, payload => {
@@ -295,6 +314,12 @@ function ProfilePortalContent() {
         ) {
           setChatMessages(prev => [...prev, msg]);
           scrollToBottom();
+
+          // Update latest message position
+          setUserLastMessagesMap(prev => ({
+            ...prev,
+            [otherEmail]: { text: msg.message, time: new Date(msg.created_at).getTime() }
+          }));
         }
       })
       .subscribe();
@@ -315,14 +340,18 @@ function ProfilePortalContent() {
     e.preventDefault();
     if (!newMessageText.trim() || !activeChatUser || !user) return;
 
+    const myEmail = user.email.toLowerCase();
+    const otherEmail = activeChatUser.email.toLowerCase();
+    const sentText = newMessageText.trim();
+
     setSendingMsg(true);
     try {
       const { data, error } = await supabase
         .from('direct_messages')
         .insert([{
-          sender_email: user.email.toLowerCase(),
-          receiver_email: activeChatUser.email.toLowerCase(),
-          message: newMessageText.trim()
+          sender_email: myEmail,
+          receiver_email: otherEmail,
+          message: sentText
         }])
         .select()
         .single();
@@ -331,6 +360,12 @@ function ProfilePortalContent() {
       setChatMessages(prev => [...prev, data]);
       setNewMessageText('');
       scrollToBottom();
+
+      // Top par lane ke liye time update
+      setUserLastMessagesMap(prev => ({
+        ...prev,
+        [otherEmail]: { text: sentText, time: Date.now() }
+      }));
     } catch (err) {
       alert('Message send failed: ' + err.message);
     } finally {
@@ -338,20 +373,20 @@ function ProfilePortalContent() {
     }
   }
 
-  // Helper function to check if user was active recently (Last 5 mins = Online)
+  // Strict Real-time Online Check (Only active in last 3 minutes)
   function isUserOnline(lastSeen) {
     if (!lastSeen) return false;
     const diff = Date.now() - new Date(lastSeen).getTime();
-    return diff < 5 * 60 * 1000;
+    return diff > 0 && diff < 3 * 60 * 1000;
   }
 
-  // Handle Direct Resume Upload
+  // Handle Resume Upload
   async function handleResumeUpload(e) {
     const file = e.target.files?.[0];
     if (!file || !user) return;
 
     if (file.size > 5 * 1024 * 1024) {
-      alert('Resume file size 5MB se kam honi chahiye.');
+      alert('Resume file size 5MB se kam hona chahiye.');
       return;
     }
 
@@ -377,15 +412,15 @@ function ProfilePortalContent() {
 
       const resumeUrl = publicUrlData.publicUrl;
       setEditProfileForm(prev => ({ ...prev, resume_url: resumeUrl }));
-      alert('Resume upload ho gaya hai! Save button dabayein taake update finalize ho sake.');
+      alert('Resume upload ho gaya hai! Save profile button dabayein.');
     } catch (err) {
-      alert('Resume upload error: ' + err.message);
+      alert('Upload error: ' + err.message);
     } finally {
       setUploadingResume(false);
     }
   }
 
-  // Handle Profile Picture Upload
+  // Handle Avatar Upload
   async function handleAvatarUpload(e) {
     const file = e.target.files?.[0];
     if (!file || !user) return;
@@ -417,7 +452,7 @@ function ProfilePortalContent() {
 
       const avatarUrl = publicUrlData.publicUrl;
       setEditProfileForm(prev => ({ ...prev, avatar_url: avatarUrl }));
-      alert('Profile picture select ho gayi hai! Form save karein.');
+      alert('Profile photo select ho gayi hai! Form save karein.');
     } catch (err) {
       alert('Avatar upload error: ' + err.message);
     } finally {
@@ -425,7 +460,7 @@ function ProfilePortalContent() {
     }
   }
 
-  // Save Complete Profile Details
+  // Save Profile
   async function handleSaveProfile(e) {
     e.preventDefault();
     if (!user) return;
@@ -462,7 +497,7 @@ function ProfilePortalContent() {
     }
   }
 
-  // Handle Pro Verification Request
+  // Pro Activation Request
   async function handleProActivation(e) {
     e.preventDefault();
     if (!trxId.trim()) {
@@ -664,8 +699,14 @@ function ProfilePortalContent() {
     }
   }
 
-  // Filter Users for Messenger Search
-  const filteredMessengerUsers = allUsersList.filter(u => {
+  // --- LINKEDIN STYLE SORTING: LATEST CONVERSATIONS ALWAYS ON TOP ---
+  const sortedMessengerUsers = [...allUsersList].sort((a, b) => {
+    const timeA = userLastMessagesMap[(a.email || '').toLowerCase()]?.time || 0;
+    const timeB = userLastMessagesMap[(b.email || '').toLowerCase()]?.time || 0;
+    return timeB - timeA;
+  });
+
+  const filteredMessengerUsers = sortedMessengerUsers.filter(u => {
     const q = messageSearchQuery.toLowerCase();
     const name = (u.full_name || u.name || '').toLowerCase();
     const email = (u.email || '').toLowerCase();
@@ -1115,17 +1156,14 @@ function ProfilePortalContent() {
           </div>
         )}
 
-        {/* TAB 4: MESSAGES (LINKEDIN STYLE WITH SEARCH & GREEN ONLINE DOT) */}
+        {/* TAB 4: MESSAGES (LINKEDIN STYLE - RECENT ON TOP + ACCURATE ONLINE STATUS) */}
         {activeTab === 'messages' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            
-            {/* Header */}
             <div>
               <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800', color: '#fff' }}>Messaging</h3>
               <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Direct 1-on-1 conversations & connections</span>
             </div>
 
-            {/* If Active Chat is Open, show Chat Window */}
             {activeChatUser ? (
               <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: '520px' }}>
                 
@@ -1140,7 +1178,6 @@ function ProfilePortalContent() {
                       ←
                     </button>
                     
-                    {/* Avatar with Online Dot */}
                     <div style={{ position: 'relative' }}>
                       <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#fff', fontSize: '1rem', overflow: 'hidden' }}>
                         {activeChatUser.avatar_url ? (
@@ -1149,7 +1186,6 @@ function ProfilePortalContent() {
                           (activeChatUser.full_name || activeChatUser.name || activeChatUser.email || 'U').charAt(0).toUpperCase()
                         )}
                       </div>
-                      {/* Green Online Dot */}
                       {isUserOnline(activeChatUser.last_seen) && (
                         <div title="Online now" style={{ position: 'absolute', bottom: '0px', right: '0px', width: '11px', height: '11px', borderRadius: '50%', backgroundColor: '#22c55e', border: '2px solid #0f172a' }} />
                       )}
@@ -1171,7 +1207,7 @@ function ProfilePortalContent() {
                   </Link>
                 </div>
 
-                {/* Messages Body */}
+                {/* Messages Feed */}
                 <div style={{ flex: 1, padding: '1rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
                   {chatMessages.length === 0 ? (
                     <div style={{ textAlign: 'center', margin: 'auto', color: '#64748b', fontSize: '0.82rem' }}>
@@ -1203,7 +1239,7 @@ function ProfilePortalContent() {
                   <div ref={messagesEndRef} />
                 </div>
 
-                {/* Input Bar */}
+                {/* Send Input */}
                 <form onSubmit={handleSendMessage} style={{ padding: '0.75rem', backgroundColor: '#131b2e', borderTop: '1px solid #1e293b', display: 'flex', gap: '0.5rem' }}>
                   <input
                     type="text"
@@ -1226,18 +1262,16 @@ function ProfilePortalContent() {
               /* Conversation Search & List View */
               <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
                 
-                {/* Search Bar */}
                 <div style={{ position: 'relative' }}>
                   <input
                     type="text"
-                    placeholder="🔍 Search conversations or people by name..."
+                    placeholder="🔍 Search conversations or people by name.."
                     value={messageSearchQuery}
                     onChange={(e) => setMessageSearchQuery(e.target.value)}
                     style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '24px', padding: '0.6rem 1rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }}
                   />
                 </div>
 
-                {/* Users List */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
                   {filteredMessengerUsers.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: '2.5rem 1rem', color: '#64748b', fontSize: '0.82rem' }}>
@@ -1245,12 +1279,14 @@ function ProfilePortalContent() {
                     </div>
                   ) : (
                     filteredMessengerUsers.map(chatTarget => {
+                      const targetEmail = (chatTarget.email || '').toLowerCase();
                       const online = isUserOnline(chatTarget.last_seen);
-                      const displayName = chatTarget.full_name || chatTarget.name || chatTarget.email.split('@')[0];
+                      const displayName = chatTarget.full_name || chatTarget.name || targetEmail.split('@')[0];
+                      const lastMsg = userLastMessagesMap[targetEmail];
 
                       return (
                         <div
-                          key={chatTarget.id || chatTarget.email}
+                          key={chatTarget.id || targetEmail}
                           onClick={() => setActiveChatUser(chatTarget)}
                           style={{
                             backgroundColor: '#131b2e',
@@ -1275,7 +1311,7 @@ function ProfilePortalContent() {
                                   displayName.charAt(0).toUpperCase()
                                 )}
                               </div>
-                              {/* Green Online Dot */}
+                              {/* Green Dot sirf tab jab user active ho */}
                               {online && (
                                 <div title="Online" style={{ position: 'absolute', bottom: '1px', right: '1px', width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#22c55e', border: '2px solid #131b2e' }} />
                               )}
@@ -1286,16 +1322,18 @@ function ProfilePortalContent() {
                                 <span>{displayName}</span>
                                 {chatTarget.is_pro && <span style={{ color: '#38bdf8', fontSize: '0.85rem' }}>✓</span>}
                               </div>
-                              <div style={{ color: '#94a3b8', fontSize: '0.74rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', marginTop: '0.15rem' }}>
-                                {chatTarget.headline || chatTarget.city || 'Shanora Network'}
+                              <div style={{ color: lastMsg ? '#cbd5e1' : '#64748b', fontSize: '0.74rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', marginTop: '0.15rem' }}>
+                                {lastMsg ? lastMsg.text : (chatTarget.headline || chatTarget.city || 'Shanora Network')}
                               </div>
                             </div>
 
                           </div>
 
-                          <span style={{ fontSize: '0.72rem', color: online ? '#4ade80' : '#64748b', fontWeight: '700', flexShrink: 0 }}>
-                            {online ? 'Online ●' : 'Chat 💬'}
-                          </span>
+                          <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                            <span style={{ fontSize: '0.72rem', color: online ? '#4ade80' : '#64748b', fontWeight: '700' }}>
+                              {online ? 'Online ●' : 'Chat 💬'}
+                            </span>
+                          </div>
                         </div>
                       );
                     })
