@@ -1,8 +1,61 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabaseClient';
+
+// Built-in Client-side Image Compression (Reduces storage footprint & speeds up feed)
+async function compressImage(file, maxWidth = 1200, quality = 0.75) {
+  if (!file || !file.type.startsWith('image/')) return file;
+  if (file.size <= 250 * 1024) return file;
+
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              resolve(file);
+              return;
+            }
+            const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".webp", {
+              type: 'image/webp',
+              lastModified: Date.now(),
+            });
+            resolve(compressedFile);
+          },
+          'image/webp',
+          quality
+        );
+      };
+
+      img.onerror = () => resolve(file);
+    };
+
+    reader.onerror = () => resolve(file);
+  });
+}
 
 export default function FeedPage() {
   const router = useRouter();
@@ -10,11 +63,10 @@ export default function FeedPage() {
   const [userProfile, setUserProfile] = useState(null);
   const [feedItems, setFeedItems] = useState([]);
   const [loading, setLoading] = useState(true);
-    const [page, setPage] = useState(0);
+  const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const POSTS_PER_PAGE = 10;
-  
 
   // Follow State
   const [followingMap, setFollowingMap] = useState({});
@@ -36,6 +88,7 @@ export default function FeedPage() {
   const [postPhoto, setPostPhoto] = useState(null);
   const [photoPreview, setPhotoPreview] = useState('');
   const [posting, setPosting] = useState(false);
+  const [compressing, setCompressing] = useState(false);
 
   // Fullscreen Photo Viewer (Lightbox Modal)
   const [previewImage, setPreviewImage] = useState(null);
@@ -49,6 +102,9 @@ export default function FeedPage() {
   const [postComments, setPostComments] = useState({});
   const [commentInputs, setCommentInputs] = useState({});
   const [submittingComment, setSubmittingComment] = useState(false);
+
+  // Infinite Scroll Observer Ref
+  const observerRef = useRef(null);
 
   useEffect(() => {
     async function loadData() {
@@ -70,7 +126,6 @@ export default function FeedPage() {
             avatar_url: null
           });
 
-          // Fetch user's following list
           const { data: followsData } = await supabase
             .from('user_follows')
             .select('following_email')
@@ -86,18 +141,18 @@ export default function FeedPage() {
         }
 
         // 1. Fetch Personal Posts (Paginated)
-      const from = 0;
-      const to = POSTS_PER_PAGE - 1;
+        const from = 0;
+        const to = POSTS_PER_PAGE - 1;
 
-      const { data: personalPosts } = await supabase
-        .from('user_posts')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .range(from, to);
+        const { data: personalPosts } = await supabase
+          .from('user_posts')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .range(from, to);
 
-      if (personalPosts && personalPosts.length < POSTS_PER_PAGE) {
-        setHasMore(false);
-      }
+        if (personalPosts && personalPosts.length < POSTS_PER_PAGE) {
+          setHasMore(false);
+        }
 
         // 2. Fetch Page Posts
         const { data: pagePosts } = await supabase
@@ -276,7 +331,9 @@ export default function FeedPage() {
 
     loadData();
   }, []);
-  async function loadMorePosts() {
+
+  // Infinite Scroll Fetch Trigger
+  const loadMorePosts = useCallback(async () => {
     if (loadingMore || !hasMore) return;
     setLoadingMore(true);
 
@@ -295,7 +352,29 @@ export default function FeedPage() {
 
       if (data) {
         if (data.length < POSTS_PER_PAGE) setHasMore(false);
-        setFeedItems(prev => [...prev, ...data]);
+
+        const formattedMore = data.map(p => {
+          const rawEmail = p.user_email || '';
+          const uname = rawEmail.split('@')[0] || p.user_name || 'user';
+          return {
+            feedItemId: `user-${p.id}`,
+            postId: p.id,
+            authorEmail: rawEmail.toLowerCase(),
+            postType: 'personal',
+            authorName: p.user_name || uname,
+            authorAvatar: p.avatar_url,
+            authorLink: `/page/${uname}`,
+            isVerified: false,
+            content: p.content,
+            imageUrl: p.image_url,
+            createdAt: p.created_at,
+            sortTime: new Date(p.created_at).getTime(),
+            isRelay: false,
+            relayedBy: null
+          };
+        });
+
+        setFeedItems(prev => [...prev, ...formattedMore]);
         setPage(nextPage);
       }
     } catch (err) {
@@ -303,8 +382,25 @@ export default function FeedPage() {
     } finally {
       setLoadingMore(false);
     }
-  }
-  
+  }, [loadingMore, hasMore, page]);
+
+  // Infinite Scroll Sentinel Ref
+  const lastPostElementRef = useCallback(
+    (node) => {
+      if (loadingMore) return;
+      if (observerRef.current) observerRef.current.disconnect();
+
+      observerRef.current = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && hasMore) {
+          loadMorePosts();
+        }
+      }, { threshold: 0.5 });
+
+      if (node) observerRef.current.observe(node);
+    },
+    [loadingMore, hasMore, loadMorePosts]
+  );
+
   // Close Three-Dots Menu on document click
   useEffect(() => {
     function handleClickOutside() {
@@ -330,8 +426,6 @@ export default function FeedPage() {
 
     const isFollowing = !!followingMap[cleanTarget];
     setFollowingLoading(prev => ({ ...prev, [cleanTarget]: true }));
-
-    // Optimistic UI update
     setFollowingMap(prev => ({ ...prev, [cleanTarget]: !isFollowing }));
 
     try {
@@ -346,7 +440,6 @@ export default function FeedPage() {
           .from('user_follows')
           .insert([{ follower_email: cleanCurrent, following_email: cleanTarget }]);
 
-        // Notification
         await supabase
           .from('notifications')
           .insert([{
@@ -406,7 +499,7 @@ export default function FeedPage() {
     }
   }
 
-  // Live Multi-Search for Pages and Profiles
+  // Live Multi-Search
   useEffect(() => {
     const delayDebounceFn = setTimeout(async () => {
       const q = searchQuery.trim();
@@ -465,6 +558,25 @@ export default function FeedPage() {
 
     return () => clearTimeout(delayDebounceFn);
   }, [searchQuery]);
+
+  // Image Selection with Automatic Compression
+  async function handleImageSelect(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setCompressing(true);
+    try {
+      const optimizedFile = await compressImage(file, 1200, 0.75);
+      setPostPhoto(optimizedFile);
+      setPhotoPreview(URL.createObjectURL(optimizedFile));
+    } catch (err) {
+      console.error('Compression error:', err);
+      setPostPhoto(file);
+      setPhotoPreview(URL.createObjectURL(file));
+    } finally {
+      setCompressing(false);
+    }
+  }
 
   // Submit Personal Post
   async function handleCreatePersonalPost(e) {
@@ -578,7 +690,6 @@ export default function FeedPage() {
         } else {
           await supabase.from('page_post_likes').insert([{ post_id: postId, user_email: currentUser.email }]);
 
-          // Send Like Notification to Post Author
           const targetPost = feedItems.find(item => item.postId === postId);
           const authorEmail = targetPost?.authorEmail;
           if (authorEmail && authorEmail !== currentUser.email.toLowerCase()) {
@@ -651,7 +762,6 @@ export default function FeedPage() {
       }));
       setCommentInputs(prev => ({ ...prev, [postId]: '' }));
 
-      // Send Comment Notification to Post Author
       const targetPost = feedItems.find(item => item.postId === postId);
       const authorEmail = targetPost?.authorEmail;
       if (authorEmail && authorEmail !== currentUser.email.toLowerCase()) {
@@ -860,6 +970,12 @@ export default function FeedPage() {
                 />
               </div>
 
+              {compressing && (
+                <div style={{ fontSize: '0.75rem', color: '#38bdf8', marginBottom: '0.5rem', fontWeight: '600' }}>
+                  ⚡ Optimizing image size...
+                </div>
+              )}
+
               {photoPreview && (
                 <div style={{ position: 'relative', marginBottom: '0.8rem' }}>
                   <img src={photoPreview} alt="Preview" style={{ width: '100%', maxHeight: '200px', objectFit: 'cover', borderRadius: '8px' }} />
@@ -873,21 +989,25 @@ export default function FeedPage() {
                   <input
                     type="file"
                     accept="image/*"
-                    onChange={(e) => {
-                      const file = e.target.files[0];
-                      if (file) {
-                        setPostPhoto(file);
-                        setPhotoPreview(URL.createObjectURL(file));
-                      }
-                    }}
+                    onChange={handleImageSelect}
                     style={{ display: 'none' }}
                   />
                 </label>
 
                 <button
                   type="submit"
-                  disabled={posting || (!postText.trim() && !postPhoto)}
-                  style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.45rem 1.2rem', borderRadius: '6px', fontSize: '0.82rem', fontWeight: '700', cursor: (postText.trim() || postPhoto) && !posting ? 'pointer' : 'not-allowed' }}
+                  disabled={posting || compressing || (!postText.trim() && !postPhoto)}
+                  style={{ 
+                    backgroundColor: '#0284c7', 
+                    color: '#fff', 
+                    border: 'none', 
+                    padding: '0.45rem 1.2rem', 
+                    borderRadius: '6px', 
+                    fontSize: '0.82rem', 
+                    fontWeight: '700', 
+                    cursor: (postText.trim() || postPhoto) && !posting && !compressing ? 'pointer' : 'not-allowed',
+                    opacity: (postText.trim() || postPhoto) && !posting && !compressing ? 1 : 0.6
+                  }}
                 >
                   {posting ? 'Posting...' : 'Post'}
                 </button>
@@ -967,7 +1087,7 @@ export default function FeedPage() {
                           </Link>
                           {item.isVerified && <span style={{ color: '#22c55e', fontSize: '0.8rem' }}>✓</span>}
 
-                          {/* + Follow / Following Button (Visible when NOT own post) */}
+                          {/* + Follow / Following Button */}
                           {!isOwnPost && (
                             <button
                               type="button"
@@ -1207,29 +1327,20 @@ export default function FeedPage() {
             })}
           </div>
         )}
-        {/* Load More Button */}
-        {hasMore && (
-          <div style={{ textAlign: 'center', margin: '2rem 0 1rem 0' }}>
-            <button
-              type="button"
-              onClick={loadMorePosts}
-              disabled={loadingMore}
-              style={{
-                backgroundColor: '#1e293b',
-                border: '1px solid #334155',
-                color: '#38bdf8',
-                padding: '0.65rem 1.5rem',
-                borderRadius: '25px',
-                fontSize: '0.85rem',
-                fontWeight: '700',
-                cursor: loadingMore ? 'not-allowed' : 'pointer'
-              }}
-            >
-              {loadingMore ? 'Loading more updates...' : 'Load More Posts ↓'}
-            </button>
-          </div>
-        )}
 
+        {/* Infinite Scroll Sentinel (Auto-loads on scroll) */}
+        <div ref={lastPostElementRef} style={{ height: '50px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '1.5rem' }}>
+          {loadingMore && (
+            <div style={{ color: '#38bdf8', fontSize: '0.85rem', fontWeight: '700' }}>
+              Loading more updates...
+            </div>
+          )}
+          {!hasMore && feedItems.length > 0 && (
+            <div style={{ color: '#64748b', fontSize: '0.78rem' }}>
+              You have viewed all updates 🎉
+            </div>
+          )}
+        </div>
 
       </main>
 
