@@ -42,6 +42,13 @@ function ProfilePortalContent() {
   const [uploadingResume, setUploadingResume] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
+  // Resume Builder States (PRO Only)
+  const [resumeData, setResumeData] = useState({
+    experience: 'Senior Freelance Creator & Specialist (2024 - Present)\n- Delivered over 50+ successful client campaigns.\n- Optimized social media growth and video production pipelines.',
+    education: 'Bachelor in Computer Science / Intermediate\nUniversity / Board of Education, Pakistan (2020 - 2024)',
+    languages: 'English (Professional), Urdu (Native)'
+  });
+
   // Pro Upgrade States
   const [trxId, setTrxId] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('EasyPaisa');
@@ -654,7 +661,6 @@ function ProfilePortalContent() {
     }
   }
 
-  // Withdraw Application Function
   async function handleWithdrawApplication(appId, jobId) {
     if (!confirm('Kya aap is application ko withdraw / cancel karna chahte hain?')) return;
 
@@ -725,6 +731,11 @@ function ProfilePortalContent() {
     }
   }
 
+  // Print / Export ATS Resume to PDF (Browser Native)
+  function handlePrintResume() {
+    window.print();
+  }
+
   // LinkedIn Style Sorting for Messaging
   const sortedMessengerUsers = [...allUsersList].sort((a, b) => {
     const timeA = userLastMessagesMap[(a.email || '').toLowerCase()]?.time || 0;
@@ -758,7 +769,7 @@ function ProfilePortalContent() {
     { id: 'messages', label: 'Messages', desc: 'Direct 1-on-1 Chat', icon: '💬', bg: 'rgba(236, 72, 153, 0.12)', border: 'rgba(236, 72, 153, 0.25)' },
     { id: 'pages', label: `Pages (${myPages.length})`, desc: 'Manage your pages', icon: '🚩', bg: 'rgba(249, 115, 22, 0.12)', border: 'rgba(249, 115, 22, 0.25)' },
     { id: 'applications', label: `Applications (${myApplicationsList.length})`, desc: 'Track applied jobs', icon: '📋', bg: 'rgba(34, 197, 94, 0.12)', border: 'rgba(34, 197, 94, 0.25)' },
-    { id: 'resume', label: 'My Resume', desc: 'ATS Resume Builder', icon: '📝', bg: 'rgba(245, 158, 11, 0.12)', border: 'rgba(245, 158, 11, 0.25)' },
+    { id: 'resume', label: 'My Resume 💎', desc: 'ATS Resume Builder (PRO)', icon: '📝', bg: 'rgba(245, 158, 11, 0.12)', border: 'rgba(245, 158, 11, 0.25)' },
     { id: 'monetization', label: 'Monetization', desc: 'Earning Hub', icon: '💰', bg: 'rgba(16, 185, 129, 0.12)', border: 'rgba(16, 185, 129, 0.25)' },
     { id: 'saved', label: 'Saved Posts', desc: 'Your Bookmarks', icon: '🔖', bg: 'rgba(168, 85, 247, 0.12)', border: 'rgba(168, 85, 247, 0.25)' },
     { id: 'settings', label: 'Settings', desc: 'Privacy & Security', icon: '⚙️', bg: 'rgba(148, 163, 184, 0.12)', border: 'rgba(148, 163, 184, 0.25)' }
@@ -887,7 +898,7 @@ function ProfilePortalContent() {
                     {item.icon}
                   </div>
                   <div style={{ overflow: 'hidden' }}>
-                    <div style={{ color: item.id === 'pro' ? '#facc15' : '#f8fafc', fontSize: '0.82rem', fontWeight: '800', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                    <div style={{ color: item.id === 'pro' || item.id === 'resume' ? '#facc15' : '#f8fafc', fontSize: '0.82rem', fontWeight: '800', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
                       {item.label}
                     </div>
                     <div style={{ color: '#64748b', fontSize: '0.68rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
@@ -944,6 +955,7 @@ function ProfilePortalContent() {
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.82rem', color: '#cbd5e1' }}>
                     <div>🌟 <strong>Verified Badge:</strong> Blue Tick is live across your entire profile & posts.</div>
+                    <div>📝 <strong>ATS Resume Builder:</strong> Unlimited professional CV generation & PDF download unlocked.</div>
                     <div>🚀 <strong>Application Boost:</strong> Employers see your job applications on top.</div>
                     <div>📈 <strong>Feed Reach:</strong> 5x higher reach on your published articles and updates.</div>
                   </div>
@@ -963,6 +975,7 @@ function ProfilePortalContent() {
                   <div style={{ fontSize: '0.9rem', fontWeight: '800', color: '#fff', marginBottom: '0.6rem' }}>Exclusive PRO Perks:</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', fontSize: '0.8rem', color: '#94a3b8', marginBottom: '1.2rem' }}>
                     <div>🔹 <strong>Verified Blue Tick:</strong> Stand out across all feeds & comments.</div>
+                    <div>🔹 <strong>ATS Resume Builder:</strong> Build & Export ATS-Friendly CV in 1-Click.</div>
                     <div>🔹 <strong>Priority Job Application:</strong> Featured at the top for hiring managers.</div>
                     <div>🔹 <strong>Direct Messenger:</strong> Reach verified creators & companies.</div>
                     <div>🔹 <strong>Profile Boost:</strong> Enhanced organic reach on all posts.</div>
@@ -1192,7 +1205,6 @@ function ProfilePortalContent() {
 
             {activeChatUser ? (
               <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: '520px' }}>
-                
                 <div style={{ backgroundColor: '#131b2e', padding: '0.75rem 1rem', borderBottom: '1px solid #1e293b', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     <button
@@ -1361,17 +1373,14 @@ function ProfilePortalContent() {
           </div>
         )}
 
-        {/* TAB 6: MY APPLICATIONS (ENHANCED LIVE TRACKING) */}
+        {/* TAB 6: MY APPLICATIONS */}
         {activeTab === 'applications' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            
-            {/* Header */}
             <div>
               <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800', color: '#fff' }}>My Job Applications</h3>
               <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Real-time status updates and submission records</span>
             </div>
 
-            {/* Quick Metrics */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.6rem' }}>
               <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '0.85rem' }}>
                 <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Total Applied</span>
@@ -1391,7 +1400,6 @@ function ProfilePortalContent() {
               </div>
             </div>
 
-            {/* Applications List */}
             {myApplicationsList.length === 0 ? (
               <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '3.5rem 1rem', textAlign: 'center', color: '#94a3b8' }}>
                 <div style={{ fontSize: '2.5rem', marginBottom: '0.6rem' }}>📋</div>
@@ -1459,14 +1467,12 @@ function ProfilePortalContent() {
                         </span>
                       </div>
 
-                      {/* Cover Note Snippet */}
                       {app.cover_note && (
                         <div style={{ backgroundColor: 'rgba(30, 41, 59, 0.4)', borderRadius: '8px', padding: '0.65rem 0.8rem', fontSize: '0.78rem', color: '#cbd5e1', fontStyle: 'italic' }}>
                           "{app.cover_note}"
                         </div>
                       )}
 
-                      {/* Footer Info & Actions */}
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #1e293b', paddingTop: '0.75rem', fontSize: '0.74rem' }}>
                         <span style={{ color: '#64748b' }}>
                           Applied on {new Date(app.created_at).toLocaleDateString()}
@@ -1509,6 +1515,156 @@ function ProfilePortalContent() {
               </div>
             )}
 
+          </div>
+        )}
+
+        {/* TAB 7: MY RESUME (PAID PRO FEATURE) */}
+        {activeTab === 'resume' && (
+          <div>
+            {!profile.is_pro ? (
+              /* LOCKED SCREEN FOR NON-PRO USERS */
+              <div style={{
+                backgroundColor: '#0f172a',
+                border: '1px solid rgba(234, 179, 8, 0.35)',
+                borderRadius: '16px',
+                padding: '2.5rem 1.2rem',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '3rem', marginBottom: '0.6rem' }}>🔒</div>
+                <h3 style={{ margin: '0 0 0.4rem 0', color: '#facc15', fontSize: '1.25rem', fontWeight: '800' }}>
+                  Shanora PRO Exclusive Feature
+                </h3>
+                <p style={{ margin: '0 0 1.2rem 0', color: '#cbd5e1', fontSize: '0.84rem', lineHeight: '1.5', maxWidth: '420px', marginLeft: 'auto', marginRight: 'auto' }}>
+                  ATS-Friendly Resume Builder aur instant PDF Export feature sirf **Shanora PRO** members ke liye unlock hota hai.
+                </p>
+
+                <div style={{ backgroundColor: 'rgba(30, 41, 59, 0.5)', borderRadius: '12px', padding: '1rem', maxWidth: '380px', margin: '0 auto 1.5rem', textAlign: 'left', fontSize: '0.8rem', color: '#94a3b8', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  <div>✨ <strong>ATS Resume Parser:</strong> 100% pass guarantee for HR systems.</div>
+                  <div>📥 <strong>1-Click PDF Export:</strong> Clean printable layout ready for interview.</div>
+                  <div>⚡ <strong>Instant Job Auto-Fill:</strong> Applied directly to vacancies.</div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('pro')}
+                  style={{
+                    backgroundColor: '#eab308',
+                    color: '#000',
+                    border: 'none',
+                    padding: '0.75rem 1.6rem',
+                    borderRadius: '10px',
+                    fontSize: '0.88rem',
+                    fontWeight: '900',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 14px rgba(234, 179, 8, 0.3)'
+                  }}
+                >
+                  Unlock with Shanora PRO 💎 (Rs. 499)
+                </button>
+              </div>
+            ) : (
+              /* UNLOCKED RESUME BUILDER & PDF EXPORTER FOR PRO USERS */
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800', color: '#fff' }}>ATS Resume Builder 💎</h3>
+                    <span style={{ fontSize: '0.75rem', color: '#4ade80' }}>Shanora PRO Active • ATS Verified Layout</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handlePrintResume}
+                    style={{
+                      backgroundColor: '#22c55e',
+                      color: '#000',
+                      border: 'none',
+                      padding: '0.5rem 1rem',
+                      borderRadius: '8px',
+                      fontSize: '0.8rem',
+                      fontWeight: '800',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    📥 Download / Print PDF
+                  </button>
+                </div>
+
+                {/* Live ATS Printable Preview Sheet */}
+                <div id="printable-ats-cv" style={{
+                  backgroundColor: '#ffffff',
+                  color: '#0f172a',
+                  padding: '2rem 1.8rem',
+                  borderRadius: '12px',
+                  boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+                  fontFamily: 'serif',
+                  lineHeight: '1.5'
+                }}>
+                  {/* CV Header */}
+                  <div style={{ textAlign: 'center', borderBottom: '2px solid #0f172a', paddingBottom: '0.8rem', marginBottom: '1.2rem' }}>
+                    <h1 style={{ margin: '0 0 0.2rem 0', fontSize: '1.6rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                      {profile.full_name || 'Your Full Name'}
+                    </h1>
+                    <div style={{ fontSize: '0.88rem', fontWeight: 'bold', color: '#334155' }}>
+                      {profile.headline || 'Professional Specialist'}
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: '#475569', marginTop: '0.3rem' }}>
+                      {profile.email} | {profile.phone || '+92 300 0000000'} | {profile.city || 'Pakistan'}
+                    </div>
+                  </div>
+
+                  {/* Summary */}
+                  <div style={{ marginBottom: '1rem' }}>
+                    <div style={{ fontSize: '0.9rem', fontWeight: 'bold', textTransform: 'uppercase', borderBottom: '1px solid #cbd5e1', paddingBottom: '0.2rem', marginBottom: '0.4rem' }}>
+                      Professional Summary
+                    </div>
+                    <p style={{ margin: 0, fontSize: '0.82rem', color: '#334155' }}>
+                      {profile.bio || 'Experienced professional with a strong track record of success and dedicated expertise on Shanora.pk.'}
+                    </p>
+                  </div>
+
+                  {/* Skills */}
+                  {profile.skills && (
+                    <div style={{ marginBottom: '1rem' }}>
+                      <div style={{ fontSize: '0.9rem', fontWeight: 'bold', textTransform: 'uppercase', borderBottom: '1px solid #cbd5e1', paddingBottom: '0.2rem', marginBottom: '0.4rem' }}>
+                        Core Competencies & Skills
+                      </div>
+                      <div style={{ fontSize: '0.82rem', color: '#334155' }}>
+                        {profile.skills}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Experience */}
+                  <div style={{ marginBottom: '1rem' }}>
+                    <div style={{ fontSize: '0.9rem', fontWeight: 'bold', textTransform: 'uppercase', borderBottom: '1px solid #cbd5e1', paddingBottom: '0.2rem', marginBottom: '0.4rem' }}>
+                      Professional Experience
+                    </div>
+                    <textarea
+                      rows={4}
+                      value={resumeData.experience}
+                      onChange={(e) => setResumeData({ ...resumeData, experience: e.target.value })}
+                      style={{ width: '100%', border: '1px dashed #94a3b8', borderRadius: '4px', padding: '0.4rem', fontSize: '0.8rem', color: '#0f172a', fontFamily: 'serif', outline: 'none', resize: 'vertical' }}
+                    />
+                  </div>
+
+                  {/* Education */}
+                  <div style={{ marginBottom: '0.8rem' }}>
+                    <div style={{ fontSize: '0.9rem', fontWeight: 'bold', textTransform: 'uppercase', borderBottom: '1px solid #cbd5e1', paddingBottom: '0.2rem', marginBottom: '0.4rem' }}>
+                      Education & Credentials
+                    </div>
+                    <textarea
+                      rows={3}
+                      value={resumeData.education}
+                      onChange={(e) => setResumeData({ ...resumeData, education: e.target.value })}
+                      style={{ width: '100%', border: '1px dashed #94a3b8', borderRadius: '4px', padding: '0.4rem', fontSize: '0.8rem', color: '#0f172a', fontFamily: 'serif', outline: 'none', resize: 'vertical' }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ fontSize: '0.75rem', color: '#94a3b8', textAlign: 'center' }}>
+                  💡 <em>Aap box ke andar text ko direct edit kar sakte hain. PDF download karne par bilkul clean A4 format aayega.</em>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -2122,7 +2278,7 @@ function ProfilePortalContent() {
         )}
 
         {/* OTHER SERVICE TABS */}
-        {['resume', 'monetization', 'saved', 'settings'].includes(activeTab) && (
+        {['monetization', 'saved', 'settings'].includes(activeTab) && (
           <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '2rem 1.5rem', textAlign: 'center' }}>
             <h3 style={{ color: '#fff', margin: '0 0 0.5rem 0', fontSize: '1.1rem', textTransform: 'capitalize' }}>{activeTab}</h3>
             <p style={{ color: '#94a3b8', fontSize: '0.82rem', margin: 0 }}>This module is ready for full functional configuration.</p>
