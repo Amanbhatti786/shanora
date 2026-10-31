@@ -4,6 +4,25 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabaseClient';
 
+// Facebook/Messenger-style Sound FX Engine
+function playActionSound(type = 'like') {
+  if (typeof window === 'undefined') return;
+
+  const sounds = {
+    // Soft pop click for Like & Relay
+    like: 'https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3',
+    // Bell chime for Comment post
+    comment: 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'
+  };
+
+  try {
+    const audioUrl = sounds[type] || sounds.like;
+    const audio = new Audio(audioUrl);
+    audio.volume = 0.45;
+    audio.play().catch(() => {});
+  } catch (err) {}
+}
+
 // Built-in Client-side Image Compression (Reduces storage footprint & speeds up feed)
 async function compressImage(file, maxWidth = 1200, quality = 0.75) {
   if (!file || !file.type.startsWith('image/')) return file;
@@ -670,12 +689,14 @@ export default function FeedPage() {
     }
   }
 
-  // Toggle Like with Instant Notification
+  // Toggle Like with Instant Notification & Pop Sound
   async function handleToggleLike(postId, postType) {
     if (!currentUser) {
       router.push('/auth');
       return;
     }
+
+    playActionSound('like'); // 🔊 Instant Pop Sound Effect
 
     const isLiked = likedPosts[postId];
     const currentCount = postLikesCount[postId] || 0;
@@ -710,11 +731,14 @@ export default function FeedPage() {
     }
   }
 
+  // Toggle Relay with Pop Sound
   async function handleToggleRelay(postId) {
     if (!currentUser) {
       router.push('/auth');
       return;
     }
+
+    playActionSound('like'); // 🔊 Instant Action Pop Sound
 
     const isRelayed = relayedPosts[postId];
     const currentCount = postRelaysCount[postId] || 0;
@@ -733,7 +757,7 @@ export default function FeedPage() {
     }
   }
 
-  // Add Comment with Instant Notification
+  // Add Comment with Instant Notification & Sweet Chime Sound
   async function handleAddComment(postId) {
     if (!currentUser) {
       router.push('/auth');
@@ -741,6 +765,8 @@ export default function FeedPage() {
     }
     const text = commentInputs[postId]?.trim();
     if (!text || submittingComment) return;
+
+    playActionSound('comment'); // 🔊 Instant Comment Sent Chime Sound
 
     setSubmittingComment(true);
     try {
@@ -1229,7 +1255,6 @@ export default function FeedPage() {
                     </div>
                   )}
 
-                  {/* Image */}
                   {item.imageUrl && (
                     <div 
                       onClick={() => setPreviewImage(item.imageUrl)} 
