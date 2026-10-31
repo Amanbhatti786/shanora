@@ -40,6 +40,9 @@ function ProfilePortalContent() {
   const [submittingPro, setSubmittingPro] = useState(false);
   const [latestProRequest, setLatestProRequest] = useState(null);
 
+  // Dashboard & Metrics State
+  const [myPostsCount, setMyPostsCount] = useState(0);
+
   const [myPages, setMyPages] = useState([]);
   const [followersList, setFollowersList] = useState([]);
   const [followingList, setFollowingList] = useState([]);
@@ -132,7 +135,15 @@ function ProfilePortalContent() {
 
         if (proReqData) setLatestProRequest(proReqData);
 
-        // 3. Fetch Pages
+        // 3. Fetch User Posts Count (For Dashboard Analytics)
+        const { count: postsCount } = await supabase
+          .from('user_posts')
+          .select('id', { count: 'exact', head: true })
+          .ilike('user_email', myEmail);
+
+        if (postsCount !== null) setMyPostsCount(postsCount);
+
+        // 4. Fetch Pages
         const { data: pagesData } = await supabase
           .from('pages')
           .select('*')
@@ -141,7 +152,7 @@ function ProfilePortalContent() {
 
         if (pagesData) setMyPages(pagesData);
 
-        // 4. Fetch Real Followers & Following
+        // 5. Fetch Real Followers & Following
         const { data: followsData } = await supabase
           .from('user_follows')
           .select('id, follower_email, following_email, created_at');
@@ -160,7 +171,7 @@ function ProfilePortalContent() {
           setFollowingMap(curMap);
         }
 
-        // 5. Fetch Discover Users
+        // 6. Fetch Discover Users
         const { data: allProfiles } = await supabase
           .from('profiles')
           .select('*')
@@ -206,7 +217,7 @@ function ProfilePortalContent() {
 
         setDiscoverUsers(discoveredList);
 
-        // 6. Fetch Notifications
+        // 7. Fetch Notifications
         const { data: notifData } = await supabase
           .from('notifications')
           .select('*')
@@ -219,7 +230,7 @@ function ProfilePortalContent() {
           setUnreadCount(notifData.filter(n => !n.is_read).length);
         }
 
-        // 7. Fetch Jobs & User Applications
+        // 8. Fetch Jobs & User Applications
         const { data: allJobs } = await supabase
           .from('jobs')
           .select('*')
@@ -487,6 +498,18 @@ function ProfilePortalContent() {
     }
   }
 
+  // Calculate Profile Completion Percentage
+  const completionFields = [
+    Boolean(profile.full_name),
+    Boolean(profile.phone),
+    Boolean(profile.city),
+    Boolean(profile.bio),
+    Boolean(profile.resume_url)
+  ];
+  const profileCompletionPercent = Math.round(
+    (completionFields.filter(Boolean).length / completionFields.length) * 100
+  );
+
   // Refined Clean Menu
   const allMenuItems = [
     { id: 'pro', label: 'Shanora PRO 💎', desc: 'Blue Tick & Perks', icon: '⭐', bg: 'rgba(234, 179, 8, 0.15)', border: 'rgba(234, 179, 8, 0.4)' },
@@ -736,6 +759,161 @@ function ProfilePortalContent() {
           </div>
         )}
 
+        {/* TAB 2: DASHBOARD (LIVE METRICS & ANALYTICS) */}
+        {activeTab === 'dashboard' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            
+            {/* User Overview Header Card */}
+            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.3rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.8rem' }}>
+                <div>
+                  <span style={{ fontSize: '0.72rem', backgroundColor: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '0.2rem 0.5rem', borderRadius: '6px', fontWeight: 'bold' }}>
+                    Creator Analytics
+                  </span>
+                  <h2 style={{ fontSize: '1.25rem', color: '#fff', margin: '0.45rem 0 0.2rem 0', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <span>{profile.full_name}</span>
+                    {profile.is_pro && <span title="Verified Pro" style={{ color: '#38bdf8', fontSize: '0.95rem' }}>✓</span>}
+                  </h2>
+                  <p style={{ fontSize: '0.78rem', color: '#94a3b8', margin: 0 }}>
+                    Track your audience engagement, profile performance, and network growth.
+                  </p>
+                </div>
+
+                <div style={{ textAlign: 'right' }}>
+                  <span style={{
+                    fontSize: '0.7rem',
+                    fontWeight: '800',
+                    padding: '0.25rem 0.6rem',
+                    borderRadius: '8px',
+                    backgroundColor: profile.is_pro ? 'rgba(250, 204, 21, 0.15)' : 'rgba(148, 163, 184, 0.15)',
+                    color: profile.is_pro ? '#facc15' : '#94a3b8',
+                    border: profile.is_pro ? '1px solid rgba(250, 204, 21, 0.35)' : '1px solid rgba(148, 163, 184, 0.25)'
+                  }}>
+                    {profile.is_pro ? 'PRO MEMBER 💎' : 'STANDARD'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Profile Completion Bar */}
+              <div style={{ borderTop: '1px solid #1e293b', paddingTop: '0.9rem', marginTop: '0.8rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                  <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Profile Strength</span>
+                  <span style={{ fontSize: '0.75rem', fontWeight: '800', color: profileCompletionPercent === 100 ? '#4ade80' : '#38bdf8' }}>
+                    {profileCompletionPercent}%
+                  </span>
+                </div>
+                <div style={{ width: '100%', height: '6px', backgroundColor: '#1e293b', borderRadius: '3px', overflow: 'hidden' }}>
+                  <div style={{ width: `${profileCompletionPercent}%`, height: '100%', backgroundColor: profileCompletionPercent === 100 ? '#22c55e' : '#0284c7', transition: 'width 0.4s' }} />
+                </div>
+              </div>
+            </div>
+
+            {/* 4 Core Metrics Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem' }}>
+              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>Followers</span>
+                  <span style={{ fontSize: '1rem' }}>👥</span>
+                </div>
+                <div style={{ fontSize: '1.4rem', fontWeight: '900', color: '#38bdf8', marginTop: '0.2rem' }}>
+                  {followersList.length}
+                </div>
+                <span style={{ fontSize: '0.68rem', color: '#64748b' }}>Active audience</span>
+              </div>
+
+              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>Following</span>
+                  <span style={{ fontSize: '1rem' }}>🔗</span>
+                </div>
+                <div style={{ fontSize: '1.4rem', fontWeight: '900', color: '#22c55e', marginTop: '0.2rem' }}>
+                  {followingList.length}
+                </div>
+                <span style={{ fontSize: '0.68rem', color: '#64748b' }}>Network connections</span>
+              </div>
+
+              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>Feed Posts</span>
+                  <span style={{ fontSize: '1rem' }}>✍️</span>
+                </div>
+                <div style={{ fontSize: '1.4rem', fontWeight: '900', color: '#facc15', marginTop: '0.2rem' }}>
+                  {myPostsCount}
+                </div>
+                <span style={{ fontSize: '0.68rem', color: '#64748b' }}>Articles & updates</span>
+              </div>
+
+              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>Reach Boost</span>
+                  <span style={{ fontSize: '1rem' }}>⚡</span>
+                </div>
+                <div style={{ fontSize: '1.4rem', fontWeight: '900', color: profile.is_pro ? '#a855f7' : '#94a3b8', marginTop: '0.2rem' }}>
+                  {profile.is_pro ? '5x' : '1x'}
+                </div>
+                <span style={{ fontSize: '0.68rem', color: profile.is_pro ? '#4ade80' : '#64748b' }}>
+                  {profile.is_pro ? 'PRO Turbo active' : 'Standard reach'}
+                </span>
+              </div>
+            </div>
+
+            {/* Quick Actions & Short Navigation */}
+            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.1rem' }}>
+              <div style={{ fontSize: '0.82rem', fontWeight: '800', color: '#fff', marginBottom: '0.75rem' }}>
+                Quick Management
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('profile')}
+                  style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem 0.4rem', color: '#cbd5e1', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', textAlign: 'center' }}
+                >
+                  ✏️ Edit Profile
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('pages')}
+                  style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem 0.4rem', color: '#cbd5e1', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', textAlign: 'center' }}
+                >
+                  🚩 Pages ({myPages.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('applications')}
+                  style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem 0.4rem', color: '#cbd5e1', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', textAlign: 'center' }}
+                >
+                  📋 Jobs ({myApplicationsList.length})
+                </button>
+              </div>
+            </div>
+
+            {/* Managed Pages Overview */}
+            {myPages.length > 0 && (
+              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                  <div style={{ fontSize: '0.82rem', fontWeight: '800', color: '#fff' }}>
+                    Managed Pages ({myPages.length})
+                  </div>
+                  <Link href="/create-page" style={{ fontSize: '0.72rem', color: '#38bdf8', textDecoration: 'none', fontWeight: '700' }}>
+                    + New Page
+                  </Link>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {myPages.map(page => (
+                    <div key={page.id} style={{ backgroundColor: '#131b2e', borderRadius: '8px', padding: '0.6rem 0.8rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.82rem', color: '#fff', fontWeight: '600' }}>{page.name}</span>
+                      <Link href={`/page/${page.slug}`} style={{ fontSize: '0.74rem', color: '#38bdf8', textDecoration: 'none' }}>
+                        View ↗
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+          </div>
+        )}
+
         {/* TAB: MESSAGES */}
         {activeTab === 'messages' && (
           <div>
@@ -752,7 +930,7 @@ function ProfilePortalContent() {
           </div>
         )}
 
-        {/* TAB: MY PROFILE */}
+        {/* TAB 3: MY PROFILE */}
         {activeTab === 'profile' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.4rem' }}>
@@ -1239,7 +1417,7 @@ function ProfilePortalContent() {
                           width: '20px',
                           height: '20px',
                           borderRadius: '50%',
-                          backgroundColor: n.action_type === 'follow' ? '#0284c7' : (n.action_type === 'like' ? '#38bdf8' : '#22c55e'),
+                          backgroundColor: n.action_type === 'follow' ? '#0284c7' : (n.action_type === 'like' ? '#38bdf8' : (n.action_type === 'pro' ? '#facc15' : '#22c55e')),
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -1247,7 +1425,7 @@ function ProfilePortalContent() {
                           border: '2px solid #0f172a',
                           color: '#fff'
                         }}>
-                          {n.action_type === 'follow' ? '👤' : (n.action_type === 'like' ? '👍' : '💬')}
+                          {n.action_type === 'follow' ? '👤' : (n.action_type === 'like' ? '👍' : (n.action_type === 'pro' ? '💎' : '💬'))}
                         </div>
                       </div>
 
@@ -1274,28 +1452,6 @@ function ProfilePortalContent() {
                 })}
               </div>
             )}
-          </div>
-        )}
-
-        {/* TAB: DASHBOARD */}
-        {activeTab === 'dashboard' && (
-          <div>
-            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.2rem', marginBottom: '1rem' }}>
-              <span style={{ fontSize: '0.72rem', backgroundColor: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '0.2rem 0.5rem', borderRadius: '4px', fontWeight: 'bold' }}>Creator Hub</span>
-              <h2 style={{ fontSize: '1.2rem', color: '#fff', margin: '0.4rem 0 0.2rem 0' }}>Welcome, {profile.full_name}</h2>
-              <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: 0 }}>Track network reach and managed pages.</p>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.7rem' }}>
-              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '1rem' }}>
-                <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>Total Followers</span>
-                <div style={{ fontSize: '1.35rem', fontWeight: 'bold', color: '#38bdf8' }}>{followersList.length}</div>
-              </div>
-              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '1rem' }}>
-                <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>Total Following</span>
-                <div style={{ fontSize: '1.35rem', fontWeight: 'bold', color: '#22c55e' }}>{followingList.length}</div>
-              </div>
-            </div>
           </div>
         )}
 
@@ -1481,7 +1637,7 @@ function ProfilePortalContent() {
         )}
 
         {/* OTHER SERVICE TABS */}
-        {['monetization', 'resume', 'saved', 'settings'].includes(activeTab) && (
+        {['resume', 'saved', 'settings'].includes(activeTab) && (
           <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '2rem 1.5rem', textAlign: 'center' }}>
             <h3 style={{ color: '#fff', margin: '0 0 0.5rem 0', fontSize: '1.1rem', textTransform: 'capitalize' }}>{activeTab}</h3>
             <p style={{ color: '#94a3b8', fontSize: '0.82rem', margin: 0 }}>This module is ready for full functional configuration.</p>
