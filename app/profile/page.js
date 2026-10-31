@@ -708,6 +708,32 @@ function ProfilePortalContent() {
 
   }, [router]);
 
+  // Real-time Notifications Subscription
+  useEffect(() => {
+    if (!user?.email) return;
+    const myEmail = user.email.toLowerCase();
+
+    const notifChannel = supabase
+      .channel(`realtime_notifs_${myEmail}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `recipient_email=eq.${myEmail}`
+        },
+        (payload) => {
+          setNotifications((prev) => [payload.new, ...prev]);
+          setUnreadCount((prev) => prev + 1);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(notifChannel);
+    };
+  }, [user]);
 
 // Load Thread with Active Chat User (Fixed Memory Leak)
   useEffect(() => {
