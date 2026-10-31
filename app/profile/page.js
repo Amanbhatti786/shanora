@@ -4481,555 +4481,235 @@ async function handleRequestPayout(e) {
         )}
 
 
-
-        {/* TAB 10: SETTINGS */}
-
+{/* TAB 10: SETTINGS (VERTICAL ACCORDION STYLE) */}
         {activeTab === 'settings' && (
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
             <div>
-
-              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800', color: '#fff' }}>Settings & Preferences</h3>
-
-              <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Manage preferences, security protocols, and account configuration</span>
-
+              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800', color: '#fff' }}>Settings & Privacy</h3>
+              <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Manage preferences, security, and account configuration</span>
             </div>
 
-
-
-            <div style={{ display: 'flex', gap: '0.4rem', overflowX: 'auto', paddingBottom: '0.4rem', scrollbarWidth: 'none' }}>
-
-              {[
-
-                { id: 'account', label: '👤 Account' },
-
-                { id: 'privacy', label: '🔒 Privacy' },
-
-                { id: 'notifications', label: '🔔 Notifications' },
-
-                { id: 'language', label: '🌐 Region' },
-
-                { id: 'appearance', label: '🎨 Appearance' },
-
-                { id: 'messaging', label: '💬 Messaging' },
-
-                { id: 'feed', label: '📰 Feed' },
-
-                { id: 'professional', label: '💼 Career' },
-
-                { id: 'pro', label: '★ Shanora PRO' },
-
-                { id: 'data', label: '📁 Data' },
-
-                { id: 'support', label: '❓ Help' }
-
-              ].map(sub => (
-
-                <button
-
-                  key={sub.id}
-
-                  type="button"
-
-                  onClick={() => setSettingsActiveSubTab(sub.id)}
-
-                  style={{
-
-                    backgroundColor: settingsActiveSubTab === sub.id ? '#0284c7' : '#1e293b',
-
-                    color: settingsActiveSubTab === sub.id ? '#fff' : '#94a3b8',
-
-                    border: '1px solid #334155',
-
-                    padding: '0.4rem 0.75rem',
-
-                    borderRadius: '20px',
-
-                    fontSize: '0.76rem',
-
-                    fontWeight: '700',
-
-                    cursor: 'pointer',
-
-                    whiteSpace: 'nowrap',
-
-                    flexShrink: 0
-
-                  }}
-
+            {/* Vertical Options Container */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+              
+              {/* 1. Account Details & Security */}
+              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', overflow: 'hidden' }}>
+                <div
+                  onClick={() => setSettingsActiveSubTab(settingsActiveSubTab === 'account' ? null : 'account')}
+                  style={{ padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', backgroundColor: settingsActiveSubTab === 'account' ? '#131b2e' : 'transparent' }}
                 >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <span style={{ fontSize: '1.2rem' }}>👤</span>
+                    <span style={{ fontSize: '0.9rem', fontWeight: '700', color: '#fff' }}>Account & Password</span>
+                  </div>
+                  <span style={{ color: '#38bdf8', fontSize: '0.85rem' }}>{settingsActiveSubTab === 'account' ? '▲' : '▼'}</span>
+                </div>
 
-                  {sub.label}
+                {settingsActiveSubTab === 'account' && (
+                  <div style={{ padding: '1rem', borderTop: '1px solid #1e293b', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                    <div>
+                      <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Registered Email</span>
+                      <div style={{ color: '#fff', fontWeight: 'bold', fontSize: '0.85rem', marginTop: '0.1rem' }}>{profile.email}</div>
+                    </div>
 
-                </button>
+                    <form onSubmit={handleUpdatePassword} style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', borderTop: '1px solid #1e293b', paddingTop: '0.8rem' }}>
+                      <label style={{ fontSize: '0.72rem', color: '#cbd5e1', fontWeight: 'bold' }}>Update Password</label>
+                      <input
+                        type="password"
+                        placeholder="Enter new strong password (min 6 characters)"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.8rem', outline: 'none' }}
+                      />
+                      <button
+                        type="submit"
+                        disabled={updatingPassword}
+                        style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.55rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: '700', cursor: 'pointer' }}
+                      >
+                        {updatingPassword ? 'Updating...' : 'Update Password'}
+                      </button>
+                    </form>
 
-              ))}
+                    <button
+                      type="button"
+                      onClick={() => setShowLogoutModal(true)}
+                      style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#ef4444', padding: '0.6rem', width: '100%', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer', marginTop: '0.4rem' }}
+                    >
+                      Log Out of Current Session 🚪
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* 2. Privacy & Security */}
+              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', overflow: 'hidden' }}>
+                <div
+                  onClick={() => setSettingsActiveSubTab(settingsActiveSubTab === 'privacy' ? null : 'privacy')}
+                  style={{ padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', backgroundColor: settingsActiveSubTab === 'privacy' ? '#131b2e' : 'transparent' }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <span style={{ fontSize: '1.2rem' }}>🔒</span>
+                    <span style={{ fontSize: '0.9rem', fontWeight: '700', color: '#fff' }}>Privacy & Visibility</span>
+                  </div>
+                  <span style={{ color: '#38bdf8', fontSize: '0.85rem' }}>{settingsActiveSubTab === 'privacy' ? '▲' : '▼'}</span>
+                </div>
+
+                {settingsActiveSubTab === 'privacy' && (
+                  <div style={{ padding: '1rem', borderTop: '1px solid #1e293b', display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ color: '#fff', fontSize: '0.82rem', fontWeight: 'bold' }}>Profile Visibility</div>
+                        <div style={{ color: '#94a3b8', fontSize: '0.7rem' }}>Allow others to discover your profile</div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleSetting('profile_visible', profile.profile_visible)}
+                        style={{ backgroundColor: profile.profile_visible ? '#22c55e' : '#334155', color: '#000', border: 'none', padding: '0.35rem 0.8rem', borderRadius: '20px', fontSize: '0.72rem', fontWeight: '900', cursor: 'pointer' }}
+                      >
+                        {profile.profile_visible ? 'ON' : 'OFF'}
+                      </button>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #1e293b', paddingTop: '0.8rem' }}>
+                      <div>
+                        <div style={{ color: '#fff', fontSize: '0.82rem', fontWeight: 'bold' }}>Active Status (Last Seen)</div>
+                        <div style={{ color: '#94a3b8', fontSize: '0.7rem' }}>Display green online dot</div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleSetting('last_seen_visible', profile.last_seen_visible)}
+                        style={{ backgroundColor: profile.last_seen_visible ? '#22c55e' : '#334155', color: '#000', border: 'none', padding: '0.35rem 0.8rem', borderRadius: '20px', fontSize: '0.72rem', fontWeight: '900', cursor: 'pointer' }}
+                      >
+                        {profile.last_seen_visible ? 'ON' : 'OFF'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 3. Notifications */}
+              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', overflow: 'hidden' }}>
+                <div
+                  onClick={() => setSettingsActiveSubTab(settingsActiveSubTab === 'notifications' ? null : 'notifications')}
+                  style={{ padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', backgroundColor: settingsActiveSubTab === 'notifications' ? '#131b2e' : 'transparent' }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <span style={{ fontSize: '1.2rem' }}>🔔</span>
+                    <span style={{ fontSize: '0.9rem', fontWeight: '700', color: '#fff' }}>Notification Alerts</span>
+                  </div>
+                  <span style={{ color: '#38bdf8', fontSize: '0.85rem' }}>{settingsActiveSubTab === 'notifications' ? '▲' : '▼'}</span>
+                </div>
+
+                {settingsActiveSubTab === 'notifications' && (
+                  <div style={{ padding: '1rem', borderTop: '1px solid #1e293b' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ color: '#fff', fontSize: '0.82rem', fontWeight: 'bold' }}>Email Alerts</div>
+                        <div style={{ color: '#94a3b8', fontSize: '0.7rem' }}>Receive application alerts & notifications</div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleSetting('email_alerts', profile.email_alerts)}
+                        style={{ backgroundColor: profile.email_alerts ? '#22c55e' : '#334155', color: '#000', border: 'none', padding: '0.35rem 0.8rem', borderRadius: '20px', fontSize: '0.72rem', fontWeight: '900', cursor: 'pointer' }}
+                      >
+                        {profile.email_alerts ? 'ON' : 'OFF'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 4. Language & Region */}
+              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', overflow: 'hidden' }}>
+                <div
+                  onClick={() => setSettingsActiveSubTab(settingsActiveSubTab === 'language' ? null : 'language')}
+                  style={{ padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', backgroundColor: settingsActiveSubTab === 'language' ? '#131b2e' : 'transparent' }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <span style={{ fontSize: '1.2rem' }}>🌐</span>
+                    <span style={{ fontSize: '0.9rem', fontWeight: '700', color: '#fff' }}>Language & Region</span>
+                  </div>
+                  <span style={{ color: '#38bdf8', fontSize: '0.85rem' }}>{settingsActiveSubTab === 'language' ? '▲' : '▼'}</span>
+                </div>
+
+                {settingsActiveSubTab === 'language' && (
+                  <div style={{ padding: '1rem', borderTop: '1px solid #1e293b', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                    <select
+                      value={profile.app_language}
+                      onChange={(e) => handleSelectSetting('app_language', e.target.value)}
+                      style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem', color: '#fff', fontSize: '0.82rem', outline: 'none' }}
+                    >
+                      <option value="English">English (Default)</option>
+                      <option value="Urdu">Urdu (اردو)</option>
+                    </select>
+                    <span style={{ fontSize: '0.72rem', color: '#64748b' }}>Timezone: Asia/Karachi (PKT - UTC+5)</span>
+                  </div>
+                )}
+              </div>
+
+              {/* 5. Career & Job Status */}
+              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', overflow: 'hidden' }}>
+                <div
+                  onClick={() => setSettingsActiveSubTab(settingsActiveSubTab === 'professional' ? null : 'professional')}
+                  style={{ padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', backgroundColor: settingsActiveSubTab === 'professional' ? '#131b2e' : 'transparent' }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <span style={{ fontSize: '1.2rem' }}>💼</span>
+                    <span style={{ fontSize: '0.9rem', fontWeight: '700', color: '#fff' }}>Career Preferences</span>
+                  </div>
+                  <span style={{ color: '#38bdf8', fontSize: '0.85rem' }}>{settingsActiveSubTab === 'professional' ? '▲' : '▼'}</span>
+                </div>
+
+                {settingsActiveSubTab === 'professional' && (
+                  <div style={{ padding: '1rem', borderTop: '1px solid #1e293b' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ color: '#fff', fontSize: '0.82rem', fontWeight: 'bold' }}>"Open to Work" Badge</div>
+                        <div style={{ color: '#94a3b8', fontSize: '0.7rem' }}>Signal recruiters that you are available</div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleSetting('open_to_work', profile.open_to_work)}
+                        style={{ backgroundColor: profile.open_to_work ? '#22c55e' : '#334155', color: '#000', border: 'none', padding: '0.35rem 0.8rem', borderRadius: '20px', fontSize: '0.72rem', fontWeight: '900', cursor: 'pointer' }}
+                      >
+                        {profile.open_to_work ? 'ACTIVE' : 'OFF'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 6. Help & Support */}
+              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', overflow: 'hidden' }}>
+                <div
+                  onClick={() => setSettingsActiveSubTab(settingsActiveSubTab === 'support' ? null : 'support')}
+                  style={{ padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', backgroundColor: settingsActiveSubTab === 'support' ? '#131b2e' : 'transparent' }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <span style={{ fontSize: '1.2rem' }}>💬</span>
+                    <span style={{ fontSize: '0.9rem', fontWeight: '700', color: '#fff' }}>Help & Support</span>
+                  </div>
+                  <span style={{ color: '#38bdf8', fontSize: '0.85rem' }}>{settingsActiveSubTab === 'support' ? '▲' : '▼'}</span>
+                </div>
+
+                {settingsActiveSubTab === 'support' && (
+                  <div style={{ padding: '1rem', borderTop: '1px solid #1e293b', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                    <div style={{ fontSize: '0.78rem', color: '#cbd5e1' }}>Official Email: <strong>support@shanora.pk</strong></div>
+                    <a
+                      href="https://wa.me/923033639664"
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ backgroundColor: '#22c55e', color: '#000', padding: '0.5rem', textAlign: 'center', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 'bold', textDecoration: 'none' }}
+                    >
+                      Chat on WhatsApp
+                    </a>
+                  </div>
+                )}
+              </div>
 
             </div>
-
-
-
-            {/* SUB 1: ACCOUNT */}
-
-            {settingsActiveSubTab === 'account' && (
-
-              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.2rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-
-                <h4 style={{ margin: 0, color: '#38bdf8', fontSize: '0.95rem' }}>Account Details & Security</h4>
-
-                
-
-                <div>
-
-                  <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>Registered Email</span>
-
-                  <div style={{ color: '#fff', fontWeight: 'bold', fontSize: '0.88rem', marginTop: '0.1rem' }}>{profile.email}</div>
-
-                </div>
-
-
-
-                <form onSubmit={handleUpdatePassword} style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', borderTop: '1px solid #1e293b', paddingTop: '0.8rem' }}>
-
-                  <label style={{ fontSize: '0.74rem', color: '#cbd5e1', fontWeight: 'bold' }}>Update Password</label>
-
-                  <input
-
-                    type="password"
-
-                    placeholder="Enter new strong password (min 6 characters)"
-
-                    value={newPassword}
-
-                    onChange={(e) => setNewPassword(e.target.value)}
-
-                    style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none' }}
-
-                  />
-
-                  <button
-
-                    type="submit"
-
-                    disabled={updatingPassword}
-
-                    style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.55rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: '700', cursor: 'pointer' }}
-
-                  >
-
-                    {updatingPassword ? 'Updating...' : 'Update Password'}
-
-                  </button>
-
-                </form>
-
-
-
-                <div style={{ borderTop: '1px solid #1e293b', paddingTop: '0.8rem' }}>
-
-                  <button
-
-                    type="button"
-
-                    onClick={() => setShowLogoutModal(true)}
-
-                    style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#ef4444', padding: '0.6rem', width: '100%', borderRadius: '8px', fontSize: '0.82rem', fontWeight: 'bold', cursor: 'pointer' }}
-
-                  >
-
-                    Log Out of Current Session 🚪
-
-                  </button>
-
-                </div>
-
-              </div>
-
-            )}
-
-
-
-            {/* SUB 2: PRIVACY */}
-
-            {settingsActiveSubTab === 'privacy' && (
-
-              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.2rem', display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
-
-                <h4 style={{ margin: 0, color: '#38bdf8', fontSize: '0.95rem' }}>Privacy Controls</h4>
-
-
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-
-                  <div>
-
-                    <div style={{ color: '#fff', fontSize: '0.85rem', fontWeight: 'bold' }}>Profile Visibility</div>
-
-                    <div style={{ color: '#94a3b8', fontSize: '0.72rem' }}>Allow others to discover your profile on Shanora Network</div>
-
-                  </div>
-
-                  <button
-
-                    type="button"
-
-                    onClick={() => handleToggleSetting('profile_visible', profile.profile_visible)}
-
-                    style={{ backgroundColor: profile.profile_visible ? '#22c55e' : '#334155', color: '#000', border: 'none', padding: '0.35rem 0.8rem', borderRadius: '20px', fontSize: '0.74rem', fontWeight: '900', cursor: 'pointer' }}
-
-                  >
-
-                    {profile.profile_visible ? 'ON' : 'OFF'}
-
-                  </button>
-
-                </div>
-
-
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #1e293b', paddingTop: '0.8rem' }}>
-
-                  <div>
-
-                    <div style={{ color: '#fff', fontSize: '0.85rem', fontWeight: 'bold' }}>Active Status (Last Seen)</div>
-
-                    <div style={{ color: '#94a3b8', fontSize: '0.72rem' }}>Display active indicator dot when using direct messages</div>
-
-                  </div>
-
-                  <button
-
-                    type="button"
-
-                    onClick={() => handleToggleSetting('last_seen_visible', profile.last_seen_visible)}
-
-                    style={{ backgroundColor: profile.last_seen_visible ? '#22c55e' : '#334155', color: '#000', border: 'none', padding: '0.35rem 0.8rem', borderRadius: '20px', fontSize: '0.74rem', fontWeight: '900', cursor: 'pointer' }}
-
-                  >
-
-                    {profile.last_seen_visible ? 'ON' : 'OFF'}
-
-                  </button>
-
-                </div>
-
-              </div>
-
-            )}
-
-
-
-            {/* SUB 3: NOTIFICATIONS */}
-
-            {settingsActiveSubTab === 'notifications' && (
-
-              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.2rem', display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
-
-                <h4 style={{ margin: 0, color: '#38bdf8', fontSize: '0.95rem' }}>Notification Preferences</h4>
-
-
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-
-                  <div>
-
-                    <div style={{ color: '#fff', fontSize: '0.85rem', fontWeight: 'bold' }}>Email Alerts & Notifications</div>
-
-                    <div style={{ color: '#94a3b8', fontSize: '0.72rem' }}>Receive job application updates and critical verified alerts</div>
-
-                  </div>
-
-                  <button
-
-                    type="button"
-
-                    onClick={() => handleToggleSetting('email_alerts', profile.email_alerts)}
-
-                    style={{ backgroundColor: profile.email_alerts ? '#22c55e' : '#334155', color: '#000', border: 'none', padding: '0.35rem 0.8rem', borderRadius: '20px', fontSize: '0.74rem', fontWeight: '900', cursor: 'pointer' }}
-
-                  >
-
-                    {profile.email_alerts ? 'ON' : 'OFF'}
-
-                  </button>
-
-                </div>
-
-              </div>
-
-            )}
-
-
-
-            {/* SUB 4: REGION */}
-
-            {settingsActiveSubTab === 'language' && (
-
-              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.2rem', display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
-
-                <h4 style={{ margin: 0, color: '#38bdf8', fontSize: '0.95rem' }}>Language & Region</h4>
-
-
-
-                <div>
-
-                  <label style={{ fontSize: '0.74rem', color: '#94a3b8', display: 'block', marginBottom: '0.3rem' }}>Preferred Interface Language</label>
-
-                  <select
-
-                    value={profile.app_language}
-
-                    onChange={(e) => handleSelectSetting('app_language', e.target.value)}
-
-                    style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem', color: '#fff', fontSize: '0.82rem', outline: 'none' }}
-
-                  >
-
-                    <option value="English">English (Default)</option>
-
-                    <option value="Urdu">Urdu</option>
-
-                  </select>
-
-                </div>
-
-
-
-                <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-
-                  Standard Timezone: <strong>Asia/Karachi (PKT - UTC+5)</strong>
-
-                </div>
-
-              </div>
-
-            )}
-
-
-
-            {/* SUB 5: APPEARANCE */}
-
-            {settingsActiveSubTab === 'appearance' && (
-
-              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.2rem', display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
-
-                <h4 style={{ margin: 0, color: '#38bdf8', fontSize: '0.95rem' }}>Theme & Display</h4>
-
-                <div style={{ color: '#cbd5e1', fontSize: '0.82rem' }}>Current Theme: <strong>High-Contrast Professional Dark (Active)</strong></div>
-
-                <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Engineered for optimal readability and power efficiency.</div>
-
-              </div>
-
-            )}
-
-
-
-            {/* SUB 6: MESSAGING */}
-
-            {settingsActiveSubTab === 'messaging' && (
-
-              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.2rem', display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
-
-                <h4 style={{ margin: 0, color: '#38bdf8', fontSize: '0.95rem' }}>Direct Messaging Permissions</h4>
-
-                <div>
-
-                  <label style={{ fontSize: '0.74rem', color: '#94a3b8', display: 'block', marginBottom: '0.3rem' }}>Who can initiate direct messages with you?</label>
-
-                  <select
-
-                    value={profile.message_permission}
-
-                    onChange={(e) => handleSelectSetting('message_permission', e.target.value)}
-
-                    style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem', color: '#fff', fontSize: '0.82rem', outline: 'none' }}
-
-                  >
-
-                    <option value="Anyone">Anyone on Shanora.pk</option>
-
-                    <option value="Followers Only">Only Connections I Follow</option>
-
-                    <option value="Pro Only">Only Verified PRO Members</option>
-
-                  </select>
-
-                </div>
-
-              </div>
-
-            )}
-
-
-
-            {/* SUB 7: FEED PREFERENCES */}
-
-            {settingsActiveSubTab === 'feed' && (
-
-              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.2rem', display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
-
-                <h4 style={{ margin: 0, color: '#38bdf8', fontSize: '0.95rem' }}>Feed Algorithm Controls</h4>
-
-                <div style={{ fontSize: '0.82rem', color: '#cbd5e1' }}>Feed orders high-engagement professional updates based on your network activity.</div>
-
-                <button
-
-                  type="button"
-
-                  onClick={() => alert('Feed recommendation algorithm reset successfully.')}
-
-                  style={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#38bdf8', padding: '0.5rem', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 'bold', cursor: 'pointer' }}
-
-                >
-
-                  Reset Recommendations
-
-                </button>
-
-              </div>
-
-            )}
-
-
-
-            {/* SUB 8: PROFESSIONAL */}
-
-            {settingsActiveSubTab === 'professional' && (
-
-              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.2rem', display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
-
-                <h4 style={{ margin: 0, color: '#38bdf8', fontSize: '0.95rem' }}>Career & Job Status</h4>
-
-
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-
-                  <div>
-
-                    <div style={{ color: '#fff', fontSize: '0.85rem', fontWeight: 'bold' }}>"Open to Work" Signal</div>
-
-                    <div style={{ color: '#94a3b8', fontSize: '0.72rem' }}>Indicate to hiring managers and recruiters that you are available for work</div>
-
-                  </div>
-
-                  <button
-
-                    type="button"
-
-                    onClick={() => handleToggleSetting('open_to_work', profile.open_to_work)}
-
-                    style={{ backgroundColor: profile.open_to_work ? '#22c55e' : '#334155', color: '#000', border: 'none', padding: '0.35rem 0.8rem', borderRadius: '20px', fontSize: '0.74rem', fontWeight: '900', cursor: 'pointer' }}
-
-                  >
-
-                    {profile.open_to_work ? 'ACTIVE' : 'OFF'}
-
-                  </button>
-
-                </div>
-
-              </div>
-
-            )}
-
-
-
-            {/* SUB 9: PRO SHORTCUT */}
-
-            {settingsActiveSubTab === 'pro' && (
-
-              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.2rem', display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
-
-                <h4 style={{ margin: 0, color: '#facc15', fontSize: '0.95rem' }}>Shanora PRO Status</h4>
-
-                <div style={{ color: '#cbd5e1', fontSize: '0.82rem' }}>
-
-                  Status: <strong>{profile.is_pro ? 'PRO Member (Verified ✓)' : 'Standard Free User'}</strong>
-
-                </div>
-
-                <button
-
-                  type="button"
-
-                  onClick={() => setActiveTab('pro')}
-
-                  style={{ backgroundColor: '#eab308', color: '#000', border: 'none', padding: '0.55rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: '900', cursor: 'pointer' }}
-
-                >
-
-                  Manage Membership & Perks ★
-
-                </button>
-
-              </div>
-
-            )}
-
-
-
-            {/* SUB 10: DATA */}
-
-            {settingsActiveSubTab === 'data' && (
-
-              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.2rem', display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
-
-                <h4 style={{ margin: 0, color: '#38bdf8', fontSize: '0.95rem' }}>Data & Search Permissions</h4>
-
-                <div style={{ color: '#cbd5e1', fontSize: '0.82rem' }}>Public Search Indexing: <strong>Enabled ✓</strong></div>
-
-                <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Your public profile is searchable by potential employers and colleagues on Shanora.pk.</div>
-
-              </div>
-
-            )}
-
-
-
-            {/* SUB 11: SUPPORT */}
-
-            {settingsActiveSubTab === 'support' && (
-
-              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.2rem', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-
-                <h4 style={{ margin: 0, color: '#38bdf8', fontSize: '0.95rem' }}>Help & Support Center</h4>
-
-                <div style={{ fontSize: '0.82rem', color: '#cbd5e1' }}>
-
-                  Need technical assistance with payments, monetization, or verification?
-
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.78rem', color: '#94a3b8' }}>
-
-                  <div>✉️ <strong>Official Support Email:</strong> support@shanora.pk</div>
-
-                  <div>📞 <strong>Direct Helpline:</strong> +92 303 3639664</div>
-
-                </div>
-
-                <a
-
-                  href="https://wa.me/923033639664"
-
-                  target="_blank"
-
-                  rel="noreferrer"
-
-                  style={{ backgroundColor: '#22c55e', color: '#000', padding: '0.55rem', textAlign: 'center', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 'bold', textDecoration: 'none', marginTop: '0.4rem' }}
-
-                >
-
-                  Chat with Support on WhatsApp ↗
-
-                </a>
-
-              </div>
-
-            )}
-
+          </div>
+        )}
 
 
           </div>
