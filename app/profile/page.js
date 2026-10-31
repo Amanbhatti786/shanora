@@ -1,5 +1,5 @@
 'use client';
-import { Suspense, useState, useEffect } from 'react';
+import { Suspense, useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '../../lib/supabaseClient';
@@ -16,13 +16,13 @@ function ProfilePortalContent() {
   const [profile, setProfile] = useState({
     full_name: '',
     email: '',
-    headline: '',
     phone: '',
     city: 'Pakistan',
     bio: '',
-    resume_url: '',
-    avatar_url: '',
+    headline: '',
     skills: '',
+    avatar_url: '',
+    resume_url: '',
     is_pro: false
   });
 
@@ -34,11 +34,12 @@ function ProfilePortalContent() {
     phone: '',
     city: 'Pakistan',
     bio: '',
-    resume_url: '',
+    skills: '',
     avatar_url: '',
-    skills: ''
+    resume_url: ''
   });
   const [updatingProfile, setUpdatingProfile] = useState(false);
+  const [uploadingResume, setUploadingResume] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   // Pro Upgrade States
@@ -54,10 +55,19 @@ function ProfilePortalContent() {
   const [followersList, setFollowersList] = useState([]);
   const [followingList, setFollowingList] = useState([]);
   const [discoverUsers, setDiscoverUsers] = useState([]);
+  const [allUsersList, setAllUsersList] = useState([]);
   const [followingMap, setFollowingMap] = useState({});
   const [actionLoading, setActionLoading] = useState({});
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+
+  // Messages States (LinkedIn Style)
+  const [messageSearchQuery, setMessageSearchQuery] = useState('');
+  const [activeChatUser, setActiveChatUser] = useState(null);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [newMessageText, setNewMessageText] = useState('');
+  const [sendingMsg, setSendingMsg] = useState(false);
+  const messagesEndRef = useRef(null);
 
   // Jobs States
   const [jobsList, setJobsList] = useState([]);
@@ -105,6 +115,12 @@ function ProfilePortalContent() {
         setUser(currentUser);
         const myEmail = (currentUser.email || '').trim().toLowerCase();
 
+        // Update Online Heartbeat
+        await supabase
+          .from('profiles')
+          .update({ last_seen: new Date().toISOString() })
+          .ilike('email', myEmail);
+
         // 1. Fetch Profile
         const { data: profileData } = await supabase
           .from('profiles')
@@ -115,13 +131,13 @@ function ProfilePortalContent() {
         const defaultProfile = {
           full_name: profileData?.full_name || profileData?.name || currentUser.user_metadata?.full_name || myEmail.split('@')[0],
           email: currentUser.email,
-          headline: profileData?.headline || 'Passionate creator & professional on Shanora.pk',
           phone: profileData?.phone || '',
           city: profileData?.city || 'Pakistan',
-          bio: profileData?.bio || '',
-          resume_url: profileData?.resume_url || profileData?.resume_link || '',
-          avatar_url: profileData?.avatar_url || '',
+          headline: profileData?.headline || 'Professional Member on Shanora',
+          bio: profileData?.bio || 'Passionate creator & professional on Shanora.pk',
           skills: profileData?.skills || '',
+          avatar_url: profileData?.avatar_url || '',
+          resume_url: profileData?.resume_url || profileData?.resume_link || '',
           is_pro: !!profileData?.is_pro
         };
 
@@ -132,9 +148,9 @@ function ProfilePortalContent() {
           phone: defaultProfile.phone,
           city: defaultProfile.city,
           bio: defaultProfile.bio,
-          resume_url: defaultProfile.resume_url,
+          skills: defaultProfile.skills,
           avatar_url: defaultProfile.avatar_url,
-          skills: defaultProfile.skills
+          resume_url: defaultProfile.resume_url
         });
 
         // 2. Fetch Latest Pro Request
@@ -165,7 +181,7 @@ function ProfilePortalContent() {
 
         if (pagesData) setMyPages(pagesData);
 
-        // 5. Fetch Followers & Following
+        // 5. Fetch Real Followers & Following
         const { data: followsData } = await supabase
           .from('user_follows')
           .select('id, follower_email, following_email, created_at');
@@ -184,28 +200,19 @@ function ProfilePortalContent() {
           setFollowingMap(curMap);
         }
 
-        // 6. Fetch Discover Users
+        // 6. Fetch All Users for Messenger & Discover
         const { data: allProfiles } = await supabase
           .from('profiles')
           .select('*')
-          .limit(50);
+          .limit(100);
 
-        let discoveredList = [];
-        if (allProfiles && allProfiles.length > 0) {
-          discoveredList = allProfiles
-            .filter(p => {
-              const pEmail = (p.email || '').toLowerCase();
-              return pEmail && pEmail !== myEmail && !curMap[pEmail];
-            })
-            .map(p => ({
-              id: p.id || p.email,
-              name: p.full_name || p.name || (p.email ? p.email.split('@')[0] : 'User'),
-              email: p.email,
-              avatar_url: p.avatar_url || null
-            }));
+        if (allProfiles) {
+          const filteredProfiles = allProfiles.filter(p => (p.email || '').toLowerCase() !== myEmail);
+          setAllUsersList(filteredProfiles);
+
+          const discoveredList = filteredProfiles.filter(p => !curMap[(p.email || '').toLowerCase()]);
+          setDiscoverUsers(discoveredList);
         }
-
-        setDiscoverUsers(discoveredList);
 
         // 7. Fetch Notifications
         const { data: notifData } = await supabase
@@ -220,7 +227,7 @@ function ProfilePortalContent() {
           setUnreadCount(notifData.filter(n => !n.is_read).length);
         }
 
-        // 8. Fetch Jobs & Applications
+        // 8. Fetch Jobs & User Applications
         const { data: allJobs } = await supabase
           .from('jobs')
           .select('*')
@@ -253,40 +260,172 @@ function ProfilePortalContent() {
     initPortal();
   }, [router]);
 
-  // Handle Avatar Image Upload
+  // Load Chat Messages with Active User
+  useEffect(() => {
+    if (!activeChatUser || !user) return;
+
+    let sub;
+    async function loadThread() {
+      const myEmail = user.email.toLowerCase();
+      const otherEmail = activeChatUser.email.toLowerCase();
+
+      const { data } = await supabase
+        .from('direct_messages')
+        .select('*')
+        .or(`and(sender_email.ilike.${myEmail},receiver_email.ilike.${otherEmail}),and(sender_email.ilike.${otherEmail},receiver_email.ilike.${myEmail})`)
+        .order('created_at', { ascending: true });
+
+      setChatMessages(data || []);
+      scrollToBottom();
+    }
+
+    loadThread();
+
+    // Real-time Chat Subscription
+    sub = supabase
+      .channel('public:direct_messages')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'direct_messages' }, payload => {
+        const msg = payload.new;
+        const myEmail = user.email.toLowerCase();
+        const otherEmail = activeChatUser.email.toLowerCase();
+
+        if (
+          (msg.sender_email.toLowerCase() === myEmail && msg.receiver_email.toLowerCase() === otherEmail) ||
+          (msg.sender_email.toLowerCase() === otherEmail && msg.receiver_email.toLowerCase() === myEmail)
+        ) {
+          setChatMessages(prev => [...prev, msg]);
+          scrollToBottom();
+        }
+      })
+      .subscribe();
+
+    return () => {
+      if (sub) supabase.removeChannel(sub);
+    };
+  }, [activeChatUser, user]);
+
+  function scrollToBottom() {
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
+  }
+
+  // Send Direct Message
+  async function handleSendMessage(e) {
+    e.preventDefault();
+    if (!newMessageText.trim() || !activeChatUser || !user) return;
+
+    setSendingMsg(true);
+    try {
+      const { data, error } = await supabase
+        .from('direct_messages')
+        .insert([{
+          sender_email: user.email.toLowerCase(),
+          receiver_email: activeChatUser.email.toLowerCase(),
+          message: newMessageText.trim()
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+      setChatMessages(prev => [...prev, data]);
+      setNewMessageText('');
+      scrollToBottom();
+    } catch (err) {
+      alert('Message send failed: ' + err.message);
+    } finally {
+      setSendingMsg(false);
+    }
+  }
+
+  // Helper function to check if user was active recently (Last 5 mins = Online)
+  function isUserOnline(lastSeen) {
+    if (!lastSeen) return false;
+    const diff = Date.now() - new Date(lastSeen).getTime();
+    return diff < 5 * 60 * 1000;
+  }
+
+  // Handle Direct Resume Upload
+  async function handleResumeUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Resume file size 5MB se kam honi chahiye.');
+      return;
+    }
+
+    setUploadingResume(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const filePath = `resumes/${user.id}-${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('documents')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) {
+        const { error: fallbackError } = await supabase.storage
+          .from('public')
+          .upload(filePath, file, { upsert: true });
+        if (fallbackError) throw uploadError;
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from('documents')
+        .getPublicUrl(filePath);
+
+      const resumeUrl = publicUrlData.publicUrl;
+      setEditProfileForm(prev => ({ ...prev, resume_url: resumeUrl }));
+      alert('Resume upload ho gaya hai! Save button dabayein taake update finalize ho sake.');
+    } catch (err) {
+      alert('Resume upload error: ' + err.message);
+    } finally {
+      setUploadingResume(false);
+    }
+  }
+
+  // Handle Profile Picture Upload
   async function handleAvatarUpload(e) {
     const file = e.target.files?.[0];
     if (!file || !user) return;
 
+    if (file.size > 3 * 1024 * 1024) {
+      alert('Tasweer ka size 3MB se kam hona chahiye.');
+      return;
+    }
+
     setUploadingAvatar(true);
     try {
       const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-      const filePath = `avatars/${fileName}`;
+      const filePath = `avatars/${user.id}-${Date.now()}.${fileExt}`;
 
-      // Upload file to supabase storage bucket 'avatars'
-      const { error: uploadErr } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('avatars')
         .upload(filePath, file, { upsert: true });
 
-      if (uploadErr) {
-        // Agar bucket nahi bana to base64 preview ya warning fallback
-        throw new Error('Please ensure "avatars" public bucket exists in Supabase Storage. (' + uploadErr.message + ')');
+      if (uploadError) {
+        const { error: fallbackError } = await supabase.storage
+          .from('public')
+          .upload(filePath, file, { upsert: true });
+        if (fallbackError) throw uploadError;
       }
 
-      const { data: { publicUrl } } = supabase.storage
+      const { data: publicUrlData } = supabase.storage
         .from('avatars')
         .getPublicUrl(filePath);
 
-      setEditProfileForm(prev => ({ ...prev, avatar_url: publicUrl }));
-      alert('Photo uploaded! Click "Save Profile" to finish.');
+      const avatarUrl = publicUrlData.publicUrl;
+      setEditProfileForm(prev => ({ ...prev, avatar_url: avatarUrl }));
+      alert('Profile picture select ho gayi hai! Form save karein.');
     } catch (err) {
-      alert('Upload failed: ' + err.message);
+      alert('Avatar upload error: ' + err.message);
     } finally {
       setUploadingAvatar(false);
     }
   }
 
+  // Save Complete Profile Details
   async function handleSaveProfile(e) {
     e.preventDefault();
     if (!user) return;
@@ -301,9 +440,9 @@ function ProfilePortalContent() {
         phone: editProfileForm.phone,
         city: editProfileForm.city,
         bio: editProfileForm.bio,
-        resume_url: editProfileForm.resume_url,
-        avatar_url: editProfileForm.avatar_url,
         skills: editProfileForm.skills,
+        avatar_url: editProfileForm.avatar_url,
+        resume_url: editProfileForm.resume_url,
         updated_at: new Date().toISOString()
       };
 
@@ -323,7 +462,7 @@ function ProfilePortalContent() {
     }
   }
 
-  // Handle Pro Activation Request
+  // Handle Pro Verification Request
   async function handleProActivation(e) {
     e.preventDefault();
     if (!trxId.trim()) {
@@ -525,24 +664,25 @@ function ProfilePortalContent() {
     }
   }
 
-  // Profile Completion Percentage
+  // Filter Users for Messenger Search
+  const filteredMessengerUsers = allUsersList.filter(u => {
+    const q = messageSearchQuery.toLowerCase();
+    const name = (u.full_name || u.name || '').toLowerCase();
+    const email = (u.email || '').toLowerCase();
+    return name.includes(q) || email.includes(q);
+  });
+
   const completionFields = [
     Boolean(profile.full_name),
-    Boolean(profile.headline),
     Boolean(profile.phone),
     Boolean(profile.city),
     Boolean(profile.bio),
-    Boolean(profile.skills),
-    Boolean(profile.resume_url)
+    Boolean(profile.resume_url),
+    Boolean(profile.skills)
   ];
   const profileCompletionPercent = Math.round(
     (completionFields.filter(Boolean).length / completionFields.length) * 100
   );
-
-  // Parse skills into array
-  const skillsList = profile.skills
-    ? profile.skills.split(',').map(s => s.trim()).filter(Boolean)
-    : [];
 
   const allMenuItems = [
     { id: 'pro', label: 'Shanora PRO 💎', desc: 'Blue Tick & Perks', icon: '⭐', bg: 'rgba(234, 179, 8, 0.15)', border: 'rgba(234, 179, 8, 0.4)' },
@@ -617,8 +757,8 @@ function ProfilePortalContent() {
               }}
             >
               <div style={{
-                width: '42px',
-                height: '42px',
+                width: '46px',
+                height: '46px',
                 borderRadius: '50%',
                 backgroundColor: '#0284c7',
                 display: 'flex',
@@ -627,19 +767,21 @@ function ProfilePortalContent() {
                 fontSize: '1.15rem',
                 fontWeight: 'bold',
                 color: '#fff',
-                backgroundImage: profile.avatar_url ? `url(${profile.avatar_url})` : 'none',
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
+                overflow: 'hidden',
                 flexShrink: 0
               }}>
-                {!profile.avatar_url && (profile.full_name || 'U').charAt(0).toUpperCase()}
+                {profile.avatar_url ? (
+                  <img src={profile.avatar_url} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  (profile.full_name || 'U').charAt(0).toUpperCase()
+                )}
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ color: '#fff', fontWeight: '700', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                   <span>{profile.full_name}</span>
                   {profile.is_pro && <span title="Verified Pro" style={{ color: '#38bdf8', fontSize: '0.9rem' }}>✓</span>}
                 </div>
-                <div style={{ color: '#38bdf8', fontSize: '0.74rem' }}>View your profile →</div>
+                <div style={{ color: '#94a3b8', fontSize: '0.74rem' }}>{profile.headline || 'View your profile →'}</div>
               </div>
             </div>
 
@@ -840,7 +982,6 @@ function ProfilePortalContent() {
                 </div>
               </div>
 
-              {/* Profile Completion Bar */}
               <div style={{ borderTop: '1px solid #1e293b', paddingTop: '0.9rem', marginTop: '0.8rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
                   <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Profile Strength</span>
@@ -854,94 +995,34 @@ function ProfilePortalContent() {
               </div>
             </div>
 
-            {/* Core Metrics Grid */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem' }}>
               <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>Followers</span>
-                  <span style={{ fontSize: '1rem' }}>👥</span>
-                </div>
-                <div style={{ fontSize: '1.4rem', fontWeight: '900', color: '#38bdf8', marginTop: '0.2rem' }}>
-                  {followersList.length}
-                </div>
-                <span style={{ fontSize: '0.68rem', color: '#64748b' }}>Active audience</span>
+                <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>Followers 👥</span>
+                <div style={{ fontSize: '1.4rem', fontWeight: '900', color: '#38bdf8', marginTop: '0.2rem' }}>{followersList.length}</div>
               </div>
-
               <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>Following</span>
-                  <span style={{ fontSize: '1rem' }}>🔗</span>
-                </div>
-                <div style={{ fontSize: '1.4rem', fontWeight: '900', color: '#22c55e', marginTop: '0.2rem' }}>
-                  {followingList.length}
-                </div>
-                <span style={{ fontSize: '0.68rem', color: '#64748b' }}>Network connections</span>
+                <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>Following 🔗</span>
+                <div style={{ fontSize: '1.4rem', fontWeight: '900', color: '#22c55e', marginTop: '0.2rem' }}>{followingList.length}</div>
               </div>
-
               <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>Feed Posts</span>
-                  <span style={{ fontSize: '1rem' }}>✍️</span>
-                </div>
-                <div style={{ fontSize: '1.4rem', fontWeight: '900', color: '#facc15', marginTop: '0.2rem' }}>
-                  {myPostsCount}
-                </div>
-                <span style={{ fontSize: '0.68rem', color: '#64748b' }}>Articles & updates</span>
+                <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>Feed Posts ✍️</span>
+                <div style={{ fontSize: '1.4rem', fontWeight: '900', color: '#facc15', marginTop: '0.2rem' }}>{myPostsCount}</div>
               </div>
-
               <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>Reach Boost</span>
-                  <span style={{ fontSize: '1rem' }}>⚡</span>
-                </div>
+                <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>Reach Boost ⚡</span>
                 <div style={{ fontSize: '1.4rem', fontWeight: '900', color: profile.is_pro ? '#a855f7' : '#94a3b8', marginTop: '0.2rem' }}>
                   {profile.is_pro ? '5x' : '1x'}
                 </div>
-                <span style={{ fontSize: '0.68rem', color: profile.is_pro ? '#4ade80' : '#64748b' }}>
-                  {profile.is_pro ? 'PRO Turbo active' : 'Standard reach'}
-                </span>
-              </div>
-            </div>
-
-            {/* Quick Management */}
-            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.1rem' }}>
-              <div style={{ fontSize: '0.82rem', fontWeight: '800', color: '#fff', marginBottom: '0.75rem' }}>
-                Quick Management
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('profile')}
-                  style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem 0.4rem', color: '#cbd5e1', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', textAlign: 'center' }}
-                >
-                  ✏️ Edit Profile
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('pages')}
-                  style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem 0.4rem', color: '#cbd5e1', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', textAlign: 'center' }}
-                >
-                  🚩 Pages ({myPages.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('applications')}
-                  style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem 0.4rem', color: '#cbd5e1', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', textAlign: 'center' }}
-                >
-                  📋 Jobs ({myApplicationsList.length})
-                </button>
               </div>
             </div>
           </div>
         )}
 
-        {/* TAB 3: MY PROFILE (LINKEDIN STYLE - FULLY FUNCTIONAL) */}
+        {/* TAB 3: MY PROFILE */}
         {activeTab === 'profile' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.4rem' }}>
-              
-              {/* Header with Avatar & Details */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.8rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                   <div style={{
                     width: '68px',
@@ -952,120 +1033,278 @@ function ProfilePortalContent() {
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontWeight: '800',
-                    fontSize: '1.75rem',
+                    fontSize: '1.8rem',
                     color: '#fff',
                     border: '2px solid #38bdf8',
-                    backgroundImage: profile.avatar_url ? `url(${profile.avatar_url})` : 'none',
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
+                    overflow: 'hidden',
                     flexShrink: 0
                   }}>
-                    {!profile.avatar_url && (profile.full_name || 'U').charAt(0).toUpperCase()}
+                    {profile.avatar_url ? (
+                      <img src={profile.avatar_url} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      (profile.full_name || 'U').charAt(0).toUpperCase()
+                    )}
                   </div>
                   <div>
                     <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                       <span>{profile.full_name}</span>
                       {profile.is_pro && <span title="Verified Pro" style={{ color: '#38bdf8', fontSize: '1rem' }}>✓</span>}
                     </h3>
-                    <div style={{ color: '#cbd5e1', fontSize: '0.83rem', marginTop: '0.15rem' }}>{profile.headline}</div>
-                    <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{profile.email}</span>
+                    <div style={{ fontSize: '0.82rem', color: '#38bdf8', fontWeight: '600', marginTop: '0.15rem' }}>
+                      {profile.headline || 'Member on Shanora.pk'}
+                    </div>
+                    <span style={{ fontSize: '0.74rem', color: '#64748b' }}>{profile.email}</span>
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '0.4rem' }}>
-                  <Link
-                    href={`/view-profile?email=${encodeURIComponent(user?.email || '')}`}
-                    style={{
-                      backgroundColor: 'rgba(56, 189, 248, 0.12)',
-                      border: '1px solid rgba(56, 189, 248, 0.3)',
-                      color: '#38bdf8',
-                      padding: '0.45rem 0.8rem',
-                      borderRadius: '8px',
-                      fontSize: '0.76rem',
-                      fontWeight: '700',
-                      textDecoration: 'none',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.3rem'
-                    }}
-                  >
-                    <span>👁️</span> Public View
-                  </Link>
-
-                  <button
-                    type="button"
-                    onClick={() => setShowEditProfileModal(true)}
-                    style={{
-                      backgroundColor: '#1e293b',
-                      border: '1px solid #334155',
-                      color: '#fff',
-                      padding: '0.45rem 0.85rem',
-                      borderRadius: '8px',
-                      fontSize: '0.76rem',
-                      fontWeight: '700',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    ✏️ Edit Profile
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowEditProfileModal(true)}
+                  style={{
+                    backgroundColor: '#1e293b',
+                    border: '1px solid #334155',
+                    color: '#38bdf8',
+                    padding: '0.5rem 1rem',
+                    borderRadius: '8px',
+                    fontSize: '0.78rem',
+                    fontWeight: '700',
+                    cursor: 'pointer'
+                  }}
+                >
+                  ✏️ Edit Profile
+                </button>
               </div>
 
-              {/* Bio Section */}
               {profile.bio && (
-                <div style={{ backgroundColor: 'rgba(30, 41, 59, 0.4)', borderRadius: '10px', padding: '0.85rem', fontSize: '0.83rem', color: '#cbd5e1', lineHeight: '1.45', marginBottom: '1rem' }}>
-                  <strong style={{ color: '#94a3b8', fontSize: '0.75rem', display: 'block', marginBottom: '0.2rem' }}>ABOUT</strong>
+                <div style={{ backgroundColor: 'rgba(30, 41, 59, 0.4)', borderRadius: '10px', padding: '0.8rem', fontSize: '0.84rem', color: '#cbd5e1', lineHeight: '1.45', marginBottom: '1rem' }}>
                   {profile.bio}
                 </div>
               )}
 
-              {/* Skills Tags Section */}
-              {skillsList.length > 0 && (
-                <div style={{ marginBottom: '1.1rem' }}>
-                  <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '0.4rem' }}>SKILLS & EXPERTISE</span>
+              {profile.skills && (
+                <div style={{ marginBottom: '1rem' }}>
+                  <div style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase', marginBottom: '0.4rem' }}>
+                    Skills & Expertise
+                  </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                    {skillsList.map((skill, idx) => (
-                      <span key={idx} style={{
-                        backgroundColor: '#1e293b',
-                        border: '1px solid #334155',
-                        color: '#38bdf8',
-                        padding: '0.25rem 0.65rem',
-                        borderRadius: '6px',
-                        fontSize: '0.75rem',
-                        fontWeight: '600'
-                      }}>
-                        {skill}
+                    {profile.skills.split(',').map((s, idx) => (
+                      <span key={idx} style={{ backgroundColor: '#1e293b', color: '#38bdf8', border: '1px solid #334155', padding: '0.2rem 0.6rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '600' }}>
+                        {s.trim()}
                       </span>
                     ))}
                   </div>
                 </div>
               )}
 
-              {/* Information List */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.85rem', color: '#94a3b8', borderTop: '1px solid #1e293b', paddingTop: '1rem' }}>
-                <div>📱 <strong style={{ color: '#fff' }}>Phone:</strong> {profile.phone || 'Not provided'}</div>
-                <div>📍 <strong style={{ color: '#fff' }}>Location:</strong> {profile.city || 'Pakistan'}</div>
-                <div>📄 <strong style={{ color: '#fff' }}>Resume Link:</strong> {profile.resume_url ? <a href={profile.resume_url} target="_blank" rel="noreferrer" style={{ color: '#38bdf8', textDecoration: 'none', marginLeft: '0.3rem' }}>View Linked CV ↗</a> : 'No resume URL linked'}</div>
-                <div>💎 <strong style={{ color: '#fff' }}>Status:</strong> {profile.is_pro ? <span style={{ color: '#facc15', fontWeight: '800' }}>Shanora PRO (Verified ✓)</span> : 'Standard Member'}</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', fontSize: '0.84rem', color: '#94a3b8', borderTop: '1px solid #1e293b', paddingTop: '1rem' }}>
+                <div>📱 <strong style={{ color: '#fff' }}>WhatsApp / Phone:</strong> {profile.phone || 'Not provided'}</div>
+                <div>📍 <strong style={{ color: '#fff' }}>City / Location:</strong> {profile.city || 'Pakistan'}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  📄 <strong style={{ color: '#fff' }}>Linked CV / Resume:</strong>
+                  {profile.resume_url ? (
+                    <a href={profile.resume_url} target="_blank" rel="noreferrer" style={{ backgroundColor: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '0.2rem 0.6rem', borderRadius: '6px', textDecoration: 'none', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                      View Linked CV ↗
+                    </a>
+                  ) : (
+                    <span style={{ color: '#64748b' }}>No CV uploaded yet</span>
+                  )}
+                </div>
+                <div>💎 <strong style={{ color: '#fff' }}>Account Status:</strong> {profile.is_pro ? <span style={{ color: '#facc15', fontWeight: '800' }}>Shanora PRO (Verified ✓)</span> : 'Standard Member'}</div>
               </div>
-
             </div>
           </div>
         )}
 
-        {/* TAB: MESSAGES */}
+        {/* TAB 4: MESSAGES (LINKEDIN STYLE WITH SEARCH & GREEN ONLINE DOT) */}
         {activeTab === 'messages' && (
-          <div>
-            <div style={{ marginBottom: '1.2rem' }}>
-              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800', color: '#fff' }}>Direct Messages</h3>
-              <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>1-on-1 private conversations</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            
+            {/* Header */}
+            <div>
+              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800', color: '#fff' }}>Messaging</h3>
+              <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Direct 1-on-1 conversations & connections</span>
             </div>
 
-            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '3.5rem 1rem', textAlign: 'center', color: '#94a3b8' }}>
-              <div style={{ fontSize: '2.5rem', marginBottom: '0.6rem' }}>💬</div>
-              <div style={{ fontSize: '0.95rem', fontWeight: '700', color: '#e2e8f0', marginBottom: '0.2rem' }}>No conversations yet</div>
-              <div style={{ fontSize: '0.78rem', color: '#64748b' }}>Connect with creators or employers to start direct messaging.</div>
-            </div>
+            {/* If Active Chat is Open, show Chat Window */}
+            {activeChatUser ? (
+              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: '520px' }}>
+                
+                {/* Chat Top Bar */}
+                <div style={{ backgroundColor: '#131b2e', padding: '0.75rem 1rem', borderBottom: '1px solid #1e293b', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <button
+                      type="button"
+                      onClick={() => setActiveChatUser(null)}
+                      style={{ background: 'none', border: 'none', color: '#38bdf8', fontSize: '1.2rem', cursor: 'pointer', padding: '0 0.4rem 0 0' }}
+                    >
+                      ←
+                    </button>
+                    
+                    {/* Avatar with Online Dot */}
+                    <div style={{ position: 'relative' }}>
+                      <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#fff', fontSize: '1rem', overflow: 'hidden' }}>
+                        {activeChatUser.avatar_url ? (
+                          <img src={activeChatUser.avatar_url} alt="User" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          (activeChatUser.full_name || activeChatUser.name || activeChatUser.email || 'U').charAt(0).toUpperCase()
+                        )}
+                      </div>
+                      {/* Green Online Dot */}
+                      {isUserOnline(activeChatUser.last_seen) && (
+                        <div title="Online now" style={{ position: 'absolute', bottom: '0px', right: '0px', width: '11px', height: '11px', borderRadius: '50%', backgroundColor: '#22c55e', border: '2px solid #0f172a' }} />
+                      )}
+                    </div>
+
+                    <div>
+                      <div style={{ color: '#fff', fontWeight: '700', fontSize: '0.92rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                        <span>{activeChatUser.full_name || activeChatUser.name || activeChatUser.email.split('@')[0]}</span>
+                        {activeChatUser.is_pro && <span style={{ color: '#38bdf8', fontSize: '0.85rem' }}>✓</span>}
+                      </div>
+                      <div style={{ fontSize: '0.7rem', color: isUserOnline(activeChatUser.last_seen) ? '#4ade80' : '#64748b' }}>
+                        {isUserOnline(activeChatUser.last_seen) ? 'Active now ●' : 'Offline'}
+                      </div>
+                    </div>
+                  </div>
+
+                  <Link href={`/view-profile?email=${encodeURIComponent(activeChatUser.email)}`} style={{ color: '#38bdf8', fontSize: '0.75rem', textDecoration: 'none', fontWeight: '700' }}>
+                    Profile ↗
+                  </Link>
+                </div>
+
+                {/* Messages Body */}
+                <div style={{ flex: 1, padding: '1rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                  {chatMessages.length === 0 ? (
+                    <div style={{ textAlign: 'center', margin: 'auto', color: '#64748b', fontSize: '0.82rem' }}>
+                      👋 Start the conversation! Send a message below.
+                    </div>
+                  ) : (
+                    chatMessages.map(msg => {
+                      const isMe = msg.sender_email.toLowerCase() === user.email.toLowerCase();
+                      return (
+                        <div key={msg.id} style={{ display: 'flex', justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
+                          <div style={{
+                            maxWidth: '75%',
+                            backgroundColor: isMe ? '#0284c7' : '#1e293b',
+                            color: '#fff',
+                            padding: '0.6rem 0.85rem',
+                            borderRadius: isMe ? '14px 14px 2px 14px' : '14px 14px 14px 2px',
+                            fontSize: '0.83rem',
+                            lineHeight: '1.4'
+                          }}>
+                            <div>{msg.message}</div>
+                            <div style={{ fontSize: '0.62rem', color: isMe ? '#bae6fd' : '#94a3b8', textAlign: 'right', marginTop: '0.2rem' }}>
+                              {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                  <div ref={messagesEndRef} />
+                </div>
+
+                {/* Input Bar */}
+                <form onSubmit={handleSendMessage} style={{ padding: '0.75rem', backgroundColor: '#131b2e', borderTop: '1px solid #1e293b', display: 'flex', gap: '0.5rem' }}>
+                  <input
+                    type="text"
+                    placeholder="Write a message..."
+                    value={newMessageText}
+                    onChange={(e) => setNewMessageText(e.target.value)}
+                    style={{ flex: 1, backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '24px', padding: '0.55rem 1rem', color: '#fff', fontSize: '0.82rem', outline: 'none' }}
+                  />
+                  <button
+                    type="submit"
+                    disabled={sendingMsg || !newMessageText.trim()}
+                    style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', borderRadius: '50%', width: '38px', height: '38px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
+                  >
+                    ➤
+                  </button>
+                </form>
+
+              </div>
+            ) : (
+              /* Conversation Search & List View */
+              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
+                
+                {/* Search Bar */}
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type="text"
+                    placeholder="🔍 Search conversations or people by name..."
+                    value={messageSearchQuery}
+                    onChange={(e) => setMessageSearchQuery(e.target.value)}
+                    style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '24px', padding: '0.6rem 1rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }}
+                  />
+                </div>
+
+                {/* Users List */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+                  {filteredMessengerUsers.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '2.5rem 1rem', color: '#64748b', fontSize: '0.82rem' }}>
+                      Koi user nahi mila. Naam ya email check karein.
+                    </div>
+                  ) : (
+                    filteredMessengerUsers.map(chatTarget => {
+                      const online = isUserOnline(chatTarget.last_seen);
+                      const displayName = chatTarget.full_name || chatTarget.name || chatTarget.email.split('@')[0];
+
+                      return (
+                        <div
+                          key={chatTarget.id || chatTarget.email}
+                          onClick={() => setActiveChatUser(chatTarget)}
+                          style={{
+                            backgroundColor: '#131b2e',
+                            border: '1px solid #1e293b',
+                            borderRadius: '12px',
+                            padding: '0.75rem 0.9rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            cursor: 'pointer',
+                            transition: 'background 0.2s'
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', overflow: 'hidden' }}>
+                            
+                            {/* Profile Image with Green Dot */}
+                            <div style={{ position: 'relative', flexShrink: 0 }}>
+                              <div style={{ width: '46px', height: '46px', borderRadius: '50%', backgroundColor: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#fff', fontSize: '1.1rem', overflow: 'hidden' }}>
+                                {chatTarget.avatar_url ? (
+                                  <img src={chatTarget.avatar_url} alt={displayName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                ) : (
+                                  displayName.charAt(0).toUpperCase()
+                                )}
+                              </div>
+                              {/* Green Online Dot */}
+                              {online && (
+                                <div title="Online" style={{ position: 'absolute', bottom: '1px', right: '1px', width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#22c55e', border: '2px solid #131b2e' }} />
+                              )}
+                            </div>
+
+                            <div style={{ overflow: 'hidden' }}>
+                              <div style={{ color: '#fff', fontWeight: '700', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.3rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                                <span>{displayName}</span>
+                                {chatTarget.is_pro && <span style={{ color: '#38bdf8', fontSize: '0.85rem' }}>✓</span>}
+                              </div>
+                              <div style={{ color: '#94a3b8', fontSize: '0.74rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', marginTop: '0.15rem' }}>
+                                {chatTarget.headline || chatTarget.city || 'Shanora Network'}
+                              </div>
+                            </div>
+
+                          </div>
+
+                          <span style={{ fontSize: '0.72rem', color: online ? '#4ade80' : '#64748b', fontWeight: '700', flexShrink: 0 }}>
+                            {online ? 'Online ●' : 'Chat 💬'}
+                          </span>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+              </div>
+            )}
+
           </div>
         )}
 
@@ -1712,7 +1951,7 @@ function ProfilePortalContent() {
         )}
 
         {/* OTHER SERVICE TABS */}
-        {['resume', 'saved', 'settings'].includes(activeTab) && (
+        {['resume', 'monetization', 'saved', 'settings'].includes(activeTab) && (
           <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '2rem 1.5rem', textAlign: 'center' }}>
             <h3 style={{ color: '#fff', margin: '0 0 0.5rem 0', fontSize: '1.1rem', textTransform: 'capitalize' }}>{activeTab}</h3>
             <p style={{ color: '#94a3b8', fontSize: '0.82rem', margin: 0 }}>This module is ready for full functional configuration.</p>
@@ -1721,7 +1960,7 @@ function ProfilePortalContent() {
 
       </main>
 
-      {/* EDIT PROFILE MODAL (WITH AVATAR & SKILLS) */}
+      {/* EDIT PROFILE MODAL */}
       {showEditProfileModal && (
         <div 
           onClick={() => setShowEditProfileModal(false)}
@@ -1743,7 +1982,7 @@ function ProfilePortalContent() {
               border: '1px solid #334155',
               borderRadius: '16px',
               width: '100%',
-              maxWidth: '480px',
+              maxWidth: '520px',
               padding: '1.4rem',
               boxShadow: '0 20px 40px rgba(0, 0, 0, 0.7)',
               maxHeight: '90vh',
@@ -1751,7 +1990,7 @@ function ProfilePortalContent() {
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem', borderBottom: '1px solid #1e293b', paddingBottom: '0.8rem' }}>
-              <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#fff', fontWeight: '800' }}>Edit Profile Details</h3>
+              <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#fff', fontWeight: '800' }}>Edit Professional Profile</h3>
               <button 
                 type="button" 
                 onClick={() => setShowEditProfileModal(false)}
@@ -1762,82 +2001,42 @@ function ProfilePortalContent() {
             </div>
 
             <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-              
-              {/* Photo Upload Area */}
               <div>
-                <label style={{ display: 'block', fontSize: '0.72rem', color: '#94a3b8', marginBottom: '0.35rem', fontWeight: '600' }}>Profile Picture</label>
+                <label style={{ display: 'block', fontSize: '0.72rem', color: '#94a3b8', marginBottom: '0.25rem', fontWeight: '600' }}>Profile Picture (Avatar)</label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
-                  <div style={{
-                    width: '50px',
-                    height: '50px',
-                    borderRadius: '50%',
-                    backgroundColor: '#1e293b',
-                    border: '1px solid #38bdf8',
-                    backgroundImage: editProfileForm.avatar_url ? `url(${editProfileForm.avatar_url})` : 'none',
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#fff',
-                    fontWeight: 'bold'
-                  }}>
-                    {!editProfileForm.avatar_url && '📷'}
-                  </div>
-                  <div>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      id="avatarInput"
-                      onChange={handleAvatarUpload}
-                      style={{ display: 'none' }}
-                    />
-                    <label
-                      htmlFor="avatarInput"
-                      style={{
-                        backgroundColor: '#1e293b',
-                        border: '1px solid #334155',
-                        color: '#38bdf8',
-                        padding: '0.4rem 0.8rem',
-                        borderRadius: '6px',
-                        fontSize: '0.75rem',
-                        fontWeight: '700',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      {uploadingAvatar ? 'Uploading...' : 'Upload Image'}
-                    </label>
-                  </div>
+                  <input type="file" accept="image/*" onChange={handleAvatarUpload} disabled={uploadingAvatar} style={{ fontSize: '0.78rem', color: '#94a3b8' }} />
+                  {uploadingAvatar && <span style={{ fontSize: '0.72rem', color: '#38bdf8' }}>Uploading...</span>}
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.72rem', color: '#94a3b8', marginBottom: '0.25rem', fontWeight: '600' }}>Full Name *</label>
+                  <input
+                    type="text"
+                    value={editProfileForm.full_name}
+                    onChange={(e) => setEditProfileForm({ ...editProfileForm, full_name: e.target.value })}
+                    style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }}
+                    required
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.72rem', color: '#94a3b8', marginBottom: '0.25rem', fontWeight: '600' }}>Designation / Headline</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Video Editor / Developer"
+                    value={editProfileForm.headline}
+                    onChange={(e) => setEditProfileForm({ ...editProfileForm, headline: e.target.value })}
+                    style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }}
+                  />
                 </div>
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.72rem', color: '#94a3b8', marginBottom: '0.25rem', fontWeight: '600' }}>Full Name *</label>
-                <input
-                  type="text"
-                  value={editProfileForm.full_name}
-                  onChange={(e) => setEditProfileForm({ ...editProfileForm, full_name: e.target.value })}
-                  style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }}
-                  required
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.72rem', color: '#94a3b8', marginBottom: '0.25rem', fontWeight: '600' }}>Headline / Designation</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Video Editor & AI Creator | Freelancer"
-                  value={editProfileForm.headline}
-                  onChange={(e) => setEditProfileForm({ ...editProfileForm, headline: e.target.value })}
-                  style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.72rem', color: '#94a3b8', marginBottom: '0.25rem', fontWeight: '600' }}>Bio / About</label>
+                <label style={{ display: 'block', fontSize: '0.72rem', color: '#94a3b8', marginBottom: '0.25rem', fontWeight: '600' }}>Bio & About You</label>
                 <textarea
                   rows={2}
-                  placeholder="Tell others what you do..."
+                  placeholder="Brief summary of your professional background..."
                   value={editProfileForm.bio}
                   onChange={(e) => setEditProfileForm({ ...editProfileForm, bio: e.target.value })}
                   style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
@@ -1845,10 +2044,10 @@ function ProfilePortalContent() {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.72rem', color: '#94a3b8', marginBottom: '0.25rem', fontWeight: '600' }}>Skills (Comma-separated)</label>
+                <label style={{ display: 'block', fontSize: '0.72rem', color: '#94a3b8', marginBottom: '0.25rem', fontWeight: '600' }}>Key Skills (Comma separated)</label>
                 <input
                   type="text"
-                  placeholder="e.g. React, Next.js, Video Editing, Python"
+                  placeholder="e.g. Video Editing, Next.js, SEO, Graphics"
                   value={editProfileForm.skills}
                   onChange={(e) => setEditProfileForm({ ...editProfileForm, skills: e.target.value })}
                   style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }}
@@ -1857,7 +2056,7 @@ function ProfilePortalContent() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.72rem', color: '#94a3b8', marginBottom: '0.25rem', fontWeight: '600' }}>Phone / WhatsApp</label>
+                  <label style={{ display: 'block', fontSize: '0.72rem', color: '#94a3b8', marginBottom: '0.25rem', fontWeight: '600' }}>WhatsApp / Contact</label>
                   <input
                     type="text"
                     placeholder="0300-1234567"
@@ -1878,15 +2077,29 @@ function ProfilePortalContent() {
                 </div>
               </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '0.72rem', color: '#94a3b8', marginBottom: '0.25rem', fontWeight: '600' }}>CV / Resume URL (Google Drive / LinkedIn)</label>
-                <input
-                  type="url"
-                  placeholder="https://drive.google.com/..."
-                  value={editProfileForm.resume_url}
-                  onChange={(e) => setEditProfileForm({ ...editProfileForm, resume_url: e.target.value })}
-                  style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }}
-                />
+              <div style={{ backgroundColor: 'rgba(30, 41, 59, 0.4)', padding: '0.8rem', borderRadius: '10px', border: '1px solid #334155' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                  <label style={{ fontSize: '0.74rem', color: '#38bdf8', fontWeight: '700' }}>📄 Resume / CV</label>
+                  {editProfileForm.resume_url && (
+                    <a href={editProfileForm.resume_url} target="_blank" rel="noreferrer" style={{ fontSize: '0.7rem', color: '#4ade80', fontWeight: 'bold', textDecoration: 'none' }}>
+                      Current File ↗
+                    </a>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                    <input type="file" accept=".pdf,.doc,.docx" onChange={handleResumeUpload} disabled={uploadingResume} style={{ fontSize: '0.74rem', color: '#cbd5e1' }} />
+                    {uploadingResume && <span style={{ fontSize: '0.7rem', color: '#facc15' }}>Uploading...</span>}
+                  </div>
+                  <input
+                    type="url"
+                    placeholder="Paste Google Drive / LinkedIn CV URL"
+                    value={editProfileForm.resume_url}
+                    onChange={(e) => setEditProfileForm({ ...editProfileForm, resume_url: e.target.value })}
+                    style={{ width: '100%', backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '6px', padding: '0.45rem 0.65rem', color: '#fff', fontSize: '0.78rem', outline: 'none', boxSizing: 'border-box' }}
+                  />
+                </div>
               </div>
 
               <div style={{ display: 'flex', gap: '0.6rem', marginTop: '0.6rem' }}>
@@ -1899,10 +2112,10 @@ function ProfilePortalContent() {
                 </button>
                 <button
                   type="submit"
-                  disabled={updatingProfile}
+                  disabled={updatingProfile || uploadingResume || uploadingAvatar}
                   style={{ flex: 2, backgroundColor: '#0284c7', border: 'none', color: '#fff', padding: '0.6rem', borderRadius: '8px', fontWeight: '700', fontSize: '0.82rem', cursor: updatingProfile ? 'not-allowed' : 'pointer' }}
                 >
-                  {updatingProfile ? 'Saving...' : 'Save Profile'}
+                  {updatingProfile ? 'Saving...' : 'Save Profile Details'}
                 </button>
               </div>
             </form>
@@ -1910,7 +2123,7 @@ function ProfilePortalContent() {
         </div>
       )}
 
-      {/* POP-UP FORM MODAL (EASY APPLY) */}
+      {/* POP-UP FORM MODAL (EASY APPLY WITH AUTO-FILL) */}
       {selectedJobForApply && (
         <div 
           onClick={() => setSelectedJobForApply(null)}
