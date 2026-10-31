@@ -8,6 +8,16 @@ import { useRouter, useSearchParams } from 'next/navigation';
 
 import { supabase } from '../../lib/supabaseClient';
 
+// Security: Client-side XSS Sanitizer
+function sanitizeInput(str) {
+  if (typeof str !== 'string') return str;
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
 
 
 function ProfilePortalContent() {
