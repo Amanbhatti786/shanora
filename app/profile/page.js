@@ -1747,148 +1747,254 @@ function ProfilePortalContent() {
           </div>
         )}
 
-        {/* TAB 7: MY RESUME (PAID PRO FEATURE) */}
-        {activeTab === 'resume' && (
-          <div>
-            {!profile.is_pro ? (
-              <div style={{
-                backgroundColor: '#0f172a',
-                border: '1px solid rgba(234, 179, 8, 0.35)',
-                borderRadius: '16px',
-                padding: '2.5rem 1.2rem',
-                textAlign: 'center'
-              }}>
-                <div style={{ fontSize: '3rem', marginBottom: '0.6rem' }}>🔒</div>
-                <h3 style={{ margin: '0 0 0.4rem 0', color: '#facc15', fontSize: '1.25rem', fontWeight: '800' }}>
-                  Shanora PRO Exclusive Feature
-                </h3>
-                <p style={{ margin: '0 0 1.2rem 0', color: '#cbd5e1', fontSize: '0.84rem', lineHeight: '1.5', maxWidth: '420px', marginLeft: 'auto', marginRight: 'auto' }}>
-                  ATS-Friendly Resume Builder aur instant PDF Export feature sirf **Shanora PRO** members ke liye unlock hota hai.
-                </p>
+        {/* TAB 7: MY RESUME (ATS RESUME BUILDER 📝) */}
+{activeTab === 'resume' && (
+  <div>
+    {!profile.is_pro ? (
+      /* 1. NON-PRO (FREE USERS) VIEW */
+      <div
+        style={{
+          backgroundColor: '#0f172a',
+          border: '1px solid rgba(234, 179, 8, 0.35)',
+          borderRadius: '16px',
+          padding: '2.5rem 1.4rem',
+          textAlign: 'center'
+        }}
+      >
+        <div style={{ fontSize: '3rem', marginBottom: '0.6rem' }}>🔒</div>
+        
+        <h3 style={{ margin: '0 0 0.4rem 0', color: '#facc15', fontSize: '1.25rem', fontWeight: '800' }}>
+          Shanora PRO Exclusive Feature
+        </h3>
+        
+        <p style={{ margin: '0 auto 1.2rem auto', color: '#cbd5e1', fontSize: '0.84rem', lineHeight: '1.5', maxWidth: '440px' }}>
+          ATS-Friendly Resume Builder aur Instant PDF Export feature sirf <strong>Shanora PRO</strong> members ke liye unlock hota hai.
+        </p>
 
-                <div style={{ backgroundColor: 'rgba(30, 41, 59, 0.5)', borderRadius: '12px', padding: '1rem', maxWidth: '380px', margin: '0 auto 1.5rem', textAlign: 'left', fontSize: '0.8rem', color: '#94a3b8', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                  <div>✨ <strong>ATS Resume Parser:</strong> 100% pass guarantee for HR systems.</div>
-                  <div>📥 <strong>1-Click PDF Export:</strong> Clean printable layout ready for interview.</div>
-                  <div>⚡ <strong>Instant Job Auto-Fill:</strong> Applied directly to vacancies.</div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('pro')}
-                  style={{
-                    backgroundColor: '#eab308',
-                    color: '#000',
-                    border: 'none',
-                    padding: '0.75rem 1.6rem',
-                    borderRadius: '10px',
-                    fontSize: '0.88rem',
-                    fontWeight: '900',
-                    cursor: 'pointer',
-                    boxShadow: '0 4px 14px rgba(234, 179, 8, 0.3)'
-                  }}
-                >
-                  Unlock with Shanora PRO 💎 (Rs. 499)
-                </button>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800', color: '#fff' }}>ATS Resume Builder 💎</h3>
-                    <span style={{ fontSize: '0.75rem', color: '#4ade80' }}>Shanora PRO Active • ATS Verified Layout</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handlePrintResume}
-                    style={{
-                      backgroundColor: '#22c55e',
-                      color: '#000',
-                      border: 'none',
-                      padding: '0.5rem 1rem',
-                      borderRadius: '8px',
-                      fontSize: '0.8rem',
-                      fontWeight: '800',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    📥 Download / Print PDF
-                  </button>
-                </div>
-
-                <div id="printable-ats-cv" style={{
-                  backgroundColor: '#ffffff',
-                  color: '#0f172a',
-                  padding: '2rem 1.8rem',
-                  borderRadius: '12px',
-                  boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
-                  fontFamily: 'serif',
-                  lineHeight: '1.5'
-                }}>
-                  <div style={{ textAlign: 'center', borderBottom: '2px solid #0f172a', paddingBottom: '0.8rem', marginBottom: '1.2rem' }}>
-                    <h1 style={{ margin: '0 0 0.2rem 0', fontSize: '1.6rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                      {profile.full_name || 'Your Full Name'}
-                    </h1>
-                    <div style={{ fontSize: '0.88rem', fontWeight: 'bold', color: '#334155' }}>
-                      {profile.headline || 'Professional Specialist'}
-                    </div>
-                    <div style={{ fontSize: '0.78rem', color: '#475569', marginTop: '0.3rem' }}>
-                      {profile.email} | {profile.phone || '+92 300 0000000'} | {profile.city || 'Pakistan'}
-                    </div>
-                  </div>
-
-                  <div style={{ marginBottom: '1rem' }}>
-                    <div style={{ fontSize: '0.9rem', fontWeight: 'bold', textTransform: 'uppercase', borderBottom: '1px solid #cbd5e1', paddingBottom: '0.2rem', marginBottom: '0.4rem' }}>
-                      Professional Summary
-                    </div>
-                    <p style={{ margin: 0, fontSize: '0.82rem', color: '#334155' }}>
-                      {profile.bio || 'Experienced professional with a strong track record of success and dedicated expertise on Shanora.pk.'}
-                    </p>
-                  </div>
-
-                  {profile.skills && (
-                    <div style={{ marginBottom: '1rem' }}>
-                      <div style={{ fontSize: '0.9rem', fontWeight: 'bold', textTransform: 'uppercase', borderBottom: '1px solid #cbd5e1', paddingBottom: '0.2rem', marginBottom: '0.4rem' }}>
-                        Core Competencies & Skills
-                      </div>
-                      <div style={{ fontSize: '0.82rem', color: '#334155' }}>
-                        {profile.skills}
-                      </div>
-                    </div>
-                  )}
-
-                  <div style={{ marginBottom: '1rem' }}>
-                    <div style={{ fontSize: '0.9rem', fontWeight: 'bold', textTransform: 'uppercase', borderBottom: '1px solid #cbd5e1', paddingBottom: '0.2rem', marginBottom: '0.4rem' }}>
-                      Professional Experience
-                    </div>
-                    <textarea
-                      rows={4}
-                      value={resumeData.experience}
-                      onChange={(e) => setResumeData({ ...resumeData, experience: e.target.value })}
-                      style={{ width: '100%', border: '1px dashed #94a3b8', borderRadius: '4px', padding: '0.4rem', fontSize: '0.8rem', color: '#0f172a', fontFamily: 'serif', outline: 'none', resize: 'vertical' }}
-                    />
-                  </div>
-
-                  <div style={{ marginBottom: '0.8rem' }}>
-                    <div style={{ fontSize: '0.9rem', fontWeight: 'bold', textTransform: 'uppercase', borderBottom: '1px solid #cbd5e1', paddingBottom: '0.2rem', marginBottom: '0.4rem' }}>
-                      Education & Credentials
-                    </div>
-                    <textarea
-                      rows={3}
-                      value={resumeData.education}
-                      onChange={(e) => setResumeData({ ...resumeData, education: e.target.value })}
-                      style={{ width: '100%', border: '1px dashed #94a3b8', borderRadius: '4px', padding: '0.4rem', fontSize: '0.8rem', color: '#0f172a', fontFamily: 'serif', outline: 'none', resize: 'vertical' }}
-                    />
-                  </div>
-                </div>
-
-                <div style={{ fontSize: '0.75rem', color: '#94a3b8', textAlign: 'center' }}>
-                  💡 <em>Aap box ke andar text ko direct edit kar sakte hain. PDF download karne par bilkul clean A4 format aayega.</em>
-                </div>
-              </div>
-            )}
+        {/* Perks Preview Box */}
+        <div
+          style={{
+            backgroundColor: 'rgba(30, 41, 59, 0.6)',
+            border: '1px solid #334155',
+            borderRadius: '12px',
+            padding: '1rem 1.1rem',
+            maxWidth: '400px',
+            margin: '0 auto 1.5rem auto',
+            textAlign: 'left',
+            fontSize: '0.8rem',
+            color: '#94a3b8',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.5rem'
+          }}
+        >
+          <div style={{ color: '#f8fafc' }}>
+            ✨ <strong style={{ color: '#38bdf8' }}>100% ATS-Friendly:</strong> HR scanning aur applicant tracking systems ke liye tested clean layout.
           </div>
-        )}
+          <div style={{ color: '#f8fafc' }}>
+            📥 <strong style={{ color: '#38bdf8' }}>1-Click Clean PDF:</strong> Bina kisi watermark ke formal print-ready standard CV download karein.
+          </div>
+          <div style={{ color: '#f8fafc' }}>
+            🔄 <strong style={{ color: '#38bdf8' }}>Automated Profile Sync:</strong> Aapka naam, headline, contact aur skills direct auto-load hoti hain.
+          </div>
+        </div>
 
+        {/* Upgrade Button */}
+        <button
+          type="button"
+          onClick={() => setActiveTab('pro')}
+          style={{
+            backgroundColor: '#eab308',
+            color: '#000',
+            border: 'none',
+            padding: '0.75rem 1.6rem',
+            borderRadius: '10px',
+            fontSize: '0.88rem',
+            fontWeight: '900',
+            cursor: 'pointer',
+            boxShadow: '0 4px 14px rgba(234, 179, 8, 0.3)'
+          }}
+        >
+          Unlock with Shanora PRO 💎 (Rs. 499)
+        </button>
+      </div>
+    ) : (
+      /* 2. PRO MEMBERS VIEW (UNLOCKED ATS BUILDER & EXPORTER) */
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+        
+        {/* Action Bar */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.8rem' }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <span>ATS Resume Builder</span>
+              <span style={{ color: '#38bdf8', fontSize: '1rem' }}>✓</span>
+            </h3>
+            <span style={{ fontSize: '0.75rem', color: '#4ade80' }}>
+              Shanora PRO Active • Standard A4 Printable Layout
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => window.print()}
+            style={{
+              backgroundColor: '#22c55e',
+              color: '#000',
+              border: 'none',
+              padding: '0.55rem 1.2rem',
+              borderRadius: '8px',
+              fontSize: '0.82rem',
+              fontWeight: '800',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              boxShadow: '0 2px 8px rgba(34, 197, 94, 0.3)'
+            }}
+          >
+            <span>📥</span>
+            <span>Download / Print PDF</span>
+          </button>
+        </div>
+
+        {/* Live ATS Sheet (A4 White Format) */}
+        <div
+          id="printable-ats-cv"
+          style={{
+            backgroundColor: '#ffffff',
+            color: '#0f172a',
+            padding: '2.5rem 2rem',
+            borderRadius: '12px',
+            boxShadow: '0 10px 25px rgba(0,0,0,0.4)',
+            fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif',
+            lineHeight: '1.5'
+          }}
+        >
+          {/* Header (Auto-loaded Details) */}
+          <div style={{ textAlign: 'center', borderBottom: '2px solid #0f172a', paddingBottom: '0.9rem', marginBottom: '1.2rem' }}>
+            <h1 style={{ margin: '0 0 0.25rem 0', fontSize: '1.75rem', textTransform: 'uppercase', letterSpacing: '1px', color: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}>
+              <span>{profile.full_name || 'Your Full Name'}</span>
+              <span title="Verified Shanora PRO" style={{ color: '#0284c7', fontSize: '1.1rem' }}>✓</span>
+            </h1>
+            
+            <div style={{ fontSize: '0.92rem', fontWeight: 'bold', color: '#334155' }}>
+              {profile.headline || 'Professional Specialist'}
+            </div>
+            
+            <div style={{ fontSize: '0.78rem', color: '#475569', marginTop: '0.35rem' }}>
+              {profile.email} {profile.phone ? `| ${profile.phone}` : ''} | {profile.city || 'Pakistan'}
+            </div>
+          </div>
+
+          {/* Section 1: Professional Summary */}
+          <div style={{ marginBottom: '1.1rem' }}>
+            <div style={{ fontSize: '0.88rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '1px solid #cbd5e1', paddingBottom: '0.2rem', marginBottom: '0.45rem', color: '#0f172a' }}>
+              Professional Summary
+            </div>
+            <textarea
+              rows={3}
+              value={resumeData.summary || profile.bio || ''}
+              onChange={(e) => setResumeData(prev => ({ ...prev, summary: e.target.value }))}
+              placeholder="Enter your professional summary..."
+              style={{
+                width: '100%',
+                border: '1px dashed #cbd5e1',
+                borderRadius: '4px',
+                padding: '0.5rem',
+                fontSize: '0.82rem',
+                color: '#334155',
+                fontFamily: 'inherit',
+                outline: 'none',
+                resize: 'vertical',
+                boxSizing: 'border-box'
+              }}
+            />
+          </div>
+
+          {/* Section 2: Core Competencies (Skills Tags) */}
+          <div style={{ marginBottom: '1.1rem' }}>
+            <div style={{ fontSize: '0.88rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '1px solid #cbd5e1', paddingBottom: '0.2rem', marginBottom: '0.45rem', color: '#0f172a' }}>
+              Core Competencies & Skills
+            </div>
+            <input
+              type="text"
+              value={resumeData.skills || profile.skills || ''}
+              onChange={(e) => setResumeData(prev => ({ ...prev, skills: e.target.value }))}
+              placeholder="e.g. Next.js, React, UI/UX Design, Team Management, SQL"
+              style={{
+                width: '100%',
+                border: '1px dashed #cbd5e1',
+                borderRadius: '4px',
+                padding: '0.45rem 0.5rem',
+                fontSize: '0.82rem',
+                color: '#334155',
+                fontFamily: 'inherit',
+                outline: 'none',
+                boxSizing: 'border-box'
+              }}
+            />
+          </div>
+
+          {/* Section 3: Professional Experience */}
+          <div style={{ marginBottom: '1.1rem' }}>
+            <div style={{ fontSize: '0.88rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '1px solid #cbd5e1', paddingBottom: '0.2rem', marginBottom: '0.45rem', color: '#0f172a' }}>
+              Professional Experience
+            </div>
+            <textarea
+              rows={5}
+              value={resumeData.experience}
+              onChange={(e) => setResumeData(prev => ({ ...prev, experience: e.target.value }))}
+              placeholder="Company Name — Job Title (Year - Year)&#10;- Delivered major milestone results...&#10;- Managed end-to-end tasks..."
+              style={{
+                width: '100%',
+                border: '1px dashed #cbd5e1',
+                borderRadius: '4px',
+                padding: '0.5rem',
+                fontSize: '0.82rem',
+                color: '#334155',
+                fontFamily: 'inherit',
+                outline: 'none',
+                resize: 'vertical',
+                boxSizing: 'border-box'
+              }}
+            />
+          </div>
+
+          {/* Section 4: Education & Credentials */}
+          <div style={{ marginBottom: '0.6rem' }}>
+            <div style={{ fontSize: '0.88rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '1px solid #cbd5e1', paddingBottom: '0.2rem', marginBottom: '0.45rem', color: '#0f172a' }}>
+              Education & Credentials
+            </div>
+            <textarea
+              rows={3}
+              value={resumeData.education}
+              onChange={(e) => setResumeData(prev => ({ ...prev, education: e.target.value }))}
+              placeholder="Degree / Certificate Name&#10;Institute / Board / University (Graduation Year)"
+              style={{
+                width: '100%',
+                border: '1px dashed #cbd5e1',
+                borderRadius: '4px',
+                padding: '0.5rem',
+                fontSize: '0.82rem',
+                color: '#334155',
+                fontFamily: 'inherit',
+                outline: 'none',
+                resize: 'vertical',
+                boxSizing: 'border-box'
+              }}
+            />
+          </div>
+
+        </div>
+
+        <div style={{ fontSize: '0.74rem', color: '#94a3b8', textAlign: 'center' }}>
+          💡 <em>Aap live sheet ke andar text edit kar sakte hain. 'Download / Print PDF' dabane par dashed lines gayab ho jayengi aur clean standard A4 page print hoga.</em>
+        </div>
+
+      </div>
+    )}
+  </div>
+)}
         {/* TAB 8: MONETIZATION (CREATOR HUB 💰) */}
         {activeTab === 'monetization' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
