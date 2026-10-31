@@ -4712,12 +4712,6 @@ async function handleRequestPayout(e) {
         )}
 
 
-          </div>
-
-        )}
-
-
-
         {/* TAB: NETWORK / FOLLOWERS */}
 
         {activeTab === 'network' && (
