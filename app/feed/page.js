@@ -1207,6 +1207,29 @@ export default function FeedPage() {
             })}
           </div>
         )}
+        {/* Load More Button */}
+        {hasMore && (
+          <div style={{ textAlign: 'center', margin: '2rem 0 1rem 0' }}>
+            <button
+              type="button"
+              onClick={loadMorePosts}
+              disabled={loadingMore}
+              style={{
+                backgroundColor: '#1e293b',
+                border: '1px solid #334155',
+                color: '#38bdf8',
+                padding: '0.65rem 1.5rem',
+                borderRadius: '25px',
+                fontSize: '0.85rem',
+                fontWeight: '700',
+                cursor: loadingMore ? 'not-allowed' : 'pointer'
+              }}
+            >
+              {loadingMore ? 'Loading more updates...' : 'Load More Posts ↓'}
+            </button>
+          </div>
+        )}
+
 
       </main>
 
