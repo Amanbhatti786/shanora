@@ -62,7 +62,7 @@ function ProfilePortalContent() {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // Messages States (LinkedIn Style)
+  // Messages States
   const [messageSearchQuery, setMessageSearchQuery] = useState('');
   const [activeChatUser, setActiveChatUser] = useState(null);
   const [chatMessages, setChatMessages] = useState([]);
@@ -75,6 +75,7 @@ function ProfilePortalContent() {
   const [appliedJobsMap, setAppliedJobsMap] = useState({});
   const [myApplicationsList, setMyApplicationsList] = useState([]);
   const [showPostJobModal, setShowPostJobModal] = useState(false);
+  const [withdrawingAppId, setWithdrawingAppId] = useState(null);
   const [jobFormData, setJobFormData] = useState({
     title: '',
     company_name: '',
@@ -315,7 +316,6 @@ function ProfilePortalContent() {
           setChatMessages(prev => [...prev, msg]);
           scrollToBottom();
 
-          // Update latest message position
           setUserLastMessagesMap(prev => ({
             ...prev,
             [otherEmail]: { text: msg.message, time: new Date(msg.created_at).getTime() }
@@ -361,7 +361,6 @@ function ProfilePortalContent() {
       setNewMessageText('');
       scrollToBottom();
 
-      // Top par lane ke liye time update
       setUserLastMessagesMap(prev => ({
         ...prev,
         [otherEmail]: { text: sentText, time: Date.now() }
@@ -373,7 +372,6 @@ function ProfilePortalContent() {
     }
   }
 
-  // Strict Real-time Online Check (Only active in last 3 minutes)
   function isUserOnline(lastSeen) {
     if (!lastSeen) return false;
     const diff = Date.now() - new Date(lastSeen).getTime();
@@ -637,7 +635,8 @@ function ProfilePortalContent() {
           city: applyForm.city,
           experience: applyForm.experience,
           resume_link: applyForm.resume_link,
-          cover_note: applyForm.cover_note
+          cover_note: applyForm.cover_note,
+          status: 'in_review'
         }])
         .select('*, jobs(*)')
         .single();
@@ -652,6 +651,33 @@ function ProfilePortalContent() {
       alert('Application submit error: ' + err.message);
     } finally {
       setSubmittingApplication(false);
+    }
+  }
+
+  // Withdraw Application Function
+  async function handleWithdrawApplication(appId, jobId) {
+    if (!confirm('Kya aap is application ko withdraw / cancel karna chahte hain?')) return;
+
+    setWithdrawingAppId(appId);
+    try {
+      const { error } = await supabase
+        .from('job_applications')
+        .delete()
+        .eq('id', appId);
+
+      if (error) throw error;
+
+      setMyApplicationsList(prev => prev.filter(a => a.id !== appId));
+      setAppliedJobsMap(prev => {
+        const next = { ...prev };
+        delete next[jobId];
+        return next;
+      });
+      alert('Application successfully withdrawn.');
+    } catch (err) {
+      alert('Failed to withdraw: ' + err.message);
+    } finally {
+      setWithdrawingAppId(null);
     }
   }
 
@@ -699,7 +725,7 @@ function ProfilePortalContent() {
     }
   }
 
-  // --- LINKEDIN STYLE SORTING: LATEST CONVERSATIONS ALWAYS ON TOP ---
+  // LinkedIn Style Sorting for Messaging
   const sortedMessengerUsers = [...allUsersList].sort((a, b) => {
     const timeA = userLastMessagesMap[(a.email || '').toLowerCase()]?.time || 0;
     const timeB = userLastMessagesMap[(b.email || '').toLowerCase()]?.time || 0;
@@ -1156,7 +1182,7 @@ function ProfilePortalContent() {
           </div>
         )}
 
-        {/* TAB 4: MESSAGES (LINKEDIN STYLE - RECENT ON TOP + ACCURATE ONLINE STATUS) */}
+        {/* TAB 4: MESSAGES */}
         {activeTab === 'messages' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div>
@@ -1167,7 +1193,6 @@ function ProfilePortalContent() {
             {activeChatUser ? (
               <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: '520px' }}>
                 
-                {/* Chat Top Bar */}
                 <div style={{ backgroundColor: '#131b2e', padding: '0.75rem 1rem', borderBottom: '1px solid #1e293b', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     <button
@@ -1207,7 +1232,6 @@ function ProfilePortalContent() {
                   </Link>
                 </div>
 
-                {/* Messages Feed */}
                 <div style={{ flex: 1, padding: '1rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
                   {chatMessages.length === 0 ? (
                     <div style={{ textAlign: 'center', margin: 'auto', color: '#64748b', fontSize: '0.82rem' }}>
@@ -1239,7 +1263,6 @@ function ProfilePortalContent() {
                   <div ref={messagesEndRef} />
                 </div>
 
-                {/* Send Input */}
                 <form onSubmit={handleSendMessage} style={{ padding: '0.75rem', backgroundColor: '#131b2e', borderTop: '1px solid #1e293b', display: 'flex', gap: '0.5rem' }}>
                   <input
                     type="text"
@@ -1259,9 +1282,7 @@ function ProfilePortalContent() {
 
               </div>
             ) : (
-              /* Conversation Search & List View */
               <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
-                
                 <div style={{ position: 'relative' }}>
                   <input
                     type="text"
@@ -1301,8 +1322,6 @@ function ProfilePortalContent() {
                           }}
                         >
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', overflow: 'hidden' }}>
-                            
-                            {/* Profile Image with Green Dot */}
                             <div style={{ position: 'relative', flexShrink: 0 }}>
                               <div style={{ width: '46px', height: '46px', borderRadius: '50%', backgroundColor: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#fff', fontSize: '1.1rem', overflow: 'hidden' }}>
                                 {chatTarget.avatar_url ? (
@@ -1311,7 +1330,6 @@ function ProfilePortalContent() {
                                   displayName.charAt(0).toUpperCase()
                                 )}
                               </div>
-                              {/* Green Dot sirf tab jab user active ho */}
                               {online && (
                                 <div title="Online" style={{ position: 'absolute', bottom: '1px', right: '1px', width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#22c55e', border: '2px solid #131b2e' }} />
                               )}
@@ -1326,7 +1344,6 @@ function ProfilePortalContent() {
                                 {lastMsg ? lastMsg.text : (chatTarget.headline || chatTarget.city || 'Shanora Network')}
                               </div>
                             </div>
-
                           </div>
 
                           <div style={{ textAlign: 'right', flexShrink: 0 }}>
@@ -1339,43 +1356,159 @@ function ProfilePortalContent() {
                     })
                   )}
                 </div>
-
               </div>
             )}
-
           </div>
         )}
 
-        {/* TAB: MY APPLICATIONS */}
+        {/* TAB 6: MY APPLICATIONS (ENHANCED LIVE TRACKING) */}
         {activeTab === 'applications' && (
-          <div>
-            <div style={{ marginBottom: '1.2rem' }}>
-              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800', color: '#fff' }}>My Applications</h3>
-              <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Positions you have applied for</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            
+            {/* Header */}
+            <div>
+              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800', color: '#fff' }}>My Job Applications</h3>
+              <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Real-time status updates and submission records</span>
             </div>
 
+            {/* Quick Metrics */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.6rem' }}>
+              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '0.85rem' }}>
+                <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Total Applied</span>
+                <div style={{ fontSize: '1.3rem', fontWeight: '800', color: '#38bdf8' }}>{myApplicationsList.length}</div>
+              </div>
+              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '0.85rem' }}>
+                <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>In Review</span>
+                <div style={{ fontSize: '1.3rem', fontWeight: '800', color: '#facc15' }}>
+                  {myApplicationsList.filter(a => !a.status || a.status === 'in_review').length}
+                </div>
+              </div>
+              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '0.85rem' }}>
+                <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Shortlisted</span>
+                <div style={{ fontSize: '1.3rem', fontWeight: '800', color: '#4ade80' }}>
+                  {myApplicationsList.filter(a => a.status === 'shortlisted').length}
+                </div>
+              </div>
+            </div>
+
+            {/* Applications List */}
             {myApplicationsList.length === 0 ? (
               <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '3.5rem 1rem', textAlign: 'center', color: '#94a3b8' }}>
                 <div style={{ fontSize: '2.5rem', marginBottom: '0.6rem' }}>📋</div>
                 <div style={{ fontSize: '0.95rem', fontWeight: '700', color: '#e2e8f0', marginBottom: '0.2rem' }}>No job applications submitted yet</div>
-                <div style={{ fontSize: '0.78rem', color: '#64748b' }}>Explore current openings in the Jobs tab to apply.</div>
+                <div style={{ fontSize: '0.78rem', color: '#64748b', marginBottom: '1rem' }}>Explore open vacancies in the Jobs section and apply with 1-click.</div>
+                <button
+                  onClick={() => setActiveTab('jobs')}
+                  style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.5rem 1.2rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: '700', cursor: 'pointer' }}
+                >
+                  Browse Jobs 💼
+                </button>
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                {myApplicationsList.map(app => (
-                  <div key={app.id} style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <div style={{ fontSize: '0.95rem', fontWeight: '800', color: '#fff' }}>{app.jobs?.title || 'Job Opening'}</div>
-                      <div style={{ fontSize: '0.8rem', color: '#38bdf8' }}>{app.jobs?.company_name || 'Employer'}</div>
-                      <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '0.2rem' }}>Applied on {new Date(app.created_at).toLocaleDateString()}</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                {myApplicationsList.map(app => {
+                  const job = app.jobs || {};
+                  const status = (app.status || 'in_review').toLowerCase();
+
+                  let statusBadge = { text: 'In Review ⏳', color: '#facc15', bg: 'rgba(250, 204, 21, 0.15)', border: 'rgba(250, 204, 21, 0.3)' };
+                  if (status === 'shortlisted') {
+                    statusBadge = { text: 'Shortlisted 🎉', color: '#4ade80', bg: 'rgba(34, 197, 94, 0.15)', border: 'rgba(34, 197, 94, 0.3)' };
+                  } else if (status === 'interview') {
+                    statusBadge = { text: 'Interview Call 📞', color: '#38bdf8', bg: 'rgba(56, 189, 248, 0.15)', border: 'rgba(56, 189, 248, 0.3)' };
+                  } else if (status === 'rejected') {
+                    statusBadge = { text: 'Not Selected ✕', color: '#ef4444', bg: 'rgba(239, 68, 68, 0.15)', border: 'rgba(239, 68, 68, 0.3)' };
+                  }
+
+                  return (
+                    <div
+                      key={app.id}
+                      style={{
+                        backgroundColor: '#0f172a',
+                        border: '1px solid #1e293b',
+                        borderRadius: '14px',
+                        padding: '1.1rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.75rem'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.8rem' }}>
+                        <div>
+                          <div style={{ fontSize: '1rem', fontWeight: '800', color: '#fff' }}>
+                            {job.title || 'Job Opening'}
+                          </div>
+                          <div style={{ fontSize: '0.82rem', color: '#38bdf8', fontWeight: '700', marginTop: '0.15rem' }}>
+                            {job.company_name || 'Hiring Company'}
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem' }}>
+                            📍 {job.location || 'Pakistan'} • ⏱️ {job.job_type || 'Full-time'}
+                          </div>
+                        </div>
+
+                        <span style={{
+                          fontSize: '0.72rem',
+                          fontWeight: '800',
+                          padding: '0.3rem 0.65rem',
+                          borderRadius: '8px',
+                          backgroundColor: statusBadge.bg,
+                          color: statusBadge.color,
+                          border: `1px solid ${statusBadge.border}`,
+                          flexShrink: 0
+                        }}>
+                          {statusBadge.text}
+                        </span>
+                      </div>
+
+                      {/* Cover Note Snippet */}
+                      {app.cover_note && (
+                        <div style={{ backgroundColor: 'rgba(30, 41, 59, 0.4)', borderRadius: '8px', padding: '0.65rem 0.8rem', fontSize: '0.78rem', color: '#cbd5e1', fontStyle: 'italic' }}>
+                          "{app.cover_note}"
+                        </div>
+                      )}
+
+                      {/* Footer Info & Actions */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #1e293b', paddingTop: '0.75rem', fontSize: '0.74rem' }}>
+                        <span style={{ color: '#64748b' }}>
+                          Applied on {new Date(app.created_at).toLocaleDateString()}
+                        </span>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                          {app.resume_link && (
+                            <a
+                              href={app.resume_link}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{ color: '#38bdf8', textDecoration: 'none', fontWeight: '700' }}
+                            >
+                              View CV ↗
+                            </a>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleWithdrawApplication(app.id, app.job_id)}
+                            disabled={withdrawingAppId === app.id}
+                            style={{
+                              backgroundColor: 'transparent',
+                              border: '1px solid rgba(239, 68, 68, 0.3)',
+                              color: '#ef4444',
+                              padding: '0.25rem 0.6rem',
+                              borderRadius: '6px',
+                              fontSize: '0.72rem',
+                              fontWeight: '700',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            {withdrawingAppId === app.id ? 'Canceling...' : 'Withdraw'}
+                          </button>
+                        </div>
+                      </div>
+
                     </div>
-                    <span style={{ backgroundColor: 'rgba(34, 197, 94, 0.15)', color: '#4ade80', border: '1px solid rgba(34, 197, 94, 0.3)', borderRadius: '6px', padding: '0.25rem 0.6rem', fontSize: '0.72rem', fontWeight: '700' }}>
-                      In Review ✓
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
+
           </div>
         )}
 
