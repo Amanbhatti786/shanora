@@ -37,8 +37,7 @@ export default function RootLayout({ children }) {
   const navItems = [
     { label: 'Home', icon: '🏠', href: '/feed' },
     { label: 'Network', icon: '👥', href: '/profile?tab=network' },
-    { label: 'Post', icon: '➕', href: '/feed' },
-    { label: 'Alerts', icon: '🔔', href: '/profile?tab=notifications', badge: unreadCount },
+     { label: 'Alerts', icon: '🔔', href: '/profile?tab=notifications', badge: unreadCount },
     { label: 'Jobs', icon: '💼', href: '/profile?tab=jobs' },
     { label: 'Menu', icon: '☰', href: '/profile?tab=menu' }
   ];
