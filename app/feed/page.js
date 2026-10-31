@@ -4,23 +4,49 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabaseClient';
 
-// Facebook/Messenger-style Sound FX Engine
+// Universal Web Audio API Synthesizer (Instant & Offline-friendly)
 function playActionSound(type = 'like') {
   if (typeof window === 'undefined') return;
 
-  const sounds = {
-    // Soft pop click for Like & Relay
-    like: 'https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3',
-    // Bell chime for Comment post
-    comment: 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'
-  };
-
   try {
-    const audioUrl = sounds[type] || sounds.like;
-    const audio = new Audio(audioUrl);
-    audio.volume = 0.45;
-    audio.play().catch(() => {});
-  } catch (err) {}
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    const now = ctx.currentTime;
+
+    if (type === 'like' || type === 'relay') {
+      // Facebook-style soft bubbly "POP"
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(320, now);
+      osc.frequency.exponentialRampToValueAtTime(780, now + 0.07);
+
+      gain.gain.setValueAtTime(0.35, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.07);
+
+      osc.start(now);
+      osc.stop(now + 0.07);
+    } else if (type === 'comment') {
+      // Pleasant Ding / Notification Tone
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(587.33, now); // D5
+      osc.frequency.setValueAtTime(880, now + 0.06); // A5
+
+      gain.gain.setValueAtTime(0.3, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.16);
+
+      osc.start(now);
+      osc.stop(now + 0.16);
+    }
+  } catch (err) {
+    console.error('Audio play error:', err);
+  }
 }
 
 // Built-in Client-side Image Compression (Reduces storage footprint & speeds up feed)
@@ -696,7 +722,7 @@ export default function FeedPage() {
       return;
     }
 
-    playActionSound('like'); // 🔊 Instant Pop Sound Effect
+    playActionSound('like'); // 🔊 Native In-Browser Pop Sound Effect
 
     const isLiked = likedPosts[postId];
     const currentCount = postLikesCount[postId] || 0;
@@ -738,7 +764,7 @@ export default function FeedPage() {
       return;
     }
 
-    playActionSound('like'); // 🔊 Instant Action Pop Sound
+    playActionSound('relay'); // 🔊 Native In-Browser Pop Sound Effect
 
     const isRelayed = relayedPosts[postId];
     const currentCount = postRelaysCount[postId] || 0;
@@ -757,7 +783,7 @@ export default function FeedPage() {
     }
   }
 
-  // Add Comment with Instant Notification & Sweet Chime Sound
+  // Add Comment with Instant Notification & Ding Tone
   async function handleAddComment(postId) {
     if (!currentUser) {
       router.push('/auth');
@@ -766,7 +792,7 @@ export default function FeedPage() {
     const text = commentInputs[postId]?.trim();
     if (!text || submittingComment) return;
 
-    playActionSound('comment'); // 🔊 Instant Comment Sent Chime Sound
+    playActionSound('comment'); // 🔊 Native In-Browser Ding Tone
 
     setSubmittingComment(true);
     try {
@@ -1255,6 +1281,7 @@ export default function FeedPage() {
                     </div>
                   )}
 
+                  {/* Image */}
                   {item.imageUrl && (
                     <div 
                       onClick={() => setPreviewImage(item.imageUrl)} 
@@ -1440,7 +1467,7 @@ export default function FeedPage() {
           </div>
 
           <img 
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()} 
             src={previewImage} 
             alt="Enlarged view" 
             style={{ 
