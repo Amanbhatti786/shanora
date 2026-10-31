@@ -276,7 +276,35 @@ export default function FeedPage() {
 
     loadData();
   }, []);
+  async function loadMorePosts() {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
 
+    try {
+      const nextPage = page + 1;
+      const from = nextPage * POSTS_PER_PAGE;
+      const to = from + POSTS_PER_PAGE - 1;
+
+      const { data, error } = await supabase
+        .from('user_posts')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .range(from, to);
+
+      if (error) throw error;
+
+      if (data) {
+        if (data.length < POSTS_PER_PAGE) setHasMore(false);
+        setFeedItems(prev => [...prev, ...data]);
+        setPage(nextPage);
+      }
+    } catch (err) {
+      console.error('Error loading more posts:', err);
+    } finally {
+      setLoadingMore(false);
+    }
+  }
+  
   // Close Three-Dots Menu on document click
   useEffect(() => {
     function handleClickOutside() {
