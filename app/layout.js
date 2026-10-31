@@ -224,39 +224,28 @@ function BottomNavigation() {
     </div>
   );
 }
-export const metadata = {
-  title: 'Shanora.pk | Pakistan’s Professional Networking & Career Hub',
-  description: 'Connect with verified creators, discover executive career opportunities, build ATS-friendly resumes, and grow your professional network on Shanora.',
-  metadataBase: new URL('https://shanora-pk.vercel.app'),
-  openGraph: {
-    title: 'Shanora.pk | Professional Networking & Creator Platform',
-    description: 'Empowering Pakistan’s talent with executive networking, verified credentials, and ATS resume tools.',
-    url: 'https://shanora-pk.vercel.app',
-    siteName: 'SHANORA.PK',
-    images: [
-      {
-        url: 'https://shanora-pk.vercel.app/og-image.png',
-        width: 1200,
-        height: 630,
-        alt: 'Shanora.pk Professional Platform'
-      }
-    ],
-    locale: 'en_US',
-    type: 'website'
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'Shanora.pk | Professional Networking Hub',
-    description: 'Connect, apply for jobs, and monetize your influence on Shanora.pk.',
-    images: ['https://shanora-pk.vercel.app/og-image.png']
-  }
-};
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+        <title>Shanora.pk | Pakistan’s Professional Networking & Career Hub</title>
+        <meta name="description" content="Connect with verified creators, discover executive career opportunities, build ATS-friendly resumes, and grow your professional network on Shanora." />
+        
+        {/* OpenGraph / Facebook / WhatsApp */}
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://shanora-pk.vercel.app" />
+        <meta property="og:site_name" content="SHANORA.PK" />
+        <meta property="og:title" content="Shanora.pk | Professional Networking & Creator Platform" />
+        <meta property="og:description" content="Empowering Pakistan’s talent with executive networking, verified credentials, and ATS resume tools." />
+        <meta property="og:image" content="https://shanora-pk.vercel.app/og-image.png" />
+        
+        {/* Twitter */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Shanora.pk | Professional Networking Hub" />
+        <meta name="twitter:description" content="Connect, apply for jobs, and monetize your influence on Shanora.pk." />
+        <meta name="twitter:image" content="https://shanora-pk.vercel.app/og-image.png" />
       </head>
       <body
         style={{
