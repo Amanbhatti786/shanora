@@ -113,66 +113,54 @@ export default function AuthPage() {
       fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       color: '#f8fafc'
     }}>
-{/* Premium Unified Brand Header */}
-<div style={{ textAlign: 'center', marginBottom: '1.8rem' }}>
-  <Link href="/" style={{ 
-    textDecoration: 'none', 
-    display: 'inline-flex', 
-    alignItems: 'center', 
-    gap: '0.75rem',
-    backgroundColor: 'rgba(15, 23, 42, 0.6)',
-    padding: '0.45rem 1.1rem 0.45rem 0.55rem',
-    borderRadius: '16px',
-    border: '1px solid rgba(56, 189, 248, 0.2)',
-    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.35)'
+<Link href="/feed" style={{
+  textDecoration: 'none',
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '0.65rem',
+  backgroundColor: '#0b1322',
+  border: '1px solid #1e293b',
+  borderRadius: '10px',
+  padding: '0.28rem 0.65rem 0.28rem 0.35rem',
+  boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+  flexShrink: 0
+}}>
+  {/* Official "S" Badge */}
+  <div style={{
+    width: '28px',
+    height: '28px',
+    borderRadius: '7px',
+    background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+    border: '1px solid rgba(255, 255, 255, 0.2)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0 0 10px rgba(2, 132, 199, 0.45)',
+    flexShrink: 0
   }}>
-    
-    {/* Crisp Gradient "S" Icon Badge */}
-    <div style={{
-      width: '38px',
-      height: '38px',
-      borderRadius: '10px',
-      background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
-      border: '1px solid rgba(255, 255, 255, 0.25)',
-      boxShadow: '0 0 15px rgba(2, 132, 199, 0.5)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      flexShrink: 0
-    }}>
-      <span style={{ 
-        color: '#ffffff', 
-        fontSize: '1.3rem', 
-        fontWeight: '900', 
-        fontFamily: 'system-ui, sans-serif',
-        lineHeight: 1
-      }}>
-        S
-      </span>
-    </div>
-
-    {/* Brand Text */}
-    <span style={{ 
-      fontSize: '1.5rem', 
-      fontWeight: '900', 
-      color: '#f8fafc', 
-      letterSpacing: '0.5px' 
-    }}>
-      SHANORA
-      <span style={{
-        fontSize: '0.62rem',
-        fontWeight: '900',
-        color: '#38bdf8',
-        verticalAlign: 'super',
-        marginLeft: '4px',
-        letterSpacing: '1px'
-      }}>
-        .PK
-      </span>
+    <span style={{ color: '#ffffff', fontSize: '0.95rem', fontWeight: '900', lineHeight: 1 }}>
+      S
     </span>
+  </div>
 
-  </Link>
-</div>
+  {/* Brand Wordmark */}
+  <span style={{
+    fontSize: '1.05rem',
+    fontWeight: '900',
+    color: '#ffffff',
+    letterSpacing: '-0.3px',
+    whiteSpace: 'nowrap'
+  }}>
+    SHANORA<span style={{
+      fontSize: '0.55rem',
+      fontWeight: '800',
+      color: '#38bdf8',
+      verticalAlign: 'super',
+      marginLeft: '2px',
+      letterSpacing: '0.5px'
+    }}>.PK</span>
+  </span>
+</Link>
       {/* Main Form Card */}
       <div style={{
         width: '100%',
