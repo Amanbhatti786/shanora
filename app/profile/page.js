@@ -1060,29 +1060,18 @@ function ProfilePortalContent() {
 
       const myEmail = user.email.toLowerCase();
 
-      const updates = {
-
-        email: myEmail,
-
-        full_name: editProfileForm.full_name,
-
-        headline: editProfileForm.headline,
-
-        phone: editProfileForm.phone,
-
-        city: editProfileForm.city,
-
-        bio: editProfileForm.bio,
-
-        skills: editProfileForm.skills,
-
-        avatar_url: editProfileForm.avatar_url,
-
-        resume_url: editProfileForm.resume_url,
-
-        updated_at: new Date().toISOString()
-
-      };
+          const updates = {
+      email: myEmail,
+      full_name: sanitizeInput(editProfileForm.full_name?.trim()),
+      headline: sanitizeInput(editProfileForm.headline?.trim()),
+      phone: sanitizeInput(editProfileForm.phone?.trim()),
+      city: sanitizeInput(editProfileForm.city?.trim()),
+      bio: sanitizeInput(editProfileForm.bio?.trim()),
+      skills: sanitizeInput(editProfileForm.skills?.trim()),
+      avatar_url: editProfileForm.avatar_url,
+      resume_url: editProfileForm.resume_url,
+      updated_at: new Date().toISOString()
+    };
 
 
 
