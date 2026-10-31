@@ -129,12 +129,54 @@ export default function CreatePage() {
     <div style={{ minHeight: '100vh', backgroundColor: '#070b14', color: '#f8fafc', fontFamily: 'system-ui, sans-serif' }}>
       
       <header style={{ backgroundColor: '#0f172a', borderBottom: '1px solid #1e293b', padding: '0.85rem 1.2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Link href="/" style={{ textDecoration: 'none', color: '#fff', fontWeight: '900', fontSize: '1.2rem' }}>
-          SHANORA<span style={{ color: '#38bdf8' }}>.PK</span>
-        </Link>
-        <Link href="/monetization" style={{ backgroundColor: '#1e293b', color: '#38bdf8', padding: '0.4rem 0.8rem', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', border: '1px solid #334155' }}>
-          Monetization Hub ➔
-        </Link>
+        <Link href="/feed" style={{
+  textDecoration: 'none',
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '0.65rem',
+  backgroundColor: '#0b1322',
+  border: '1px solid #1e293b',
+  borderRadius: '10px',
+  padding: '0.28rem 0.65rem 0.28rem 0.35rem',
+  boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+  flexShrink: 0
+}}>
+  {/* Official "S" Badge */}
+  <div style={{
+    width: '28px',
+    height: '28px',
+    borderRadius: '7px',
+    background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+    border: '1px solid rgba(255, 255, 255, 0.2)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0 0 10px rgba(2, 132, 199, 0.45)',
+    flexShrink: 0
+  }}>
+    <span style={{ color: '#ffffff', fontSize: '0.95rem', fontWeight: '900', lineHeight: 1 }}>
+      S
+    </span>
+  </div>
+
+  {/* Brand Wordmark */}
+  <span style={{
+    fontSize: '1.05rem',
+    fontWeight: '900',
+    color: '#ffffff',
+    letterSpacing: '-0.3px',
+    whiteSpace: 'nowrap'
+  }}>
+    SHANORA<span style={{
+      fontSize: '0.55rem',
+      fontWeight: '800',
+      color: '#38bdf8',
+      verticalAlign: 'super',
+      marginLeft: '2px',
+      letterSpacing: '0.5px'
+    }}>.PK</span>
+  </span>
+</Link>
       </header>
 
       <main style={{ maxWidth: '650px', margin: '2rem auto', padding: '0 1rem 3rem 1rem' }}>
