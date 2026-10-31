@@ -28,7 +28,9 @@ export default function AuthPage() {
 
         if (error) throw error;
         setMsg({ text: 'Login successful! Redirecting...', type: 'success' });
-        setTimeout(() => router.push('/Feed'), 1000);
+       setTimeout(() => {
+  router.push('/feed');
+}, 1000);
       } else {
         // Sign Up (LinkedIn/Indeed Style)
         const { data, error } = await supabase.auth.signUp({
