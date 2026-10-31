@@ -85,12 +85,19 @@ export default function FeedPage() {
           }
         }
 
-        // 1. Fetch Personal Posts
-        const { data: personalPosts } = await supabase
-          .from('user_posts')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(25);
+        // 1. Fetch Personal Posts (Paginated)
+      const from = 0;
+      const to = POSTS_PER_PAGE - 1;
+
+      const { data: personalPosts } = await supabase
+        .from('user_posts')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .range(from, to);
+
+      if (personalPosts && personalPosts.length < POSTS_PER_PAGE) {
+        setHasMore(false);
+      }
 
         // 2. Fetch Page Posts
         const { data: pagePosts } = await supabase
