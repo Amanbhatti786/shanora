@@ -14,3 +14,77 @@ html, body {
   touch-action: pan-y;
   -webkit-text-size-adjust: 100%;
 }
+
+/* ========================================================= */
+/* ATS RESUME PRINT & PDF DOWNLOAD STYLESHEET               */
+/* ========================================================= */
+
+@media print {
+  /* 1. Page margin aur size standard A4 set karein */
+  @page {
+    size: A4 portrait;
+    margin: 12mm 15mm 12mm 15mm;
+  }
+
+  /* 2. Poore web portal aur headers/navbars ko hide karein */
+  html, body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  /* 3. Sirf ATS CV sheet ko visible aur full-width karein */
+  #printable-ats-cv,
+  #printable-ats-cv * {
+    visibility: visible !important;
+  }
+
+  #printable-ats-cv {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+  }
+
+  /* 4. Textarea aur inputs ke edit borders aur scrollbars khatam karein */
+  #printable-ats-cv textarea,
+  #printable-ats-cv input {
+    border: none !important;
+    outline: none !important;
+    background: transparent !important;
+    resize: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    color: #1e293b !important;
+    font-family: inherit !important;
+  }
+
+  /* 5. Blue Tick aur brand accents ko high-contrast black/blue print rakhein */
+  #printable-ats-cv h1 {
+    color: #000000 !important;
+  }
+
+  /* 6. Page break controls taake text beech mein se na kate */
+  #printable-ats-cv > div {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+}
