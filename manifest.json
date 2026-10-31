@@ -1,0 +1,23 @@
+{
+  "name": "Shanora.PK",
+  "short_name": "Shanora",
+  "description": "Pakistan's Professional Network & Creator Hub",
+  "start_url": "/feed",
+  "display": "standalone",
+  "background_color": "#070b14",
+  "theme_color": "#0284c7",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
