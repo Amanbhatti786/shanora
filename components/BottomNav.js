@@ -46,7 +46,7 @@ export default function BottomNav() {
     {
       id: 'alerts',
       label: 'Alerts',
-      href: '/profile?tab=notifications',
+      href: '/alerts',
       isActive: isAlertsActive,
       // Professional Bell SVG
       icon: (color) => (
