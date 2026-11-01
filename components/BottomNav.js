@@ -2,18 +2,31 @@
 
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
+import { useState, useEffect } from 'react';
 
 export default function BottomNav() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const currentTab = searchParams?.get('tab');
 
-// Solid permanent active checks
-  const isHomeActive = pathname === '/feed' || pathname === '/';
-  const isNetworkActive = pathname?.includes('/profile') && currentTab === 'network';
-  const isAlertsActive = pathname === '/alerts' || pathname?.includes('/alerts');
-  const isJobsActive = pathname === '/jobs' || pathname?.includes('/jobs');
-  const isMenuActive = pathname?.includes('/profile') && (!currentTab || currentTab === 'menu');
+  // Client-side window pathname sync to lock active state after page hydrates
+  const [browserPath, setBrowserPath] = useState(pathname || '');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setBrowserPath(window.location.pathname);
+    }
+  }, [pathname, searchParams]);
+
+  const activePath = browserPath || pathname || '';
+
+  // Permanent solid checks
+  const isHomeActive = activePath === '/feed' || activePath === '/';
+  const isNetworkActive = activePath.includes('/profile') && currentTab === 'network';
+  const isAlertsActive = activePath.includes('/alerts');
+  const isJobsActive = activePath.includes('/jobs');
+  const isMenuActive = activePath.includes('/profile') && (!currentTab || currentTab === 'menu');
+
   const navItems = [
     {
       id: 'home',
@@ -115,13 +128,13 @@ export default function BottomNav() {
               padding: '0.45rem 1rem',
               borderRadius: '12px',
               minWidth: '64px',
-              transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+              transition: 'none',
               backgroundColor: item.isActive ? '#0f172a' : 'transparent',
               border: item.isActive
-                ? '1px solid rgba(56, 189, 248, 0.4)'
+                ? '1px solid rgba(56, 189, 248, 0.6)'
                 : '1px solid transparent',
               boxShadow: item.isActive
-                ? '0 4px 14px rgba(2, 132, 199, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+                ? '0 0 16px rgba(2, 132, 199, 0.45), inset 0 0 8px rgba(56, 189, 248, 0.2)'
                 : 'none',
               transform: item.isActive ? 'translateY(-2px)' : 'none'
             }}
@@ -132,7 +145,7 @@ export default function BottomNav() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 marginBottom: '0.2rem',
-                filter: item.isActive ? 'drop-shadow(0 0 8px rgba(56, 189, 248, 0.6))' : 'none'
+                filter: item.isActive ? 'drop-shadow(0 0 6px #38bdf8)' : 'none'
               }}
             >
               {item.icon(iconColor)}
@@ -142,7 +155,7 @@ export default function BottomNav() {
               style={{
                 fontSize: '0.68rem',
                 fontWeight: item.isActive ? '800' : '600',
-                color: item.isActive ? '#ffffff' : '#94a3b8',
+                color: item.isActive ? '#38bdf8' : '#94a3b8',
                 letterSpacing: '0.3px'
               }}
             >
