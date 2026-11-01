@@ -156,7 +156,7 @@ function ViewProfileContent() {
     return (
       <div style={{ minHeight: '100vh', backgroundColor: '#070b14', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#38bdf8', gap: '12px' }}>
         <div style={{ width: '40px', height: '40px', border: '3px solid #1e293b', borderTopColor: '#38bdf8', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
-        <span style={{ fontSize: '0.9rem', color: '#94a3b8' }}>Profile load ho rahi hai...</span>
+        <span style={{ fontSize: '0.9rem', color: '#94a3b8' }}>Profile load...</span>
       </div>
     );
   }
