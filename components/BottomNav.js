@@ -7,32 +7,34 @@ import { useState, useEffect } from 'react';
 export default function BottomNav() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const currentTab = searchParams?.get('tab');
+  const [activeTab, setActiveTab] = useState('');
 
-  // Client-side window pathname sync to lock active state after page hydrates
-  const [browserPath, setBrowserPath] = useState(pathname || '');
-
+  // Pathname change hone par ya page load par active tab pakka detect karein
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setBrowserPath(window.location.pathname);
+    const fullPath = window.location.pathname.toLowerCase();
+    const currentTab = new URLSearchParams(window.location.search).get('tab');
+
+    if (fullPath.includes('/alerts')) {
+      setActiveTab('alerts');
+    } else if (fullPath.includes('/jobs')) {
+      setActiveTab('jobs');
+    } else if (fullPath.includes('/feed') || fullPath === '/') {
+      setActiveTab('home');
+    } else if (fullPath.includes('/profile')) {
+      if (currentTab === 'network') {
+        setActiveTab('network');
+      } else {
+        setActiveTab('menu');
+      }
     }
   }, [pathname, searchParams]);
-
-  const activePath = browserPath || pathname || '';
-
-  // Permanent solid checks
-  const isHomeActive = activePath === '/feed' || activePath === '/';
-  const isNetworkActive = activePath.includes('/profile') && currentTab === 'network';
-  const isAlertsActive = activePath.includes('/alerts');
-  const isJobsActive = activePath.includes('/jobs');
-  const isMenuActive = activePath.includes('/profile') && (!currentTab || currentTab === 'menu');
 
   const navItems = [
     {
       id: 'home',
       label: 'Home',
       href: '/feed',
-      isActive: isHomeActive,
+      isActive: activeTab === 'home',
       icon: (color) => (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
@@ -44,7 +46,7 @@ export default function BottomNav() {
       id: 'network',
       label: 'Network',
       href: '/profile?tab=network',
-      isActive: isNetworkActive,
+      isActive: activeTab === 'network',
       icon: (color) => (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
@@ -58,7 +60,7 @@ export default function BottomNav() {
       id: 'alerts',
       label: 'Alerts',
       href: '/alerts',
-      isActive: isAlertsActive,
+      isActive: activeTab === 'alerts',
       icon: (color) => (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
@@ -70,7 +72,7 @@ export default function BottomNav() {
       id: 'jobs',
       label: 'Jobs',
       href: '/jobs',
-      isActive: isJobsActive,
+      isActive: activeTab === 'jobs',
       icon: (color) => (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <rect width="20" height="14" x="2" y="7" rx="2" ry="2" />
@@ -82,7 +84,7 @@ export default function BottomNav() {
       id: 'menu',
       label: 'Menu',
       href: '/profile?tab=menu',
-      isActive: isMenuActive,
+      isActive: activeTab === 'menu',
       icon: (color) => (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <rect width="7" height="7" x="3" y="3" rx="1" />
@@ -128,7 +130,6 @@ export default function BottomNav() {
               padding: '0.45rem 1rem',
               borderRadius: '12px',
               minWidth: '64px',
-              transition: 'none',
               backgroundColor: item.isActive ? '#0f172a' : 'transparent',
               border: item.isActive
                 ? '1px solid rgba(56, 189, 248, 0.6)'
