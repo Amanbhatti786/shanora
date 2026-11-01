@@ -736,74 +736,97 @@ export default function FeedPage() {
     }
   }
 
-  // Toggle Like with Instant Notification & Loud Pop Sound
+  // Toggle Like with Database Persistence & Sound
   async function handleToggleLike(postId, postType) {
     if (!currentUser) {
       router.push('/auth');
       return;
     }
 
-    playActionSound('like'); // 🔊 Instant Pop Sound
+    playActionSound('like');
 
-    const isLiked = likedPosts[postId];
+    const userEmail = currentUser.email.toLowerCase();
+    const isLiked = !!likedPosts[postId];
     const currentCount = postLikesCount[postId] || 0;
+    const nextLikedState = !isLiked;
+    const nextCount = nextLikedState ? currentCount + 1 : Math.max(0, currentCount - 1);
 
-    setLikedPosts(prev => ({ ...prev, [postId]: !isLiked }));
-    setPostLikesCount(prev => ({ ...prev, [postId]: isLiked ? Math.max(0, currentCount - 1) : currentCount + 1 }));
+    // 1. Optimistic UI update
+    setLikedPosts(prev => ({ ...prev, [postId]: nextLikedState }));
+    setPostLikesCount(prev => ({ ...prev, [postId]: nextCount }));
 
+    // 2. Supabase Database Sync
     try {
-      if (postType === 'page') {
-        if (isLiked) {
-          await supabase.from('page_post_likes').delete().eq('post_id', postId).eq('user_email', currentUser.email);
-        } else {
-          await supabase.from('page_post_likes').insert([{ post_id: postId, user_email: currentUser.email }]);
-
-          const targetPost = feedItems.find(item => item.postId === postId);
-          const authorEmail = targetPost?.authorEmail;
-          if (authorEmail && authorEmail !== currentUser.email.toLowerCase()) {
-            await supabase.from('notifications').insert([{
-              recipient_email: authorEmail,
-              sender_name: userProfile?.name || currentUser.user_metadata?.full_name || currentUser.email.split('@')[0],
-              sender_email: currentUser.email.toLowerCase(),
-              action_type: 'like',
-              post_id: postId,
-              content: 'liked your post.',
-              is_read: false
-            }]);
-          }
-        }
+      if (nextLikedState) {
+        await supabase
+          .from('post_likes')
+          .insert([{ post_id: postId, user_email: userEmail }]);
+      } else {
+        await supabase
+          .from('post_likes')
+          .delete()
+          .eq('post_id', postId)
+          .ilike('user_email', userEmail);
       }
     } catch (err) {
-      console.error(err);
+      console.error('Like sync error:', err);
+      // Revert if error occurs
+      setLikedPosts(prev => ({ ...prev, [postId]: isLiked }));
+      setPostLikesCount(prev => ({ ...prev, [postId]: currentCount }));
     }
   }
 
-  // Toggle Relay with Pop Sound
+ // Toggle Relay with Pop Sound & Database Persistence
   async function handleToggleRelay(postId) {
     if (!currentUser) {
       router.push('/auth');
       return;
     }
+// Add Comment with Database Persistence
+  async function handleAddComment(postId, commentText) {
+    if (!currentUser) {
+      router.push('/auth');
+      return;
+    }
 
-    playActionSound('relay'); // 🔊 Instant Relay Pop Sound
+    if (!commentText || !commentText.trim()) return;
 
-    const isRelayed = relayedPosts[postId];
-    const currentCount = postRelaysCount[postId] || 0;
+    playActionSound('comment'); // 📢 Comment Pop Sound
 
-    setRelayedPosts(prev => ({ ...prev, [postId]: !isRelayed }));
-    setPostRelaysCount(prev => ({ ...prev, [postId]: isRelayed ? Math.max(0, currentCount - 1) : currentCount + 1 }));
+    const userEmail = currentUser.email.toLowerCase();
+    const userName = currentUser.user_metadata?.full_name || currentUser.email.split('@')[0];
+    const text = commentText.trim();
 
     try {
-      if (isRelayed) {
-        await supabase.from('page_post_relays').delete().eq('post_id', postId).eq('user_email', currentUser.email);
-      } else {
-        await supabase.from('page_post_relays').insert([{ post_id: postId, user_email: currentUser.email }]);
+      // 1. Supabase post_comments table mein save
+      const { data: newComment, error } = await supabase
+        .from('post_comments')
+        .insert([{
+          post_id: postId,
+          user_email: userEmail,
+          user_name: userName,
+          content: text
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // 2. Screen state update
+      if (newComment) {
+        setPostComments(prev => ({
+          ...prev,
+          [postId]: [...(prev[postId] || []), newComment]
+        }));
+        setPostCommentsCount(prev => ({
+          ...prev,
+          [postId]: (prev[postId] || 0) + 1
+        }));
       }
     } catch (err) {
-      console.error(err);
+      console.error('Comment error:', err);
     }
   }
-
   // Add Comment with Instant Notification & Ding Tone
   async function handleAddComment(postId) {
     if (!currentUser) {
