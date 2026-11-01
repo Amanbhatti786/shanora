@@ -8,13 +8,12 @@ export default function BottomNav() {
   const searchParams = useSearchParams();
   const currentTab = searchParams?.get('tab');
 
- // Flexible Exact Active states check
+// Solid permanent active checks
   const isHomeActive = pathname === '/feed' || pathname === '/';
-  const isNetworkActive = pathname?.startsWith('/profile') && currentTab === 'network';
-  const isAlertsActive = pathname === '/alerts' || pathname?.startsWith('/alerts');
-  const isJobsActive = pathname === '/jobs' || pathname?.startsWith('/jobs');
-  const isMenuActive = pathname?.startsWith('/profile') && (!currentTab || currentTab === 'menu');
-
+  const isNetworkActive = pathname?.includes('/profile') && currentTab === 'network';
+  const isAlertsActive = pathname === '/alerts' || pathname?.includes('/alerts');
+  const isJobsActive = pathname === '/jobs' || pathname?.includes('/jobs');
+  const isMenuActive = pathname?.includes('/profile') && (!currentTab || currentTab === 'menu');
   const navItems = [
     {
       id: 'home',
