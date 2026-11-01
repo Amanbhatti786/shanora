@@ -1264,7 +1264,7 @@ if (showSplash) {
 
                       <div style={{ overflow: 'hidden' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                         href={`/view-profile?email=${encodeURIComponent(item.authorEmail || item.user_email || '')}`}
+                        <Link href={`/view-profile?email=${encodeURIComponent(item.authorEmail || item.user_email || '')}`} style={{ textDecoration: 'none' }}>
                             <span style={{ fontWeight: '700', fontSize: '0.9rem', color: '#fff', cursor: 'pointer' }}>
                               {item.authorName}
                             </span>
