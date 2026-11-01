@@ -3,6 +3,6 @@
       "target": {
         "namespace": "android_app",
         "package_name": "app.vercel.shanora_pk.twa",
-        "sha256_cert_fingerprints": ["D8:27:58:C5:53:EF:A1:CB:44:15:04:DE:84:95:F8:73:DD:FE:70:6E:38:18:FC:68:E2:07:1B:61:80:24:91:0E"]
+        "sha256_cert_fingerprints": ["C5:67:80:F1:D8:8A:84:61:F4:81:EA:CB:CD:F4:64:04:DC:A6:60:48:7D:42:E5:A7:13:39:7C:5E:C9:12:5E:10"]
       }
     }]
