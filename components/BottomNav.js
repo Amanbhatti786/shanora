@@ -1,4 +1,5 @@
 'use client';
+
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 
@@ -10,8 +11,8 @@ export default function BottomNav() {
   // Exact Active states check
   const isHomeActive = pathname === '/feed' || pathname === '/';
   const isNetworkActive = pathname === '/profile' && currentTab === 'network';
-  const isAlertsActive = pathname === '/profile' && currentTab === 'notifications';
-  const isJobsActive = pathname === '/profile' && currentTab === 'jobs';
+  const isAlertsActive = pathname === '/alerts';
+  const isJobsActive = pathname === '/jobs';
   const isMenuActive = pathname === '/profile' && (!currentTab || currentTab === 'menu');
 
   const navItems = [
@@ -20,7 +21,6 @@ export default function BottomNav() {
       label: 'Home',
       href: '/feed',
       isActive: isHomeActive,
-      // Professional Clean Home SVG
       icon: (color) => (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
@@ -33,7 +33,6 @@ export default function BottomNav() {
       label: 'Network',
       href: '/profile?tab=network',
       isActive: isNetworkActive,
-      // Professional Users SVG
       icon: (color) => (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
@@ -48,7 +47,6 @@ export default function BottomNav() {
       label: 'Alerts',
       href: '/alerts',
       isActive: isAlertsActive,
-      // Professional Bell SVG
       icon: (color) => (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
@@ -59,9 +57,8 @@ export default function BottomNav() {
     {
       id: 'jobs',
       label: 'Jobs',
-      href: '/profile?tab=jobs',
+      href: '/jobs',
       isActive: isJobsActive,
-      // Professional Briefcase SVG
       icon: (color) => (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <rect width="20" height="14" x="2" y="7" rx="2" ry="2" />
@@ -74,7 +71,6 @@ export default function BottomNav() {
       label: 'Menu',
       href: '/profile?tab=menu',
       isActive: isMenuActive,
-      // Professional Grid/Menu SVG
       icon: (color) => (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <rect width="7" height="7" x="3" y="3" rx="1" />
