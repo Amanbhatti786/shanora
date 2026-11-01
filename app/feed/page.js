@@ -294,13 +294,17 @@ export default function FeedPage() {
 
 
 
-  // New Personal Post state
+  // New Personal Post state (Photo + Document / CV)
 
   const [postText, setPostText] = useState('');
 
   const [postPhoto, setPostPhoto] = useState(null);
 
   const [photoPreview, setPhotoPreview] = useState('');
+
+  const [postDoc, setPostDoc] = useState(null);
+
+  const [docName, setDocName] = useState('');
 
   const [posting, setPosting] = useState(false);
 
@@ -340,7 +344,7 @@ export default function FeedPage() {
 
   const [replyInputs, setReplyInputs] = useState({});
 
-  const [commentReactions, setCommentReactions] = useState({}); // { [commentId]: { likes: 0, dislikes: 0, myReaction: 'like'|'dislike'|null } }
+  const [commentReactions, setCommentReactions] = useState({});
 
 
 
@@ -350,7 +354,7 @@ export default function FeedPage() {
 
 
 
-  // Helper to load all interactions (likes, relays, comments, comment reactions)
+  // Helper to load all interactions
 
   const loadInteractions = async (items, userEmail) => {
 
@@ -590,7 +594,7 @@ export default function FeedPage() {
 
 
 
-    // 3. Load Comment Reactions (Likes / Dislikes)
+    // 3. Load Comment Reactions
 
     if (allCommentIds.length > 0) {
 
@@ -637,8 +641,6 @@ export default function FeedPage() {
         }
 
       } catch (err) {
-
-        // Safe failover if comment_reactions table is being set up
 
         console.warn('Reactions fetch notice:', err);
 
@@ -868,6 +870,10 @@ export default function FeedPage() {
 
             imageUrl: p.image_url,
 
+            docUrl: p.doc_url || null,
+
+            docName: p.doc_name || 'Attached Document',
+
             createdAt: p.created_at,
 
             sortTime: new Date(p.created_at).getTime(),
@@ -909,6 +915,10 @@ export default function FeedPage() {
             content: p.content,
 
             imageUrl: p.image_url,
+
+            docUrl: null,
+
+            docName: null,
 
             createdAt: p.created_at,
 
@@ -955,6 +965,10 @@ export default function FeedPage() {
               content: r.page_posts.content,
 
               imageUrl: r.page_posts.image_url,
+
+              docUrl: null,
+
+              docName: null,
 
               createdAt: r.page_posts.created_at,
 
@@ -1077,6 +1091,10 @@ export default function FeedPage() {
             content: p.content,
 
             imageUrl: p.image_url,
+
+            docUrl: p.doc_url || null,
+
+            docName: p.doc_name || 'Attached Document',
 
             createdAt: p.created_at,
 
@@ -1504,7 +1522,35 @@ export default function FeedPage() {
 
 
 
-  // Submit Personal Post (With Instant Post Success Chime Sound)
+  // Document / CV Selection Handler
+
+  function handleDocumentSelect(e) {
+
+    const file = e.target.files[0];
+
+    if (!file) return;
+
+
+
+    if (file.size > 15 * 1024 * 1024) {
+
+      alert('Document size must be less than 15MB.');
+
+      return;
+
+    }
+
+
+
+    setPostDoc(file);
+
+    setDocName(file.name);
+
+  }
+
+
+
+  // Submit Personal Post (Supports Text, Photo & Document / CV)
 
   async function handleCreatePersonalPost(e) {
 
@@ -1518,7 +1564,7 @@ export default function FeedPage() {
 
     }
 
-    if (!postText.trim() && !postPhoto) return;
+    if (!postText.trim() && !postPhoto && !postDoc) return;
 
 
 
@@ -1528,7 +1574,11 @@ export default function FeedPage() {
 
       let finalImageUrl = null;
 
+      let finalDocUrl = null;
 
+
+
+      // Upload Photo if present
 
       if (postPhoto) {
 
@@ -1560,6 +1610,38 @@ export default function FeedPage() {
 
 
 
+      // Upload Document / CV if present
+
+      if (postDoc) {
+
+        const fileExt = postDoc.name.split('.').pop();
+
+        const cleanName = postDoc.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+
+        const docPath = `documents/${Date.now()}_${cleanName}`;
+
+
+
+        const { error: docUploadError } = await supabase.storage
+
+          .from('page-media')
+
+          .upload(docPath, postDoc);
+
+
+
+        if (docUploadError) throw docUploadError;
+
+
+
+        const { data } = supabase.storage.from('page-media').getPublicUrl(docPath);
+
+        finalDocUrl = data.publicUrl;
+
+      }
+
+
+
       const senderName = userProfile?.name || currentUser.user_metadata?.full_name || currentUser.email.split('@')[0];
 
       const senderAvatar = userProfile?.avatar_url || currentUser.user_metadata?.avatar_url || null;
@@ -1568,23 +1650,31 @@ export default function FeedPage() {
 
 
 
+      const postPayload = {
+
+        user_email: senderEmail,
+
+        user_name: senderName,
+
+        avatar_url: senderAvatar,
+
+        content: postText,
+
+        image_url: finalImageUrl,
+
+        doc_url: finalDocUrl,
+
+        doc_name: postDoc ? docName : null
+
+      };
+
+
+
       const { data: newPost, error } = await supabase
 
         .from('user_posts')
 
-        .insert([{
-
-          user_email: senderEmail,
-
-          user_name: senderName,
-
-          avatar_url: senderAvatar,
-
-          content: postText,
-
-          image_url: finalImageUrl
-
-        }])
+        .insert([postPayload])
 
         .select()
 
@@ -1624,6 +1714,10 @@ export default function FeedPage() {
 
         imageUrl: newPost.image_url,
 
+        docUrl: newPost.doc_url || finalDocUrl,
+
+        docName: newPost.doc_name || docName,
+
         createdAt: newPost.created_at,
 
         sortTime: new Date(newPost.created_at).getTime(),
@@ -1643,6 +1737,10 @@ export default function FeedPage() {
       setPostPhoto(null);
 
       setPhotoPreview('');
+
+      setPostDoc(null);
+
+      setDocName('');
 
     } catch (err) {
 
@@ -2190,8 +2288,6 @@ export default function FeedPage() {
 
 
 
-    // Toggle off if clicking the active one
-
     if (prevReaction === type) {
 
       nextReaction = null;
@@ -2219,8 +2315,6 @@ export default function FeedPage() {
     }
 
 
-
-    // Optimistic UI
 
     setCommentReactions(prev => ({
 
@@ -2842,7 +2936,7 @@ export default function FeedPage() {
 
         
 
-        {/* Post Creation Box */}
+        {/* Post Creation Box with Photo & Document / CV Upload */}
 
         {currentUser && (
 
@@ -2866,7 +2960,7 @@ export default function FeedPage() {
 
                   type="text"
 
-                  placeholder={`What's on your mind, ${currentUserName}?`}
+                  placeholder={`What's on your mind or share your CV, ${currentUserName}?`}
 
                   value={postText}
 
@@ -2892,6 +2986,8 @@ export default function FeedPage() {
 
 
 
+              {/* Photo Preview */}
+
               {photoPreview && (
 
                 <div style={{ position: 'relative', marginBottom: '0.8rem' }}>
@@ -2906,25 +3002,105 @@ export default function FeedPage() {
 
 
 
+              {/* Attached Document Preview Badge */}
+
+              {postDoc && (
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#1e293b', border: '1px solid #38bdf8', borderRadius: '8px', padding: '0.5rem 0.8rem', marginBottom: '0.8rem' }}>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', overflow: 'hidden' }}>
+
+                    <span style={{ fontSize: '1.2rem' }}>📄</span>
+
+                    <div style={{ overflow: 'hidden' }}>
+
+                      <div style={{ color: '#fff', fontSize: '0.82rem', fontWeight: '700', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+
+                        {docName}
+
+                      </div>
+
+                      <div style={{ color: '#38bdf8', fontSize: '0.68rem' }}>
+
+                        {(postDoc.size / (1024 * 1024)).toFixed(2)} MB • Ready to attach
+
+                      </div>
+
+                    </div>
+
+                  </div>
+
+                  <button
+
+                    type="button"
+
+                    onClick={() => { setPostDoc(null); setDocName(''); }}
+
+                    style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '0.9rem', cursor: 'pointer', padding: '0.2rem' }}
+
+                  >
+
+                    ✕
+
+                  </button>
+
+                </div>
+
+              )}
+
+
+
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #1e293b', paddingTop: '0.7rem' }}>
 
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#22c55e', fontSize: '0.82rem', fontWeight: '700', cursor: 'pointer' }}>
+                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
 
-                  🖼️ Photo
+                  
 
-                  <input
+                  {/* Photo Upload Button */}
 
-                    type="file"
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#22c55e', fontSize: '0.82rem', fontWeight: '700', cursor: 'pointer' }}>
 
-                    accept="image/*"
+                    🖼️ Photo
 
-                    onChange={handleImageSelect}
+                    <input
 
-                    style={{ display: 'none' }}
+                      type="file"
 
-                  />
+                      accept="image/*"
 
-                </label>
+                      onChange={handleImageSelect}
+
+                      style={{ display: 'none' }}
+
+                    />
+
+                  </label>
+
+
+
+                  {/* Document / CV Upload Button */}
+
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#38bdf8', fontSize: '0.82rem', fontWeight: '700', cursor: 'pointer' }}>
+
+                    📄 Document / CV
+
+                    <input
+
+                      type="file"
+
+                      accept=".pdf,.doc,.docx,.txt"
+
+                      onChange={handleDocumentSelect}
+
+                      style={{ display: 'none' }}
+
+                    />
+
+                  </label>
+
+
+
+                </div>
 
 
 
@@ -2932,7 +3108,7 @@ export default function FeedPage() {
 
                   type="submit"
 
-                  disabled={posting || compressing || (!postText.trim() && !postPhoto)}
+                  disabled={posting || compressing || (!postText.trim() && !postPhoto && !postDoc)}
 
                   style={{ 
 
@@ -2950,9 +3126,9 @@ export default function FeedPage() {
 
                     fontWeight: '700', 
 
-                    cursor: (postText.trim() || postPhoto) && !posting && !compressing ? 'pointer' : 'not-allowed',
+                    cursor: (postText.trim() || postPhoto || postDoc) && !posting && !compressing ? 'pointer' : 'not-allowed',
 
-                    opacity: (postText.trim() || postPhoto) && !posting && !compressing ? 1 : 0.6
+                    opacity: (postText.trim() || postPhoto || postDoc) && !posting && !compressing ? 1 : 0.6
 
                   }}
 
@@ -3015,8 +3191,6 @@ export default function FeedPage() {
               const isMenuOpen = openMenuPostId === item.feedItemId;
 
 
-
-              // Filter main parent comments and nested replies
 
               const parentComments = commentsList.filter(c => !c.parent_id);
 
@@ -3404,7 +3578,7 @@ export default function FeedPage() {
 
 
 
-                  {/* Image */}
+                  {/* Image Attachment */}
 
                   {item.imageUrl && (
 
@@ -3425,6 +3599,88 @@ export default function FeedPage() {
                         style={{ width: '100%', maxHeight: '440px', objectFit: 'cover', display: 'block' }} 
 
                       />
+
+                    </div>
+
+                  )}
+
+
+
+                  {/* LinkedIn Style Document / CV Viewer Card */}
+
+                  {item.docUrl && (
+
+                    <div style={{ margin: '0 1rem 0.8rem 1rem', padding: '0.85rem 1rem', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.8rem' }}>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', overflow: 'hidden' }}>
+
+                        <div style={{ width: '40px', height: '40px', borderRadius: '8px', backgroundColor: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.3rem', flexShrink: 0 }}>
+
+                          📄
+
+                        </div>
+
+                        <div style={{ overflow: 'hidden' }}>
+
+                          <div style={{ color: '#fff', fontSize: '0.84rem', fontWeight: '700', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+
+                            {item.docName || 'Curriculum Vitae / Document'}
+
+                          </div>
+
+                          <div style={{ color: '#94a3b8', fontSize: '0.7rem' }}>
+
+                            Document / CV Attachment
+
+                          </div>
+
+                        </div>
+
+                      </div>
+
+
+
+                      <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+
+                        <a
+
+                          href={item.docUrl}
+
+                          target="_blank"
+
+                          rel="noreferrer"
+
+                          style={{
+
+                            backgroundColor: '#0284c7',
+
+                            color: '#fff',
+
+                            textDecoration: 'none',
+
+                            padding: '0.35rem 0.75rem',
+
+                            borderRadius: '6px',
+
+                            fontSize: '0.74rem',
+
+                            fontWeight: '700',
+
+                            display: 'inline-flex',
+
+                            alignItems: 'center',
+
+                            gap: '0.3rem'
+
+                          }}
+
+                        >
+
+                          👁️ View CV
+
+                        </a>
+
+                      </div>
 
                     </div>
 
@@ -3750,7 +4006,7 @@ export default function FeedPage() {
 
 
 
-                                {/* Inline Reply Input (Shown when "Reply" is clicked) */}
+                                {/* Inline Reply Input */}
 
                                 {isReplying && (
 
