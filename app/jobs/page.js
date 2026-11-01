@@ -115,11 +115,34 @@ export default function JobsPage() {
       
       {/* Top Header */}
       <header style={{ backgroundColor: '#0f172a', borderBottom: '1px solid #1e293b', padding: '0.75rem 1rem', position: 'sticky', top: 0, zIndex: 100 }}>
-        <div style={{ maxWidth: '640px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.8rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div style={{ maxWidth: '640px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+            {/* Back Button */}
+            <button
+              type="button"
+              onClick={() => router.back()}
+              style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '8px',
+                backgroundColor: '#070b14',
+                border: '1px solid #1e293b',
+                color: '#fff',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '1rem',
+                fontWeight: 'bold',
+                padding: 0
+              }}
+            >
+              ←
+            </button>
             <span style={{ fontSize: '1.25rem' }}>💼</span>
             <span style={{ fontWeight: '900', fontSize: '1.1rem', color: '#fff' }}>Shanora Jobs</span>
           </div>
+
 
           <Link href="/employer" style={{
             backgroundColor: '#0284c7',
