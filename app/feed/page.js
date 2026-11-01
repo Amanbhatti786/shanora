@@ -117,6 +117,19 @@ export default function FeedPage() {
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const POSTS_PER_PAGE = 10;
+  const [showSplash, setShowSplash] = useState(false);
+
+  useEffect(() => {
+    const hasSeenSplash = sessionStorage.getItem('shanora_splash_shown');
+    if (!hasSeenSplash) {
+      setShowSplash(true);
+      sessionStorage.setItem('shanora_splash_shown', 'true');
+      const timer = setTimeout(() => {
+        setShowSplash(false);
+      }, 1200);
+      return () => clearTimeout(timer);
+    }
+  }, []);
 
   // Follow State
   const [followingMap, setFollowingMap] = useState({});
@@ -850,7 +863,77 @@ export default function FeedPage() {
     if (searchFilter === 'profiles') return item.type === 'profile';
     return true;
   });
+if (showSplash) {
+    return (
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: '#070b14',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '60px 20px 40px 20px',
+          zIndex: 999999,
+          fontFamily: 'system-ui, -apple-system, sans-serif'
+        }}
+      >
+        <div style={{ height: '40px' }}></div>
 
+        {/* Center Official S-Logo */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '16px'
+          }}
+        >
+          <div
+            style={{
+              width: '64px',
+              height: '64px',
+              borderRadius: '16px',
+              background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 10px 25px rgba(2, 132, 199, 0.45)'
+            }}
+          >
+            <span
+              style={{
+                color: '#ffffff',
+                fontSize: '2.2rem',
+                fontWeight: '900',
+                lineHeight: 1
+              }}
+            >
+              S
+            </span>
+          </div>
+
+          {/* Dots Loader */}
+          <div style={{ display: 'flex', gap: '6px', marginTop: '6px' }}>
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#0284c7' }}></span>
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#0284c7', opacity: 0.6 }}></span>
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#0284c7', opacity: 0.3 }}></span>
+          </div>
+        </div>
+
+        {/* Bottom Branding */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+          <span style={{ color: '#64748b', fontSize: '0.75rem', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+            from
+          </span>
+          <span style={{ color: '#38bdf8', fontSize: '1.1rem', fontWeight: '800', letterSpacing: '0.1em' }}>
+            SHANORA
+          </span>
+        </div>
+      </div>
+    );
+  }
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#070b14', color: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       
