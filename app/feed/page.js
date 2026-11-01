@@ -52,9 +52,9 @@ function playActionSound(type = 'like') {
 
 
 
-    if (type === 'like' || type === 'relay') {
+    if (type === 'like' || type === 'relay' || type === 'reaction') {
 
-      // Crisp Facebook-style Pop-Click (Loud & Audible on all mobile speakers)
+      // Crisp Facebook/LinkedIn-style Pop-Click
 
       osc.type = 'sine';
 
@@ -74,9 +74,9 @@ function playActionSound(type = 'like') {
 
       osc.stop(now + 0.12);
 
-    } else if (type === 'comment' || type === 'post') {
+    } else if (type === 'comment' || type === 'reply' || type === 'post') {
 
-      // Pleasant Ascending Tone for Comments & Successful New Post Publish
+      // Pleasant Ascending Tone for Comments, Replies & Successful New Post Publish
 
       osc.type = 'triangle';
 
@@ -314,7 +314,7 @@ export default function FeedPage() {
 
 
 
-  // Interaction states
+  // Post Interaction states
 
   const [likedPosts, setLikedPosts] = useState({});
 
@@ -334,13 +334,23 @@ export default function FeedPage() {
 
 
 
+  // LinkedIn-style Nested Comment & Reactions State
+
+  const [replyingToCommentId, setReplyingToCommentId] = useState(null);
+
+  const [replyInputs, setReplyInputs] = useState({});
+
+  const [commentReactions, setCommentReactions] = useState({}); // { [commentId]: { likes: 0, dislikes: 0, myReaction: 'like'|'dislike'|null } }
+
+
+
   // Infinite Scroll Observer Ref
 
   const observerRef = useRef(null);
 
 
 
-  // Helper to load all interactions (likes, relays, comments) for all feed items
+  // Helper to load all interactions (likes, relays, comments, comment reactions)
 
   const loadInteractions = async (items, userEmail) => {
 
@@ -364,13 +374,15 @@ export default function FeedPage() {
 
     const commentsMap = {};
 
+    const allCommentIds = [];
+
 
 
     const cleanUserEmail = userEmail ? userEmail.toLowerCase() : null;
 
 
 
-    // 1. Likes for Personal Posts
+    // 1. Personal Posts interactions
 
     if (personalPostIds.length > 0) {
 
@@ -444,15 +456,21 @@ export default function FeedPage() {
 
         if (!commentsMap[key]) commentsMap[key] = [];
 
+        allCommentIds.push(c.id);
+
         commentsMap[key].push({
 
           id: c.id,
 
-          user_email: c.user_email,
+          parent_id: c.parent_id || null,
 
-          user_name: c.user_name,
+          user_email: c.user_email || c.author_email,
 
-          comment_text: c.content || c.comment_text
+          user_name: c.user_name || c.author_name,
+
+          comment_text: c.content || c.comment_text,
+
+          created_at: c.created_at
 
         });
 
@@ -462,7 +480,7 @@ export default function FeedPage() {
 
 
 
-    // 2. Likes for Page Posts
+    // 2. Page Posts interactions
 
     if (pagePostIds.length > 0) {
 
@@ -536,15 +554,21 @@ export default function FeedPage() {
 
         if (!commentsMap[key]) commentsMap[key] = [];
 
+        allCommentIds.push(c.id);
+
         commentsMap[key].push({
 
           id: c.id,
 
-          user_email: c.user_email,
+          parent_id: c.parent_id || null,
 
-          user_name: c.user_name || c.user_email?.split('@')[0],
+          user_email: c.user_email || c.author_email,
 
-          comment_text: c.comment_text || c.content
+          user_name: c.user_name || c.author_name || c.user_email?.split('@')[0],
+
+          comment_text: c.comment_text || c.content,
+
+          created_at: c.created_at
 
         });
 
@@ -563,6 +587,64 @@ export default function FeedPage() {
     setRelayedPosts(prev => ({ ...prev, ...relayedMap }));
 
     setPostComments(prev => ({ ...prev, ...commentsMap }));
+
+
+
+    // 3. Load Comment Reactions (Likes / Dislikes)
+
+    if (allCommentIds.length > 0) {
+
+      try {
+
+        const { data: reactionsData } = await supabase
+
+          .from('comment_reactions')
+
+          .select('*')
+
+          .in('comment_id', allCommentIds);
+
+
+
+        if (reactionsData) {
+
+          const rMap = {};
+
+          reactionsData.forEach(r => {
+
+            if (!rMap[r.comment_id]) {
+
+              rMap[r.comment_id] = { likes: 0, dislikes: 0, myReaction: null };
+
+            }
+
+            if (r.reaction_type === 'like') rMap[r.comment_id].likes += 1;
+
+            if (r.reaction_type === 'dislike') rMap[r.comment_id].dislikes += 1;
+
+
+
+            if (cleanUserEmail && r.user_email?.toLowerCase() === cleanUserEmail) {
+
+              rMap[r.comment_id].myReaction = r.reaction_type;
+
+            }
+
+          });
+
+          setCommentReactions(prev => ({ ...prev, ...rMap }));
+
+        }
+
+      } catch (err) {
+
+        // Safe failover if comment_reactions table is being set up
+
+        console.warn('Reactions fetch notice:', err);
+
+      }
+
+    }
 
   };
 
@@ -900,7 +982,7 @@ export default function FeedPage() {
 
 
 
-        // Load persistent likes, relays and comments
+        // Load interactions
 
         await loadInteractions(merged, user?.email);
 
@@ -1234,8 +1316,6 @@ export default function FeedPage() {
 
       const tableName = postType === 'page' ? 'page_posts' : 'user_posts';
 
-      const emailCol = postType === 'page' ? 'created_by' : 'user_email';
-
 
 
       const { error } = await supabase
@@ -1516,7 +1596,7 @@ export default function FeedPage() {
 
 
 
-      // 🔊 Instant Chime Sound jab post create ho jaye
+      // 🔊 Instant Chime Sound
 
       playActionSound('post');
 
@@ -1614,7 +1694,7 @@ export default function FeedPage() {
 
 
 
-  // Toggle Like with Database Persistence & Sound
+  // Toggle Post Like with Persistence & Sound
 
   async function handleToggleLike(item) {
 
@@ -1646,15 +1726,11 @@ export default function FeedPage() {
 
 
 
-    // 1. Optimistic UI update
-
     setLikedPosts(prev => ({ ...prev, [key]: nextLikedState }));
 
     setPostLikesCount(prev => ({ ...prev, [key]: nextCount }));
 
 
-
-    // 2. Supabase Database Sync (Route to correct table)
 
     const tableName = item.postType === 'page' ? 'page_post_likes' : 'post_likes';
 
@@ -1698,7 +1774,7 @@ export default function FeedPage() {
 
 
 
-  // Toggle Relay with Pop Sound & Database Persistence
+  // Toggle Post Relay with Persistence & Sound
 
   async function handleToggleRelay(item) {
 
@@ -1778,70 +1854,426 @@ export default function FeedPage() {
 
 
 
-// Add Comment with Database Persistence
+  // Add Top-level Comment with Sound
+
   async function handleAddComment(item) {
+
     if (!currentUser) {
+
       router.push('/auth');
+
       return;
+
     }
 
+
+
     const key = item.feedItemId;
+
     const text = commentInputs[key]?.trim();
 
     if (!text || submittingComment) return;
 
+
+
     playActionSound('comment');
+
     setSubmittingComment(true);
 
+
+
     const userEmail = currentUser.email.toLowerCase();
-    const userName = currentUser.user_metadata?.full_name || currentUser.email.split('@')[0];
+
+    const userName = userProfile?.name || currentUser.user_metadata?.full_name || userEmail.split('@')[0];
+
+
+
+    const isPagePost = item.postType === 'page';
+
+    const targetTable = isPagePost ? 'page_post_comments' : 'post_comments';
+
+
+
+    const payload = isPagePost
+
+      ? {
+
+          post_id: item.postId,
+
+          user_email: userEmail,
+
+          comment_text: text,
+
+          parent_id: null
+
+        }
+
+      : {
+
+          post_id: item.postId,
+
+          user_email: userEmail,
+
+          author_email: userEmail,
+
+          user_name: userName,
+
+          author_name: userName,
+
+          content: text,
+
+          comment_text: text,
+
+          parent_id: null
+
+        };
+
+
 
     try {
-      const isPagePost = item.postType === 'page';
-      const targetTable = isPagePost ? 'page_post_comments' : 'post_comments';
-
-      const payload = isPagePost
-        ? {
-            post_id: item.postId,
-            user_email: userEmail,
-            comment_text: text
-          }
-        : {
-            post_id: item.postId,
-            user_email: userEmail,
-            author_email: userEmail, // Yeh NOT NULL error ko theek karta hai
-            user_name: userName,
-            author_name: userName,
-            content: text,
-            comment_text: text
-          };
 
       const { data: newComment, error } = await supabase
+
         .from(targetTable)
+
         .insert([payload])
+
         .select()
+
         .single();
+
+
 
       if (error) throw error;
 
-      // Local state update
+
+
+      const formatted = {
+
+        id: newComment.id,
+
+        parent_id: null,
+
+        user_email: userEmail,
+
+        user_name: userName,
+
+        comment_text: text,
+
+        created_at: newComment.created_at || new Date().toISOString()
+
+      };
+
+
+
       setPostComments(prev => ({
+
         ...prev,
-        [item.postId]: [...(prev[item.postId] || []), newComment]
+
+        [key]: [...(prev[key] || []), formatted]
+
       }));
 
-      setCommentInputs(prev => ({
-        ...prev,
-        [key]: ''
-      }));
+
+
+      setCommentInputs(prev => ({ ...prev, [key]: '' }));
+
+
+
+      if (item.authorEmail && item.authorEmail !== userEmail) {
+
+        await supabase.from('notifications').insert([{
+
+          recipient_email: item.authorEmail,
+
+          sender_name: userName,
+
+          sender_email: userEmail,
+
+          action_type: 'comment',
+
+          post_id: item.postId,
+
+          content: 'commented on your post.',
+
+          is_read: false
+
+        }]);
+
+      }
 
     } catch (err) {
+
       console.error('Comment error:', err);
+
       alert('Comment failed: ' + err.message);
+
     } finally {
+
       setSubmittingComment(false);
+
     }
+
   }
+
+
+
+  // Submit LinkedIn-Style Nested Reply
+
+  async function handleAddReply(item, parentComment) {
+
+    if (!currentUser) {
+
+      router.push('/auth');
+
+      return;
+
+    }
+
+
+
+    const replyText = replyInputs[parentComment.id]?.trim();
+
+    if (!replyText || submittingComment) return;
+
+
+
+    playActionSound('reply');
+
+    setSubmittingComment(true);
+
+
+
+    const userEmail = currentUser.email.toLowerCase();
+
+    const userName = userProfile?.name || currentUser.user_metadata?.full_name || userEmail.split('@')[0];
+
+    const isPagePost = item.postType === 'page';
+
+    const targetTable = isPagePost ? 'page_post_comments' : 'post_comments';
+
+
+
+    const payload = isPagePost
+
+      ? {
+
+          post_id: item.postId,
+
+          user_email: userEmail,
+
+          comment_text: replyText,
+
+          parent_id: parentComment.id
+
+        }
+
+      : {
+
+          post_id: item.postId,
+
+          user_email: userEmail,
+
+          author_email: userEmail,
+
+          user_name: userName,
+
+          author_name: userName,
+
+          content: replyText,
+
+          comment_text: replyText,
+
+          parent_id: parentComment.id
+
+        };
+
+
+
+    try {
+
+      const { data: newReply, error } = await supabase
+
+        .from(targetTable)
+
+        .insert([payload])
+
+        .select()
+
+        .single();
+
+
+
+      if (error) throw error;
+
+
+
+      const formatted = {
+
+        id: newReply.id,
+
+        parent_id: parentComment.id,
+
+        user_email: userEmail,
+
+        user_name: userName,
+
+        comment_text: replyText,
+
+        created_at: newReply.created_at || new Date().toISOString()
+
+      };
+
+
+
+      setPostComments(prev => ({
+
+        ...prev,
+
+        [item.feedItemId]: [...(prev[item.feedItemId] || []), formatted]
+
+      }));
+
+
+
+      setReplyInputs(prev => ({ ...prev, [parentComment.id]: '' }));
+
+      setReplyingToCommentId(null);
+
+    } catch (err) {
+
+      console.error('Reply error:', err);
+
+      alert('Reply failed: ' + err.message);
+
+    } finally {
+
+      setSubmittingComment(false);
+
+    }
+
+  }
+
+
+
+  // Toggle Comment Reaction (Like / Dislike)
+
+  async function handleCommentReaction(commentId, type) {
+
+    if (!currentUser) {
+
+      router.push('/auth');
+
+      return;
+
+    }
+
+
+
+    playActionSound('reaction');
+
+
+
+    const userEmail = currentUser.email.toLowerCase();
+
+    const current = commentReactions[commentId] || { likes: 0, dislikes: 0, myReaction: null };
+
+    const prevReaction = current.myReaction;
+
+
+
+    let nextReaction = type;
+
+    let nextLikes = current.likes;
+
+    let nextDislikes = current.dislikes;
+
+
+
+    // Toggle off if clicking the active one
+
+    if (prevReaction === type) {
+
+      nextReaction = null;
+
+      if (type === 'like') nextLikes = Math.max(0, nextLikes - 1);
+
+      if (type === 'dislike') nextDislikes = Math.max(0, nextDislikes - 1);
+
+    } else {
+
+      if (type === 'like') {
+
+        nextLikes += 1;
+
+        if (prevReaction === 'dislike') nextDislikes = Math.max(0, nextDislikes - 1);
+
+      } else if (type === 'dislike') {
+
+        nextDislikes += 1;
+
+        if (prevReaction === 'like') nextLikes = Math.max(0, nextLikes - 1);
+
+      }
+
+    }
+
+
+
+    // Optimistic UI
+
+    setCommentReactions(prev => ({
+
+      ...prev,
+
+      [commentId]: { likes: nextLikes, dislikes: nextDislikes, myReaction: nextReaction }
+
+    }));
+
+
+
+    try {
+
+      if (nextReaction === null) {
+
+        await supabase
+
+          .from('comment_reactions')
+
+          .delete()
+
+          .eq('comment_id', commentId)
+
+          .ilike('user_email', userEmail);
+
+      } else {
+
+        await supabase
+
+          .from('comment_reactions')
+
+          .upsert([{
+
+            comment_id: commentId,
+
+            user_email: userEmail,
+
+            reaction_type: nextReaction
+
+          }], { onConflict: 'comment_id,user_email' });
+
+      }
+
+    } catch (err) {
+
+      console.error('Reaction sync error:', err);
+
+      setCommentReactions(prev => ({ ...prev, [commentId]: current }));
+
+    }
+
+  }
+
 
 
   const currentUserName = userProfile?.name || currentUser?.email?.split('@')[0] || 'You';
@@ -2584,6 +3016,12 @@ export default function FeedPage() {
 
 
 
+              // Filter main parent comments and nested replies
+
+              const parentComments = commentsList.filter(c => !c.parent_id);
+
+
+
               return (
 
                 <div key={item.feedItemId} id={item.feedItemId} style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', overflow: 'visible', position: 'relative' }}>
@@ -3070,13 +3508,17 @@ export default function FeedPage() {
 
 
 
-                  {/* Comments Drawer */}
+                  {/* Comments Drawer (LinkedIn Style Threading) */}
 
                   {isCommentsOpen && (
 
                     <div style={{ padding: '0.8rem 1rem', backgroundColor: '#070b14', borderTop: '1px solid #1e293b' }}>
 
-                      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.8rem' }}>
+                      
+
+                      {/* Top-level Comment Input */}
+
+                      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
 
                         <input
 
@@ -3114,37 +3556,345 @@ export default function FeedPage() {
 
 
 
-                      {commentsList.length === 0 ? (
+                      {/* Comments & Replies Stream */}
+
+                      {parentComments.length === 0 ? (
 
                         <div style={{ fontSize: '0.75rem', color: '#64748b', textAlign: 'center', padding: '0.4rem' }}>
 
-                          No comments yet.
+                          No comments yet. Be the first to share your thoughts!
 
                         </div>
 
                       ) : (
 
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
 
-                          {commentsList.map(c => (
+                          {parentComments.map(c => {
 
-                            <div key={c.id} style={{ backgroundColor: '#1e293b', padding: '0.5rem 0.8rem', borderRadius: '10px', fontSize: '0.8rem' }}>
+                            const nestedReplies = commentsList.filter(r => r.parent_id === c.id);
 
-                              <Link href={`/view-profile?email=${encodeURIComponent(c.user_email || '')}`} style={{ color: '#38bdf8', textDecoration: 'none', fontWeight: '700', fontSize: '0.75rem' }}>
+                            const isReplying = replyingToCommentId === c.id;
 
-                                {c.user_name || c.user_email?.split('@')[0]}
+                            const rx = commentReactions[c.id] || { likes: 0, dislikes: 0, myReaction: null };
 
-                              </Link>
 
-                              <div style={{ color: '#f8fafc', marginTop: '0.15rem' }}>{c.comment_text}</div>
 
-                            </div>
+                            return (
 
-                          ))}
+                              <div key={c.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+
+                                
+
+                                {/* Main Comment Card */}
+
+                                <div style={{ backgroundColor: '#1e293b', padding: '0.65rem 0.9rem', borderRadius: '12px', fontSize: '0.82rem' }}>
+
+                                  
+
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.2rem' }}>
+
+                                    <Link href={`/view-profile?email=${encodeURIComponent(c.user_email || '')}`} style={{ color: '#38bdf8', textDecoration: 'none', fontWeight: '700', fontSize: '0.76rem' }}>
+
+                                      {c.user_name || c.user_email?.split('@')[0]}
+
+                                    </Link>
+
+                                    <span style={{ fontSize: '0.65rem', color: '#64748b' }}>
+
+                                      {c.created_at ? new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+
+                                    </span>
+
+                                  </div>
+
+
+
+                                  <div style={{ color: '#f8fafc', margin: '0.3rem 0', lineHeight: 1.4, wordBreak: 'break-word' }}>
+
+                                    {c.comment_text}
+
+                                  </div>
+
+
+
+                                  {/* LinkedIn Style Interaction Bar: Like | Dislike | Reply */}
+
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '0.35rem', marginTop: '0.4rem' }}>
+
+                                    
+
+                                    {/* Like Button */}
+
+                                    <button
+
+                                      type="button"
+
+                                      onClick={() => handleCommentReaction(c.id, 'like')}
+
+                                      style={{
+
+                                        background: 'none',
+
+                                        border: 'none',
+
+                                        color: rx.myReaction === 'like' ? '#38bdf8' : '#94a3b8',
+
+                                        fontSize: '0.72rem',
+
+                                        fontWeight: '700',
+
+                                        cursor: 'pointer',
+
+                                        display: 'inline-flex',
+
+                                        alignItems: 'center',
+
+                                        gap: '0.25rem',
+
+                                        padding: 0
+
+                                      }}
+
+                                    >
+
+                                      <span>👍</span> {rx.likes > 0 ? rx.likes : 'Like'}
+
+                                    </button>
+
+
+
+                                    {/* Dislike Button */}
+
+                                    <button
+
+                                      type="button"
+
+                                      onClick={() => handleCommentReaction(c.id, 'dislike')}
+
+                                      style={{
+
+                                        background: 'none',
+
+                                        border: 'none',
+
+                                        color: rx.myReaction === 'dislike' ? '#ef4444' : '#94a3b8',
+
+                                        fontSize: '0.72rem',
+
+                                        fontWeight: '700',
+
+                                        cursor: 'pointer',
+
+                                        display: 'inline-flex',
+
+                                        alignItems: 'center',
+
+                                        gap: '0.25rem',
+
+                                        padding: 0
+
+                                      }}
+
+                                    >
+
+                                      <span>👎</span> {rx.dislikes > 0 ? rx.dislikes : 'Dislike'}
+
+                                    </button>
+
+
+
+                                    {/* Reply Toggle */}
+
+                                    <button
+
+                                      type="button"
+
+                                      onClick={() => setReplyingToCommentId(isReplying ? null : c.id)}
+
+                                      style={{
+
+                                        background: 'none',
+
+                                        border: 'none',
+
+                                        color: isReplying ? '#38bdf8' : '#94a3b8',
+
+                                        fontSize: '0.72rem',
+
+                                        fontWeight: '700',
+
+                                        cursor: 'pointer',
+
+                                        display: 'inline-flex',
+
+                                        alignItems: 'center',
+
+                                        gap: '0.25rem',
+
+                                        padding: 0
+
+                                      }}
+
+                                    >
+
+                                      <span>↩</span> Reply
+
+                                    </button>
+
+
+
+                                  </div>
+
+                                </div>
+
+
+
+                                {/* Inline Reply Input (Shown when "Reply" is clicked) */}
+
+                                {isReplying && (
+
+                                  <div style={{ marginLeft: '1.6rem', display: 'flex', gap: '0.4rem', marginTop: '0.2rem' }}>
+
+                                    <input
+
+                                      type="text"
+
+                                      placeholder={`Reply to ${c.user_name || 'creator'}...`}
+
+                                      value={replyInputs[c.id] || ''}
+
+                                      onChange={(e) => setReplyInputs({ ...replyInputs, [c.id]: e.target.value })}
+
+                                      onKeyDown={(e) => e.key === 'Enter' && handleAddReply(item, c)}
+
+                                      style={{ flex: 1, backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '14px', padding: '0.35rem 0.8rem', color: '#fff', fontSize: '0.78rem', outline: 'none' }}
+
+                                    />
+
+                                    <button
+
+                                      type="button"
+
+                                      disabled={submittingComment || !replyInputs[c.id]?.trim()}
+
+                                      onClick={() => handleAddReply(item, c)}
+
+                                      style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.35rem 0.85rem', borderRadius: '14px', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer' }}
+
+                                    >
+
+                                      Reply
+
+                                    </button>
+
+                                  </div>
+
+                                )}
+
+
+
+                                {/* Indented Nested Replies List */}
+
+                                {nestedReplies.length > 0 && (
+
+                                  <div style={{ marginLeft: '1.6rem', borderLeft: '2px solid #334155', paddingLeft: '0.65rem', display: 'flex', flexDirection: 'column', gap: '0.45rem', marginTop: '0.2rem' }}>
+
+                                    {nestedReplies.map(r => {
+
+                                      const replyRx = commentReactions[r.id] || { likes: 0, dislikes: 0, myReaction: null };
+
+
+
+                                      return (
+
+                                        <div key={r.id} style={{ backgroundColor: '#131e32', padding: '0.5rem 0.75rem', borderRadius: '10px', fontSize: '0.78rem' }}>
+
+                                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+
+                                            <Link href={`/view-profile?email=${encodeURIComponent(r.user_email || '')}`} style={{ color: '#38bdf8', textDecoration: 'none', fontWeight: '700', fontSize: '0.74rem' }}>
+
+                                              {r.user_name || r.user_email?.split('@')[0]}
+
+                                            </Link>
+
+                                            <span style={{ fontSize: '0.62rem', color: '#64748b' }}>
+
+                                              {r.created_at ? new Date(r.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+
+                                            </span>
+
+                                          </div>
+
+
+
+                                          <div style={{ color: '#cbd5e1', marginTop: '0.2rem', lineHeight: 1.35, wordBreak: 'break-word' }}>
+
+                                            {r.comment_text}
+
+                                          </div>
+
+
+
+                                          {/* Nested Reply Reaction Bar */}
+
+                                          <div style={{ display: 'flex', gap: '0.7rem', marginTop: '0.3rem', fontSize: '0.68rem' }}>
+
+                                            <button
+
+                                              type="button"
+
+                                              onClick={() => handleCommentReaction(r.id, 'like')}
+
+                                              style={{ background: 'none', border: 'none', color: replyRx.myReaction === 'like' ? '#38bdf8' : '#94a3b8', cursor: 'pointer', padding: 0, fontWeight: '700' }}
+
+                                            >
+
+                                              👍 {replyRx.likes > 0 ? replyRx.likes : 'Like'}
+
+                                            </button>
+
+
+
+                                            <button
+
+                                              type="button"
+
+                                              onClick={() => handleCommentReaction(r.id, 'dislike')}
+
+                                              style={{ background: 'none', border: 'none', color: replyRx.myReaction === 'dislike' ? '#ef4444' : '#94a3b8', cursor: 'pointer', padding: 0, fontWeight: '700' }}
+
+                                            >
+
+                                              👎 {replyRx.dislikes > 0 ? replyRx.dislikes : 'Dislike'}
+
+                                            </button>
+
+                                          </div>
+
+                                        </div>
+
+                                      );
+
+                                    })}
+
+                                  </div>
+
+                                )}
+
+
+
+                              </div>
+
+                            );
+
+                          })}
 
                         </div>
 
                       )}
+
+
 
                     </div>
 
@@ -3164,7 +3914,7 @@ export default function FeedPage() {
 
 
 
-        {/* Infinite Scroll Sentinel (Auto-loads on scroll) */}
+        {/* Infinite Scroll Sentinel */}
 
         <div ref={lastPostElementRef} style={{ height: '50px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '1.5rem' }}>
 
