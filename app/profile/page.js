@@ -207,26 +207,74 @@ function ProfilePortalContent() {
           avatar_url: defaultProfile.avatar_url,
           resume_url: defaultProfile.resume_url
         });
+// 2. Fetch Network / Follows with Real Profile Names
+    const { data: followsData } = await supabase
+      .from('user_follows')
+      .select('id, follower_email, following_email, created_at');
 
-        // 2. Fetch Network / Follows
-        const { data: followsData } = await supabase
-          .from('user_follows')
-          .select('id, follower_email, following_email, created_at');
+    const curMap = {};
+    if (followsData) {
+      const myFollowersRaw = followsData.filter(f => (f.following_email || '').toLowerCase() === myEmail);
+      const myFollowingsRaw = followsData.filter(f => (f.follower_email || '').toLowerCase() === myEmail);
 
-        const curMap = {};
-        if (followsData) {
-          const myFollowers = followsData.filter(f => (f.following_email || '').toLowerCase() === myEmail);
-          const myFollowings = followsData.filter(f => (f.follower_email || '').toLowerCase() === myEmail);
+      // Collect all emails to fetch their real profile names
+      const allNetworkEmails = Array.from(new Set([
+        ...myFollowersRaw.map(f => (f.follower_email || '').toLowerCase()),
+        ...myFollowingsRaw.map(f => (f.following_email || '').toLowerCase())
+      ])).filter(Boolean);
 
-          setFollowersList(myFollowers);
-          setFollowingList(myFollowings);
+      let profilesMap = {};
+      if (allNetworkEmails.length > 0) {
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('email, name, full_name, username, avatar_url')
+          .in('email', allNetworkEmails);
 
-          myFollowings.forEach(f => {
-            if (f.following_email) curMap[f.following_email.toLowerCase()] = true;
-          });
-          setFollowingMap(curMap);
-        }
+        (profilesData || []).forEach(p => {
+          if (p.email) {
+            profilesMap[p.email.toLowerCase()] = {
+              displayName: p.name || p.full_name || p.username || p.email.split('@')[0],
+              avatarUrl: p.avatar_url,
+              username: p.username || p.email.split('@')[0]
+            };
+          }
+        });
+      }
 
+      // Attach real name & avatar to each follower
+      const myFollowers = myFollowersRaw.map(f => {
+        const email = (f.follower_email || '').toLowerCase();
+        const profile = profilesMap[email] || {};
+        return {
+          ...f,
+          user_email: email,
+          displayName: profile.displayName || email.split('@')[0],
+          avatarUrl: profile.avatarUrl || null,
+          username: profile.username || email.split('@')[0]
+        };
+      });
+
+      // Attach real name & avatar to each following
+      const myFollowings = myFollowingsRaw.map(f => {
+        const email = (f.following_email || '').toLowerCase();
+        const profile = profilesMap[email] || {};
+        return {
+          ...f,
+          user_email: email,
+          displayName: profile.displayName || email.split('@')[0],
+          avatarUrl: profile.avatarUrl || null,
+          username: profile.username || email.split('@')[0]
+        };
+      });
+
+      setFollowersList(myFollowers);
+      setFollowingList(myFollowings);
+
+      myFollowings.forEach(f => {
+        if (f.following_email) curMap[f.following_email.toLowerCase()] = true;
+      });
+      setFollowingMap(curMap);
+    }
         // 3. Background Async Metric Calls (Non-blocking)
         supabase.from('user_posts')
           .select('id', { count: 'exact', head: true })
