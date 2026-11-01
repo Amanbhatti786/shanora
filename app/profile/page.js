@@ -1589,7 +1589,7 @@ function ProfilePortalContent() {
 
       <div style={{ minHeight: '100vh', backgroundColor: '#070b14', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#38bdf8' }}>
 
-        Loading Shanora Portal...
+        Loading ...
 
       </div>
 
