@@ -7,7 +7,8 @@ import { supabase } from '../../lib/supabaseClient';
 function ViewProfileContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const targetEmail = searchParams?.get('email')?.trim().toLowerCase() || '';
+  const rawEmail = searchParams?.get('email') || '';
+  const targetEmail = decodeURIComponent(rawEmail).trim().toLowerCase();
 
   const [currentUser, setCurrentUser] = useState(null);
   const [profileData, setProfileData] = useState(null);
@@ -31,7 +32,7 @@ function ViewProfileContent() {
         setCurrentUser(loggedUser);
 
         // 1. Check if this is a Page
-        const slugAttempt = targetEmail.split('@')[0];
+        const slugAttempt = targetEmail.includes('@') ? targetEmail.split('@')[0] : targetEmail;
         const { data: pageMatch } = await supabase
           .from('pages')
           .select('*')
@@ -45,7 +46,7 @@ function ViewProfileContent() {
           .ilike('email', targetEmail)
           .maybeSingle();
 
-        const displayName = prof?.name || pageMatch?.name || slugAttempt;
+        const displayName = prof?.name || pageMatch?.name || (targetEmail.includes('@') ? slugAttempt : targetEmail);
         const displayAvatar = prof?.avatar_url || pageMatch?.logo_url || null;
         const displayBio = prof?.bio || pageMatch?.description || 'Creator on SHANORA.PK';
         const displayCity = prof?.city || 'Pakistan';
@@ -60,7 +61,7 @@ function ViewProfileContent() {
           pageSlug: pageMatch?.slug || null
         });
 
-        // 3. Fetch Real Followers & Following Counts
+        // 3. Real Followers & Following Counts
         const { count: fCount } = await supabase
           .from('user_follows')
           .select('*', { count: 'exact', head: true })
@@ -74,7 +75,7 @@ function ViewProfileContent() {
         setFollowersCount(fCount || 0);
         setFollowingCount(ingCount || 0);
 
-        // 4. Check if Current Logged-in User Follows this target
+        // 4. Check if Logged-in User Follows
         if (loggedUser?.email) {
           const { data: followRel } = await supabase
             .from('user_follows')
@@ -86,7 +87,7 @@ function ViewProfileContent() {
           setIsFollowing(!!followRel);
         }
 
-        // 5. Fetch Posts of this User/Creator
+        // 5. Fetch Posts
         const { data: posts } = await supabase
           .from('user_posts')
           .select('*')
@@ -153,17 +154,21 @@ function ViewProfileContent() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', backgroundColor: '#070b14', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#38bdf8' }}>
-        Loading profile...
+      <div style={{ minHeight: '100vh', backgroundColor: '#070b14', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#38bdf8', gap: '12px' }}>
+        <div style={{ width: '40px', height: '40px', border: '3px solid #1e293b', borderTopColor: '#38bdf8', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+        <span style={{ fontSize: '0.9rem', color: '#94a3b8' }}>Profile load ho rahi hai...</span>
       </div>
     );
   }
 
-  if (!profileData) {
+  if (!profileData || !targetEmail) {
     return (
-      <div style={{ minHeight: '100vh', backgroundColor: '#070b14', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', gap: '1rem' }}>
-        <div style={{ fontSize: '1.2rem', color: '#fff', fontWeight: 'bold' }}>Profile Not Found</div>
-        <Link href="/feed" style={{ color: '#38bdf8', textDecoration: 'none', fontWeight: 'bold' }}>← Back to Feed</Link>
+      <div style={{ minHeight: '100vh', backgroundColor: '#070b14', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', gap: '1rem', padding: '20px', textAlign: 'center' }}>
+        <div style={{ fontSize: '1.4rem', color: '#fff', fontWeight: 'bold' }}>Profile Not Found</div>
+        <p style={{ color: '#64748b', fontSize: '0.9rem', maxWidth: '300px' }}>Yeh profile mojood nahi hai ya link galat open hua hai.</p>
+        <Link href="/feed" style={{ color: '#38bdf8', textDecoration: 'none', fontWeight: 'bold', padding: '10px 20px', backgroundColor: '#0f172a', borderRadius: '8px', border: '1px solid #1e293b' }}>
+          Back to Feed →
+        </Link>
       </div>
     );
   }
@@ -175,7 +180,7 @@ function ViewProfileContent() {
       
       {/* Top Header */}
       <header style={{ backgroundColor: '#0f172a', borderBottom: '1px solid #1e293b', padding: '0.85rem 1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100 }}>
-        <button onClick={() => router.back()} style={{ background: 'none', border: 'none', color: '#38bdf8', fontSize: '1.1rem', cursor: 'pointer', fontWeight: 'bold' }}>
+        <button onClick={() => router.back()} style={{ background: 'none', border: 'none', color: '#38bdf8', fontSize: '1.1rem', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
           ← Back
         </button>
         <Link href="/feed" style={{ textDecoration: 'none', color: '#38bdf8', fontWeight: '900', fontSize: '1.15rem' }}>
