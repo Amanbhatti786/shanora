@@ -5,30 +5,25 @@ import { usePathname, useSearchParams } from 'next/navigation';
 import { useState, useEffect } from 'react';
 
 export default function BottomNav() {
-  const pathname = usePathname();
+  const pathname = usePathname() || '';
   const searchParams = useSearchParams();
-  const [activeTab, setActiveTab] = useState('');
+  const currentTab = searchParams?.get('tab');
 
-  // Pathname change hone par ya page load par active tab pakka detect karein
-  useEffect(() => {
-    const fullPath = window.location.pathname.toLowerCase();
-    const currentTab = new URLSearchParams(window.location.search).get('tab');
-
-    if (fullPath.includes('/alerts')) {
-      setActiveTab('alerts');
-    } else if (fullPath.includes('/jobs')) {
-      setActiveTab('jobs');
-    } else if (fullPath.includes('/feed') || fullPath === '/') {
-      setActiveTab('home');
-    } else if (fullPath.includes('/profile')) {
-      if (currentTab === 'network') {
-        setActiveTab('network');
-      } else {
-        setActiveTab('menu');
-      }
+  // Direct active tab calculation (No delay, no flicker)
+  let activeTab = 'home';
+  if (pathname.includes('/alerts')) {
+    activeTab = 'alerts';
+  } else if (pathname.includes('/jobs')) {
+    activeTab = 'jobs';
+  } else if (pathname.includes('/profile')) {
+    if (currentTab === 'network') {
+      activeTab = 'network';
+    } else {
+      activeTab = 'menu';
     }
-  }, [pathname, searchParams]);
-
+  } else if (pathname.includes('/feed') || pathname === '/') {
+    activeTab = 'home';
+  }
   const navItems = [
     {
       id: 'home',
