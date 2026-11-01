@@ -1240,7 +1240,7 @@ if (showSplash) {
                   <div style={{ padding: '0.8rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.7rem' }}>
                     
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', flex: 1, overflow: 'hidden' }}>
-                      <Link href={item.authorLink || '#'} style={{ textDecoration: 'none' }}>
+                      <Link href={`/view-profile?email=${encodeURIComponent(item.authorEmail || item.user_email || '')}`} style={{ textDecoration: 'none' }}>
                         <div style={{ 
                           width: '42px', 
                           height: '42px', 
@@ -1264,7 +1264,7 @@ if (showSplash) {
 
                       <div style={{ overflow: 'hidden' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                          <Link href={item.authorLink || '#'} style={{ textDecoration: 'none' }}>
+                         href={`/view-profile?email=${encodeURIComponent(item.authorEmail || item.user_email || '')}`}
                             <span style={{ fontWeight: '700', fontSize: '0.9rem', color: '#fff', cursor: 'pointer' }}>
                               {item.authorName}
                             </span>
