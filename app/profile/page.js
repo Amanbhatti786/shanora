@@ -219,13 +219,20 @@ function ProfilePortalContent() {
 
 
   useEffect(() => {
-
-    const tabParam = searchParams?.get('tab');
+     const tabParam = searchParams?.get('tab');
+    
+    // Auto-redirect purane tabs to new independent pages
+    if (tabParam === 'jobs') {
+      router.replace('/jobs');
+      return;
+    }
+    if (tabParam === 'notifications' || tabParam === 'alerts') {
+      router.replace('/alerts');
+      return;
+    }
 
     if (tabParam) setActiveTab(tabParam);
-
-  }, [searchParams]);
-
+  }, [searchParams, router]);
 
 
   useEffect(() => {
