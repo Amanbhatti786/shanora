@@ -1778,132 +1778,70 @@ export default function FeedPage() {
 
 
 
-  // Add Comment with Database Persistence
-
+// Add Comment with Database Persistence
   async function handleAddComment(item) {
-
     if (!currentUser) {
-
       router.push('/auth');
-
       return;
-
     }
 
-
-
     const key = item.feedItemId;
-
     const text = commentInputs[key]?.trim();
 
     if (!text || submittingComment) return;
 
-
-
-    playActionSound('comment'); // 📢 Comment Pop Sound
-
+    playActionSound('comment');
     setSubmittingComment(true);
 
-
-
     const userEmail = currentUser.email.toLowerCase();
-
-    const userName = userProfile?.name || currentUser.user_metadata?.full_name || userEmail.split('@')[0];
-
-
-
-    const tableName = item.postType === 'page' ? 'page_post_comments' : 'post_comments';
-
-    const insertPayload = item.postType === 'page'
-
-      ? { post_id: item.postId, user_email: userEmail, comment_text: text }
-
-      : { post_id: item.postId, user_email: userEmail, user_name: userName, content: text };
-
-
+    const userName = currentUser.user_metadata?.full_name || currentUser.email.split('@')[0];
 
     try {
+      const isPagePost = item.postType === 'page';
+      const targetTable = isPagePost ? 'page_post_comments' : 'post_comments';
+
+      const payload = isPagePost
+        ? {
+            post_id: item.postId,
+            user_email: userEmail,
+            comment_text: text
+          }
+        : {
+            post_id: item.postId,
+            user_email: userEmail,
+            author_email: userEmail, // Yeh NOT NULL error ko theek karta hai
+            user_name: userName,
+            author_name: userName,
+            content: text,
+            comment_text: text
+          };
 
       const { data: newComment, error } = await supabase
-
-        .from(tableName)
-
-        .insert([insertPayload])
-
+        .from(targetTable)
+        .insert([payload])
         .select()
-
         .single();
-
-
 
       if (error) throw error;
 
-
-
-      const formattedComment = {
-
-        id: newComment.id,
-
-        user_email: userEmail,
-
-        user_name: userName,
-
-        comment_text: text
-
-      };
-
-
-
+      // Local state update
       setPostComments(prev => ({
-
         ...prev,
-
-        [key]: [...(prev[key] || []), formattedComment]
-
+        [item.postId]: [...(prev[item.postId] || []), newComment]
       }));
 
-      setCommentInputs(prev => ({ ...prev, [key]: '' }));
-
-
-
-      // Send notification if not own post
-
-      if (item.authorEmail && item.authorEmail !== userEmail) {
-
-        await supabase.from('notifications').insert([{
-
-          recipient_email: item.authorEmail,
-
-          sender_name: userName,
-
-          sender_email: userEmail,
-
-          action_type: 'comment',
-
-          post_id: item.postId,
-
-          content: 'commented on your post.',
-
-          is_read: false
-
-        }]);
-
-      }
+      setCommentInputs(prev => ({
+        ...prev,
+        [key]: ''
+      }));
 
     } catch (err) {
-
       console.error('Comment error:', err);
-
       alert('Comment failed: ' + err.message);
-
     } finally {
-
       setSubmittingComment(false);
-
     }
-
   }
-
 
 
   const currentUserName = userProfile?.name || currentUser?.email?.split('@')[0] || 'You';
