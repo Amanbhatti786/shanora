@@ -218,22 +218,27 @@ function ProfilePortalContent() {
 
 
 
+ const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Redirect legacy tabs to dedicated independent routes
   useEffect(() => {
-     const tabParam = searchParams?.get('tab');
-    
-    // Auto-redirect purane tabs to new independent pages
-    if (tabParam === 'jobs') {
-      router.replace('/jobs');
-      return;
-    }
+    const tabParam = searchParams?.get('tab');
+
     if (tabParam === 'notifications' || tabParam === 'alerts') {
       router.replace('/alerts');
       return;
     }
 
-    if (tabParam) setActiveTab(tabParam);
-  }, [searchParams, router]);
+    if (tabParam === 'jobs') {
+      router.replace('/jobs');
+      return;
+    }
 
+    if (tabParam) {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams, router]);
 
   useEffect(() => {
 
