@@ -32,38 +32,9 @@ function AlertsContent() {
     if (!val) return '';
     if (typeof val === 'string') return val;
     if (typeof val === 'object') {
-      return val.text || val.message || val.title || JSON.stringify(val);
+      return val.text || val.content || val.message || JSON.stringify(val);
     }
     return String(val);
-  };
-
-  const getSenderIdentifier = (notif) => {
-    if (!notif || typeof notif !== 'object') return '';
-    const raw =
-      notif.sender_email ||
-      notif.actor_email ||
-      notif.user_email ||
-      notif.from_email ||
-      notif.sender_username ||
-      notif.username ||
-      notif.sender_id ||
-      '';
-    return typeof raw === 'string' ? raw.trim() : '';
-  };
-
-  const getTargetPostId = (notif) => {
-    if (!notif) return null;
-    return notif.post_id || notif.target_id || notif.item_id || null;
-  };
-
-  const getTargetCommentId = (notif) => {
-    if (!notif) return null;
-    return notif.comment_id || notif.parent_id || null;
-  };
-
-  const getTargetJobId = (notif) => {
-    if (!notif) return null;
-    return notif.job_id || notif.target_id || null;
   };
 
   const formatRelativeTime = (dateString) => {
@@ -93,7 +64,11 @@ function AlertsContent() {
     if (!Array.isArray(rawList)) return [];
 
     const identifiers = Array.from(
-      new Set(rawList.map((n) => getSenderIdentifier(n)).filter(Boolean))
+      new Set(
+        rawList
+          .map((n) => n.sender_email || n.sender_username)
+          .filter(Boolean)
+      )
     );
 
     let profilesMap = {};
@@ -114,24 +89,23 @@ function AlertsContent() {
     }
 
     return rawList.map((n) => {
-      const ident = getSenderIdentifier(n).toLowerCase();
-      const p = profilesMap[ident] || {};
-      const resolvedEmail = p.email || (ident.includes('@') ? ident : '');
-      const resolvedUsername = p.username || (!ident.includes('@') ? ident : '');
-      const resolvedName =
-        safeString(n?.sender_name) ||
-        safeString(p?.name) ||
-        safeString(p?.full_name) ||
-        (resolvedEmail ? resolvedEmail.split('@')[0] : resolvedUsername || safeString(n?.title) || 'Member');
+      const emailIdent = (n.sender_email || '').toLowerCase().trim();
+      const userIdent = (n.sender_username || '').toLowerCase().trim();
+      const p = profilesMap[emailIdent] || profilesMap[userIdent] || {};
 
-      // Resilient profile URL generation
+      const resolvedEmail = n.sender_email || p.email || '';
+      const resolvedUsername = n.sender_username || p.username || '';
+      const resolvedName =
+        n.sender_name ||
+        p.name ||
+        p.full_name ||
+        (resolvedEmail ? resolvedEmail.split('@')[0] : resolvedUsername || 'User');
+
       let targetProfileUrl = '';
-      if (resolvedEmail) {
-        targetProfileUrl = `/view-profile?email=${encodeURIComponent(resolvedEmail)}`;
-      } else if (resolvedUsername) {
+      if (resolvedUsername) {
         targetProfileUrl = `/view-profile?username=${encodeURIComponent(resolvedUsername)}`;
-      } else if (ident) {
-        targetProfileUrl = `/view-profile?email=${encodeURIComponent(ident)}`;
+      } else if (resolvedEmail) {
+        targetProfileUrl = `/view-profile?email=${encodeURIComponent(resolvedEmail)}`;
       }
 
       return {
@@ -140,7 +114,7 @@ function AlertsContent() {
         resolvedUsername,
         targetProfileUrl,
         displayName: resolvedName,
-        avatarUrl: n?.sender_avatar || p?.avatar_url || null
+        avatarUrl: n.sender_avatar || p.avatar_url || null
       };
     });
   };
@@ -192,7 +166,7 @@ function AlertsContent() {
     };
   }, []);
 
-  // Real-time notification updates
+  // Real-time listener
   useEffect(() => {
     if (!currentUser?.email) return;
     const userEmail = (currentUser.email || '').trim().toLowerCase();
@@ -315,63 +289,63 @@ function AlertsContent() {
     }
   };
 
-  // SMART CARD CLICK ROUTER
+  // ACCURATE ROUTING HANDLER (Based on action_type & content)
   const handleCardClick = (notif) => {
     if (!notif) return;
     handleMarkAsRead(notif);
 
-    const type = safeString(notif.type).toLowerCase();
-    const msg = safeString(notif.message).toLowerCase();
-    const title = safeString(notif.title).toLowerCase();
-    const postId = getTargetPostId(notif);
-    const commentId = getTargetCommentId(notif);
-    const jobId = getTargetJobId(notif);
+    const action = safeString(notif.action_type).toLowerCase();
+    const content = safeString(notif.content).toLowerCase();
+    const postId = notif.post_id;
+    const jobId = notif.job_id;
 
     // 1. FOLLOWER OR CONNECTION ALERTS -> DIRECT PROFILE
     const isFollow =
-      type.includes('follow') ||
-      msg.includes('following') ||
-      msg.includes('followed') ||
-      msg.includes('profile');
+      action.includes('follow') ||
+      content.includes('follow') ||
+      content.includes('started following');
 
     const isConnection =
-      type.includes('connection') ||
-      msg.includes('connection') ||
-      msg.includes('connected');
+      action.includes('connect') ||
+      content.includes('connect') ||
+      content.includes('connection');
 
     if (isFollow || isConnection) {
       if (notif.targetProfileUrl) {
         router.push(notif.targetProfileUrl);
         return;
       }
-      const ident = getSenderIdentifier(notif);
-      if (ident) {
-        router.push(`/view-profile?email=${encodeURIComponent(ident)}`);
+      if (notif.sender_username) {
+        router.push(`/view-profile?username=${encodeURIComponent(notif.sender_username)}`);
         return;
       }
+      if (notif.sender_email) {
+        router.push(`/view-profile?email=${encodeURIComponent(notif.sender_email)}`);
+        return;
+      }
+      return;
     }
 
-    // 2. COMMENT ALERTS -> DIRECT POST & COMMENT SECTION
+    // 2. COMMENT ALERTS -> DIRECT POST & COMMENT FOCUS
     const isComment =
-      type.includes('comment') ||
-      msg.includes('commented') ||
-      title.includes('comment');
+      action.includes('comment') ||
+      content.includes('comment') ||
+      content.includes('commented');
 
     if (isComment) {
       if (postId) {
-        const commentParam = commentId ? `&commentId=${encodeURIComponent(commentId)}` : '';
-        router.push(`/feed?postId=${encodeURIComponent(postId)}&focusComment=true${commentParam}`);
+        router.push(`/feed?postId=${encodeURIComponent(postId)}&focusComment=true`);
       } else {
         router.push('/feed');
       }
       return;
     }
 
-    // 3. LIKE ALERTS -> TARGET POST ONLY
+    // 3. LIKE ALERTS -> FEED TARGET POST
     const isLike =
-      type.includes('like') ||
-      msg.includes('liked') ||
-      title.includes('like');
+      action.includes('like') ||
+      content.includes('like') ||
+      content.includes('liked');
 
     if (isLike) {
       if (postId) {
@@ -382,37 +356,22 @@ function AlertsContent() {
       return;
     }
 
-    // 4. REPOST OR MENTION
-    if (
-      type.includes('repost') ||
-      type.includes('mention') ||
-      msg.includes('reposted') ||
-      msg.includes('mentioned')
-    ) {
-      if (postId) {
-        router.push(`/feed?postId=${encodeURIComponent(postId)}`);
-      } else {
-        router.push('/feed');
-      }
-      return;
-    }
-
-    // 5. MESSAGES & CHAT
-    if (type.includes('message') || msg.includes('message') || msg.includes('sent you a message')) {
-      if (notif.resolvedEmail) {
-        router.push(`/chat?recipient=${encodeURIComponent(notif.resolvedEmail)}`);
-      } else {
-        router.push('/chat');
-      }
-      return;
-    }
-
-    // 6. JOBS & APPLICATIONS
-    if (type.includes('job') || msg.includes('job') || msg.includes('application')) {
+    // 4. JOBS
+    if (action.includes('job') || content.includes('job') || jobId) {
       if (jobId) {
         router.push(`/jobs?jobId=${encodeURIComponent(jobId)}`);
       } else {
         router.push('/jobs');
+      }
+      return;
+    }
+
+    // 5. MESSAGES
+    if (action.includes('message') || content.includes('message')) {
+      if (notif.sender_email) {
+        router.push(`/chat?recipient=${encodeURIComponent(notif.sender_email)}`);
+      } else {
+        router.push('/chat');
       }
       return;
     }
@@ -428,22 +387,19 @@ function AlertsContent() {
   };
 
   const getTypeMeta = (notif) => {
-    const t = safeString(notif?.type).toLowerCase();
-    const m = safeString(notif?.message).toLowerCase();
+    const action = safeString(notif?.action_type).toLowerCase();
+    const content = safeString(notif?.content).toLowerCase();
 
-    if (t.includes('like') || m.includes('liked')) {
+    if (action.includes('like') || content.includes('liked')) {
       return { icon: '❤️', bg: 'rgba(239, 68, 68, 0.18)', border: '#ef4444' };
     }
-    if (t.includes('comment') || m.includes('commented')) {
+    if (action.includes('comment') || content.includes('commented')) {
       return { icon: '💬', bg: 'rgba(56, 189, 248, 0.18)', border: '#38bdf8' };
     }
-    if (t.includes('repost') || m.includes('reposted')) {
-      return { icon: '🔁', bg: 'rgba(16, 185, 129, 0.18)', border: '#10b981' };
-    }
-    if (t.includes('connection') || m.includes('connection')) {
+    if (action.includes('connect') || content.includes('connection')) {
       return { icon: '🤝', bg: 'rgba(168, 85, 247, 0.18)', border: '#a855f7' };
     }
-    if (t.includes('job') || m.includes('job')) {
+    if (action.includes('job') || content.includes('job')) {
       return { icon: '💼', bg: 'rgba(245, 158, 11, 0.18)', border: '#f59e0b' };
     }
     return { icon: '👤', bg: 'rgba(2, 132, 199, 0.18)', border: '#0284c7' };
@@ -453,7 +409,7 @@ function AlertsContent() {
     return notifications.filter((n) => {
       if (activeFilter === 'Unread') return !n.is_read;
       if (activeFilter === 'Mentions') {
-        const text = `${safeString(n?.type)} ${safeString(n?.message)} ${safeString(n?.title)}`.toLowerCase();
+        const text = `${safeString(n?.action_type)} ${safeString(n?.content)}`.toLowerCase();
         return text.includes('mention') || text.includes('@');
       }
       return true;
@@ -707,8 +663,8 @@ function AlertsContent() {
             {filteredNotifications.map((n) => {
               const meta = getTypeMeta(n);
               const isUnread = !n?.is_read;
-              const messageText = safeString(n?.message) || safeString(n?.content) || '';
-              const profileHref = n.targetProfileUrl || (n.resolvedEmail ? `/view-profile?email=${encodeURIComponent(n.resolvedEmail)}` : '#');
+              const contentText = safeString(n?.content) || '';
+              const profileHref = n.targetProfileUrl || (n.sender_email ? `/view-profile?email=${encodeURIComponent(n.sender_email)}` : '#');
 
               return (
                 <div
@@ -727,7 +683,7 @@ function AlertsContent() {
                     transition: 'background-color 0.15s ease'
                   }}
                 >
-                  {/* Avatar */}
+                  {/* Avatar (Click to Profile) */}
                   <Link
                     href={profileHref}
                     onClick={(e) => {
@@ -836,7 +792,7 @@ function AlertsContent() {
                         lineHeight: '1.4'
                       }}
                     >
-                      {messageText}
+                      {contentText}
                     </div>
 
                     <div
