@@ -103,30 +103,31 @@ export default function BottomNav() {
     >
       {navItems.map((item) => {
         const iconColor = item.isActive ? '#38bdf8' : '#64748b';
-        return (
-          <Link
-            key={item.id}
-            href={item.href}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              textDecoration: 'none',
-              padding: '0.45rem 1rem',
-              borderRadius: '12px',
-              minWidth: '64px',
-              transition: 'none',
-              backgroundColor: item.isActive ? '#0f172a' : 'transparent',
-              border: item.isActive
-                ? '1px solid rgba(56, 189, 248, 0.6)'
-                : '1px solid transparent',
-              boxShadow: item.isActive
-                ? '0 0 16px rgba(2, 132, 199, 0.45), inset 0 0 8px rgba(56, 189, 248, 0.2)'
-                : 'none',
-              transform: item.isActive ? 'translateY(-2px)' : 'none'
-            }}
-          >
+        const isDirectPage = item.id === 'alerts' || item.id === 'jobs';
+
+        const itemStyles = {
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          textDecoration: 'none',
+          padding: '0.45rem 1rem',
+          borderRadius: '12px',
+          minWidth: '64px',
+          transition: 'none',
+          cursor: 'pointer',
+          backgroundColor: item.isActive ? '#0f172a' : 'transparent',
+          border: item.isActive
+            ? '1px solid rgba(56, 189, 248, 0.6)'
+            : '1px solid transparent',
+          boxShadow: item.isActive
+            ? '0 0 16px rgba(2, 132, 199, 0.45), inset 0 0 8px rgba(56, 189, 248, 0.2)'
+            : 'none',
+          transform: item.isActive ? 'translateY(-2px)' : 'none'
+        };
+
+        const itemContent = (
+          <>
             <div
               style={{
                 display: 'flex',
@@ -149,6 +150,32 @@ export default function BottomNav() {
             >
               {item.label}
             </span>
+          </>
+        );
+
+        if (isDirectPage) {
+          return (
+            <a
+              key={item.id}
+              href={item.href}
+              onClick={(e) => {
+                e.preventDefault();
+                window.location.href = item.href;
+              }}
+              style={itemStyles}
+            >
+              {itemContent}
+            </a>
+          );
+        }
+
+        return (
+          <Link
+            key={item.id}
+            href={item.href}
+            style={itemStyles}
+          >
+            {itemContent}
           </Link>
         );
       })}
