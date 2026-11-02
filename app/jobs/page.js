@@ -136,9 +136,10 @@ function JobsContent() {
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#070b14', color: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+      {/* Shanora Header with Logo & Chat */}
       <header style={{ backgroundColor: '#0f172a', borderBottom: '1px solid #1e293b', padding: '0.75rem 1rem', position: 'sticky', top: 0, zIndex: 100 }}>
         <div style={{ maxWidth: '640px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
             <button
               type="button"
               onClick={() => router.back()}
@@ -160,28 +161,58 @@ function JobsContent() {
             >
               ←
             </button>
-            <span style={{ fontSize: '1.25rem' }}>💼</span>
-            <span style={{ fontWeight: '900', fontSize: '1.1rem', color: '#fff' }}>Shanora Jobs</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', backgroundColor: '#070b14', padding: '0.3rem 0.65rem', borderRadius: '10px', border: '1px solid #1e293b' }}>
+              <span style={{ backgroundColor: '#0284c7', color: '#fff', fontWeight: '900', fontSize: '0.75rem', padding: '0.15rem 0.4rem', borderRadius: '6px' }}>S</span>
+              <span style={{ fontWeight: '900', fontSize: '0.88rem', letterSpacing: '0.5px', color: '#fff' }}>
+                SHANORA<span style={{ color: '#38bdf8', fontSize: '0.7rem' }}>.PK</span>
+              </span>
+            </div>
           </div>
 
-          <Link
-            href="/employer"
-            style={{
-              backgroundColor: '#0284c7',
-              color: '#fff',
-              textDecoration: 'none',
-              fontSize: '0.78rem',
-              fontWeight: '700',
-              padding: '0.4rem 0.8rem',
-              borderRadius: '8px'
-            }}
-          >
-            + Post a Job
-          </Link>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Link
+              href="/chat"
+              style={{
+                backgroundColor: '#1e293b',
+                color: '#38bdf8',
+                border: '1px solid #334155',
+                borderRadius: '20px',
+                padding: '0.35rem 0.85rem',
+                fontSize: '0.78rem',
+                fontWeight: '700',
+                textDecoration: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.35rem'
+              }}
+            >
+              <span>💬</span> Chat
+            </Link>
+            <Link
+              href="/employer"
+              style={{
+                backgroundColor: '#0284c7',
+                color: '#fff',
+                textDecoration: 'none',
+                fontSize: '0.78rem',
+                fontWeight: '700',
+                padding: '0.4rem 0.75rem',
+                borderRadius: '8px'
+              }}
+            >
+              + Post
+            </Link>
+          </div>
         </div>
       </header>
 
-      <main style={{ maxWidth: '640px', margin: '0 auto', padding: '1rem 0.8rem 5.5rem 0.8rem' }}>
+      <main style={{ maxWidth: '640px', margin: '0 auto', padding: '0.9rem 0.8rem 5.5rem 0.8rem' }}>
+        {/* Tab Title Banner */}
+        <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '0.7rem 1rem', display: 'flex', alignItems: 'center', gap: '0.55rem', marginBottom: '1rem' }}>
+          <span style={{ fontSize: '1.2rem' }}>💼</span>
+          <span style={{ fontWeight: '800', fontSize: '0.95rem', color: '#fff' }}>Career & Job Opportunities</span>
+        </div>
+
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem', marginBottom: '1.2rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '0.5rem 0.9rem' }}>
             <span style={{ marginRight: '0.5rem', color: '#94a3b8' }}>🔍</span>
