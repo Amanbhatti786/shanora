@@ -2,34 +2,25 @@
 
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { useState, useEffect } from 'react';
 
 export default function BottomNav() {
   const pathname = usePathname() || '';
   const searchParams = useSearchParams();
   const currentTab = searchParams?.get('tab');
 
-  // Direct active tab calculation (No delay, no flicker)
-  let activeTab = 'home';
-  if (pathname.includes('/alerts')) {
-    activeTab = 'alerts';
-  } else if (pathname.includes('/jobs')) {
-    activeTab = 'jobs';
-  } else if (pathname.includes('/profile')) {
-    if (currentTab === 'network') {
-      activeTab = 'network';
-    } else {
-      activeTab = 'menu';
-    }
-  } else if (pathname.includes('/feed') || pathname === '/') {
-    activeTab = 'home';
-  }
+  // Synchronous route checks to avoid hydration flickering
+  const isAlertsActive = pathname.startsWith('/alerts');
+  const isJobsActive = pathname.startsWith('/jobs');
+  const isHomeActive = pathname === '/feed' || pathname === '/';
+  const isNetworkActive = pathname.startsWith('/profile') && currentTab === 'network';
+  const isMenuActive = pathname.startsWith('/profile') && (!currentTab || currentTab === 'menu');
+
   const navItems = [
     {
       id: 'home',
       label: 'Home',
       href: '/feed',
-      isActive: activeTab === 'home',
+      isActive: isHomeActive,
       icon: (color) => (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
@@ -41,7 +32,7 @@ export default function BottomNav() {
       id: 'network',
       label: 'Network',
       href: '/profile?tab=network',
-      isActive: activeTab === 'network',
+      isActive: isNetworkActive,
       icon: (color) => (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
@@ -55,7 +46,7 @@ export default function BottomNav() {
       id: 'alerts',
       label: 'Alerts',
       href: '/alerts',
-      isActive: activeTab === 'alerts',
+      isActive: isAlertsActive,
       icon: (color) => (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
@@ -67,7 +58,7 @@ export default function BottomNav() {
       id: 'jobs',
       label: 'Jobs',
       href: '/jobs',
-      isActive: activeTab === 'jobs',
+      isActive: isJobsActive,
       icon: (color) => (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <rect width="20" height="14" x="2" y="7" rx="2" ry="2" />
@@ -79,7 +70,7 @@ export default function BottomNav() {
       id: 'menu',
       label: 'Menu',
       href: '/profile?tab=menu',
-      isActive: activeTab === 'menu',
+      isActive: isMenuActive,
       icon: (color) => (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <rect width="7" height="7" x="3" y="3" rx="1" />
@@ -125,6 +116,7 @@ export default function BottomNav() {
               padding: '0.45rem 1rem',
               borderRadius: '12px',
               minWidth: '64px',
+              transition: 'none',
               backgroundColor: item.isActive ? '#0f172a' : 'transparent',
               border: item.isActive
                 ? '1px solid rgba(56, 189, 248, 0.6)'
