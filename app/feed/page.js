@@ -4,11 +4,10 @@ export const dynamic = 'force-dynamic';
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { supabase } from '../../lib/supabaseClient';
 
 function FeedContent() {
   const searchParams = useSearchParams();
-  const supabase = createClientComponentClient();
 
   const [posts, setPosts] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
@@ -41,7 +40,6 @@ function FeedContent() {
         .order('created_at', { ascending: false });
 
       if (postsError) {
-        // Fallback to posts if user_posts is empty/missing
         const res = await supabase.from('posts').select('*').order('created_at', { ascending: false });
         postsData = res.data;
       }
@@ -140,7 +138,6 @@ function FeedContent() {
         userEmail.split('@')[0] ||
         'Member';
 
-      // Schema-safe payload conforming to database constraints
       const payload = {
         post_id: postId,
         content: text,
@@ -163,7 +160,6 @@ function FeedContent() {
         return;
       }
 
-      // Add to local state
       if (data) {
         const formattedComment = {
           id: data.id,
@@ -180,7 +176,6 @@ function FeedContent() {
         }));
       }
 
-      // Clear input
       setCommentInputs((prev) => ({ ...prev, [postId]: '' }));
     } catch (err) {
       alert('Comment failed: ' + err.message);
