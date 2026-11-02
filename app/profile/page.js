@@ -10,6 +10,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 
 import { supabase } from '../../lib/supabaseClient';
 
+import BottomNav from '../../components/BottomNav';
+
 
 
 function sanitizeInput(str) {
@@ -218,27 +220,45 @@ function ProfilePortalContent() {
 
 
 
- const router = useRouter();
-  const searchParams = useSearchParams();
+  // Synchronous route redirection to dedicated routes
 
-  // Redirect legacy tabs to dedicated independent routes
   useEffect(() => {
-    const tabParam = searchParams?.get('tab');
 
-    if (tabParam === 'notifications' || tabParam === 'alerts') {
-      router.replace('/alerts');
-      return;
+    if (typeof window !== 'undefined') {
+
+      const params = new URLSearchParams(window.location.search);
+
+      const tabParam = params.get('tab');
+
+
+
+      if (tabParam === 'notifications' || tabParam === 'alerts') {
+
+        window.location.replace('/alerts');
+
+        return;
+
+      }
+
+      if (tabParam === 'jobs') {
+
+        window.location.replace('/jobs');
+
+        return;
+
+      }
+
+      if (tabParam) {
+
+        setActiveTab(tabParam);
+
+      }
+
     }
 
-    if (tabParam === 'jobs') {
-      router.replace('/jobs');
-      return;
-    }
+  }, []);
 
-    if (tabParam) {
-      setActiveTab(tabParam);
-    }
-  }, [searchParams, router]);
+
 
   useEffect(() => {
 
@@ -1608,8 +1628,6 @@ function ProfilePortalContent() {
 
     <div style={{ minHeight: '100vh', backgroundColor: '#070b14', color: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
 
-      
-
       {/* Top Header */}
 
       <header style={{ backgroundColor: '#0f172a', borderBottom: '1px solid #1e293b', padding: '0.85rem 1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100 }}>
@@ -1770,9 +1788,7 @@ function ProfilePortalContent() {
 
       {/* Main Content Container */}
 
-      <main style={{ maxWidth: '640px', margin: '0 auto', padding: '1rem 0.9rem 80px 0.9rem' }}>
-
-
+      <main style={{ maxWidth: '640px', margin: '0 auto', padding: '1rem 0.9rem 90px 0.9rem' }}>
 
         {/* TAB: MENU */}
 
@@ -2751,8 +2767,6 @@ function ProfilePortalContent() {
                   </button>
 
                 </form>
-
-
 
               </div>
 
@@ -4052,8 +4066,6 @@ function ProfilePortalContent() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
 
-              
-
               {/* 1. Account Details & Security */}
 
               <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', overflow: 'hidden' }}>
@@ -4481,8 +4493,6 @@ function ProfilePortalContent() {
                 )}
 
               </div>
-
-
 
             </div>
 
@@ -5076,13 +5086,9 @@ function ProfilePortalContent() {
 
             </div>
 
-
-
           </div>
 
         )}
-
-
 
       </main>
 
@@ -5599,6 +5605,10 @@ function ProfilePortalContent() {
       )}
 
 
+
+      {/* Shared Bottom Navigation Component */}
+
+      <BottomNav />
 
     </div>
 
