@@ -310,13 +310,15 @@ const isOpen = openCommentBox[post.id] ?? true;
 }
 
 export default function FeedPage() {
-return (
-<Suspense
-fallback={
-Loading feed...
-}
->
-
-
-);
+  return (
+    <Suspense
+      fallback={
+        <div style={{ minHeight: '100vh', backgroundColor: '#070b14', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#38bdf8' }}>
+          Loading feed...
+        </div>
+      }
+    >
+      <FeedContent />
+    </Suspense>
+  );
 }
