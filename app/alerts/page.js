@@ -14,7 +14,6 @@ function AlertsContent() {
   const [hasMore, setHasMore] = useState(true);
   const [activeFilter, setActiveFilter] = useState('All');
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [actionLoadingId, setActionLoadingId] = useState(null);
 
   const [prefs, setPrefs] = useState({
     push_enabled: true,
@@ -38,7 +37,6 @@ function AlertsContent() {
     return String(val);
   };
 
-  // Sender identify karne ke liye multiple fields check
   const getSenderIdentifier = (notif) => {
     if (!notif || typeof notif !== 'object') return '';
     const raw =
@@ -58,6 +56,11 @@ function AlertsContent() {
     return notif.post_id || notif.target_id || notif.item_id || null;
   };
 
+  const getTargetCommentId = (notif) => {
+    if (!notif) return null;
+    return notif.comment_id || notif.parent_id || null;
+  };
+
   const getTargetJobId = (notif) => {
     if (!notif) return null;
     return notif.job_id || notif.target_id || null;
@@ -75,7 +78,7 @@ function AlertsContent() {
       if (diffInSeconds < 60) return `${diffInSeconds}s ago`;
       const diffInMinutes = Math.floor(diffInSeconds / 60);
       if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
-      const diffInHours = Math.floor(diffInHours / 60);
+      const diffInHours = Math.floor(diffInMinutes / 60);
       if (diffInHours < 24) return `${diffInHours}h ago`;
       const diffInDays = Math.floor(diffInHours / 24);
       if (diffInDays === 1) return 'Yesterday';
@@ -96,7 +99,6 @@ function AlertsContent() {
     let profilesMap = {};
     if (identifiers.length > 0) {
       try {
-        // Email ya username dono se profile find karein
         const { data: profs } = await supabase
           .from('profiles')
           .select('id, email, name, full_name, avatar_url, username')
@@ -122,12 +124,14 @@ function AlertsContent() {
         safeString(p?.full_name) ||
         (resolvedEmail ? resolvedEmail.split('@')[0] : resolvedUsername || safeString(n?.title) || 'Member');
 
-      // Direct dynamic profile URL
+      // Resilient profile URL generation
       let targetProfileUrl = '';
       if (resolvedEmail) {
         targetProfileUrl = `/view-profile?email=${encodeURIComponent(resolvedEmail)}`;
       } else if (resolvedUsername) {
         targetProfileUrl = `/view-profile?username=${encodeURIComponent(resolvedUsername)}`;
+      } else if (ident) {
+        targetProfileUrl = `/view-profile?email=${encodeURIComponent(ident)}`;
       }
 
       return {
@@ -188,7 +192,7 @@ function AlertsContent() {
     };
   }, []);
 
-  // Real-time Supabase
+  // Real-time notification updates
   useEffect(() => {
     if (!currentUser?.email) return;
     const userEmail = (currentUser.email || '').trim().toLowerCase();
@@ -267,7 +271,7 @@ function AlertsContent() {
   };
 
   const handleMarkAsRead = async (notif, e) => {
-    if (e) e.stopPropagation();
+    if (e && e.stopPropagation) e.stopPropagation();
     if (!notif || notif.is_read) return;
 
     setNotifications((prev) =>
@@ -285,7 +289,7 @@ function AlertsContent() {
   };
 
   const handleDeleteNotification = async (id, e) => {
-    if (e) e.stopPropagation();
+    if (e && e.stopPropagation) e.stopPropagation();
     setNotifications((prev) => prev.filter((n) => n.id !== id));
 
     try {
@@ -311,25 +315,79 @@ function AlertsContent() {
     }
   };
 
-  // Card click router: Network tab par nahi bhejega
+  // SMART CARD CLICK ROUTER
   const handleCardClick = (notif) => {
     if (!notif) return;
     handleMarkAsRead(notif);
 
     const type = safeString(notif.type).toLowerCase();
     const msg = safeString(notif.message).toLowerCase();
+    const title = safeString(notif.title).toLowerCase();
     const postId = getTargetPostId(notif);
+    const commentId = getTargetCommentId(notif);
     const jobId = getTargetJobId(notif);
 
-    // 1. Post Like, Comment, Repost, Mention -> Feed target post
-    if (
-      type.includes('like') ||
+    // 1. FOLLOWER OR CONNECTION ALERTS -> DIRECT PROFILE
+    const isFollow =
+      type.includes('follow') ||
+      msg.includes('following') ||
+      msg.includes('followed') ||
+      msg.includes('profile');
+
+    const isConnection =
+      type.includes('connection') ||
+      msg.includes('connection') ||
+      msg.includes('connected');
+
+    if (isFollow || isConnection) {
+      if (notif.targetProfileUrl) {
+        router.push(notif.targetProfileUrl);
+        return;
+      }
+      const ident = getSenderIdentifier(notif);
+      if (ident) {
+        router.push(`/view-profile?email=${encodeURIComponent(ident)}`);
+        return;
+      }
+    }
+
+    // 2. COMMENT ALERTS -> DIRECT POST & COMMENT SECTION
+    const isComment =
       type.includes('comment') ||
+      msg.includes('commented') ||
+      title.includes('comment');
+
+    if (isComment) {
+      if (postId) {
+        const commentParam = commentId ? `&commentId=${encodeURIComponent(commentId)}` : '';
+        router.push(`/feed?postId=${encodeURIComponent(postId)}&focusComment=true${commentParam}`);
+      } else {
+        router.push('/feed');
+      }
+      return;
+    }
+
+    // 3. LIKE ALERTS -> TARGET POST ONLY
+    const isLike =
+      type.includes('like') ||
+      msg.includes('liked') ||
+      title.includes('like');
+
+    if (isLike) {
+      if (postId) {
+        router.push(`/feed?postId=${encodeURIComponent(postId)}`);
+      } else {
+        router.push('/feed');
+      }
+      return;
+    }
+
+    // 4. REPOST OR MENTION
+    if (
       type.includes('repost') ||
       type.includes('mention') ||
-      msg.includes('liked') ||
-      msg.includes('commented') ||
-      msg.includes('reposted')
+      msg.includes('reposted') ||
+      msg.includes('mentioned')
     ) {
       if (postId) {
         router.push(`/feed?postId=${encodeURIComponent(postId)}`);
@@ -339,7 +397,7 @@ function AlertsContent() {
       return;
     }
 
-    // 2. Chat / Messages -> Chat screen
+    // 5. MESSAGES & CHAT
     if (type.includes('message') || msg.includes('message') || msg.includes('sent you a message')) {
       if (notif.resolvedEmail) {
         router.push(`/chat?recipient=${encodeURIComponent(notif.resolvedEmail)}`);
@@ -349,7 +407,7 @@ function AlertsContent() {
       return;
     }
 
-    // 3. Jobs -> Jobs page
+    // 6. JOBS & APPLICATIONS
     if (type.includes('job') || msg.includes('job') || msg.includes('application')) {
       if (jobId) {
         router.push(`/jobs?jobId=${encodeURIComponent(jobId)}`);
@@ -359,9 +417,13 @@ function AlertsContent() {
       return;
     }
 
-    // 4. Default / Follower / Connection -> Profile page
-    if (notif.targetProfileUrl) {
+    // FALLBACK
+    if (postId) {
+      router.push(`/feed?postId=${encodeURIComponent(postId)}`);
+    } else if (notif.targetProfileUrl) {
       router.push(notif.targetProfileUrl);
+    } else {
+      router.push('/feed');
     }
   };
 
@@ -646,7 +708,7 @@ function AlertsContent() {
               const meta = getTypeMeta(n);
               const isUnread = !n?.is_read;
               const messageText = safeString(n?.message) || safeString(n?.content) || '';
-              const profileHref = n.targetProfileUrl || '#';
+              const profileHref = n.targetProfileUrl || (n.resolvedEmail ? `/view-profile?email=${encodeURIComponent(n.resolvedEmail)}` : '#');
 
               return (
                 <div
@@ -661,10 +723,11 @@ function AlertsContent() {
                     alignItems: 'flex-start',
                     gap: '0.85rem',
                     cursor: 'pointer',
-                    position: 'relative'
+                    position: 'relative',
+                    transition: 'background-color 0.15s ease'
                   }}
                 >
-                  {/* Avatar (Clickable Link directly to User Profile) */}
+                  {/* Avatar */}
                   <Link
                     href={profileHref}
                     onClick={(e) => {
@@ -728,7 +791,6 @@ function AlertsContent() {
                   {/* Notification Content */}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
-                      {/* Name (Clickable Link directly to User Profile) */}
                       <Link
                         href={profileHref}
                         onClick={(e) => {
