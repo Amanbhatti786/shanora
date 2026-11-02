@@ -28,7 +28,6 @@ function AlertsContent() {
           setCurrentUser(user);
           const userEmail = (user.email || '').trim().toLowerCase();
 
-          // Notifications fetch
           const { data, error } = await supabase
             .from('notifications')
             .select('*')
@@ -36,7 +35,6 @@ function AlertsContent() {
             .order('created_at', { ascending: false });
 
           if (!error && data && isMounted) {
-            // Senders profile enrichment for avatar/display name fallback
             const senderEmails = Array.from(
               new Set(data.map((n) => (n.sender_email || '').toLowerCase()).filter(Boolean))
             );
@@ -90,35 +88,67 @@ function AlertsContent() {
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#070b14', color: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-      <header style={{ backgroundColor: '#0f172a', borderBottom: '1px solid #1e293b', padding: '0.85rem 1rem', position: 'sticky', top: 0, zIndex: 100 }}>
-        <div style={{ maxWidth: '640px', margin: '0 auto', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <button
-            type="button"
-            onClick={() => router.back()}
+      {/* Shanora Header with Logo & Chat */}
+      <header style={{ backgroundColor: '#0f172a', borderBottom: '1px solid #1e293b', padding: '0.75rem 1rem', position: 'sticky', top: 0, zIndex: 100 }}>
+        <div style={{ maxWidth: '640px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+            <button
+              type="button"
+              onClick={() => router.back()}
+              style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '8px',
+                backgroundColor: '#070b14',
+                border: '1px solid #1e293b',
+                color: '#fff',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '1rem',
+                fontWeight: 'bold',
+                padding: 0
+              }}
+            >
+              ←
+            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', backgroundColor: '#070b14', padding: '0.3rem 0.65rem', borderRadius: '10px', border: '1px solid #1e293b' }}>
+              <span style={{ backgroundColor: '#0284c7', color: '#fff', fontWeight: '900', fontSize: '0.75rem', padding: '0.15rem 0.4rem', borderRadius: '6px' }}>S</span>
+              <span style={{ fontWeight: '900', fontSize: '0.88rem', letterSpacing: '0.5px', color: '#fff' }}>
+                SHANORA<span style={{ color: '#38bdf8', fontSize: '0.7rem' }}>.PK</span>
+              </span>
+            </div>
+          </div>
+
+          <Link
+            href="/chat"
             style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '8px',
-              backgroundColor: '#070b14',
-              border: '1px solid #1e293b',
-              color: '#fff',
-              cursor: 'pointer',
+              backgroundColor: '#1e293b',
+              color: '#38bdf8',
+              border: '1px solid #334155',
+              borderRadius: '20px',
+              padding: '0.35rem 0.85rem',
+              fontSize: '0.78rem',
+              fontWeight: '700',
+              textDecoration: 'none',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '1rem',
-              fontWeight: 'bold',
-              padding: 0
+              gap: '0.35rem'
             }}
           >
-            ←
-          </button>
-          <span style={{ fontSize: '1.25rem' }}>🔔</span>
-          <span style={{ fontWeight: '900', fontSize: '1.1rem', color: '#fff' }}>Notifications & Alerts</span>
+            <span>💬</span> Chat
+          </Link>
         </div>
       </header>
 
-      <main style={{ maxWidth: '640px', margin: '0 auto', padding: '1rem 0.9rem 5.5rem 0.9rem' }}>
+      <main style={{ maxWidth: '640px', margin: '0 auto', padding: '0.9rem 0.9rem 5.5rem 0.9rem' }}>
+        {/* Tab Title Banner */}
+        <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '0.7rem 1rem', display: 'flex', alignItems: 'center', gap: '0.55rem', marginBottom: '1rem' }}>
+          <span style={{ fontSize: '1.2rem' }}>🔔</span>
+          <span style={{ fontWeight: '800', fontSize: '0.95rem', color: '#fff' }}>Notifications & Alerts</span>
+        </div>
+
         {loading ? (
           <div style={{ textAlign: 'center', padding: '3rem', color: '#38bdf8' }}>Loading alerts...</div>
         ) : !currentUser ? (
