@@ -29,16 +29,28 @@ function AlertsContent() {
   const PAGE_SIZE = 15;
   const pageRef = useRef(0);
 
-  const getSenderEmail = (notif) => {
-    if (!notif) return '';
-    return (
+  const safeString = (val) => {
+    if (!val) return '';
+    if (typeof val === 'string') return val;
+    if (typeof val === 'object') {
+      return val.text || val.message || val.title || JSON.stringify(val);
+    }
+    return String(val);
+  };
+
+  // Sender identify karne ke liye multiple fields check
+  const getSenderIdentifier = (notif) => {
+    if (!notif || typeof notif !== 'object') return '';
+    const raw =
       notif.sender_email ||
       notif.actor_email ||
       notif.user_email ||
       notif.from_email ||
-      notif.from_user ||
-      ''
-    ).trim().toLowerCase();
+      notif.sender_username ||
+      notif.username ||
+      notif.sender_id ||
+      '';
+    return typeof raw === 'string' ? raw.trim() : '';
   };
 
   const getTargetPostId = (notif) => {
@@ -53,63 +65,78 @@ function AlertsContent() {
 
   const formatRelativeTime = (dateString) => {
     if (!dateString) return '';
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) return '';
-    const now = new Date();
-    const diffInSeconds = Math.floor((now - date) / 1000);
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return '';
+      const now = new Date();
+      const diffInSeconds = Math.floor((now - date) / 1000);
 
-    if (diffInSeconds < 30) return 'Just now';
-    if (diffInSeconds < 60) return `${diffInSeconds}s ago`;
-    const diffInMinutes = Math.floor(diffInSeconds / 60);
-    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
-    const diffInHours = Math.floor(diffInMinutes / 60);
-    if (diffInHours < 24) return `${diffInHours}h ago`;
-    const diffInDays = Math.floor(diffInHours / 24);
-    if (diffInDays === 1) return 'Yesterday';
-    if (diffInDays < 7) return `${diffInDays}d ago`;
-    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      if (diffInSeconds < 30) return 'Just now';
+      if (diffInSeconds < 60) return `${diffInSeconds}s ago`;
+      const diffInMinutes = Math.floor(diffInSeconds / 60);
+      if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+      const diffInHours = Math.floor(diffInHours / 60);
+      if (diffInHours < 24) return `${diffInHours}h ago`;
+      const diffInDays = Math.floor(diffInHours / 24);
+      if (diffInDays === 1) return 'Yesterday';
+      if (diffInDays < 7) return `${diffInDays}d ago`;
+      return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    } catch (_) {
+      return '';
+    }
   };
 
   const enrichNotificationsWithProfiles = async (rawList) => {
-    if (!rawList || !Array.isArray(rawList)) return [];
+    if (!Array.isArray(rawList)) return [];
 
-    const senderEmails = Array.from(
-      new Set(rawList.map((n) => getSenderEmail(n)).filter(Boolean))
+    const identifiers = Array.from(
+      new Set(rawList.map((n) => getSenderIdentifier(n)).filter(Boolean))
     );
 
     let profilesMap = {};
-    if (senderEmails.length > 0) {
+    if (identifiers.length > 0) {
       try {
-        const { data: profs, error } = await supabase
+        // Email ya username dono se profile find karein
+        const { data: profs } = await supabase
           .from('profiles')
-          .select('email, name, full_name, avatar_url, username')
-          .in('email', senderEmails);
+          .select('id, email, name, full_name, avatar_url, username')
+          .or(`email.in.(${identifiers.join(',')}),username.in.(${identifiers.join(',')})`);
 
-        if (!error && profs) {
-          profs.forEach((p) => {
-            if (p?.email) profilesMap[p.email.toLowerCase()] = p;
-          });
-        }
+        (profs || []).forEach((p) => {
+          if (p?.email) profilesMap[p.email.toLowerCase()] = p;
+          if (p?.username) profilesMap[p.username.toLowerCase()] = p;
+        });
       } catch (err) {
         console.error('Error fetching sender profiles:', err);
       }
     }
 
     return rawList.map((n) => {
-      const sEmail = getSenderEmail(n);
-      const p = profilesMap[sEmail] || {};
+      const ident = getSenderIdentifier(n).toLowerCase();
+      const p = profilesMap[ident] || {};
+      const resolvedEmail = p.email || (ident.includes('@') ? ident : '');
+      const resolvedUsername = p.username || (!ident.includes('@') ? ident : '');
       const resolvedName =
-        n.sender_name ||
-        p.name ||
-        p.full_name ||
-        (sEmail ? sEmail.split('@')[0] : (n.title || 'Member'));
+        safeString(n?.sender_name) ||
+        safeString(p?.name) ||
+        safeString(p?.full_name) ||
+        (resolvedEmail ? resolvedEmail.split('@')[0] : resolvedUsername || safeString(n?.title) || 'Member');
+
+      // Direct dynamic profile URL
+      let targetProfileUrl = '';
+      if (resolvedEmail) {
+        targetProfileUrl = `/view-profile?email=${encodeURIComponent(resolvedEmail)}`;
+      } else if (resolvedUsername) {
+        targetProfileUrl = `/view-profile?username=${encodeURIComponent(resolvedUsername)}`;
+      }
 
       return {
         ...n,
-        resolvedSenderEmail: sEmail,
+        resolvedEmail,
+        resolvedUsername,
+        targetProfileUrl,
         displayName: resolvedName,
-        avatarUrl: n.sender_avatar || p.avatar_url || null,
-        targetUsername: p.username || null
+        avatarUrl: n?.sender_avatar || p?.avatar_url || null
       };
     });
   };
@@ -119,8 +146,8 @@ function AlertsContent() {
 
     async function initUserAndAlerts() {
       try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        let user = sessionData?.session?.user || null;
+        const { data: { session } } = await supabase.auth.getSession();
+        let user = session?.user || null;
         if (!user) {
           const { data: userData } = await supabase.auth.getUser();
           user = userData?.user || null;
@@ -134,15 +161,6 @@ function AlertsContent() {
         setCurrentUser(user);
         const userEmail = (user.email || '').trim().toLowerCase();
 
-        if (typeof window !== 'undefined') {
-          const savedPrefs = localStorage.getItem(`shanora_notify_pref_${user.id}`);
-          if (savedPrefs) {
-            try {
-              setPrefs(JSON.parse(savedPrefs));
-            } catch (_) {}
-          }
-        }
-
         pageRef.current = 0;
         const { data, error } = await supabase
           .from('notifications')
@@ -151,7 +169,7 @@ function AlertsContent() {
           .order('created_at', { ascending: false })
           .range(0, PAGE_SIZE - 1);
 
-        if (!error && data && isMounted) {
+        if (!error && Array.isArray(data) && isMounted) {
           const enriched = await enrichNotificationsWithProfiles(data);
           setNotifications(enriched);
           if (data.length < PAGE_SIZE) setHasMore(false);
@@ -170,12 +188,13 @@ function AlertsContent() {
     };
   }, []);
 
+  // Real-time Supabase
   useEffect(() => {
     if (!currentUser?.email) return;
     const userEmail = (currentUser.email || '').trim().toLowerCase();
 
     const channel = supabase
-      .channel(`realtime_alerts_${currentUser.id || 'usr'}`)
+      .channel(`realtime_notifications_${currentUser.id}`)
       .on(
         'postgres_changes',
         {
@@ -185,33 +204,35 @@ function AlertsContent() {
         },
         async (payload) => {
           try {
-            if (payload.eventType === 'INSERT') {
+            if (payload.eventType === 'INSERT' && payload.new) {
               const newNotif = payload.new;
-              if (newNotif?.recipient_email?.toLowerCase() === userEmail) {
+              if (safeString(newNotif.recipient_email).toLowerCase() === userEmail) {
                 const [enriched] = await enrichNotificationsWithProfiles([newNotif]);
                 setNotifications((prev) => {
                   if (prev.some((item) => item.id === enriched.id)) return prev;
                   return [enriched, ...prev];
                 });
               }
-            } else if (payload.eventType === 'UPDATE') {
+            } else if (payload.eventType === 'UPDATE' && payload.new) {
               const updated = payload.new;
               setNotifications((prev) =>
                 prev.map((item) => (item.id === updated.id ? { ...item, ...updated } : item))
               );
-            } else if (payload.eventType === 'DELETE') {
+            } else if (payload.eventType === 'DELETE' && payload.old) {
               const deleted = payload.old;
-              setNotifications((prev) => prev.filter((item) => item.id !== deleted?.id));
+              setNotifications((prev) => prev.filter((item) => item.id !== deleted.id));
             }
           } catch (e) {
-            console.error('Realtime sync error:', e);
+            console.error('Realtime update handling error:', e);
           }
         }
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      try {
+        supabase.removeChannel(channel);
+      } catch (_) {}
     };
   }, [currentUser]);
 
@@ -232,7 +253,7 @@ function AlertsContent() {
         .order('created_at', { ascending: false })
         .range(from, to);
 
-      if (!error && data) {
+      if (!error && Array.isArray(data)) {
         if (data.length < PAGE_SIZE) setHasMore(false);
         pageRef.current = nextPage;
         const enriched = await enrichNotificationsWithProfiles(data);
@@ -263,21 +284,6 @@ function AlertsContent() {
     }
   };
 
-  const handleMarkAllAsRead = async () => {
-    if (!currentUser || notifications.length === 0) return;
-    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
-
-    try {
-      await supabase
-        .from('notifications')
-        .update({ is_read: true })
-        .ilike('recipient_email', currentUser.email.toLowerCase())
-        .eq('is_read', false);
-    } catch (err) {
-      console.error('Error marking all as read:', err);
-    }
-  };
-
   const handleDeleteNotification = async (id, e) => {
     if (e) e.stopPropagation();
     setNotifications((prev) => prev.filter((n) => n.id !== id));
@@ -299,121 +305,23 @@ function AlertsContent() {
       await supabase
         .from('notifications')
         .delete()
-        .ilike('recipient_email', currentUser.email.toLowerCase());
+        .ilike('recipient_email', (currentUser.email || '').toLowerCase());
     } catch (err) {
       console.error('Error clearing notifications:', err);
     }
   };
 
-  const navigateToUserProfile = (notif, e) => {
-    if (e) e.stopPropagation();
-    handleMarkAsRead(notif);
-
-    const email = notif?.resolvedSenderEmail || getSenderEmail(notif);
-    if (email) {
-      router.push(`/view-profile?email=${encodeURIComponent(email)}`);
-    }
-  };
-
-  const handleAcceptConnection = async (notif, e) => {
-    if (e) e.stopPropagation();
-    if (!currentUser) return;
-
-    const senderEmail = notif?.resolvedSenderEmail || getSenderEmail(notif);
-    if (!senderEmail) return;
-
-    setActionLoadingId(notif.id);
-    const myEmail = currentUser.email.toLowerCase();
-
-    try {
-      await supabase
-        .from('connections')
-        .update({ status: 'accepted' })
-        .or(
-          `and(requester_email.eq.${senderEmail},receiver_email.eq.${myEmail}),and(requester_email.eq.${myEmail},receiver_email.eq.${senderEmail})`
-        );
-
-      await supabase.from('notifications').insert([
-        {
-          recipient_email: senderEmail,
-          sender_email: myEmail,
-          sender_name: currentUser.user_metadata?.full_name || myEmail.split('@')[0],
-          type: 'connection_accepted',
-          title: 'Connection Accepted',
-          message: 'accepted your connection request.',
-          is_read: false
-        }
-      ]);
-
-      await supabase
-        .from('notifications')
-        .update({ is_read: true, message: 'You accepted the connection request.' })
-        .eq('id', notif.id);
-
-      setNotifications((prev) =>
-        prev.map((n) =>
-          n.id === notif.id
-            ? { ...n, is_read: true, message: 'You accepted the connection request.', is_handled: true }
-            : n
-        )
-      );
-    } catch (err) {
-      console.error('Error accepting connection:', err);
-      alert('Could not update connection. Please try again.');
-    } finally {
-      setActionLoadingId(null);
-    }
-  };
-
-  const handleRejectConnection = async (notif, e) => {
-    if (e) e.stopPropagation();
-    if (!currentUser) return;
-
-    const senderEmail = notif?.resolvedSenderEmail || getSenderEmail(notif);
-    if (!senderEmail) return;
-
-    setActionLoadingId(notif.id);
-    const myEmail = currentUser.email.toLowerCase();
-
-    try {
-      await supabase
-        .from('connections')
-        .delete()
-        .or(
-          `and(requester_email.eq.${senderEmail},receiver_email.eq.${myEmail}),and(requester_email.eq.${myEmail},receiver_email.eq.${senderEmail})`
-        );
-
-      await supabase.from('notifications').delete().eq('id', notif.id);
-      setNotifications((prev) => prev.filter((n) => n.id !== notif.id));
-    } catch (err) {
-      console.error('Error ignoring connection:', err);
-    } finally {
-      setActionLoadingId(null);
-    }
-  };
-
-  const handleNotificationClick = (notif) => {
+  // Card click router: Network tab par nahi bhejega
+  const handleCardClick = (notif) => {
     if (!notif) return;
     handleMarkAsRead(notif);
 
-    const type = (notif.type || '').toLowerCase();
-    const msg = (notif.message || '').toLowerCase();
-    const senderEmail = notif.resolvedSenderEmail || getSenderEmail(notif);
+    const type = safeString(notif.type).toLowerCase();
+    const msg = safeString(notif.message).toLowerCase();
     const postId = getTargetPostId(notif);
     const jobId = getTargetJobId(notif);
 
-    if (
-      type.includes('follow') ||
-      type.includes('birthday') ||
-      msg.includes('following') ||
-      msg.includes('started following')
-    ) {
-      if (senderEmail) {
-        router.push(`/view-profile?email=${encodeURIComponent(senderEmail)}`);
-        return;
-      }
-    }
-
+    // 1. Post Like, Comment, Repost, Mention -> Feed target post
     if (
       type.includes('like') ||
       type.includes('comment') ||
@@ -431,24 +339,17 @@ function AlertsContent() {
       return;
     }
 
-    if (type.includes('connection')) {
-      if (senderEmail) {
-        router.push(`/view-profile?email=${encodeURIComponent(senderEmail)}`);
-      } else {
-        router.push('/profile?tab=network');
-      }
-      return;
-    }
-
-    if (type.includes('message') || msg.includes('message')) {
-      if (senderEmail) {
-        router.push(`/chat?recipient=${encodeURIComponent(senderEmail)}`);
+    // 2. Chat / Messages -> Chat screen
+    if (type.includes('message') || msg.includes('message') || msg.includes('sent you a message')) {
+      if (notif.resolvedEmail) {
+        router.push(`/chat?recipient=${encodeURIComponent(notif.resolvedEmail)}`);
       } else {
         router.push('/chat');
       }
       return;
     }
 
+    // 3. Jobs -> Jobs page
     if (type.includes('job') || msg.includes('job') || msg.includes('application')) {
       if (jobId) {
         router.push(`/jobs?jobId=${encodeURIComponent(jobId)}`);
@@ -458,46 +359,39 @@ function AlertsContent() {
       return;
     }
 
-    if (senderEmail) {
-      router.push(`/view-profile?email=${encodeURIComponent(senderEmail)}`);
-    } else {
-      router.push('/feed');
+    // 4. Default / Follower / Connection -> Profile page
+    if (notif.targetProfileUrl) {
+      router.push(notif.targetProfileUrl);
     }
   };
 
   const getTypeMeta = (notif) => {
-    const t = (notif?.type || '').toLowerCase();
-    const m = (notif?.message || '').toLowerCase();
+    const t = safeString(notif?.type).toLowerCase();
+    const m = safeString(notif?.message).toLowerCase();
 
     if (t.includes('like') || m.includes('liked')) {
-      return { icon: '❤️', bg: 'rgba(239, 68, 68, 0.18)', border: '#ef4444', text: '#f87171' };
+      return { icon: '❤️', bg: 'rgba(239, 68, 68, 0.18)', border: '#ef4444' };
     }
     if (t.includes('comment') || m.includes('commented')) {
-      return { icon: '💬', bg: 'rgba(56, 189, 248, 0.18)', border: '#38bdf8', text: '#38bdf8' };
+      return { icon: '💬', bg: 'rgba(56, 189, 248, 0.18)', border: '#38bdf8' };
     }
     if (t.includes('repost') || m.includes('reposted')) {
-      return { icon: '🔁', bg: 'rgba(16, 185, 129, 0.18)', border: '#10b981', text: '#34d399' };
+      return { icon: '🔁', bg: 'rgba(16, 185, 129, 0.18)', border: '#10b981' };
     }
     if (t.includes('connection') || m.includes('connection')) {
-      return { icon: '🤝', bg: 'rgba(168, 85, 247, 0.18)', border: '#a855f7', text: '#c084fc' };
+      return { icon: '🤝', bg: 'rgba(168, 85, 247, 0.18)', border: '#a855f7' };
     }
     if (t.includes('job') || m.includes('job')) {
-      return { icon: '💼', bg: 'rgba(245, 158, 11, 0.18)', border: '#f59e0b', text: '#fbbf24' };
+      return { icon: '💼', bg: 'rgba(245, 158, 11, 0.18)', border: '#f59e0b' };
     }
-    if (t.includes('message') || m.includes('message')) {
-      return { icon: '✉️', bg: 'rgba(99, 102, 241, 0.18)', border: '#6366f1', text: '#818cf8' };
-    }
-    if (t.includes('birthday') || m.includes('birthday')) {
-      return { icon: '🎂', bg: 'rgba(236, 72, 153, 0.18)', border: '#ec4899', text: '#f472b6' };
-    }
-    return { icon: '👤', bg: 'rgba(2, 132, 199, 0.18)', border: '#0284c7', text: '#38bdf8' };
+    return { icon: '👤', bg: 'rgba(2, 132, 199, 0.18)', border: '#0284c7' };
   };
 
   const filteredNotifications = useMemo(() => {
     return notifications.filter((n) => {
       if (activeFilter === 'Unread') return !n.is_read;
       if (activeFilter === 'Mentions') {
-        const text = `${n.type || ''} ${n.message || ''} ${n.title || ''}`.toLowerCase();
+        const text = `${safeString(n?.type)} ${safeString(n?.message)} ${safeString(n?.title)}`.toLowerCase();
         return text.includes('mention') || text.includes('@');
       }
       return true;
@@ -510,6 +404,7 @@ function AlertsContent() {
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#070b14', color: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+      {/* Header */}
       <header
         style={{
           backgroundColor: '#070b14',
@@ -599,7 +494,7 @@ function AlertsContent() {
             <button
               type="button"
               onClick={() => setShowSettingsModal(true)}
-              title="Notification Preferences"
+              title="Preferences"
               style={{
                 backgroundColor: '#0f172a',
                 border: '1px solid #1e293b',
@@ -641,6 +536,7 @@ function AlertsContent() {
         </div>
       </header>
 
+      {/* Main Container */}
       <main style={{ maxWidth: '640px', margin: '0 auto', padding: '0.9rem 0.9rem 6rem 0.9rem' }}>
         <div
           style={{
@@ -659,60 +555,27 @@ function AlertsContent() {
             <span style={{ fontWeight: '800', fontSize: '0.95rem', color: '#fff' }}>
               Notifications & Alerts
             </span>
-            {unreadTotal > 0 && (
-              <span
-                style={{
-                  backgroundColor: '#ef4444',
-                  color: '#fff',
-                  fontSize: '0.68rem',
-                  fontWeight: '800',
-                  padding: '2px 7px',
-                  borderRadius: '10px'
-                }}
-              >
-                {unreadTotal} new
-              </span>
-            )}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            {unreadTotal > 0 && (
-              <button
-                type="button"
-                onClick={handleMarkAllAsRead}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#38bdf8',
-                  fontSize: '0.76rem',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  padding: '4px 8px',
-                  borderRadius: '6px'
-                }}
-              >
-                Mark all read
-              </button>
-            )}
-            {notifications.length > 0 && (
-              <button
-                type="button"
-                onClick={handleClearAll}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#64748b',
-                  fontSize: '0.74rem',
-                  cursor: 'pointer',
-                  padding: '4px 6px'
-                }}
-              >
-                Clear all
-              </button>
-            )}
-          </div>
+          {notifications.length > 0 && (
+            <button
+              type="button"
+              onClick={handleClearAll}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#64748b',
+                fontSize: '0.76rem',
+                cursor: 'pointer',
+                padding: '4px 6px'
+              }}
+            >
+              Clear all
+            </button>
+          )}
         </div>
 
+        {/* Filters */}
         <div style={{ display: 'flex', gap: '0.45rem', marginBottom: '0.95rem' }}>
           {[
             { id: 'All', label: 'All' },
@@ -743,6 +606,7 @@ function AlertsContent() {
           })}
         </div>
 
+        {/* Listing */}
         {loading ? (
           <div style={{ textAlign: 'center', padding: '3.5rem 1rem', color: '#38bdf8', fontSize: '0.9rem' }}>
             Loading alerts...
@@ -775,26 +639,19 @@ function AlertsContent() {
             <div style={{ fontWeight: '700', color: '#fff', fontSize: '0.95rem' }}>
               No notifications found
             </div>
-            <div style={{ fontSize: '0.8rem', marginTop: '0.25rem' }}>
-              {activeFilter === 'Unread'
-                ? "You're all caught up!"
-                : 'Activity and updates from your network will appear here.'}
-            </div>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
             {filteredNotifications.map((n) => {
               const meta = getTypeMeta(n);
-              const isUnread = !n.is_read;
-              const isConnectionReq =
-                (n.type || '').toLowerCase().includes('connection') &&
-                !(n.type || '').toLowerCase().includes('accepted') &&
-                !n.is_handled;
+              const isUnread = !n?.is_read;
+              const messageText = safeString(n?.message) || safeString(n?.content) || '';
+              const profileHref = n.targetProfileUrl || '#';
 
               return (
                 <div
                   key={n.id}
-                  onClick={() => handleNotificationClick(n)}
+                  onClick={() => handleCardClick(n)}
                   style={{
                     backgroundColor: isUnread ? '#0f1d36' : '#0f172a',
                     border: isUnread ? '1px solid rgba(56, 189, 248, 0.45)' : '1px solid #1e293b',
@@ -804,28 +661,22 @@ function AlertsContent() {
                     alignItems: 'flex-start',
                     gap: '0.85rem',
                     cursor: 'pointer',
-                    position: 'relative',
-                    transition: 'all 0.15s ease'
+                    position: 'relative'
                   }}
                 >
-                  {isUnread && (
-                    <div
-                      style={{
-                        position: 'absolute',
-                        left: '0px',
-                        top: '12px',
-                        bottom: '12px',
-                        width: '3.5px',
-                        backgroundColor: '#38bdf8',
-                        borderRadius: '0 4px 4px 0',
-                        boxShadow: '0 0 8px #38bdf8'
-                      }}
-                    />
-                  )}
-
-                  <div
-                    onClick={(e) => navigateToUserProfile(n, e)}
-                    style={{ position: 'relative', flexShrink: 0, cursor: 'pointer' }}
+                  {/* Avatar (Clickable Link directly to User Profile) */}
+                  <Link
+                    href={profileHref}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleMarkAsRead(n);
+                    }}
+                    style={{
+                      position: 'relative',
+                      flexShrink: 0,
+                      textDecoration: 'none',
+                      zIndex: 2
+                    }}
                   >
                     <div
                       style={{
@@ -846,7 +697,7 @@ function AlertsContent() {
                       {n.avatarUrl ? (
                         <img
                           src={n.avatarUrl}
-                          alt={n.displayName}
+                          alt={n.displayName || 'User'}
                           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                         />
                       ) : (
@@ -872,36 +723,30 @@ function AlertsContent() {
                     >
                       {meta.icon}
                     </div>
-                  </div>
+                  </Link>
 
+                  {/* Notification Content */}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
-                      <div
-                        onClick={(e) => navigateToUserProfile(n, e)}
-                        style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                      {/* Name (Clickable Link directly to User Profile) */}
+                      <Link
+                        href={profileHref}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMarkAsRead(n);
+                        }}
+                        style={{
+                          color: '#ffffff',
+                          fontWeight: '800',
+                          fontSize: '0.9rem',
+                          textDecoration: 'none',
+                          zIndex: 2
+                        }}
                       >
-                        <span style={{ color: '#ffffff', fontWeight: '800', fontSize: '0.88rem' }}>
-                          {n.displayName}
-                        </span>
-                      </div>
+                        {n.displayName}
+                      </Link>
 
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                        {isUnread && (
-                          <button
-                            type="button"
-                            title="Mark as read"
-                            onClick={(e) => handleMarkAsRead(n, e)}
-                            style={{
-                              width: '8px',
-                              height: '8px',
-                              borderRadius: '50%',
-                              backgroundColor: '#38bdf8',
-                              border: 'none',
-                              cursor: 'pointer',
-                              padding: 0
-                            }}
-                          />
-                        )}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', zIndex: 2 }}>
                         <button
                           type="button"
                           title="Delete notification"
@@ -929,54 +774,8 @@ function AlertsContent() {
                         lineHeight: '1.4'
                       }}
                     >
-                      {n.message || n.content || ''}
+                      {messageText}
                     </div>
-
-                    {isConnectionReq && (
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.5rem',
-                          marginTop: '0.65rem'
-                        }}
-                      >
-                        <button
-                          type="button"
-                          disabled={actionLoadingId === n.id}
-                          onClick={(e) => handleAcceptConnection(n, e)}
-                          style={{
-                            backgroundColor: '#0284c7',
-                            color: '#fff',
-                            border: 'none',
-                            borderRadius: '8px',
-                            padding: '0.35rem 0.85rem',
-                            fontSize: '0.76rem',
-                            fontWeight: '700',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          {actionLoadingId === n.id ? 'Connecting...' : 'Accept'}
-                        </button>
-                        <button
-                          type="button"
-                          disabled={actionLoadingId === n.id}
-                          onClick={(e) => handleRejectConnection(n, e)}
-                          style={{
-                            backgroundColor: '#1e293b',
-                            color: '#94a3b8',
-                            border: '1px solid #334155',
-                            borderRadius: '8px',
-                            padding: '0.35rem 0.85rem',
-                            fontSize: '0.76rem',
-                            fontWeight: '600',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          Ignore
-                        </button>
-                      </div>
-                    )}
 
                     <div
                       style={{
@@ -986,7 +785,7 @@ function AlertsContent() {
                         marginTop: '0.4rem'
                       }}
                     >
-                      {formatRelativeTime(n.created_at)}
+                      {formatRelativeTime(n?.created_at)}
                     </div>
                   </div>
                 </div>
@@ -1018,6 +817,7 @@ function AlertsContent() {
         )}
       </main>
 
+      {/* Settings Modal */}
       {showSettingsModal && (
         <div
           style={{
