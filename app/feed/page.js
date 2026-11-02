@@ -296,12 +296,12 @@ function FeedContent() {
         const { data: relays } = await supabase.from('page_post_relays').select(`id, user_email, created_at, post_id, page_posts (id, content, image_url, created_at, pages (id, name, slug, logo_url, owner_email, monetization_status))`).order('created_at', { ascending: false }).limit(25);
 
         const formattedPersonal = (personalPosts || []).map(p => {
-          const rawEmail = p.user_email || '';
+          const rawEmail = p.user_email || p.email || p.author_email || '';
           const uname = rawEmail.split('@')[0] || p.user_name || 'user';
           return {
             feedItemId: `user-${p.id}`,
             postId: p.id,
-            authorEmail: rawEmail.toLowerCase(),
+            authorEmail: rawEmail ? rawEmail.toLowerCase() : '',
             postType: 'personal',
             authorName: p.user_name || uname,
             authorAvatar: p.avatar_url,
@@ -390,12 +390,12 @@ function FeedContent() {
       if (data) {
         if (data.length < POSTS_PER_PAGE) setHasMore(false);
         const formattedMore = data.map(p => {
-          const rawEmail = p.user_email || '';
+          const rawEmail = p.user_email || p.email || p.author_email || '';
           const uname = rawEmail.split('@')[0] || p.user_name || 'user';
           return {
             feedItemId: `user-${p.id}`,
             postId: p.id,
-            authorEmail: rawEmail.toLowerCase(),
+            authorEmail: rawEmail ? rawEmail.toLowerCase() : '',
             postType: 'personal',
             authorName: p.user_name || uname,
             authorAvatar: p.avatar_url,
@@ -677,16 +677,23 @@ function FeedContent() {
     try {
       if (nextLikedState) {
         await supabase.from(tableName).insert([{ post_id: item.postId, user_email: userEmail }]);
-        if (item.authorEmail && item.authorEmail !== userEmail) {
-          await supabase.from('notifications').insert([{
-            recipient_email: item.authorEmail,
-            sender_name: userProfile?.name || userEmail.split('@')[0],
-            sender_email: userEmail,
-            action_type: 'like',
-            post_id: item.postId,
-            content: 'liked your post.',
-            is_read: false
-          }]);
+        
+        // Trigger notification with safety check
+        const targetAuthor = (item.authorEmail || '').toLowerCase();
+        if (targetAuthor && targetAuthor !== userEmail) {
+          try {
+            await supabase.from('notifications').insert([{
+              recipient_email: targetAuthor,
+              sender_name: userProfile?.name || currentUser.user_metadata?.full_name || userEmail.split('@')[0],
+              sender_email: userEmail,
+              action_type: 'like',
+              post_id: item.postId,
+              content: 'liked your post.',
+              is_read: false
+            }]);
+          } catch (notifErr) {
+            console.warn('Like notification notice:', notifErr);
+          }
         }
       } else {
         await supabase.from(tableName).delete().eq('post_id', item.postId).ilike('user_email', userEmail);
@@ -727,7 +734,6 @@ function FeedContent() {
     }
   }
 
-  // FIXED: Pure user_email and comment_text payload (No invalid email column)
   async function handleAddComment(item) {
     if (!currentUser) return router.push('/auth');
     const key = item.feedItemId;
@@ -773,16 +779,21 @@ function FeedContent() {
       setPostComments(prev => ({ ...prev, [key]: [...(prev[key] || []), formatted] }));
       setCommentInputs(prev => ({ ...prev, [key]: '' }));
 
-      if (item.authorEmail && item.authorEmail !== userEmail) {
-        await supabase.from('notifications').insert([{
-          recipient_email: item.authorEmail,
-          sender_name: userName,
-          sender_email: userEmail,
-          action_type: 'comment',
-          post_id: item.postId,
-          content: 'commented on your post.',
-          is_read: false
-        }]);
+      const targetAuthor = (item.authorEmail || '').toLowerCase();
+      if (targetAuthor && targetAuthor !== userEmail) {
+        try {
+          await supabase.from('notifications').insert([{
+            recipient_email: targetAuthor,
+            sender_name: userName,
+            sender_email: userEmail,
+            action_type: 'comment',
+            post_id: item.postId,
+            content: 'commented on your post.',
+            is_read: false
+          }]);
+        } catch (notifErr) {
+          console.warn('Comment notification notice:', notifErr);
+        }
       }
     } catch (err) {
       console.error('Comment error:', err);
@@ -792,7 +803,6 @@ function FeedContent() {
     }
   }
 
-  // FIXED: Pure user_email and comment_text payload (No invalid email column)
   async function handleAddReply(item, parentComment) {
     if (!currentUser) return router.push('/auth');
     const replyText = replyInputs[parentComment.id]?.trim();
@@ -841,6 +851,24 @@ function FeedContent() {
 
       setReplyInputs(prev => ({ ...prev, [parentComment.id]: '' }));
       setReplyingToCommentId(null);
+
+      // Notification for comment author
+      const replyTarget = (parentComment.user_email || '').toLowerCase();
+      if (replyTarget && replyTarget !== userEmail) {
+        try {
+          await supabase.from('notifications').insert([{
+            recipient_email: replyTarget,
+            sender_name: userName,
+            sender_email: userEmail,
+            action_type: 'reply',
+            post_id: item.postId,
+            content: 'replied to your comment.',
+            is_read: false
+          }]);
+        } catch (notifErr) {
+          console.warn('Reply notification notice:', notifErr);
+        }
+      }
     } catch (err) {
       console.error('Reply error:', err);
       alert('Reply failed: ' + err.message);
