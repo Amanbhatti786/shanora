@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { supabase } from '../lib/supabaseClient';
 
-export default function BottomNav() {
+function BottomNavContent() {
   const pathname = usePathname() || '';
   const searchParams = useSearchParams();
   const currentTab = searchParams?.get('tab');
@@ -234,7 +234,7 @@ export default function BottomNav() {
         if (isHardRoute) {
           return (
             <a
-              key={item.id}
+              key={item.label}
               href={item.href}
               onClick={(e) => {
                 e.preventDefault();
@@ -249,7 +249,7 @@ export default function BottomNav() {
 
         return (
           <Link
-            key={item.id}
+            key={item.label}
             href={item.href}
             style={buttonStyle}
           >
@@ -259,5 +259,12 @@ export default function BottomNav() {
       })}
     </div>
   );
-    }
-        
+}
+
+export default function BottomNav() {
+  return (
+    <Suspense fallback={null}>
+      <BottomNavContent />
+    </Suspense>
+  );
+}
