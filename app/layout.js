@@ -6,7 +6,7 @@ import { usePathname, useSearchParams } from 'next/navigation';
 import { supabase } from '../lib/supabaseClient';
 
 function BottomNavigation() {
-  const pathname = usePathname();
+  const pathname = usePathname() || '';
   const searchParams = useSearchParams();
   const currentTab = searchParams?.get('tab');
   const [unreadCount, setUnreadCount] = useState(0);
@@ -41,12 +41,13 @@ function BottomNavigation() {
   // Real URL queries matching
   const isHomeActive = pathname === '/feed';
   const isNetworkActive = pathname === '/profile' && currentTab === 'network';
-  const isAlertsActive = pathname === '/profile' && currentTab === 'notifications';
-  const isJobsActive = pathname === '/profile' && currentTab === 'jobs';
+  const isAlertsActive = pathname.startsWith('/alerts');
+  const isJobsActive = pathname.startsWith('/jobs');
   const isMenuActive = pathname === '/profile' && (!currentTab || currentTab === 'menu');
 
   const navItems = [
     {
+      id: 'home',
       label: 'Home',
       href: '/feed',
       isActive: isHomeActive,
@@ -62,6 +63,7 @@ function BottomNavigation() {
       )
     },
     {
+      id: 'network',
       label: 'Network',
       href: '/profile?tab=network',
       isActive: isNetworkActive,
@@ -79,8 +81,9 @@ function BottomNavigation() {
       )
     },
     {
+      id: 'alerts',
       label: 'Alerts',
-       href="/alerts"
+      href: '/alerts',
       isActive: isAlertsActive,
       activeColor: '#f43f5e',
       cardBg: 'linear-gradient(180deg, rgba(244, 63, 94, 0.22) 0%, rgba(15, 23, 42, 0.95) 100%)',
@@ -95,8 +98,9 @@ function BottomNavigation() {
       )
     },
     {
+      id: 'jobs',
       label: 'Jobs',
-      href="/jobs"
+      href: '/jobs',
       isActive: isJobsActive,
       activeColor: '#a855f7',
       cardBg: 'linear-gradient(180deg, rgba(168, 85, 247, 0.22) 0%, rgba(15, 23, 42, 0.95) 100%)',
@@ -110,6 +114,7 @@ function BottomNavigation() {
       )
     },
     {
+      id: 'menu',
       label: 'Menu',
       href: '/profile?tab=menu',
       isActive: isMenuActive,
@@ -152,27 +157,27 @@ function BottomNavigation() {
     >
       {navItems.map((item) => {
         const iconColor = item.isActive ? item.activeColor : '#64748b';
+        const isHardRoute = item.id === 'alerts' || item.id === 'jobs';
 
-        return (
-          <Link
-            key={item.label}
-            href={item.href}
-            style={{
-              textDecoration: 'none',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '0.45rem 0.85rem',
-              borderRadius: '14px',
-              minWidth: '60px',
-              transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-              background: item.isActive ? item.cardBg : 'transparent',
-              border: item.isActive ? `1px solid ${item.borderColor}` : '1px solid transparent',
-              boxShadow: item.isActive ? `0 4px 16px ${item.glowColor}, inset 0 1px 0 rgba(255, 255, 255, 0.15)` : 'none',
-              transform: item.isActive ? 'translateY(-3px)' : 'none'
-            }}
-          >
+        const buttonStyle = {
+          textDecoration: 'none',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '0.45rem 0.85rem',
+          borderRadius: '14px',
+          minWidth: '60px',
+          cursor: 'pointer',
+          transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+          background: item.isActive ? item.cardBg : 'transparent',
+          border: item.isActive ? `1px solid ${item.borderColor}` : '1px solid transparent',
+          boxShadow: item.isActive ? `0 4px 16px ${item.glowColor}, inset 0 1px 0 rgba(255, 255, 255, 0.15)` : 'none',
+          transform: item.isActive ? 'translateY(-3px)' : 'none'
+        };
+
+        const innerContent = (
+          <>
             <div
               style={{
                 position: 'relative',
@@ -218,6 +223,32 @@ function BottomNavigation() {
             >
               {item.label}
             </span>
+          </>
+        );
+
+        if (isHardRoute) {
+          return (
+            <a
+              key={item.label}
+              href={item.href}
+              onClick={(e) => {
+                e.preventDefault();
+                window.location.href = item.href;
+              }}
+              style={buttonStyle}
+            >
+              {innerContent}
+            </a>
+          );
+        }
+
+        return (
+          <Link
+            key={item.label}
+            href={item.href}
+            style={buttonStyle}
+          >
+            {innerContent}
           </Link>
         );
       })}
