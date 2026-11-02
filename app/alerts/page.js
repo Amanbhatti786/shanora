@@ -29,7 +29,7 @@ function AlertsContent() {
   const PAGE_SIZE = 15;
   const pageRef = useRef(0);
 
-  // Helper to extract sender email from multiple possible database keys
+  // Helper to safely grab sender email from any possible schema variation
   const getSenderEmail = (notif) => {
     return (
       notif.sender_email ||
@@ -39,6 +39,16 @@ function AlertsContent() {
       notif.from_user ||
       ''
     ).trim().toLowerCase();
+  };
+
+  // Helper to extract post/target ID
+  const getTargetPostId = (notif) => {
+    return notif.post_id || notif.target_id || notif.item_id || null;
+  };
+
+  // Helper to extract job ID
+  const getTargetJobId = (notif) => {
+    return notif.job_id || notif.target_id || null;
   };
 
   const formatRelativeTime = (dateString) => {
@@ -51,7 +61,7 @@ function AlertsContent() {
     if (diffInSeconds < 60) return `${diffInSeconds}s ago`;
     const diffInMinutes = Math.floor(diffInSeconds / 60);
     if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
-    const diffInHours = Math.floor(diffInMinutes / 60);
+    const diffInHours = Math.floor(diffInHours / 60);
     if (diffInHours < 24) return `${diffInHours}h ago`;
     const diffInDays = Math.floor(diffInHours / 24);
     if (diffInDays === 1) return 'Yesterday';
@@ -87,7 +97,7 @@ function AlertsContent() {
         n.sender_name ||
         p.name ||
         p.full_name ||
-        (sEmail ? sEmail.split('@')[0] : (n.title || 'Shanora Member'));
+        (sEmail ? sEmail.split('@')[0] : (n.title || 'Member'));
 
       return {
         ...n,
@@ -153,6 +163,7 @@ function AlertsContent() {
     };
   }, []);
 
+  // Real-time listener for incoming alerts
   useEffect(() => {
     if (!currentUser?.email) return;
     const userEmail = currentUser.email.trim().toLowerCase();
@@ -244,6 +255,9 @@ function AlertsContent() {
 
   const handleMarkAllAsRead = async () => {
     if (!currentUser || notifications.length === 0) return;
+    const unreadIds = notifications.filter((n) => !n.is_read).map((n) => n.id);
+    if (unreadIds.length === 0) return;
+
     setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
 
     try {
@@ -284,7 +298,7 @@ function AlertsContent() {
     }
   };
 
-  // Profile navigate function for Avatar and Name clicks
+  // Direct Profile Link
   const navigateToUserProfile = (notif, e) => {
     if (e) e.stopPropagation();
     handleMarkAsRead(notif);
@@ -292,22 +306,132 @@ function AlertsContent() {
     const email = notif.resolvedSenderEmail || getSenderEmail(notif);
     if (email) {
       router.push(`/view-profile?email=${encodeURIComponent(email)}`);
-    } else {
-      router.push('/profile?tab=network');
     }
   };
 
-  // Smart Navigation Handler
+  // In-Card Action: Accept Connection
+  const handleAcceptConnection = async (notif, e) => {
+    if (e) e.stopPropagation();
+    if (!currentUser) return;
+
+    const senderEmail = notif.resolvedSenderEmail || getSenderEmail(notif);
+    if (!senderEmail) return;
+
+    setActionLoadingId(notif.id);
+    const myEmail = currentUser.email.toLowerCase();
+
+    try {
+      await supabase
+        .from('connections')
+        .update({ status: 'accepted' })
+        .or(
+          `and(requester_email.eq.${senderEmail},receiver_email.eq.${myEmail}),and(requester_email.eq.${myEmail},receiver_email.eq.${senderEmail})`
+        );
+
+      await supabase.from('notifications').insert([
+        {
+          recipient_email: senderEmail,
+          sender_email: myEmail,
+          sender_name: currentUser.user_metadata?.full_name || myEmail.split('@')[0],
+          type: 'connection_accepted',
+          title: 'Connection Accepted',
+          message: 'accepted your connection request.',
+          is_read: false
+        }
+      ]);
+
+      await supabase
+        .from('notifications')
+        .update({ is_read: true, message: 'You accepted the connection request.' })
+        .eq('id', notif.id);
+
+      setNotifications((prev) =>
+        prev.map((n) =>
+          n.id === notif.id
+            ? { ...n, is_read: true, message: 'You accepted the connection request.', is_handled: true }
+            : n
+        )
+      );
+    } catch (err) {
+      console.error('Error accepting connection:', err);
+      alert('Could not update connection. Please try again.');
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  // In-Card Action: Ignore Connection
+  const handleRejectConnection = async (notif, e) => {
+    if (e) e.stopPropagation();
+    if (!currentUser) return;
+
+    const senderEmail = notif.resolvedSenderEmail || getSenderEmail(notif);
+    if (!senderEmail) return;
+
+    setActionLoadingId(notif.id);
+    const myEmail = currentUser.email.toLowerCase();
+
+    try {
+      await supabase
+        .from('connections')
+        .delete()
+        .or(
+          `and(requester_email.eq.${senderEmail},receiver_email.eq.${myEmail}),and(requester_email.eq.${myEmail},receiver_email.eq.${senderEmail})`
+        );
+
+      await supabase.from('notifications').delete().eq('id', notif.id);
+      setNotifications((prev) => prev.filter((n) => n.id !== notif.id));
+    } catch (err) {
+      console.error('Error ignoring connection:', err);
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  // SMART ROUTING LOGIC
   const handleNotificationClick = (notif) => {
     handleMarkAsRead(notif);
 
     const type = (notif.type || '').toLowerCase();
     const msg = (notif.message || '').toLowerCase();
     const senderEmail = notif.resolvedSenderEmail || getSenderEmail(notif);
-    const targetPostId = notif.post_id || notif.target_id;
+    const postId = getTargetPostId(notif);
+    const jobId = getTargetJobId(notif);
 
-    // Follower notification -> Always User Profile
-    if (type.includes('follow') || msg.includes('following') || msg.includes('started following')) {
+    // 1. Follower or Birthday -> /view-profile?email=...
+    if (
+      type.includes('follow') ||
+      type.includes('birthday') ||
+      msg.includes('following') ||
+      msg.includes('started following') ||
+      msg.includes('birthday')
+    ) {
+      if (senderEmail) {
+        router.push(`/view-profile?email=${encodeURIComponent(senderEmail)}`);
+        return;
+      }
+    }
+
+    // 2. Like, Comment, Repost, Mention -> /feed?postId=...
+    if (
+      type.includes('like') ||
+      type.includes('comment') ||
+      type.includes('repost') ||
+      type.includes('mention') ||
+      msg.includes('liked') ||
+      msg.includes('commented') ||
+      msg.includes('reposted')
+    ) {
+      if (postId) {
+        router.push(`/feed?postId=${encodeURIComponent(postId)}`);
+      } else {
+        router.push('/feed');
+      }
+      return;
+    }
+
+    // 3. Connection Request -> Stay on card or network
+    if (type.includes('connection')) {
       if (senderEmail) {
         router.push(`/view-profile?email=${encodeURIComponent(senderEmail)}`);
       } else {
@@ -316,30 +440,8 @@ function AlertsContent() {
       return;
     }
 
-    // Likes, Comments, Reposts
-    if (
-      type.includes('like') ||
-      type.includes('comment') ||
-      type.includes('repost') ||
-      msg.includes('liked') ||
-      msg.includes('commented')
-    ) {
-      if (targetPostId) {
-        router.push(`/feed?postId=${encodeURIComponent(targetPostId)}`);
-      } else {
-        router.push('/feed');
-      }
-      return;
-    }
-
-    // Connection Requests
-    if (type.includes('connection')) {
-      router.push('/profile?tab=network');
-      return;
-    }
-
-    // Direct Messages
-    if (type.includes('message') || msg.includes('message')) {
+    // 4. Messages -> /chat?recipient=...
+    if (type.includes('message') || msg.includes('message') || msg.includes('sent you a message')) {
       if (senderEmail) {
         router.push(`/chat?recipient=${encodeURIComponent(senderEmail)}`);
       } else {
@@ -348,17 +450,21 @@ function AlertsContent() {
       return;
     }
 
-    // Jobs
-    if (type.includes('job') || msg.includes('job')) {
-      router.push('/jobs');
+    // 5. Jobs & Job Applications -> /jobs?jobId=...
+    if (type.includes('job') || msg.includes('job') || msg.includes('application')) {
+      if (jobId) {
+        router.push(`/jobs?jobId=${encodeURIComponent(jobId)}`);
+      } else {
+        router.push('/jobs');
+      }
       return;
     }
 
-    // Default Fallback: sender profile if exists, else network tab
+    // Fallback: If sender email is known, open profile, else feed
     if (senderEmail) {
       router.push(`/view-profile?email=${encodeURIComponent(senderEmail)}`);
     } else {
-      router.push('/profile?tab=network');
+      router.push('/feed');
     }
   };
 
@@ -381,6 +487,12 @@ function AlertsContent() {
     if (t.includes('job') || m.includes('job')) {
       return { icon: '💼', bg: 'rgba(245, 158, 11, 0.18)', border: '#f59e0b', text: '#fbbf24' };
     }
+    if (t.includes('message') || m.includes('message')) {
+      return { icon: '✉️', bg: 'rgba(99, 102, 241, 0.18)', border: '#6366f1', text: '#818cf8' };
+    }
+    if (t.includes('birthday') || m.includes('birthday')) {
+      return { icon: '🎂', bg: 'rgba(236, 72, 153, 0.18)', border: '#ec4899', text: '#f472b6' };
+    }
     return { icon: '👤', bg: 'rgba(2, 132, 199, 0.18)', border: '#0284c7', text: '#38bdf8' };
   };
 
@@ -401,7 +513,7 @@ function AlertsContent() {
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#070b14', color: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-      {/* Header Match with Network Tab */}
+      {/* Exact Header matching Network Tab */}
       <header
         style={{
           backgroundColor: '#070b14',
@@ -681,6 +793,10 @@ function AlertsContent() {
             {filteredNotifications.map((n) => {
               const meta = getTypeMeta(n);
               const isUnread = !n.is_read;
+              const isConnectionReq =
+                (n.type || '').toLowerCase().includes('connection') &&
+                !(n.type || '').toLowerCase().includes('accepted') &&
+                !n.is_handled;
 
               return (
                 <div
@@ -714,7 +830,7 @@ function AlertsContent() {
                     />
                   )}
 
-                  {/* Avatar Icon */}
+                  {/* Profile Avatar */}
                   <div
                     onClick={(e) => navigateToUserProfile(n, e)}
                     style={{ position: 'relative', flexShrink: 0, cursor: 'pointer' }}
@@ -766,7 +882,7 @@ function AlertsContent() {
                     </div>
                   </div>
 
-                  {/* Content */}
+                  {/* Content Area */}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
                       <div
@@ -824,6 +940,53 @@ function AlertsContent() {
                     >
                       {n.message || n.content || ''}
                     </div>
+
+                    {/* Connection Request Accept / Ignore Actions */}
+                    {isConnectionReq && (
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.5rem',
+                          marginTop: '0.65rem'
+                        }}
+                      >
+                        <button
+                          type="button"
+                          disabled={actionLoadingId === n.id}
+                          onClick={(e) => handleAcceptConnection(n, e)}
+                          style={{
+                            backgroundColor: '#0284c7',
+                            color: '#fff',
+                            border: 'none',
+                            borderRadius: '8px',
+                            padding: '0.35rem 0.85rem',
+                            fontSize: '0.76rem',
+                            fontWeight: '700',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {actionLoadingId === n.id ? 'Connecting...' : 'Accept'}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={actionLoadingId === n.id}
+                          onClick={(e) => handleRejectConnection(n, e)}
+                          style={{
+                            backgroundColor: '#1e293b',
+                            color: '#94a3b8',
+                            border: '1px solid #334155',
+                            borderRadius: '8px',
+                            padding: '0.35rem 0.85rem',
+                            fontSize: '0.76rem',
+                            fontWeight: '600',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Ignore
+                        </button>
+                      </div>
+                    )}
 
                     <div
                       style={{
