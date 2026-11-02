@@ -347,7 +347,7 @@ function FeedContent() {
             postId: r.page_posts.id,
             authorEmail: ownerEmail,
             postType: 'page',
-            authorName: p => p.page_posts.pages?.name || 'Shanora Page',
+            authorName: r.page_posts.pages?.name || 'Shanora Page',
             authorAvatar: r.page_posts.pages?.logo_url,
             authorLink: `/page/${r.page_posts.pages?.slug || ''}`,
             isVerified: r.page_posts.pages?.monetization_status === 'approved',
@@ -727,6 +727,7 @@ function FeedContent() {
     }
   }
 
+  // FIXED: Pure user_email and comment_text payload (No invalid email column)
   async function handleAddComment(item) {
     if (!currentUser) return router.push('/auth');
     const key = item.feedItemId;
@@ -751,12 +752,8 @@ function FeedContent() {
       : {
           post_id: item.postId,
           user_email: userEmail,
-          author_email: userEmail,
-          email: userEmail,
           user_name: userName,
-          author_name: userName,
           comment_text: text,
-          content: text,
           parent_id: null
         };
 
@@ -795,6 +792,7 @@ function FeedContent() {
     }
   }
 
+  // FIXED: Pure user_email and comment_text payload (No invalid email column)
   async function handleAddReply(item, parentComment) {
     if (!currentUser) return router.push('/auth');
     const replyText = replyInputs[parentComment.id]?.trim();
@@ -818,12 +816,8 @@ function FeedContent() {
       : {
           post_id: item.postId,
           user_email: userEmail,
-          author_email: userEmail,
-          email: userEmail,
           user_name: userName,
-          author_name: userName,
           comment_text: replyText,
-          content: replyText,
           parent_id: parentComment.id
         };
 
