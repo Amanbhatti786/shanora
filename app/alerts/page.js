@@ -29,8 +29,8 @@ function AlertsContent() {
   const PAGE_SIZE = 15;
   const pageRef = useRef(0);
 
-  // Helper to safely grab sender email from any possible schema variation
   const getSenderEmail = (notif) => {
+    if (!notif) return '';
     return (
       notif.sender_email ||
       notif.actor_email ||
@@ -41,19 +41,20 @@ function AlertsContent() {
     ).trim().toLowerCase();
   };
 
-  // Helper to extract post/target ID
   const getTargetPostId = (notif) => {
+    if (!notif) return null;
     return notif.post_id || notif.target_id || notif.item_id || null;
   };
 
-  // Helper to extract job ID
   const getTargetJobId = (notif) => {
+    if (!notif) return null;
     return notif.job_id || notif.target_id || null;
   };
 
   const formatRelativeTime = (dateString) => {
     if (!dateString) return '';
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '';
     const now = new Date();
     const diffInSeconds = Math.floor((now - date) / 1000);
 
@@ -61,7 +62,7 @@ function AlertsContent() {
     if (diffInSeconds < 60) return `${diffInSeconds}s ago`;
     const diffInMinutes = Math.floor(diffInSeconds / 60);
     if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
-    const diffInHours = Math.floor(diffInHours / 60);
+    const diffInHours = Math.floor(diffInMinutes / 60);
     if (diffInHours < 24) return `${diffInHours}h ago`;
     const diffInDays = Math.floor(diffInHours / 24);
     if (diffInDays === 1) return 'Yesterday';
@@ -70,6 +71,8 @@ function AlertsContent() {
   };
 
   const enrichNotificationsWithProfiles = async (rawList) => {
+    if (!rawList || !Array.isArray(rawList)) return [];
+
     const senderEmails = Array.from(
       new Set(rawList.map((n) => getSenderEmail(n)).filter(Boolean))
     );
@@ -77,14 +80,16 @@ function AlertsContent() {
     let profilesMap = {};
     if (senderEmails.length > 0) {
       try {
-        const { data: profs } = await supabase
+        const { data: profs, error } = await supabase
           .from('profiles')
           .select('email, name, full_name, avatar_url, username')
           .in('email', senderEmails);
 
-        (profs || []).forEach((p) => {
-          if (p.email) profilesMap[p.email.toLowerCase()] = p;
-        });
+        if (!error && profs) {
+          profs.forEach((p) => {
+            if (p?.email) profilesMap[p.email.toLowerCase()] = p;
+          });
+        }
       } catch (err) {
         console.error('Error fetching sender profiles:', err);
       }
@@ -114,8 +119,8 @@ function AlertsContent() {
 
     async function initUserAndAlerts() {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        let user = session?.user || null;
+        const { data: sessionData } = await supabase.auth.getSession();
+        let user = sessionData?.session?.user || null;
         if (!user) {
           const { data: userData } = await supabase.auth.getUser();
           user = userData?.user || null;
@@ -127,13 +132,15 @@ function AlertsContent() {
         }
 
         setCurrentUser(user);
-        const userEmail = user.email.trim().toLowerCase();
+        const userEmail = (user.email || '').trim().toLowerCase();
 
-        const savedPrefs = localStorage.getItem(`shanora_notify_pref_${user.id}`);
-        if (savedPrefs) {
-          try {
-            setPrefs(JSON.parse(savedPrefs));
-          } catch (_) {}
+        if (typeof window !== 'undefined') {
+          const savedPrefs = localStorage.getItem(`shanora_notify_pref_${user.id}`);
+          if (savedPrefs) {
+            try {
+              setPrefs(JSON.parse(savedPrefs));
+            } catch (_) {}
+          }
         }
 
         pageRef.current = 0;
@@ -163,13 +170,12 @@ function AlertsContent() {
     };
   }, []);
 
-  // Real-time listener for incoming alerts
   useEffect(() => {
     if (!currentUser?.email) return;
-    const userEmail = currentUser.email.trim().toLowerCase();
+    const userEmail = (currentUser.email || '').trim().toLowerCase();
 
     const channel = supabase
-      .channel(`realtime_notifications_${currentUser.id}`)
+      .channel(`realtime_alerts_${currentUser.id || 'usr'}`)
       .on(
         'postgres_changes',
         {
@@ -178,23 +184,27 @@ function AlertsContent() {
           table: 'notifications'
         },
         async (payload) => {
-          if (payload.eventType === 'INSERT') {
-            const newNotif = payload.new;
-            if (newNotif.recipient_email?.toLowerCase() === userEmail) {
-              const [enriched] = await enrichNotificationsWithProfiles([newNotif]);
-              setNotifications((prev) => {
-                if (prev.some((item) => item.id === enriched.id)) return prev;
-                return [enriched, ...prev];
-              });
+          try {
+            if (payload.eventType === 'INSERT') {
+              const newNotif = payload.new;
+              if (newNotif?.recipient_email?.toLowerCase() === userEmail) {
+                const [enriched] = await enrichNotificationsWithProfiles([newNotif]);
+                setNotifications((prev) => {
+                  if (prev.some((item) => item.id === enriched.id)) return prev;
+                  return [enriched, ...prev];
+                });
+              }
+            } else if (payload.eventType === 'UPDATE') {
+              const updated = payload.new;
+              setNotifications((prev) =>
+                prev.map((item) => (item.id === updated.id ? { ...item, ...updated } : item))
+              );
+            } else if (payload.eventType === 'DELETE') {
+              const deleted = payload.old;
+              setNotifications((prev) => prev.filter((item) => item.id !== deleted?.id));
             }
-          } else if (payload.eventType === 'UPDATE') {
-            const updated = payload.new;
-            setNotifications((prev) =>
-              prev.map((item) => (item.id === updated.id ? { ...item, ...updated } : item))
-            );
-          } else if (payload.eventType === 'DELETE') {
-            const deleted = payload.old;
-            setNotifications((prev) => prev.filter((item) => item.id !== deleted.id));
+          } catch (e) {
+            console.error('Realtime sync error:', e);
           }
         }
       )
@@ -212,7 +222,7 @@ function AlertsContent() {
     const nextPage = pageRef.current + 1;
     const from = nextPage * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
-    const userEmail = currentUser.email.trim().toLowerCase();
+    const userEmail = (currentUser.email || '').trim().toLowerCase();
 
     try {
       const { data, error } = await supabase
@@ -237,7 +247,7 @@ function AlertsContent() {
 
   const handleMarkAsRead = async (notif, e) => {
     if (e) e.stopPropagation();
-    if (notif.is_read) return;
+    if (!notif || notif.is_read) return;
 
     setNotifications((prev) =>
       prev.map((n) => (n.id === notif.id ? { ...n, is_read: true } : n))
@@ -255,9 +265,6 @@ function AlertsContent() {
 
   const handleMarkAllAsRead = async () => {
     if (!currentUser || notifications.length === 0) return;
-    const unreadIds = notifications.filter((n) => !n.is_read).map((n) => n.id);
-    if (unreadIds.length === 0) return;
-
     setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
 
     try {
@@ -298,23 +305,21 @@ function AlertsContent() {
     }
   };
 
-  // Direct Profile Link
   const navigateToUserProfile = (notif, e) => {
     if (e) e.stopPropagation();
     handleMarkAsRead(notif);
 
-    const email = notif.resolvedSenderEmail || getSenderEmail(notif);
+    const email = notif?.resolvedSenderEmail || getSenderEmail(notif);
     if (email) {
       router.push(`/view-profile?email=${encodeURIComponent(email)}`);
     }
   };
 
-  // In-Card Action: Accept Connection
   const handleAcceptConnection = async (notif, e) => {
     if (e) e.stopPropagation();
     if (!currentUser) return;
 
-    const senderEmail = notif.resolvedSenderEmail || getSenderEmail(notif);
+    const senderEmail = notif?.resolvedSenderEmail || getSenderEmail(notif);
     if (!senderEmail) return;
 
     setActionLoadingId(notif.id);
@@ -360,12 +365,11 @@ function AlertsContent() {
     }
   };
 
-  // In-Card Action: Ignore Connection
   const handleRejectConnection = async (notif, e) => {
     if (e) e.stopPropagation();
     if (!currentUser) return;
 
-    const senderEmail = notif.resolvedSenderEmail || getSenderEmail(notif);
+    const senderEmail = notif?.resolvedSenderEmail || getSenderEmail(notif);
     if (!senderEmail) return;
 
     setActionLoadingId(notif.id);
@@ -388,8 +392,8 @@ function AlertsContent() {
     }
   };
 
-  // SMART ROUTING LOGIC
   const handleNotificationClick = (notif) => {
+    if (!notif) return;
     handleMarkAsRead(notif);
 
     const type = (notif.type || '').toLowerCase();
@@ -398,13 +402,11 @@ function AlertsContent() {
     const postId = getTargetPostId(notif);
     const jobId = getTargetJobId(notif);
 
-    // 1. Follower or Birthday -> /view-profile?email=...
     if (
       type.includes('follow') ||
       type.includes('birthday') ||
       msg.includes('following') ||
-      msg.includes('started following') ||
-      msg.includes('birthday')
+      msg.includes('started following')
     ) {
       if (senderEmail) {
         router.push(`/view-profile?email=${encodeURIComponent(senderEmail)}`);
@@ -412,7 +414,6 @@ function AlertsContent() {
       }
     }
 
-    // 2. Like, Comment, Repost, Mention -> /feed?postId=...
     if (
       type.includes('like') ||
       type.includes('comment') ||
@@ -430,7 +431,6 @@ function AlertsContent() {
       return;
     }
 
-    // 3. Connection Request -> Stay on card or network
     if (type.includes('connection')) {
       if (senderEmail) {
         router.push(`/view-profile?email=${encodeURIComponent(senderEmail)}`);
@@ -440,8 +440,7 @@ function AlertsContent() {
       return;
     }
 
-    // 4. Messages -> /chat?recipient=...
-    if (type.includes('message') || msg.includes('message') || msg.includes('sent you a message')) {
+    if (type.includes('message') || msg.includes('message')) {
       if (senderEmail) {
         router.push(`/chat?recipient=${encodeURIComponent(senderEmail)}`);
       } else {
@@ -450,7 +449,6 @@ function AlertsContent() {
       return;
     }
 
-    // 5. Jobs & Job Applications -> /jobs?jobId=...
     if (type.includes('job') || msg.includes('job') || msg.includes('application')) {
       if (jobId) {
         router.push(`/jobs?jobId=${encodeURIComponent(jobId)}`);
@@ -460,7 +458,6 @@ function AlertsContent() {
       return;
     }
 
-    // Fallback: If sender email is known, open profile, else feed
     if (senderEmail) {
       router.push(`/view-profile?email=${encodeURIComponent(senderEmail)}`);
     } else {
@@ -469,8 +466,8 @@ function AlertsContent() {
   };
 
   const getTypeMeta = (notif) => {
-    const t = (notif.type || '').toLowerCase();
-    const m = (notif.message || '').toLowerCase();
+    const t = (notif?.type || '').toLowerCase();
+    const m = (notif?.message || '').toLowerCase();
 
     if (t.includes('like') || m.includes('liked')) {
       return { icon: '❤️', bg: 'rgba(239, 68, 68, 0.18)', border: '#ef4444', text: '#f87171' };
@@ -513,7 +510,6 @@ function AlertsContent() {
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#070b14', color: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-      {/* Exact Header matching Network Tab */}
       <header
         style={{
           backgroundColor: '#070b14',
@@ -645,7 +641,6 @@ function AlertsContent() {
         </div>
       </header>
 
-      {/* Main Container */}
       <main style={{ maxWidth: '640px', margin: '0 auto', padding: '0.9rem 0.9rem 6rem 0.9rem' }}>
         <div
           style={{
@@ -718,7 +713,6 @@ function AlertsContent() {
           </div>
         </div>
 
-        {/* Filters */}
         <div style={{ display: 'flex', gap: '0.45rem', marginBottom: '0.95rem' }}>
           {[
             { id: 'All', label: 'All' },
@@ -749,7 +743,6 @@ function AlertsContent() {
           })}
         </div>
 
-        {/* Listing */}
         {loading ? (
           <div style={{ textAlign: 'center', padding: '3.5rem 1rem', color: '#38bdf8', fontSize: '0.9rem' }}>
             Loading alerts...
@@ -830,7 +823,6 @@ function AlertsContent() {
                     />
                   )}
 
-                  {/* Profile Avatar */}
                   <div
                     onClick={(e) => navigateToUserProfile(n, e)}
                     style={{ position: 'relative', flexShrink: 0, cursor: 'pointer' }}
@@ -882,7 +874,6 @@ function AlertsContent() {
                     </div>
                   </div>
 
-                  {/* Content Area */}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
                       <div
@@ -941,7 +932,6 @@ function AlertsContent() {
                       {n.message || n.content || ''}
                     </div>
 
-                    {/* Connection Request Accept / Ignore Actions */}
                     {isConnectionReq && (
                       <div
                         style={{
@@ -1028,7 +1018,6 @@ function AlertsContent() {
         )}
       </main>
 
-      {/* Settings Modal */}
       {showSettingsModal && (
         <div
           style={{
