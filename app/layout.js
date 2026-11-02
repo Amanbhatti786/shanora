@@ -3,7 +3,7 @@ import { Suspense } from 'react';
 import BottomNav from '../components/BottomNav';
 
 export const metadata = {
-  title: "Shanora.pk | Pakistan's Professional Networking & Career Hub",
+  title: "Shanora.pk",
   description: "Connect with verified creators, discover executive career opportunities, build ATS-friendly resumes, and grow your professional network on Shanora.",
   metadataBase: new URL('https://shanora-pk.vercel.app'),
   openGraph: {
