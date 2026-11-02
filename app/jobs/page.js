@@ -136,75 +136,117 @@ function JobsContent() {
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#070b14', color: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-      {/* Shanora Header with Logo & Chat */}
-      <header style={{ backgroundColor: '#0f172a', borderBottom: '1px solid #1e293b', padding: '0.75rem 1rem', position: 'sticky', top: 0, zIndex: 100 }}>
-        <div style={{ maxWidth: '640px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-            <button
-              type="button"
-              onClick={() => router.back()}
-              style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '8px',
-                backgroundColor: '#070b14',
-                border: '1px solid #1e293b',
-                color: '#fff',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '1rem',
-                fontWeight: 'bold',
-                padding: 0
-              }}
-            >
-              ←
-            </button>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', backgroundColor: '#070b14', padding: '0.3rem 0.65rem', borderRadius: '10px', border: '1px solid #1e293b' }}>
-              <span style={{ backgroundColor: '#0284c7', color: '#fff', fontWeight: '900', fontSize: '0.75rem', padding: '0.15rem 0.4rem', borderRadius: '6px' }}>S</span>
-              <span style={{ fontWeight: '900', fontSize: '0.88rem', letterSpacing: '0.5px', color: '#fff' }}>
-                SHANORA<span style={{ color: '#38bdf8', fontSize: '0.7rem' }}>.PK</span>
-              </span>
-            </div>
-          </div>
+{/* Exact Shanora Header (Pixel-perfect match with Network tab) */}
+<header
+  style={{
+    backgroundColor: '#070b14',
+    borderBottom: '1px solid #1e293b',
+    padding: '0.65rem 1rem',
+    position: 'sticky',
+    top: 0,
+    zIndex: 100,
+    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.4)'
+  }}
+>
+  <div
+    style={{
+      maxWidth: '640px',
+      margin: '0 auto',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between'
+    }}
+  >
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+      {/* Back Button */}
+      <button
+        type="button"
+        onClick={() => router.back()}
+        style={{
+          width: '38px',
+          height: '38px',
+          borderRadius: '12px',
+          backgroundColor: '#0f172a',
+          border: '1px solid #1e293b',
+          color: '#cbd5e1',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '1.1rem',
+          fontWeight: 'bold',
+          padding: 0
+        }}
+      >
+        ←
+      </button>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Link
-              href="/chat"
-              style={{
-                backgroundColor: '#1e293b',
-                color: '#38bdf8',
-                border: '1px solid #334155',
-                borderRadius: '20px',
-                padding: '0.35rem 0.85rem',
-                fontSize: '0.78rem',
-                fontWeight: '700',
-                textDecoration: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.35rem'
-              }}
-            >
-              <span>💬</span> Chat
-            </Link>
-            <Link
-              href="/employer"
-              style={{
-                backgroundColor: '#0284c7',
-                color: '#fff',
-                textDecoration: 'none',
-                fontSize: '0.78rem',
-                fontWeight: '700',
-                padding: '0.4rem 0.75rem',
-                borderRadius: '8px'
-              }}
-            >
-              + Post
-            </Link>
-          </div>
-        </div>
-      </header>
+      {/* SHANORA.PK Brand Capsule */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.55rem',
+          backgroundColor: '#0f172a',
+          padding: '0.35rem 0.85rem',
+          borderRadius: '14px',
+          border: '1px solid #1e293b',
+          height: '38px',
+          boxSizing: 'border-box'
+        }}
+      >
+        <span
+          style={{
+            backgroundColor: '#0284c7',
+            color: '#fff',
+            fontWeight: '900',
+            fontSize: '0.95rem',
+            width: '26px',
+            height: '26px',
+            borderRadius: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+        >
+          S
+        </span>
+        <span
+          style={{
+            fontWeight: '900',
+            fontSize: '1.05rem',
+            letterSpacing: '0.5px',
+            color: '#ffffff'
+          }}
+        >
+          SHANORA<span style={{ color: '#38bdf8', fontSize: '0.78rem' }}>.PK</span>
+        </span>
+      </div>
+    </div>
+
+    {/* Right Action: Chat Button */}
+    <Link
+      href="/chat"
+      style={{
+        backgroundColor: '#0f172a',
+        color: '#38bdf8',
+        border: '1px solid #1e293b',
+        borderRadius: '20px',
+        height: '38px',
+        padding: '0 1rem',
+        fontSize: '0.85rem',
+        fontWeight: '700',
+        textDecoration: 'none',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.45rem',
+        boxSizing: 'border-box'
+      }}
+    >
+      <span style={{ fontSize: '1rem' }}>💬</span> Chat
+    </Link>
+  </div>
+</header>
 
       <main style={{ maxWidth: '640px', margin: '0 auto', padding: '0.9rem 0.8rem 5.5rem 0.8rem' }}>
         {/* Tab Title Banner */}
