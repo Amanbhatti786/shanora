@@ -15,19 +15,43 @@ function BottomNavContent() {
 
   useEffect(() => {
     let isMounted = true;
+    let channel = null;
 
     async function fetchUnreadNotifications() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.user?.email || !isMounted) return;
 
-        const { count } = await supabase
+        const cleanEmail = session.user.email.toLowerCase();
+
+        const { count, error } = await supabase
           .from('notifications')
           .select('*', { count: 'exact', head: true })
-          .eq('recipient_email', session.user.email)
+          .ilike('recipient_email', cleanEmail)
           .eq('is_read', false);
 
+        if (error) throw error;
         if (isMounted) setUnreadCount(count || 0);
+
+        // Supabase Realtime Listener setup
+        if (!channel) {
+          channel = supabase
+            .channel('realtime_alerts_badge')
+            .on(
+              'postgres_changes',
+              {
+                event: '*',
+                schema: 'public',
+                table: 'notifications'
+              },
+              () => {
+                if (isMounted) {
+                  fetchUnreadNotifications();
+                }
+              }
+            )
+            .subscribe();
+        }
       } catch (err) {
         console.error('Error fetching unread notifications count:', err);
       }
@@ -37,8 +61,17 @@ function BottomNavContent() {
       fetchUnreadNotifications();
     }
 
+    // Auth status change listener
+    const { data: authListener } = supabase.auth.onAuthStateChange(() => {
+      if (!hideBottomNav && isMounted) {
+        fetchUnreadNotifications();
+      }
+    });
+
     return () => {
       isMounted = false;
+      if (channel) supabase.removeChannel(channel);
+      if (authListener?.subscription) authListener.subscription.unsubscribe();
     };
   }, [pathname, hideBottomNav]);
 
@@ -212,7 +245,7 @@ function BottomNavContent() {
                     boxShadow: '0 2px 6px rgba(239, 68, 68, 0.6)'
                   }}
                 >
-                  {item.badge}
+                  {item.badge > 99 ? '99+' : item.badge}
                 </span>
               )}
             </div>
