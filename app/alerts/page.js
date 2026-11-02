@@ -15,21 +15,13 @@ export default function AlertsPage() {
 
   useEffect(() => {
     let notifChannel;
+    let isMounted = true;
 
-    async function initAlerts() {
+    async function fetchAlertsForEmail(email) {
+      if (!email) return;
+      const myEmail = email.toLowerCase().trim();
+
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const user = session?.user || null;
-        setCurrentUser(user);
-
-        if (!user?.email) {
-          setLoading(false);
-          return;
-        }
-
-        const myEmail = user.email.toLowerCase().trim();
-
-        // 1. Original Notifications Query
         const { data, error } = await supabase
           .from('notifications')
           .select('*')
@@ -37,39 +29,87 @@ export default function AlertsPage() {
           .order('created_at', { ascending: false })
           .limit(40);
 
-        if (!error && data) {
+        if (!error && data && isMounted) {
           setNotifications(data);
-          setUnreadCount(data.filter(n => !n.is_read).length);
+          setUnreadCount(data.filter((n) => !n.is_read).length);
         }
-
-        // 2. Original Realtime Listener
-        notifChannel = supabase
-          .channel(`alerts_realtime_${myEmail}`)
-          .on(
-            'postgres_changes',
-            {
-              event: 'INSERT',
-              schema: 'public',
-              table: 'notifications',
-              filter: `recipient_email=eq.${myEmail}`
-            },
-            (payload) => {
-              setNotifications((prev) => [payload.new, ...prev]);
-              setUnreadCount((prev) => prev + 1);
-            }
-          )
-          .subscribe();
-
       } catch (err) {
         console.error('Error fetching alerts:', err);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
+      }
+    }
+
+    function setupRealtimeListener(email) {
+      const myEmail = email.toLowerCase().trim();
+      if (notifChannel) supabase.removeChannel(notifChannel);
+
+      notifChannel = supabase
+        .channel(`alerts_realtime_${myEmail}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'notifications',
+            filter: `recipient_email=eq.${myEmail}`
+          },
+          (payload) => {
+            if (isMounted) {
+              setNotifications((prev) => [payload.new, ...prev]);
+              setUnreadCount((prev) => prev + 1);
+            }
+          }
+        )
+        .subscribe();
+    }
+
+    async function initAlerts() {
+      try {
+        // 1. Direct session check
+        const { data: { session } } = await supabase.auth.getSession();
+        let user = session?.user || null;
+
+        // 2. Fallback to auth.getUser() if session takes time
+        if (!user) {
+          const { data: userData } = await supabase.auth.getUser();
+          user = userData?.user || null;
+        }
+
+        if (user?.email && isMounted) {
+          setCurrentUser(user);
+          await fetchAlertsForEmail(user.email);
+          setupRealtimeListener(user.email);
+          return;
+        }
+
+        // 3. Auth state change listener for delayed client-side hydration
+        const { data: authListener } = supabase.auth.onAuthStateChange(
+          async (_event, newSession) => {
+            const newUser = newSession?.user || null;
+            if (newUser?.email && isMounted) {
+              setCurrentUser(newUser);
+              await fetchAlertsForEmail(newUser.email);
+              setupRealtimeListener(newUser.email);
+            } else if (isMounted) {
+              setLoading(false);
+            }
+          }
+        );
+
+        return () => {
+          authListener?.subscription?.unsubscribe();
+        };
+      } catch (err) {
+        console.error('Error initializing alerts auth:', err);
+        if (isMounted) setLoading(false);
       }
     }
 
     initAlerts();
 
     return () => {
+      isMounted = false;
       if (notifChannel) {
         supabase.removeChannel(notifChannel);
       }
@@ -159,7 +199,9 @@ export default function AlertsPage() {
       {/* Main Body */}
       <main style={{ maxWidth: '640px', margin: '0 auto', padding: '1rem 0.8rem 5.5rem 0.8rem' }}>
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '3rem', color: '#38bdf8' }}>Loading notifications...</div>
+          <div style={{ textAlign: 'center', padding: '3rem', color: '#38bdf8', fontWeight: '600' }}>
+            Loading notifications...
+          </div>
         ) : !currentUser ? (
           <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '2.5rem', textAlign: 'center' }}>
             <p style={{ color: '#94a3b8', marginBottom: '1rem' }}>Please log in to check your alerts.</p>
@@ -278,7 +320,7 @@ export default function AlertsPage() {
         )}
       </main>
 
-      {/* Dedicated Persistent Bottom Navigation */}
+      {/* Persistent Bottom Nav Bar */}
       <BottomNav />
     </div>
   );
