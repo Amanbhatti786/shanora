@@ -80,7 +80,7 @@ function BottomNavigation() {
     },
     {
       label: 'Alerts',
-      href: '/profile?tab=notifications',
+       href="/alerts"
       isActive: isAlertsActive,
       activeColor: '#f43f5e',
       cardBg: 'linear-gradient(180deg, rgba(244, 63, 94, 0.22) 0%, rgba(15, 23, 42, 0.95) 100%)',
@@ -96,7 +96,7 @@ function BottomNavigation() {
     },
     {
       label: 'Jobs',
-      href: '/profile?tab=jobs',
+      href="/jobs"
       isActive: isJobsActive,
       activeColor: '#a855f7',
       cardBg: 'linear-gradient(180deg, rgba(168, 85, 247, 0.22) 0%, rgba(15, 23, 42, 0.95) 100%)',
