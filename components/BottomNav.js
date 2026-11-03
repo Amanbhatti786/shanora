@@ -17,61 +17,72 @@ function BottomNavContent() {
     let isMounted = true;
     let channel = null;
 
-    async function fetchUnreadNotifications() {
+    async function initNotifications() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.user?.email || !isMounted) return;
 
         const cleanEmail = session.user.email.toLowerCase();
 
+        // 1. Initial Unread Count Fetch
         const { count, error } = await supabase
           .from('notifications')
           .select('*', { count: 'exact', head: true })
           .ilike('recipient_email', cleanEmail)
           .eq('is_read', false);
 
-        if (error) throw error;
-        if (isMounted) setUnreadCount(count || 0);
+        if (!error && isMounted) {
+          setUnreadCount(count || 0);
+        }
 
-        // Supabase Realtime Listener setup
-        if (!channel) {
-          channel = supabase
-            .channel('realtime_alerts_badge')
-            .on(
-              'postgres_changes',
-              {
-                event: '*',
-                schema: 'public',
-                table: 'notifications'
-              },
-              () => {
-                if (isMounted) {
-                  fetchUnreadNotifications();
+        // 2. Dedicated User Realtime Channel
+        const channelName = `user_alerts_${cleanEmail.replace(/[^a-zA-Z0-9]/g, '_')}`;
+        
+        channel = supabase
+          .channel(channelName)
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'notifications'
+            },
+            (payload) => {
+              if (!isMounted) return;
+
+              // Check if notification belongs to this user
+              const recEmail = (payload.new?.recipient_email || payload.old?.recipient_email || '').toLowerCase();
+              if (recEmail === cleanEmail) {
+                if (payload.eventType === 'INSERT' && payload.new?.is_read === false) {
+                  setUnreadCount(prev => prev + 1);
+                } else if (payload.eventType === 'UPDATE') {
+                  if (payload.old?.is_read === false && payload.new?.is_read === true) {
+                    setUnreadCount(prev => Math.max(0, prev - 1));
+                  } else if (payload.old?.is_read === true && payload.new?.is_read === false) {
+                    setUnreadCount(prev => prev + 1);
+                  }
+                } else if (payload.eventType === 'DELETE' && payload.old?.is_read === false) {
+                  setUnreadCount(prev => Math.max(0, prev - 1));
                 }
               }
-            )
-            .subscribe();
-        }
+            }
+          )
+          .subscribe();
+
       } catch (err) {
-        console.error('Error fetching unread notifications count:', err);
+        console.error('Realtime notification initialization error:', err);
       }
     }
 
     if (!hideBottomNav) {
-      fetchUnreadNotifications();
+      initNotifications();
     }
-
-    // Auth status change listener
-    const { data: authListener } = supabase.auth.onAuthStateChange(() => {
-      if (!hideBottomNav && isMounted) {
-        fetchUnreadNotifications();
-      }
-    });
 
     return () => {
       isMounted = false;
-      if (channel) supabase.removeChannel(channel);
-      if (authListener?.subscription) authListener.subscription.unsubscribe();
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
     };
   }, [pathname, hideBottomNav]);
 
