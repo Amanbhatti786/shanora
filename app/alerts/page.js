@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { Suspense, useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -68,6 +70,7 @@ function AlertsContent() {
         rawList
           .map((n) => n.sender_email || n.sender_username)
           .filter(Boolean)
+          .map(item => item.toLowerCase().trim())
       )
     );
 
@@ -105,7 +108,7 @@ function AlertsContent() {
       if (resolvedUsername) {
         targetProfileUrl = `/view-profile?username=${encodeURIComponent(resolvedUsername)}`;
       } else if (resolvedEmail) {
-        targetProfileUrl = `/view-profile?email=${encodeURIComponent(resolvedEmail)}`;
+        targetProfileUrl = `/view-profile?email=${encodeURIComponent(resolvedEmail.toLowerCase())}`;
       }
 
       return {
@@ -166,13 +169,14 @@ function AlertsContent() {
     };
   }, []);
 
-  // Real-time listener
+  // Real-time listener calibrated to user email
   useEffect(() => {
     if (!currentUser?.email) return;
     const userEmail = (currentUser.email || '').trim().toLowerCase();
+    const cleanChannelName = `alerts_page_${userEmail.replace(/[^a-zA-Z0-9]/g, '_')}`;
 
     const channel = supabase
-      .channel(`realtime_notifications_${currentUser.id}`)
+      .channel(cleanChannelName)
       .on(
         'postgres_changes',
         {
@@ -193,9 +197,11 @@ function AlertsContent() {
               }
             } else if (payload.eventType === 'UPDATE' && payload.new) {
               const updated = payload.new;
-              setNotifications((prev) =>
-                prev.map((item) => (item.id === updated.id ? { ...item, ...updated } : item))
-              );
+              if (safeString(updated.recipient_email).toLowerCase() === userEmail) {
+                setNotifications((prev) =>
+                  prev.map((item) => (item.id === updated.id ? { ...item, ...updated } : item))
+                );
+              }
             } else if (payload.eventType === 'DELETE' && payload.old) {
               const deleted = payload.old;
               setNotifications((prev) => prev.filter((item) => item.id !== deleted.id));
@@ -275,15 +281,16 @@ function AlertsContent() {
 
   const handleClearAll = async () => {
     if (!currentUser || notifications.length === 0) return;
-    const confirmClear = window.confirm('Are you sure you want to clear all notifications?');
+    const confirmClear = window.confirm('Are you sure you want to mark all as read?');
     if (!confirmClear) return;
 
-    setNotifications([]);
+    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
     try {
       await supabase
         .from('notifications')
-        .delete()
-        .ilike('recipient_email', (currentUser.email || '').toLowerCase());
+        .update({ is_read: true })
+        .ilike('recipient_email', (currentUser.email || '').toLowerCase())
+        .eq('is_read', false);
     } catch (err) {
       console.error('Error clearing notifications:', err);
     }
@@ -320,7 +327,7 @@ function AlertsContent() {
         return;
       }
       if (notif.sender_email) {
-        router.push(`/view-profile?email=${encodeURIComponent(notif.sender_email)}`);
+        router.push(`/view-profile?email=${encodeURIComponent(notif.sender_email.toLowerCase())}`);
         return;
       }
       return;
@@ -330,7 +337,9 @@ function AlertsContent() {
     const isComment =
       action.includes('comment') ||
       content.includes('comment') ||
-      content.includes('commented');
+      content.includes('commented') ||
+      action.includes('reply') ||
+      content.includes('replied');
 
     if (isComment) {
       if (postId) {
@@ -369,7 +378,7 @@ function AlertsContent() {
     // 5. MESSAGES
     if (action.includes('message') || content.includes('message')) {
       if (notif.sender_email) {
-        router.push(`/chat?recipient=${encodeURIComponent(notif.sender_email)}`);
+        router.push(`/chat?recipient=${encodeURIComponent(notif.sender_email.toLowerCase())}`);
       } else {
         router.push('/chat');
       }
@@ -393,7 +402,7 @@ function AlertsContent() {
     if (action.includes('like') || content.includes('liked')) {
       return { icon: '❤️', bg: 'rgba(239, 68, 68, 0.18)', border: '#ef4444' };
     }
-    if (action.includes('comment') || content.includes('commented')) {
+    if (action.includes('comment') || content.includes('commented') || action.includes('reply') || content.includes('replied')) {
       return { icon: '💬', bg: 'rgba(56, 189, 248, 0.18)', border: '#38bdf8' };
     }
     if (action.includes('connect') || content.includes('connection')) {
@@ -575,7 +584,7 @@ function AlertsContent() {
             </span>
           </div>
 
-          {notifications.length > 0 && (
+          {unreadTotal > 0 && (
             <button
               type="button"
               onClick={handleClearAll}
@@ -588,7 +597,7 @@ function AlertsContent() {
                 padding: '4px 6px'
               }}
             >
-              Clear all
+              Mark all as read
             </button>
           )}
         </div>
@@ -664,7 +673,7 @@ function AlertsContent() {
               const meta = getTypeMeta(n);
               const isUnread = !n?.is_read;
               const contentText = safeString(n?.content) || '';
-              const profileHref = n.targetProfileUrl || (n.sender_email ? `/view-profile?email=${encodeURIComponent(n.sender_email)}` : '#');
+              const profileHref = n.targetProfileUrl || (n.sender_email ? `/view-profile?email=${encodeURIComponent(n.sender_email.toLowerCase())}` : '#');
 
               return (
                 <div
