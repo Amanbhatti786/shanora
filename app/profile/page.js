@@ -1762,7 +1762,7 @@ function ProfilePortalContent() {
 
       setAdSuccessMessage('Campaign submitted successfully! It is now under Admin Approval.');
 
-      setAdStep(5);
+      setAdStep(6);
 
     } catch (err) {
 
@@ -1984,7 +1984,19 @@ function ProfilePortalContent() {
 
             type="button"
 
-            onClick={() => router.back()}
+            onClick={() => {
+
+              if (activeTab !== 'menu') {
+
+                setActiveTab('menu');
+
+              } else {
+
+                router.push('/feed');
+
+              }
+
+            }}
 
             style={{
 
@@ -1998,7 +2010,7 @@ function ProfilePortalContent() {
 
               border: '1px solid #1e293b',
 
-              color: '#fff',
+              color: '#38bdf8',
 
               cursor: 'pointer',
 
@@ -2008,7 +2020,7 @@ function ProfilePortalContent() {
 
               justifyContent: 'center',
 
-              fontSize: '1rem',
+              fontSize: activeTab !== 'menu' ? '1.1rem' : '1rem',
 
               fontWeight: 'bold',
 
@@ -2018,7 +2030,7 @@ function ProfilePortalContent() {
 
           >
 
-            ←
+            {activeTab !== 'menu' ? '✕' : '←'}
 
           </button>
 
@@ -2426,6 +2438,18 @@ function ProfilePortalContent() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
 
+            {/* Internal Close Bar */}
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0f172a', padding: '0.65rem 0.9rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
+
+              <span style={{ fontWeight: '800', fontSize: '0.9rem', color: '#facc15' }}>👑 Shanora PRO</span>
+
+              <button type="button" onClick={() => setActiveTab('menu')} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer', padding: 0 }}>✕</button>
+
+            </div>
+
+
+
             <div style={{
 
               background: 'linear-gradient(135deg, rgba(234, 179, 8, 0.15) 0%, rgba(2, 132, 199, 0.15) 100%)',
@@ -2618,6 +2642,18 @@ function ProfilePortalContent() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
 
+            {/* Internal Close Bar */}
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0f172a', padding: '0.65rem 0.9rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
+
+              <span style={{ fontWeight: '800', fontSize: '0.9rem', color: '#38bdf8' }}>📊 Creator Dashboard</span>
+
+              <button type="button" onClick={() => setActiveTab('menu')} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer', padding: 0 }}>✕</button>
+
+            </div>
+
+
+
             <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.3rem' }}>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.8rem' }}>
@@ -2755,6 +2791,18 @@ function ProfilePortalContent() {
         {activeTab === 'profile' && (
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+
+            {/* Internal Close Bar */}
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0f172a', padding: '0.65rem 0.9rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
+
+              <span style={{ fontWeight: '800', fontSize: '0.9rem', color: '#38bdf8' }}>👤 My Profile</span>
+
+              <button type="button" onClick={() => setActiveTab('menu')} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer', padding: 0 }}>✕</button>
+
+            </div>
+
+
 
             <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.4rem' }}>
 
@@ -2952,11 +3000,17 @@ function ProfilePortalContent() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
 
-            <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0f172a', padding: '0.65rem 0.9rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
 
-              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800', color: '#fff' }}>Messaging</h3>
+              <div>
 
-              <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Direct 1-on-1 conversations & connections</span>
+                <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: '800', color: '#fff' }}>💬 Direct Messages</h3>
+
+                <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>1-on-1 conversations</span>
+
+              </div>
+
+              <button type="button" onClick={() => setActiveTab('menu')} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer', padding: 0 }}>✕</button>
 
             </div>
 
@@ -3306,11 +3360,17 @@ function ProfilePortalContent() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0f172a', padding: '0.65rem 0.9rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
 
-              <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '800', color: '#fff' }}>Your Pages ({myPages.length})</h3>
+              <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: '800', color: '#fff' }}>🏢 Your Pages ({myPages.length})</h3>
 
-              <Link href="/create-page" style={{ backgroundColor: '#0284c7', color: '#fff', padding: '0.45rem 0.9rem', borderRadius: '8px', fontSize: '0.78rem', textDecoration: 'none', fontWeight: 'bold' }}>+ New Page</Link>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+
+                <Link href="/create-page" style={{ backgroundColor: '#0284c7', color: '#fff', padding: '0.35rem 0.75rem', borderRadius: '8px', fontSize: '0.75rem', textDecoration: 'none', fontWeight: 'bold' }}>+ New Page</Link>
+
+                <button type="button" onClick={() => setActiveTab('menu')} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer', padding: 0 }}>✕</button>
+
+              </div>
 
             </div>
 
@@ -3351,6 +3411,18 @@ function ProfilePortalContent() {
         {activeTab === 'resume' && (
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.4rem' }}>
+
+            {/* Internal Close Bar */}
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0f172a', padding: '0.65rem 0.9rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
+
+              <span style={{ fontWeight: '800', fontSize: '0.9rem', color: '#facc15' }}>📄 ATS Resume Studio</span>
+
+              <button type="button" onClick={() => setActiveTab('menu')} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer', padding: 0 }}>✕</button>
+
+            </div>
+
+
 
             {!profile.is_pro ? (
 
@@ -3902,11 +3974,13 @@ function ProfilePortalContent() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
 
-            <div>
+            {/* Internal Close Bar */}
 
-              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800', color: '#fff' }}>Creator Monetization Hub</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0f172a', padding: '0.65rem 0.9rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
 
-              <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Live criteria metrics, creator bonus, and payout wallet</span>
+              <span style={{ fontWeight: '800', fontSize: '0.9rem', color: '#4ade80' }}>💰 Creator Monetization Hub</span>
+
+              <button type="button" onClick={() => setActiveTab('menu')} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer', padding: 0 }}>✕</button>
 
             </div>
 
@@ -4310,11 +4384,13 @@ function ProfilePortalContent() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
 
-            <div>
+            {/* Internal Close Bar */}
 
-              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800', color: '#fff' }}>Saved Posts & Bookmarks</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0f172a', padding: '0.65rem 0.9rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
 
-              <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Your personal repository of saved feed updates</span>
+              <span style={{ fontWeight: '800', fontSize: '0.9rem', color: '#c084fc' }}>🔖 Saved Posts & Bookmarks</span>
+
+              <button type="button" onClick={() => setActiveTab('menu')} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer', padding: 0 }}>✕</button>
 
             </div>
 
@@ -4424,11 +4500,13 @@ function ProfilePortalContent() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
 
-            <div>
+            {/* Internal Close Bar */}
 
-              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800', color: '#fff' }}>Settings & Privacy</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0f172a', padding: '0.65rem 0.9rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
 
-              <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Manage preferences, security, and account configuration</span>
+              <span style={{ fontWeight: '800', fontSize: '0.9rem', color: '#cbd5e1' }}>⚙️ Settings & Privacy</span>
+
+              <button type="button" onClick={() => setActiveTab('menu')} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer', padding: 0 }}>✕</button>
 
             </div>
 
@@ -4911,6 +4989,16 @@ function ProfilePortalContent() {
         {activeTab === 'network' && (
 
           <div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0f172a', padding: '0.65rem 0.9rem', borderRadius: '12px', border: '1px solid #1e293b', marginBottom: '1rem' }}>
+
+              <span style={{ fontWeight: '800', fontSize: '0.9rem', color: '#38bdf8' }}>👥 My Network</span>
+
+              <button type="button" onClick={() => setActiveTab('menu')} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer', padding: 0 }}>✕</button>
+
+            </div>
+
+
 
             <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.2rem', backgroundColor: '#0f172a', padding: '0.35rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
 
@@ -5514,7 +5602,7 @@ function ProfilePortalContent() {
 
             onClick={(e) => e.stopPropagation()}
 
-           style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', maxWidth: '520px', width: '100%', maxHeight: '82vh', overflowY: 'auto', padding: '1.2rem 1.2rem 3.5rem 1.2rem', boxSizing: 'border-box' }}
+            style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', maxWidth: '520px', width: '100%', maxHeight: '82vh', overflowY: 'auto', padding: '1.2rem 1.2rem 3.5rem 1.2rem', boxSizing: 'border-box' }}
 
           >
 
@@ -5779,7 +5867,9 @@ function ProfilePortalContent() {
                 })}
 
               </div>
-                <div style={{ height: '70px', width: '100%', flexShrink: 0 }}> </div>
+
+              <div style={{ height: '70px', width: '100%', flexShrink: 0 }}></div>
+
             </div>
 
           </div>
