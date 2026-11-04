@@ -1,7 +1,5 @@
 'use client';
 
-
-
 import { Suspense, useState, useEffect, useRef } from 'react';
 
 import Link from 'next/link';
@@ -11,8 +9,6 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '../../lib/supabaseClient';
 
 import BottomNav from '../../components/BottomNav';
-
-
 
 function sanitizeInput(str) {
 
@@ -1603,7 +1599,7 @@ function ProfilePortalContent() {
     { id: 'saved', label: `Saved Posts (${savedPostsList.length})`, icon: '🔖', bg: 'rgba(168, 85, 247, 0.12)', border: 'rgba(168, 85, 247, 0.25)' },
 
     { id: 'settings', label: 'Settings ⚙️', icon: '⚙️', bg: 'rgba(148, 163, 184, 0.12)', border: 'rgba(148, 163, 184, 0.25)' }
-
+    { id: 'security', label: 'Account Security 🔒', icon: '🔒', bg: 'rgba(56, 189, 248, 0.15)', path: '/settings/security' }
   ];
 
 
