@@ -34,6 +34,62 @@ function sanitizeInput(str) {
 
 
 
+// Executive High-End Verified PRO Badge Component
+
+function ProVerifiedBadge({ size = 18 }) {
+
+  return (
+
+    <span 
+
+      title="Verified PRO Member" 
+
+      style={{ 
+
+        display: 'inline-flex', 
+
+        alignItems: 'center', 
+
+        justifyContent: 'center',
+
+        verticalAlign: 'middle',
+
+        marginLeft: '4px',
+
+        flexShrink: 0
+
+      }}
+
+    >
+
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+
+        <circle cx="12" cy="12" r="10.5" fill="url(#proBadgeGrad)" stroke="#38bdf8" strokeWidth="1.2" />
+
+        <path d="M7.5 12.2L10.3 15L16.5 9" stroke="#ffffff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+
+        <defs>
+
+          <linearGradient id="proBadgeGrad" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
+
+            <stop stopColor="#0284c7" />
+
+            <stop offset="1" stopColor="#0369a1" />
+
+          </linearGradient>
+
+        </defs>
+
+      </svg>
+
+    </span>
+
+  );
+
+}
+
+
+
 function ProfilePortalContent() {
 
   const router = useRouter();
@@ -52,7 +108,7 @@ function ProfilePortalContent() {
 
 
 
-  // New Modals for Menu Features
+  // Modals for Menu Features
 
   const [showInviteModal, setShowInviteModal] = useState(false);
 
@@ -226,6 +282,8 @@ function ProfilePortalContent() {
 
 
 
+  // Messenger Real-Time State
+
   const [messageSearchQuery, setMessageSearchQuery] = useState('');
 
   const [activeChatUser, setActiveChatUser] = useState(null);
@@ -274,7 +332,7 @@ function ProfilePortalContent() {
 
 
 
-  // Synchronous route redirection to dedicated routes
+  // Synchronous route redirection
 
   useEffect(() => {
 
@@ -466,7 +524,7 @@ function ProfilePortalContent() {
 
               .from('profiles')
 
-              .select('email, name, full_name, username, avatar_url')
+              .select('email, name, full_name, username, avatar_url, last_seen, is_pro')
 
               .in('email', allNetworkEmails);
 
@@ -482,7 +540,11 @@ function ProfilePortalContent() {
 
                   avatarUrl: p.avatar_url,
 
-                  username: p.username || p.email.split('@')[0]
+                  username: p.username || p.email.split('@')[0],
+
+                  last_seen: p.last_seen,
+
+                  is_pro: !!p.is_pro
 
                 };
 
@@ -506,11 +568,17 @@ function ProfilePortalContent() {
 
               user_email: email,
 
+              email: email,
+
               displayName: prof.displayName || email.split('@')[0],
 
               avatarUrl: prof.avatarUrl || null,
 
-              username: prof.username || email.split('@')[0]
+              username: prof.username || email.split('@')[0],
+
+              last_seen: prof.last_seen,
+
+              is_pro: prof.is_pro
 
             };
 
@@ -530,11 +598,17 @@ function ProfilePortalContent() {
 
               user_email: email,
 
+              email: email,
+
               displayName: prof.displayName || email.split('@')[0],
 
               avatarUrl: prof.avatarUrl || null,
 
-              username: prof.username || email.split('@')[0]
+              username: prof.username || email.split('@')[0],
+
+              last_seen: prof.last_seen,
+
+              is_pro: prof.is_pro
 
             };
 
@@ -620,7 +694,7 @@ function ProfilePortalContent() {
 
 
 
-        // Fetch user referral count
+        // Referral count
 
         supabase.from('user_referrals')
 
@@ -635,6 +709,8 @@ function ProfilePortalContent() {
           });
 
 
+
+        // Update live presence
 
         supabase.from('profiles').update({ last_seen: new Date().toISOString() }).ilike('email', myEmail);
 
@@ -658,6 +734,26 @@ function ProfilePortalContent() {
 
 
 
+  // Periodic heartbeat every 60s
+
+  useEffect(() => {
+
+    if (!user?.email) return;
+
+    const interval = setInterval(() => {
+
+      supabase.from('profiles').update({ last_seen: new Date().toISOString() }).ilike('email', user.email.toLowerCase());
+
+    }, 60000);
+
+    return () => clearInterval(interval);
+
+  }, [user]);
+
+
+
+  // Load Messenger Contacts
+
   useEffect(() => {
 
     if (!user?.email) return;
@@ -666,9 +762,9 @@ function ProfilePortalContent() {
 
 
 
-    if (activeTab === 'messages' && allUsersList.length === 0) {
+    if (activeTab === 'messages') {
 
-      supabase.from('profiles').select('*').limit(60).then(({ data: profiles }) => {
+      supabase.from('profiles').select('email, full_name, name, headline, avatar_url, last_seen, is_pro').limit(100).then(({ data: profiles }) => {
 
         if (profiles) {
 
@@ -760,9 +856,11 @@ function ProfilePortalContent() {
 
     }
 
-  }, [activeTab, user, followingMap, allUsersList.length, savedPostsList.length, discoverUsers.length]);
+  }, [activeTab, user, followingMap, savedPostsList.length, discoverUsers.length]);
 
 
+
+  // Private 1-on-1 Chat Thread & Realtime listener (FB/LinkedIn Style)
 
   useEffect(() => {
 
@@ -814,15 +912,27 @@ function ProfilePortalContent() {
 
         const msg = payload.new;
 
+        const msgSender = (msg.sender_email || '').toLowerCase();
+
+        const msgReceiver = (msg.receiver_email || '').toLowerCase();
+
+
+
         if (
 
-          (msg.sender_email.toLowerCase() === myEmail && msg.receiver_email.toLowerCase() === otherEmail) ||
+          (msgSender === myEmail && msgReceiver === otherEmail) ||
 
-          (msg.sender_email.toLowerCase() === otherEmail && msg.receiver_email.toLowerCase() === myEmail)
+          (msgSender === otherEmail && msgReceiver === myEmail)
 
         ) {
 
-          setChatMessages(prev => [...prev, msg]);
+          setChatMessages(prev => {
+
+            if (prev.some(m => m.id === msg.id)) return prev;
+
+            return [...prev, msg];
+
+          });
 
           scrollToBottom();
 
@@ -942,13 +1052,15 @@ function ProfilePortalContent() {
 
 
 
+  // Active status helper (True if user interacted within 3 minutes)
+
   function isUserOnline(lastSeen) {
 
     if (!lastSeen) return false;
 
     const diff = Date.now() - new Date(lastSeen).getTime();
 
-    return diff > 0 && diff < 3 * 60 * 1000;
+    return diff >= 0 && diff < 3 * 60 * 1000;
 
   }
 
@@ -1616,7 +1728,7 @@ function ProfilePortalContent() {
 
 
 
-  // Handle Dynamic Milestone Claiming
+  // Handle Milestone Claiming
 
   async function handleClaimMilestone(milestone) {
 
@@ -1678,7 +1790,7 @@ function ProfilePortalContent() {
 
 
 
-  // Handle Create Advertisement Submission
+  // Handle Create Advertisement
 
   async function handleCreateAd(e) {
 
@@ -1778,6 +1890,8 @@ function ProfilePortalContent() {
 
 
 
+  // Messenger User Sorting & Filtering
+
   const sortedMessengerUsers = [...allUsersList].sort((a, b) => {
 
     const timeA = userLastMessagesMap[(a.email || '').toLowerCase()]?.time || 0;
@@ -1828,8 +1942,6 @@ function ProfilePortalContent() {
 
 
 
-  // Clean Menu Items
-
   const allMenuItems = [
 
     { id: 'pro', label: 'Shanora PRO 👑', icon: '👑', bg: 'rgba(234, 179, 8, 0.15)', border: 'rgba(234, 179, 8, 0.4)' },
@@ -1859,8 +1971,6 @@ function ProfilePortalContent() {
   ];
 
 
-
-  // Unique Referral Link for logged in user
 
   const referralLink = `${typeof window !== 'undefined' ? window.location.origin : 'https://shanora-pk.vercel.app'}/auth?ref=${encodeURIComponent(user?.email?.split('@')[0] || 'member')}`;
 
@@ -1935,8 +2045,6 @@ function ProfilePortalContent() {
   }
 
 
-
-  // Referral Milestones Array
 
   const referralMilestones = [
 
@@ -2136,7 +2244,7 @@ function ProfilePortalContent() {
 
           <span>💬</span>
 
-          <span>Chat</span>
+          <span>Messenger</span>
 
         </button>
 
@@ -2228,7 +2336,7 @@ function ProfilePortalContent() {
 
                   <span>{profile.full_name}</span>
 
-                  {profile.is_pro && <span title="Verified Pro" style={{ color: '#38bdf8', fontSize: '0.9rem' }}>✓</span>}
+                  {profile.is_pro && <ProVerifiedBadge size={17} />}
 
                   {profile.is_ambassador && <span title="Official Ambassador" style={{ color: '#facc15', fontSize: '0.9rem' }}>🌟</span>}
 
@@ -2438,8 +2546,6 @@ function ProfilePortalContent() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
 
-            {/* Internal Close Bar */}
-
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0f172a', padding: '0.65rem 0.9rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
 
               <span style={{ fontWeight: '800', fontSize: '0.9rem', color: '#facc15' }}>👑 Shanora PRO</span>
@@ -2468,7 +2574,7 @@ function ProfilePortalContent() {
 
               <h2 style={{ fontSize: '1.35rem', fontWeight: '900', color: '#facc15', margin: '0 0 0.3rem 0' }}>Shanora PRO</h2>
 
-              <p style={{ color: '#cbd5e1', fontSize: '0.85rem', margin: '0 0 1rem 0' }}>Get the official Blue Tick and unlock premium privileges.</p>
+              <p style={{ color: '#cbd5e1', fontSize: '0.85rem', margin: '0 0 1rem 0' }}>Unlock the prestigious verified badge and premium career features.</p>
 
 
 
@@ -2486,7 +2592,7 @@ function ProfilePortalContent() {
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.82rem', color: '#cbd5e1' }}>
 
-                    <div>✓ <strong>Verified Badge:</strong> Blue Tick is active across your profile and posts.</div>
+                    <div>✓ <strong>Executive Verified Badge:</strong> Cyan-Blue starburst badge is active across your profile and posts.</div>
 
                     <div>✓ <strong>ATS Resume Builder:</strong> Unlimited professional CV generation & PDF download unlocked.</div>
 
@@ -2512,7 +2618,7 @@ function ProfilePortalContent() {
 
                   <p style={{ margin: 0, fontSize: '0.8rem', color: '#94a3b8', lineHeight: '1.4' }}>
 
-                    Your payment request (TID: <strong style={{ color: '#fff' }}>{latestProRequest.transaction_id}</strong>) is currently being reviewed. The verified Blue Tick will be enabled immediately after review.
+                    Your payment request (TID: <strong style={{ color: '#fff' }}>{latestProRequest.transaction_id}</strong>) is currently being reviewed. The verified badge will be enabled immediately after review.
 
                   </p>
 
@@ -2526,7 +2632,7 @@ function ProfilePortalContent() {
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', fontSize: '0.8rem', color: '#94a3b8', marginBottom: '1.2rem' }}>
 
-                    <div>✓ <strong>Verified Blue Tick:</strong> Stand out across feeds, comments, and discovery.</div>
+                    <div>✓ <strong>Official Verified Badge:</strong> Stand out with a glowing cyan-blue executive badge.</div>
 
                     <div>✓ <strong>ATS Resume Builder:</strong> Build & Export ATS-Friendly CV in 1-Click.</div>
 
@@ -2642,8 +2748,6 @@ function ProfilePortalContent() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
 
-            {/* Internal Close Bar */}
-
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0f172a', padding: '0.65rem 0.9rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
 
               <span style={{ fontWeight: '800', fontSize: '0.9rem', color: '#38bdf8' }}>📊 Creator Dashboard</span>
@@ -2670,7 +2774,7 @@ function ProfilePortalContent() {
 
                     <span>{profile.full_name}</span>
 
-                    {profile.is_pro && <span title="Verified Pro" style={{ color: '#38bdf8', fontSize: '0.95rem' }}>✓</span>}
+                    {profile.is_pro && <ProVerifiedBadge size={19} />}
 
                   </h2>
 
@@ -2792,8 +2896,6 @@ function ProfilePortalContent() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
 
-            {/* Internal Close Bar */}
-
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0f172a', padding: '0.65rem 0.9rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
 
               <span style={{ fontWeight: '800', fontSize: '0.9rem', color: '#38bdf8' }}>👤 My Profile</span>
@@ -2858,7 +2960,7 @@ function ProfilePortalContent() {
 
                       <span>{profile.full_name}</span>
 
-                      {profile.is_pro && <span title="Verified Pro" style={{ color: '#38bdf8', fontSize: '1rem' }}>✓</span>}
+                      {profile.is_pro && <ProVerifiedBadge size={20} />}
 
                       {profile.is_ambassador && <span title="Shanora Ambassador" style={{ color: '#facc15', fontSize: '1rem' }}>🌟</span>}
 
@@ -2994,23 +3096,47 @@ function ProfilePortalContent() {
 
 
 
-        {/* TAB 4: MESSAGES */}
+        {/* TAB 4: MESSENGER (LINKEDIN / FACEBOOK STYLE WITH PRIVACY & LIVE ONLINE TICK) */}
 
         {activeTab === 'messages' && (
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0f172a', padding: '0.65rem 0.9rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
 
-              <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
 
-                <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: '800', color: '#fff' }}>💬 Direct Messages</h3>
+                <span style={{ fontSize: '1.1rem' }}>💬</span>
 
-                <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>1-on-1 conversations</span>
+                <span style={{ fontWeight: '800', fontSize: '0.9rem', color: '#38bdf8' }}>Shanora Messenger</span>
 
               </div>
 
-              <button type="button" onClick={() => setActiveTab('menu')} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer', padding: 0 }}>✕</button>
+              <button 
+
+                type="button" 
+
+                onClick={() => {
+
+                  if (activeChatUser) {
+
+                    setActiveChatUser(null);
+
+                  } else {
+
+                    setActiveTab('menu');
+
+                  }
+
+                }} 
+
+                style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer', padding: 0 }}
+
+              >
+
+                ✕
+
+              </button>
 
             </div>
 
@@ -3018,7 +3144,13 @@ function ProfilePortalContent() {
 
             {activeChatUser ? (
 
-              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: '520px' }}>
+              /* ACTIVE 1-ON-1 CHAT ROOM */
+
+              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: '70vh', minHeight: '480px' }}>
+
+                
+
+                {/* Chat Header */}
 
                 <div style={{ backgroundColor: '#131b2e', padding: '0.75rem 1rem', borderBottom: '1px solid #1e293b', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
 
@@ -3030,7 +3162,7 @@ function ProfilePortalContent() {
 
                       onClick={() => setActiveChatUser(null)}
 
-                      style={{ background: 'none', border: 'none', color: '#38bdf8', fontSize: '1.2rem', cursor: 'pointer', padding: '0 0.4rem 0 0' }}
+                      style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', color: '#38bdf8', fontSize: '1rem', cursor: 'pointer', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
 
                     >
 
@@ -3044,21 +3176,25 @@ function ProfilePortalContent() {
 
                       <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#fff', fontSize: '1rem', overflow: 'hidden' }}>
 
-                        {activeChatUser.avatar_url ? (
+                        {activeChatUser.avatar_url || activeChatUser.avatarUrl ? (
 
-                          <img src={activeChatUser.avatar_url} alt="User" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <img src={activeChatUser.avatar_url || activeChatUser.avatarUrl} alt="User" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
 
                         ) : (
 
-                          (activeChatUser.full_name || activeChatUser.name || activeChatUser.email || 'U').charAt(0).toUpperCase()
+                          (activeChatUser.full_name || activeChatUser.name || activeChatUser.displayName || 'U').charAt(0).toUpperCase()
 
                         )}
 
                       </div>
 
-                      {isUserOnline(activeChatUser.last_seen) && (
+                      {isUserOnline(activeChatUser.last_seen) ? (
 
-                        <div title="Online now" style={{ position: 'absolute', bottom: '0px', right: '0px', width: '11px', height: '11px', borderRadius: '50%', backgroundColor: '#22c55e', border: '2px solid #0f172a' }} />
+                        <div title="Active Now" style={{ position: 'absolute', bottom: '0px', right: '0px', width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#22c55e', border: '2px solid #0f172a', boxShadow: '0 0 6px #22c55e' }} />
+
+                      ) : (
+
+                        <div title="Offline" style={{ position: 'absolute', bottom: '0px', right: '0px', width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#64748b', border: '2px solid #0f172a' }} />
 
                       )}
 
@@ -3070,13 +3206,13 @@ function ProfilePortalContent() {
 
                       <div style={{ color: '#fff', fontWeight: '700', fontSize: '0.92rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
 
-                        <span>{activeChatUser.full_name || activeChatUser.name || activeChatUser.email.split('@')[0]}</span>
+                        <span>{activeChatUser.full_name || activeChatUser.name || activeChatUser.displayName || activeChatUser.email.split('@')[0]}</span>
 
-                        {activeChatUser.is_pro && <span style={{ color: '#38bdf8', fontSize: '0.85rem' }}>✓</span>}
+                        {activeChatUser.is_pro && <ProVerifiedBadge size={16} />}
 
                       </div>
 
-                      <div style={{ fontSize: '0.7rem', color: isUserOnline(activeChatUser.last_seen) ? '#4ade80' : '#64748b' }}>
+                      <div style={{ fontSize: '0.7rem', color: isUserOnline(activeChatUser.last_seen) ? '#4ade80' : '#64748b', fontWeight: '600' }}>
 
                         {isUserOnline(activeChatUser.last_seen) ? 'Active now' : 'Offline'}
 
@@ -3088,7 +3224,7 @@ function ProfilePortalContent() {
 
 
 
-                  <Link href={`/view-profile?email=${encodeURIComponent(activeChatUser.email)}`} style={{ color: '#38bdf8', fontSize: '0.75rem', textDecoration: 'none', fontWeight: '700' }}>
+                  <Link href={`/view-profile?email=${encodeURIComponent(activeChatUser.email || activeChatUser.user_email)}`} style={{ color: '#38bdf8', fontSize: '0.75rem', textDecoration: 'none', fontWeight: '700', backgroundColor: '#1e293b', border: '1px solid #334155', padding: '0.35rem 0.65rem', borderRadius: '6px' }}>
 
                     Profile ↗
 
@@ -3098,13 +3234,15 @@ function ProfilePortalContent() {
 
 
 
+                {/* Message Bubble Feed */}
+
                 <div style={{ flex: 1, padding: '1rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
 
                   {chatMessages.length === 0 ? (
 
                     <div style={{ textAlign: 'center', margin: 'auto', color: '#64748b', fontSize: '0.82rem' }}>
 
-                      Start the conversation! Send a message below.
+                      Say hello! Start your direct 1-on-1 private conversation. 👋
 
                     </div>
 
@@ -3112,7 +3250,7 @@ function ProfilePortalContent() {
 
                     chatMessages.map(msg => {
 
-                      const isMe = msg.sender_email.toLowerCase() === user.email.toLowerCase();
+                      const isMe = (msg.sender_email || '').toLowerCase() === (user?.email || '').toLowerCase();
 
                       return (
 
@@ -3120,25 +3258,27 @@ function ProfilePortalContent() {
 
                           <div style={{
 
-                            maxWidth: '75%',
+                            maxWidth: '78%',
 
                             backgroundColor: isMe ? '#0284c7' : '#1e293b',
 
                             color: '#fff',
 
-                            padding: '0.6rem 0.85rem',
+                            padding: '0.65rem 0.95rem',
 
-                            borderRadius: isMe ? '14px 14px 2px 14px' : '14px 14px 14px 2px',
+                            borderRadius: isMe ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
 
                             fontSize: '0.83rem',
 
-                            lineHeight: '1.4'
+                            lineHeight: '1.4',
+
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.25)'
 
                           }}>
 
                             <div>{msg.message}</div>
 
-                            <div style={{ fontSize: '0.62rem', color: isMe ? '#bae6fd' : '#94a3b8', textAlign: 'right', marginTop: '0.2rem' }}>
+                            <div style={{ fontSize: '0.62rem', color: isMe ? '#bae6fd' : '#94a3b8', textAlign: 'right', marginTop: '0.25rem' }}>
 
                               {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
 
@@ -3160,19 +3300,21 @@ function ProfilePortalContent() {
 
 
 
-                <form onSubmit={handleSendMessage} style={{ padding: '0.75rem', backgroundColor: '#131b2e', borderTop: '1px solid #1e293b', display: 'flex', gap: '0.5rem' }}>
+                {/* Chat Input Bar */}
+
+                <form onSubmit={handleSendMessage} style={{ padding: '0.75rem', backgroundColor: '#131b2e', borderTop: '1px solid #1e293b', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
 
                   <input
 
                     type="text"
 
-                    placeholder="Write a message..."
+                    placeholder="Type your message..."
 
                     value={newMessageText}
 
                     onChange={(e) => setNewMessageText(e.target.value)}
 
-                    style={{ flex: 1, backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '24px', padding: '0.55rem 1rem', color: '#fff', fontSize: '0.82rem', outline: 'none' }}
+                    style={{ flex: 1, backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '24px', padding: '0.6rem 1rem', color: '#fff', fontSize: '0.82rem', outline: 'none' }}
 
                   />
 
@@ -3182,7 +3324,7 @@ function ProfilePortalContent() {
 
                     disabled={sendingMsg || !newMessageText.trim()}
 
-                    style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', borderRadius: '50%', width: '38px', height: '38px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
+                    style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', borderRadius: '50%', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: (sendingMsg || !newMessageText.trim()) ? 'not-allowed' : 'pointer', flexShrink: 0 }}
 
                   >
 
@@ -3196,6 +3338,8 @@ function ProfilePortalContent() {
 
             ) : (
 
+              /* CONVERSATION LIST & SEARCH */
+
               <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
 
                 <div style={{ position: 'relative' }}>
@@ -3204,7 +3348,7 @@ function ProfilePortalContent() {
 
                     type="text"
 
-                    placeholder="Search conversations or contacts..."
+                    placeholder="Search conversations by name..."
 
                     value={messageSearchQuery}
 
@@ -3218,13 +3362,13 @@ function ProfilePortalContent() {
 
 
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
 
                   {filteredMessengerUsers.length === 0 ? (
 
                     <div style={{ textAlign: 'center', padding: '2.5rem 1rem', color: '#64748b', fontSize: '0.82rem' }}>
 
-                      No active conversations found.
+                      No active conversations found. Tap "Message" on any user profile below!
 
                     </div>
 
@@ -3292,9 +3436,13 @@ function ProfilePortalContent() {
 
                               </div>
 
-                              {online && (
+                              {online ? (
 
-                                <div title="Online" style={{ position: 'absolute', bottom: '1px', right: '1px', width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#22c55e', border: '2px solid #131b2e' }} />
+                                <div title="Online" style={{ position: 'absolute', bottom: '1px', right: '1px', width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#22c55e', border: '2px solid #131b2e', boxShadow: '0 0 5px #22c55e' }} />
+
+                              ) : (
+
+                                <div title="Offline" style={{ position: 'absolute', bottom: '1px', right: '1px', width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#64748b', border: '2px solid #131b2e' }} />
 
                               )}
 
@@ -3308,13 +3456,13 @@ function ProfilePortalContent() {
 
                                 <span>{displayName}</span>
 
-                                {chatTarget.is_pro && <span style={{ color: '#38bdf8', fontSize: '0.85rem' }}>✓</span>}
+                                {chatTarget.is_pro && <ProVerifiedBadge size={16} />}
 
                               </div>
 
                               <div style={{ color: lastMsg ? '#cbd5e1' : '#64748b', fontSize: '0.74rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', marginTop: '0.15rem' }}>
 
-                                {lastMsg ? lastMsg.text : (chatTarget.headline || chatTarget.city || 'Shanora Network')}
+                                {lastMsg ? lastMsg.text : (chatTarget.headline || 'Tap to start conversation')}
 
                               </div>
 
@@ -3328,7 +3476,7 @@ function ProfilePortalContent() {
 
                             <span style={{ fontSize: '0.72rem', color: online ? '#4ade80' : '#64748b', fontWeight: '700' }}>
 
-                              {online ? 'Online' : 'Chat'}
+                              {online ? 'Online' : 'Offline'}
 
                             </span>
 
@@ -3362,15 +3510,17 @@ function ProfilePortalContent() {
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0f172a', padding: '0.65rem 0.9rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
 
-              <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: '800', color: '#fff' }}>🏢 Your Pages ({myPages.length})</h3>
+              <span style={{ fontWeight: '800', fontSize: '0.9rem', color: '#f97316' }}>🏢 Your Pages ({myPages.length})</span>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <button type="button" onClick={() => setActiveTab('menu')} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer', padding: 0 }}>✕</button>
 
-                <Link href="/create-page" style={{ backgroundColor: '#0284c7', color: '#fff', padding: '0.35rem 0.75rem', borderRadius: '8px', fontSize: '0.75rem', textDecoration: 'none', fontWeight: 'bold' }}>+ New Page</Link>
+            </div>
 
-                <button type="button" onClick={() => setActiveTab('menu')} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer', padding: 0 }}>✕</button>
 
-              </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.2rem' }}>
+
+              <Link href="/create-page" style={{ backgroundColor: '#0284c7', color: '#fff', padding: '0.45rem 0.9rem', borderRadius: '8px', fontSize: '0.78rem', textDecoration: 'none', fontWeight: 'bold' }}>+ New Page</Link>
 
             </div>
 
@@ -3411,8 +3561,6 @@ function ProfilePortalContent() {
         {activeTab === 'resume' && (
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.4rem' }}>
-
-            {/* Internal Close Bar */}
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0f172a', padding: '0.65rem 0.9rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
 
@@ -3526,11 +3674,7 @@ function ProfilePortalContent() {
 
                       <span style={{ fontSize: '1.1rem', fontWeight: '900', color: '#fff' }}>ATS Resume Studio</span>
 
-                      <span style={{ backgroundColor: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '0.2rem 0.6rem', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 'bold' }}>
-
-                        PRO VERIFIED ✓
-
-                      </span>
+                      <ProVerifiedBadge size={18} />
 
                     </div>
 
@@ -3974,11 +4118,9 @@ function ProfilePortalContent() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
 
-            {/* Internal Close Bar */}
-
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0f172a', padding: '0.65rem 0.9rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
 
-              <span style={{ fontWeight: '800', fontSize: '0.9rem', color: '#4ade80' }}>💰 Creator Monetization Hub</span>
+              <span style={{ fontWeight: '800', fontSize: '0.9rem', color: '#10b981' }}>💰 Creator Monetization Hub</span>
 
               <button type="button" onClick={() => setActiveTab('menu')} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer', padding: 0 }}>✕</button>
 
@@ -4384,8 +4526,6 @@ function ProfilePortalContent() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
 
-            {/* Internal Close Bar */}
-
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0f172a', padding: '0.65rem 0.9rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
 
               <span style={{ fontWeight: '800', fontSize: '0.9rem', color: '#c084fc' }}>🔖 Saved Posts & Bookmarks</span>
@@ -4500,8 +4640,6 @@ function ProfilePortalContent() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
 
-            {/* Internal Close Bar */}
-
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0f172a', padding: '0.65rem 0.9rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
 
               <span style={{ fontWeight: '800', fontSize: '0.9rem', color: '#cbd5e1' }}>⚙️ Settings & Privacy</span>
@@ -4514,7 +4652,7 @@ function ProfilePortalContent() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
 
-              {/* Account Details & Direct Security Page Link */}
+              {/* Account Security Hub Link */}
 
               <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', overflow: 'hidden' }}>
 
@@ -4548,7 +4686,7 @@ function ProfilePortalContent() {
 
 
 
-              {/* Account Details & Security Accordion */}
+              {/* Quick Password Change Accordion */}
 
               <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', overflow: 'hidden' }}>
 
@@ -4984,15 +5122,15 @@ function ProfilePortalContent() {
 
 
 
-        {/* TAB 10: NETWORK / FOLLOWERS */}
+        {/* TAB 10: NETWORK / FOLLOWERS (WITH FOLLOW + MESSAGE ACTION BUTTONS & EXECUTIVE PRO BADGE) */}
 
         {activeTab === 'network' && (
 
           <div>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0f172a', padding: '0.65rem 0.9rem', borderRadius: '12px', border: '1px solid #1e293b', marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0f172a', padding: '0.65rem 0.9rem', borderRadius: '12px', border: '1px solid #1e293b', marginBottom: '0.8rem' }}>
 
-              <span style={{ fontWeight: '800', fontSize: '0.9rem', color: '#38bdf8' }}>👥 My Network</span>
+              <span style={{ fontWeight: '800', fontSize: '0.9rem', color: '#38bdf8' }}>👥 Network & Connections</span>
 
               <button type="button" onClick={() => setActiveTab('menu')} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer', padding: 0 }}>✕</button>
 
@@ -5080,6 +5218,8 @@ function ProfilePortalContent() {
 
 
 
+            {/* SubTab: Followers */}
+
             {networkSubTab === 'followers' && (
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -5122,7 +5262,7 @@ function ProfilePortalContent() {
 
                         justifyContent: 'space-between',
 
-                        gap: '0.8rem'
+                        gap: '0.6rem'
 
                       }}>
 
@@ -5170,9 +5310,11 @@ function ProfilePortalContent() {
 
                           <div style={{ overflow: 'hidden' }}>
 
-                            <div style={{ color: '#fff', fontWeight: '700', fontSize: '0.9rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                            <div style={{ color: '#fff', fontWeight: '700', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.3rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
 
-                              {displayName}
+                              <span>{displayName}</span>
+
+                              {item.is_pro && <ProVerifiedBadge size={16} />}
 
                             </div>
 
@@ -5188,7 +5330,69 @@ function ProfilePortalContent() {
 
 
 
+                        {/* Follow Back + Direct Message Buttons */}
+
                         <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0 }}>
+
+                          <button
+
+                            type="button"
+
+                            onClick={() => {
+
+                              setActiveChatUser({
+
+                                email: cleanEmail,
+
+                                full_name: displayName,
+
+                                avatar_url: item.avatarUrl,
+
+                                last_seen: item.last_seen,
+
+                                is_pro: item.is_pro
+
+                              });
+
+                              setActiveTab('messages');
+
+                            }}
+
+                            style={{
+
+                              backgroundColor: '#1e293b',
+
+                              border: '1px solid #0284c7',
+
+                              color: '#38bdf8',
+
+                              padding: '0.4rem 0.65rem',
+
+                              borderRadius: '8px',
+
+                              fontSize: '0.74rem',
+
+                              fontWeight: '700',
+
+                              cursor: 'pointer',
+
+                              display: 'flex',
+
+                              alignItems: 'center',
+
+                              gap: '0.25rem'
+
+                            }}
+
+                          >
+
+                            <span>💬</span>
+
+                            <span>Message</span>
+
+                          </button>
+
+
 
                           <button
 
@@ -5210,7 +5414,7 @@ function ProfilePortalContent() {
 
                               borderRadius: '8px',
 
-                              fontSize: '0.75rem',
+                              fontSize: '0.74rem',
 
                               fontWeight: '700',
 
@@ -5239,6 +5443,8 @@ function ProfilePortalContent() {
             )}
 
 
+
+            {/* SubTab: Following */}
 
             {networkSubTab === 'following' && (
 
@@ -5280,7 +5486,7 @@ function ProfilePortalContent() {
 
                         justifyContent: 'space-between',
 
-                        gap: '0.8rem'
+                        gap: '0.6rem'
 
                       }}>
 
@@ -5330,9 +5536,11 @@ function ProfilePortalContent() {
 
                           <div style={{ overflow: 'hidden' }}>
 
-                            <div style={{ color: '#fff', fontWeight: '700', fontSize: '0.9rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                            <div style={{ color: '#fff', fontWeight: '700', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.3rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
 
-                              {displayName}
+                              <span>{displayName}</span>
+
+                              {item.is_pro && <ProVerifiedBadge size={16} />}
 
                             </div>
 
@@ -5348,39 +5556,103 @@ function ProfilePortalContent() {
 
 
 
-                        <button
+                        <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0 }}>
 
-                          type="button"
+                          <button
 
-                          onClick={() => handleToggleFollow(cleanEmail)}
+                            type="button"
 
-                          disabled={actionLoading[cleanEmail]}
+                            onClick={() => {
 
-                          style={{
+                              setActiveChatUser({
 
-                            backgroundColor: '#1e293b',
+                                email: cleanEmail,
 
-                            color: '#ef4444',
+                                full_name: displayName,
 
-                            border: '1px solid rgba(239, 68, 68, 0.3)',
+                                avatar_url: item.avatarUrl,
 
-                            padding: '0.4rem 0.85rem',
+                                last_seen: item.last_seen,
 
-                            borderRadius: '8px',
+                                is_pro: item.is_pro
 
-                            fontSize: '0.75rem',
+                              });
 
-                            fontWeight: '700',
+                              setActiveTab('messages');
 
-                            cursor: 'pointer'
+                            }}
 
-                          }}
+                            style={{
 
-                        >
+                              backgroundColor: '#1e293b',
 
-                          Unfollow
+                              border: '1px solid #0284c7',
 
-                        </button>
+                              color: '#38bdf8',
+
+                              padding: '0.4rem 0.65rem',
+
+                              borderRadius: '8px',
+
+                              fontSize: '0.74rem',
+
+                              fontWeight: '700',
+
+                              cursor: 'pointer',
+
+                              display: 'flex',
+
+                              alignItems: 'center',
+
+                              gap: '0.25rem'
+
+                            }}
+
+                          >
+
+                            <span>💬</span>
+
+                            <span>Message</span>
+
+                          </button>
+
+
+
+                          <button
+
+                            type="button"
+
+                            onClick={() => handleToggleFollow(cleanEmail)}
+
+                            disabled={actionLoading[cleanEmail]}
+
+                            style={{
+
+                              backgroundColor: '#1e293b',
+
+                              color: '#ef4444',
+
+                              border: '1px solid rgba(239, 68, 68, 0.3)',
+
+                              padding: '0.4rem 0.85rem',
+
+                              borderRadius: '8px',
+
+                              fontSize: '0.74rem',
+
+                              fontWeight: '700',
+
+                              cursor: 'pointer'
+
+                            }}
+
+                          >
+
+                            Unfollow
+
+                          </button>
+
+                        </div>
 
                       </div>
 
@@ -5396,7 +5668,7 @@ function ProfilePortalContent() {
 
 
 
-            {/* Discover People */}
+            {/* Discover People Section with Message + Follow */}
 
             <div style={{ marginTop: '2.2rem' }}>
 
@@ -5458,7 +5730,7 @@ function ProfilePortalContent() {
 
                         justifyContent: 'space-between',
 
-                        gap: '0.8rem'
+                        gap: '0.6rem'
 
                       }}>
 
@@ -5506,15 +5778,17 @@ function ProfilePortalContent() {
 
                           <div style={{ overflow: 'hidden' }}>
 
-                            <div style={{ color: '#fff', fontWeight: '700', fontSize: '0.9rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                            <div style={{ color: '#fff', fontWeight: '700', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.3rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
 
-                              {username}
+                              <span>{username}</span>
+
+                              {creator.is_pro && <ProVerifiedBadge size={16} />}
 
                             </div>
 
                             <div style={{ color: '#64748b', fontSize: '0.73rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
 
-                              {cleanEmail}
+                              {creator.headline || cleanEmail}
 
                             </div>
 
@@ -5524,47 +5798,109 @@ function ProfilePortalContent() {
 
 
 
-                        <button
+                        <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0 }}>
 
-                          type="button"
+                          <button
 
-                          onClick={() => handleToggleFollow(cleanEmail)}
+                            type="button"
 
-                          disabled={actionLoading[cleanEmail]}
+                            onClick={() => {
 
-                          style={{
+                              setActiveChatUser({
 
-                            backgroundColor: isFollowing ? '#1e293b' : '#0284c7',
+                                email: cleanEmail,
 
-                            color: isFollowing ? '#94a3b8' : '#fff',
+                                full_name: username,
 
-                            border: isFollowing ? '1px solid #334155' : 'none',
+                                avatar_url: creator.avatar_url,
 
-                            padding: '0.45rem 1rem',
+                                last_seen: creator.last_seen,
 
-                            borderRadius: '8px',
+                                is_pro: creator.is_pro
 
-                            fontSize: '0.78rem',
+                              });
 
-                            fontWeight: '700',
+                              setActiveTab('messages');
 
-                            cursor: 'pointer',
+                            }}
 
-                            display: 'flex',
+                            style={{
 
-                            alignItems: 'center',
+                              backgroundColor: '#1e293b',
 
-                            gap: '0.3rem',
+                              border: '1px solid #0284c7',
 
-                            flexShrink: 0
+                              color: '#38bdf8',
 
-                          }}
+                              padding: '0.45rem 0.75rem',
 
-                        >
+                              borderRadius: '8px',
 
-                          {isFollowing ? 'Following' : '+ Follow'}
+                              fontSize: '0.76rem',
 
-                        </button>
+                              fontWeight: '700',
+
+                              cursor: 'pointer',
+
+                              display: 'flex',
+
+                              alignItems: 'center',
+
+                              gap: '0.25rem'
+
+                            }}
+
+                          >
+
+                            <span>💬</span>
+
+                            <span>Message</span>
+
+                          </button>
+
+
+
+                          <button
+
+                            type="button"
+
+                            onClick={() => handleToggleFollow(cleanEmail)}
+
+                            disabled={actionLoading[cleanEmail]}
+
+                            style={{
+
+                              backgroundColor: isFollowing ? '#1e293b' : '#0284c7',
+
+                              color: isFollowing ? '#94a3b8' : '#fff',
+
+                              border: isFollowing ? '1px solid #334155' : 'none',
+
+                              padding: '0.45rem 0.95rem',
+
+                              borderRadius: '8px',
+
+                              fontSize: '0.76rem',
+
+                              fontWeight: '700',
+
+                              cursor: 'pointer',
+
+                              display: 'flex',
+
+                              alignItems: 'center',
+
+                              gap: '0.3rem'
+
+                            }}
+
+                          >
+
+                            {isFollowing ? 'Following' : '+ Follow'}
+
+                          </button>
+
+                        </div>
 
                       </div>
 
