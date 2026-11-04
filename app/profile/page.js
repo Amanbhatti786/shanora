@@ -694,8 +694,6 @@ function ProfilePortalContent() {
 
 
 
-        // Referral count
-
         supabase.from('user_referrals')
 
           .select('id', { count: 'exact', head: true })
@@ -709,8 +707,6 @@ function ProfilePortalContent() {
           });
 
 
-
-        // Update live presence
 
         supabase.from('profiles').update({ last_seen: new Date().toISOString() }).ilike('email', myEmail);
 
@@ -731,6 +727,62 @@ function ProfilePortalContent() {
     initPortal();
 
   }, [router]);
+
+
+
+  // AUTO-DETECT DIRECT CHAT TARGET FROM URL (e.g., /profile?tab=messages&chatWith=... or &chat=...)
+
+  useEffect(() => {
+
+    const chatTargetEmail = searchParams?.get('chatWith') || searchParams?.get('chat');
+
+    if (chatTargetEmail && user?.email) {
+
+      const cleanTarget = decodeURIComponent(chatTargetEmail).trim().toLowerCase();
+
+      supabase
+
+        .from('profiles')
+
+        .select('*')
+
+        .ilike('email', cleanTarget)
+
+        .maybeSingle()
+
+        .then(({ data }) => {
+
+          if (data) {
+
+            setActiveChatUser(data);
+
+          } else {
+
+            setActiveChatUser({
+
+              email: cleanTarget,
+
+              full_name: cleanTarget.split('@')[0],
+
+              name: cleanTarget.split('@')[0],
+
+              avatar_url: null,
+
+              last_seen: null,
+
+              is_pro: false
+
+            });
+
+          }
+
+          setActiveTab('messages');
+
+        });
+
+    }
+
+  }, [searchParams, user]);
 
 
 
@@ -1051,8 +1103,6 @@ function ProfilePortalContent() {
   }
 
 
-
-  // Active status helper (True if user interacted within 3 minutes)
 
   function isUserOnline(lastSeen) {
 
@@ -3096,7 +3146,7 @@ function ProfilePortalContent() {
 
 
 
-        {/* TAB 4: MESSENGER (LINKEDIN / FACEBOOK STYLE WITH PRIVACY & LIVE ONLINE TICK) */}
+        {/* TAB 4: MESSENGER (DIRECT 1-ON-1 ROOM WITH PRESERVED LIST VIEW & REAL-TIME STATUS) */}
 
         {activeTab === 'messages' && (
 
@@ -3206,7 +3256,7 @@ function ProfilePortalContent() {
 
                       <div style={{ color: '#fff', fontWeight: '700', fontSize: '0.92rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
 
-                        <span>{activeChatUser.full_name || activeChatUser.name || activeChatUser.displayName || activeChatUser.email.split('@')[0]}</span>
+                        <span>{activeChatUser.full_name || activeChatUser.name || activeChatUser.displayName || activeChatUser.email?.split('@')[0]}</span>
 
                         {activeChatUser.is_pro && <ProVerifiedBadge size={16} />}
 
@@ -3224,7 +3274,7 @@ function ProfilePortalContent() {
 
 
 
-                  <Link href={`/view-profile?email=${encodeURIComponent(activeChatUser.email || activeChatUser.user_email)}`} style={{ color: '#38bdf8', fontSize: '0.75rem', textDecoration: 'none', fontWeight: '700', backgroundColor: '#1e293b', border: '1px solid #334155', padding: '0.35rem 0.65rem', borderRadius: '6px' }}>
+                  <Link href={`/view-profile?email=${encodeURIComponent(activeChatUser.email || activeChatUser.user_email || '')}`} style={{ color: '#38bdf8', fontSize: '0.75rem', textDecoration: 'none', fontWeight: '700', backgroundColor: '#1e293b', border: '1px solid #334155', padding: '0.35rem 0.65rem', borderRadius: '6px' }}>
 
                     Profile ↗
 
@@ -3368,7 +3418,7 @@ function ProfilePortalContent() {
 
                     <div style={{ textAlign: 'center', padding: '2.5rem 1rem', color: '#64748b', fontSize: '0.82rem' }}>
 
-                      No active conversations found. Tap "Message" on any user profile below!
+                      No active conversations found. Tap "Message" on any user profile to chat!
 
                     </div>
 
@@ -5330,8 +5380,6 @@ function ProfilePortalContent() {
 
 
 
-                        {/* Follow Back + Direct Message Buttons */}
-
                         <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0 }}>
 
                           <button
@@ -5922,7 +5970,7 @@ function ProfilePortalContent() {
 
 
 
-      {/* 1. INVITE FRIENDS & REFERRAL REWARDS MODAL (WITH LIVE PROGRESS & CRITERIA CLAIM) */}
+      {/* 1. INVITE FRIENDS & REFERRAL REWARDS MODAL */}
 
       {showInviteModal && (
 
@@ -6216,7 +6264,7 @@ function ProfilePortalContent() {
 
 
 
-      {/* 2. FACEBOOK-STYLE STRICT ADS MANAGER (MULTI-STEP VALIDATION + PAGE REQUIREMENT) */}
+      {/* 2. FACEBOOK-STYLE STRICT ADS MANAGER */}
 
       {showAdsModal && (
 
@@ -6250,7 +6298,7 @@ function ProfilePortalContent() {
 
 
 
-            {/* Strict Flow Stepper Indicator */}
+            {/* Stepper */}
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '0.25rem', margin: '0.9rem 0', textAlign: 'center', fontSize: '0.6rem', fontWeight: '800' }}>
 
@@ -6300,7 +6348,7 @@ function ProfilePortalContent() {
 
 
 
-            {/* STEP 1: Facebook Page Requirement Check */}
+            {/* STEP 1 */}
 
             {adStep === 1 && (
 
@@ -6426,7 +6474,7 @@ function ProfilePortalContent() {
 
 
 
-            {/* STEP 2: Strict Ad Content Input (Cannot leave empty) */}
+            {/* STEP 2 */}
 
             {adStep === 2 && (
 
@@ -6550,7 +6598,7 @@ function ProfilePortalContent() {
 
 
 
-            {/* STEP 3: Audience & Campaign Objective */}
+            {/* STEP 3 */}
 
             {adStep === 3 && (
 
@@ -6640,7 +6688,7 @@ function ProfilePortalContent() {
 
 
 
-            {/* STEP 4: Budget & Package Selection */}
+            {/* STEP 4 */}
 
             {adStep === 4 && (
 
@@ -6718,7 +6766,7 @@ function ProfilePortalContent() {
 
 
 
-            {/* STEP 5: Payment Procedure & Transaction ID Submission */}
+            {/* STEP 5 */}
 
             {adStep === 5 && (
 
@@ -6824,7 +6872,7 @@ function ProfilePortalContent() {
 
 
 
-            {/* STEP 6: Admin Review & Live Metrics */}
+            {/* STEP 6 */}
 
             {adStep === 6 && (
 
