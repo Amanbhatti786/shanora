@@ -1280,58 +1280,33 @@ function ViewProfileContent() {
 
                 {/* 2. Facebook Messenger Official Blue Button */}
 
-                <button
-
-                  type="button"
-
-                  onClick={handleOpenMessage}
-
-                  style={{
-
-                    flex: 1.2,
-
-                    backgroundColor: '#1877f2',
-
-                    color: '#ffffff',
-
-                    border: 'none',
-
-                    padding: '0.65rem 1rem',
-
-                    borderRadius: '10px',
-
-                    fontSize: '0.85rem',
-
-                    fontWeight: '800',
-
-                    cursor: 'pointer',
-
-                    display: 'flex',
-
-                    alignItems: 'center',
-
-                    justifyContent: 'center',
-
-                    gap: '0.5rem',
-
-                    boxShadow: '0 4px 12px rgba(24, 119, 242, 0.35)',
-
-                    transition: 'all 0.2s ease'
-
-                  }}
-
-                >
-
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-
-                    <path d="M12 2C6.48 2 2 6.03 2 11C2 13.82 3.44 16.32 5.7 17.84V22L9.62 19.86C10.38 20.06 11.18 20.17 12 20.17C17.52 20.17 22 16.14 22 11.17C22 6.2 17.52 2 12 2ZM13.06 14.16L10.74 11.69L6.2 14.16L11.2 8.84L13.52 11.31L18.06 8.84L13.06 14.16Z" />
-
-                  </svg>
-
-                  <span>Message</span>
-
-                </button>
-
+               <button
+  type="button"
+  onClick={() => {
+    if (targetEmail) {
+      router.push(`/profile?tab=messages&chatWith=${encodeURIComponent(targetEmail.toLowerCase())}`);
+    }
+  }}
+  style={{
+    flex: 1,
+    backgroundColor: '#1877f2',
+    color: '#ffffff',
+    border: 'none',
+    padding: '0.6rem 1rem',
+    borderRadius: '10px',
+    fontSize: '0.85rem',
+    fontWeight: '800',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '0.45rem',
+    boxShadow: '0 4px 14px rgba(24, 119, 242, 0.4)'
+  }}
+>
+  <span>💬</span>
+  <span>Message</span>
+</button>
 
 
                 {/* 3. Three Dots Options */}
