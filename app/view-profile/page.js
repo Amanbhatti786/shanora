@@ -136,7 +136,7 @@ function ViewProfileContent() {
 
 
 
-  // Feed Actions State (Likes, Comments Drawer, Post Dropdowns)
+  // Feed Actions State
 
   const [likedPostsMap, setLikedPostsMap] = useState({});
 
@@ -314,8 +314,6 @@ function ViewProfileContent() {
 
 
 
-          // Initialize Likes & Comments count
-
           const initialLikes = {};
 
           const initialLikesCount = {};
@@ -329,8 +327,6 @@ function ViewProfileContent() {
           setLikesCountMap(initialLikesCount);
 
 
-
-          // If current user is logged in, fetch their liked posts
 
           if (me?.email) {
 
@@ -363,8 +359,6 @@ function ViewProfileContent() {
               }
 
 
-
-              // Also check saved posts
 
               const { data: savedData } = await supabase
 
@@ -414,303 +408,47 @@ function ViewProfileContent() {
 
 
 
-  // Handle Like / Unlike
+  // Guaranteed Instant Action for Messaging
 
-  async function handleToggleLike(postId) {
+  function handleOpenMessage(e) {
+
+    if (e) {
+
+      e.preventDefault();
+
+      e.stopPropagation();
+
+    }
+
+    const cleanEmail = (targetUser?.email || targetEmailParam || '').trim().toLowerCase();
+
+    if (!cleanEmail) return;
+
+
+
+    // Direct browser URL assignment avoids router freeze on mobile
+
+    window.location.href = `/profile?tab=messages&chatWith=${encodeURIComponent(cleanEmail)}`;
+
+  }
+
+
+
+  // Handle Follow / Unfollow
+
+  async function handleToggleFollow(e) {
+
+    if (e) {
+
+      e.preventDefault();
+
+      e.stopPropagation();
+
+    }
 
     if (!currentUser) {
 
-      router.push('/auth');
-
-      return;
-
-    }
-
-    const myEmail = currentUser.email.toLowerCase();
-
-    const currentlyLiked = !!likedPostsMap[postId];
-
-
-
-    // Optimistic UI update
-
-    setLikedPostsMap(prev => ({ ...prev, [postId]: !currentlyLiked }));
-
-    setLikesCountMap(prev => ({
-
-      ...prev,
-
-      [postId]: Math.max(0, (prev[postId] || 0) + (currentlyLiked ? -1 : 1))
-
-    }));
-
-
-
-    try {
-
-      if (currentlyLiked) {
-
-        await supabase
-
-          .from('post_likes')
-
-          .delete()
-
-          .eq('post_id', postId)
-
-          .ilike('user_email', myEmail);
-
-      } else {
-
-        await supabase
-
-          .from('post_likes')
-
-          .insert([{ post_id: postId, user_email: myEmail }]);
-
-      }
-
-    } catch (err) {
-
-      console.error('Like toggle error:', err);
-
-      // Revert on error
-
-      setLikedPostsMap(prev => ({ ...prev, [postId]: currentlyLiked }));
-
-      setLikesCountMap(prev => ({
-
-        ...prev,
-
-        [postId]: Math.max(0, (prev[postId] || 0) + (currentlyLiked ? 1 : -1))
-
-      }));
-
-    }
-
-  }
-
-
-
-  // Load & Toggle Comments Drawer
-
-  async function handleToggleComments(postId) {
-
-    if (activeCommentsPostId === postId) {
-
-      setActiveCommentsPostId(null);
-
-      return;
-
-    }
-
-    setActiveCommentsPostId(postId);
-
-
-
-    if (!postCommentsMap[postId]) {
-
-      try {
-
-        const { data: comments } = await supabase
-
-          .from('post_comments')
-
-          .select('*')
-
-          .eq('post_id', postId)
-
-          .order('created_at', { ascending: true });
-
-
-
-        setPostCommentsMap(prev => ({ ...prev, [postId]: comments || [] }));
-
-      } catch (err) {
-
-        console.error('Error loading comments:', err);
-
-      }
-
-    }
-
-  }
-
-
-
-  // Submit New Comment
-
-  async function handleAddComment(postId) {
-
-    const commentBody = (newCommentText[postId] || '').trim();
-
-    if (!commentBody) return;
-
-    if (!currentUser) {
-
-      router.push('/auth');
-
-      return;
-
-    }
-
-
-
-    const myEmail = currentUser.email.toLowerCase();
-
-    setSubmittingComment(true);
-
-
-
-    try {
-
-      const { data: inserted, error } = await supabase
-
-        .from('post_comments')
-
-        .insert([{
-
-          post_id: postId,
-
-          user_email: myEmail,
-
-          comment: commentBody
-
-        }])
-
-        .select()
-
-        .single();
-
-
-
-      if (error) throw error;
-
-
-
-      setPostCommentsMap(prev => ({
-
-        ...prev,
-
-        [postId]: [...(prev[postId] || []), inserted]
-
-      }));
-
-      setNewCommentText(prev => ({ ...prev, [postId]: '' }));
-
-    } catch (err) {
-
-      alert('Could not post comment: ' + err.message);
-
-    } finally {
-
-      setSubmittingComment(false);
-
-    }
-
-  }
-
-
-
-  // Save / Bookmark Post
-
-  async function handleSavePost(postId) {
-
-    if (!currentUser) {
-
-      router.push('/auth');
-
-      return;
-
-    }
-
-    const myEmail = currentUser.email.toLowerCase();
-
-    const isSaved = !!savedPostsMap[postId];
-
-
-
-    try {
-
-      if (isSaved) {
-
-        await supabase
-
-          .from('saved_posts')
-
-          .delete()
-
-          .eq('post_id', postId)
-
-          .ilike('user_email', myEmail);
-
-        setSavedPostsMap(prev => ({ ...prev, [postId]: false }));
-
-        alert('Post removed from saved bookmarks.');
-
-      } else {
-
-        await supabase
-
-          .from('saved_posts')
-
-          .insert([{ post_id: postId, user_email: myEmail }]);
-
-        setSavedPostsMap(prev => ({ ...prev, [postId]: true }));
-
-        alert('Post bookmarked successfully! View in Menu > Saved Posts.');
-
-      }
-
-    } catch (err) {
-
-      alert('Error updating bookmark: ' + err.message);
-
-    } finally {
-
-      setActivePostMenuId(null);
-
-    }
-
-  }
-
-
-
-  // Handle Share / Repost
-
-  function handleSharePost(post) {
-
-    if (typeof navigator !== 'undefined' && navigator.share) {
-
-      navigator.share({
-
-        title: `${displayName} on Shanora`,
-
-        text: post.content,
-
-        url: window.location.href
-
-      }).catch(() => {});
-
-    } else {
-
-      navigator.clipboard.writeText(`${window.location.origin}/feed?post=${post.id}`);
-
-      alert('Post link copied to clipboard!');
-
-    }
-
-  }
-
-
-
-  // Handle Follow / Unfollow with live UI counter
-
-  async function handleToggleFollow() {
-
-    if (!currentUser) {
-
-      router.push('/auth');
+      window.location.href = '/auth';
 
       return;
 
@@ -788,21 +526,285 @@ function ViewProfileContent() {
 
 
 
-  function handleOpenMessage() {
+  // Handle Like / Unlike
+
+  async function handleToggleLike(postId) {
 
     if (!currentUser) {
 
-      router.push('/auth');
+      window.location.href = '/auth';
 
       return;
 
     }
 
-    if (!targetUser?.email) return;
+    const myEmail = currentUser.email.toLowerCase();
+
+    const currentlyLiked = !!likedPostsMap[postId];
 
 
 
-    router.push(`/profile?tab=messages&chat=${encodeURIComponent(targetUser.email)}`);
+    setLikedPostsMap(prev => ({ ...prev, [postId]: !currentlyLiked }));
+
+    setLikesCountMap(prev => ({
+
+      ...prev,
+
+      [postId]: Math.max(0, (prev[postId] || 0) + (currentlyLiked ? -1 : 1))
+
+    }));
+
+
+
+    try {
+
+      if (currentlyLiked) {
+
+        await supabase
+
+          .from('post_likes')
+
+          .delete()
+
+          .eq('post_id', postId)
+
+          .ilike('user_email', myEmail);
+
+      } else {
+
+        await supabase
+
+          .from('post_likes')
+
+          .insert([{ post_id: postId, user_email: myEmail }]);
+
+      }
+
+    } catch (err) {
+
+      console.error('Like toggle error:', err);
+
+      setLikedPostsMap(prev => ({ ...prev, [postId]: currentlyLiked }));
+
+      setLikesCountMap(prev => ({
+
+        ...prev,
+
+        [postId]: Math.max(0, (prev[postId] || 0) + (currentlyLiked ? 1 : -1))
+
+      }));
+
+    }
+
+  }
+
+
+
+  // Load & Toggle Comments Drawer
+
+  async function handleToggleComments(postId) {
+
+    if (activeCommentsPostId === postId) {
+
+      setActiveCommentsPostId(null);
+
+      return;
+
+    }
+
+    setActiveCommentsPostId(postId);
+
+
+
+    if (!postCommentsMap[postId]) {
+
+      try {
+
+        const { data: comments } = await supabase
+
+          .from('post_comments')
+
+          .select('*')
+
+          .eq('post_id', postId)
+
+          .order('created_at', { ascending: true });
+
+
+
+        setPostCommentsMap(prev => ({ ...prev, [postId]: comments || [] }));
+
+      } catch (err) {
+
+        console.error('Error loading comments:', err);
+
+      }
+
+    }
+
+  }
+
+
+
+  // Submit New Comment
+
+  async function handleAddComment(postId) {
+
+    const commentBody = (newCommentText[postId] || '').trim();
+
+    if (!commentBody) return;
+
+    if (!currentUser) {
+
+      window.location.href = '/auth';
+
+      return;
+
+    }
+
+
+
+    const myEmail = currentUser.email.toLowerCase();
+
+    setSubmittingComment(true);
+
+
+
+    try {
+
+      const { data: inserted, error } = await supabase
+
+        .from('post_comments')
+
+        .insert([{
+
+          post_id: postId,
+
+          user_email: myEmail,
+
+          comment: commentBody
+
+        }])
+
+        .select()
+
+        .single();
+
+
+
+      if (error) throw error;
+
+
+
+      setPostCommentsMap(prev => ({
+
+        ...prev,
+
+        [postId]: [...(prev[postId] || []), inserted]
+
+      }));
+
+      setNewCommentText(prev => ({ ...prev, [postId]: '' }));
+
+    } catch (err) {
+
+      alert('Could not post comment: ' + err.message);
+
+    } finally {
+
+      setSubmittingComment(false);
+
+    }
+
+  }
+
+
+
+  // Save / Bookmark Post
+
+  async function handleSavePost(postId) {
+
+    if (!currentUser) {
+
+      window.location.href = '/auth';
+
+      return;
+
+    }
+
+    const myEmail = currentUser.email.toLowerCase();
+
+    const isSaved = !!savedPostsMap[postId];
+
+
+
+    try {
+
+      if (isSaved) {
+
+        await supabase
+
+          .from('saved_posts')
+
+          .delete()
+
+          .eq('post_id', postId)
+
+          .ilike('user_email', myEmail);
+
+        setSavedPostsMap(prev => ({ ...prev, [postId]: false }));
+
+        alert('Post removed from saved bookmarks.');
+
+      } else {
+
+        await supabase
+
+          .from('saved_posts')
+
+          .insert([{ post_id: postId, user_email: myEmail }]);
+
+        setSavedPostsMap(prev => ({ ...prev, [postId]: true }));
+
+        alert('Post bookmarked successfully! View in Menu > Saved Posts.');
+
+      }
+
+    } catch (err) {
+
+      alert('Error updating bookmark: ' + err.message);
+
+    } finally {
+
+      setActivePostMenuId(null);
+
+    }
+
+  }
+
+
+
+  function handleSharePost(post) {
+
+    if (typeof navigator !== 'undefined' && navigator.share) {
+
+      navigator.share({
+
+        title: `${displayName} on Shanora`,
+
+        text: post.content,
+
+        url: window.location.href
+
+      }).catch(() => {});
+
+    } else {
+
+      navigator.clipboard.writeText(`${window.location.origin}/feed?post=${post.id}`);
+
+      alert('Post link copied to clipboard!');
+
+    }
 
   }
 
@@ -1174,9 +1176,9 @@ function ViewProfileContent() {
 
 
 
-          {/* EXACT FACEBOOK-STYLE ACTION BUTTONS */}
+          {/* EXACT FACEBOOK-STYLE ACTION BUTTONS (HIGH-PRIORITY TOUCH BINDINGS) */}
 
-          <div style={{ display: 'flex', gap: '0.55rem', alignItems: 'center', marginTop: '1.1rem' }}>
+          <div style={{ display: 'flex', gap: '0.55rem', alignItems: 'center', marginTop: '1.1rem', position: 'relative', zIndex: 30 }}>
 
             {isMe ? (
 
@@ -1266,7 +1268,9 @@ function ViewProfileContent() {
 
                     gap: '0.45rem',
 
-                    transition: 'all 0.2s ease'
+                    pointerEvents: 'auto',
+
+                    userSelect: 'none'
 
                   }}
 
@@ -1278,43 +1282,68 @@ function ViewProfileContent() {
 
 
 
-  {/* Direct Message Action Button */}
-<button
-  type="button"
-  onClick={(e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const cleanEmail = (targetEmail || searchParams?.get('email') || '').trim().toLowerCase();
-    if (cleanEmail) {
-      window.location.href = `/profile?tab=messages&chatWith=${encodeURIComponent(cleanEmail)}`;
-    } else {
-      window.location.href = '/profile?tab=messages';
-    }
-  }}
-  style={{
-    flex: 1,
-    backgroundColor: '#1877f2',
-    color: '#ffffff',
-    border: 'none',
-    padding: '0.65rem 1rem',
-    borderRadius: '10px',
-    fontSize: '0.85rem',
-    fontWeight: '800',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '0.45rem',
-    boxShadow: '0 4px 14px rgba(24, 119, 242, 0.4)',
-    position: 'relative',
-    zIndex: 10,
-    pointerEvents: 'auto',
-    userSelect: 'none'
-  }}
->
-  <span style={{ fontSize: '1rem' }}>💬</span>
-  <span>Message</span>
-</button>
+                {/* 2. Facebook Messenger Official Blue Button (INSTANT RELIABLE REDIRECT) */}
+
+                <button
+
+                  type="button"
+
+                  onClick={handleOpenMessage}
+
+                  style={{
+
+                    flex: 1.2,
+
+                    backgroundColor: '#1877f2',
+
+                    color: '#ffffff',
+
+                    border: 'none',
+
+                    padding: '0.65rem 1rem',
+
+                    borderRadius: '10px',
+
+                    fontSize: '0.85rem',
+
+                    fontWeight: '800',
+
+                    cursor: 'pointer',
+
+                    display: 'flex',
+
+                    alignItems: 'center',
+
+                    justifyContent: 'center',
+
+                    gap: '0.5rem',
+
+                    boxShadow: '0 4px 14px rgba(24, 119, 242, 0.45)',
+
+                    pointerEvents: 'auto',
+
+                    userSelect: 'none',
+
+                    position: 'relative',
+
+                    zIndex: 40
+
+                  }}
+
+                >
+
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+
+                    <path d="M12 2C6.48 2 2 6.03 2 11C2 13.82 3.44 16.32 5.7 17.84V22L9.62 19.86C10.38 20.06 11.18 20.17 12 20.17C17.52 20.17 22 16.14 22 11.17C22 6.2 17.52 2 12 2ZM13.06 14.16L10.74 11.69L6.2 14.16L11.2 8.84L13.52 11.31L18.06 8.84L13.06 14.16Z" />
+
+                  </svg>
+
+                  <span>Message</span>
+
+                </button>
+
+
+
                 {/* 3. Three Dots Options */}
 
                 <button
@@ -1339,7 +1368,9 @@ function ViewProfileContent() {
 
                     fontWeight: 'bold',
 
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+
+                    pointerEvents: 'auto'
 
                   }}
 
@@ -1361,7 +1392,7 @@ function ViewProfileContent() {
 
         {/* TAB BAR NAVIGATION */}
 
-        <div style={{ display: 'flex', borderBottom: '1px solid #1e293b', backgroundColor: '#0f172a', padding: '0 0.5rem', position: 'sticky', top: '56px', zIndex: 90 }}>
+        <div style={{ display: 'flex', borderBottom: '1px solid #1e293b', backgroundColor: '#0f172a', padding: '0 0.5rem', position: 'sticky', top: '56px', zIndex: 80 }}>
 
           {[
 
@@ -1865,7 +1896,7 @@ function ViewProfileContent() {
 
 
 
-                        {/* FULL FEED-STYLE ACTION BAR (LIKE, COMMENT, REPOST, SEND) */}
+                        {/* FULL FEED-STYLE ACTION BAR */}
 
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.35rem', borderTop: '1px solid #1e293b', paddingTop: '0.4rem' }}>
 
@@ -2009,17 +2040,13 @@ function ViewProfileContent() {
 
 
 
-                          {/* 4. SEND (Direct message share) */}
+                          {/* 4. SEND */}
 
                           <button
 
                             type="button"
 
-                            onClick={() => {
-
-                              handleOpenMessage();
-
-                            }}
+                            onClick={handleOpenMessage}
 
                             style={{
 
@@ -2066,8 +2093,6 @@ function ViewProfileContent() {
                         {isCommentsOpen && (
 
                           <div style={{ backgroundColor: '#131b2e', border: '1px solid #1e293b', borderRadius: '10px', padding: '0.8rem', marginTop: '0.4rem', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-
-                            {/* Comment Input */}
 
                             <div style={{ display: 'flex', gap: '0.45rem', alignItems: 'center' }}>
 
@@ -2146,8 +2171,6 @@ function ViewProfileContent() {
                             </div>
 
 
-
-                            {/* Comments List */}
 
                             {comments.length === 0 ? (
 
@@ -2565,7 +2588,7 @@ function ViewProfileContent() {
 
                         setShowFriendsModal(false);
 
-                        router.push(`/view-profile?email=${encodeURIComponent(f.email || '')}`);
+                        window.location.href = `/view-profile?email=${encodeURIComponent(f.email || '')}`;
 
                       }}
 
