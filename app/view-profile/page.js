@@ -116,9 +116,11 @@ function ViewProfileContent() {
 
 
 
-  const [followersList, setFollowersList] = useState([]);
+  // Distinct Network Lists
 
-  const [followingList, setFollowingList] = useState([]);
+  const [followersProfiles, setFollowersProfiles] = useState([]);
+
+  const [followingProfiles, setFollowingProfiles] = useState([]);
 
   const [followersCount, setFollowersCount] = useState(0);
 
@@ -131,6 +133,8 @@ function ViewProfileContent() {
   const [showOptionsModal, setShowOptionsModal] = useState(false);
 
   const [showFriendsModal, setShowFriendsModal] = useState(false);
+
+  const [friendsModalTab, setFriendsModalTab] = useState('followers'); // 'followers' or 'following'
 
   const [copiedLink, setCopiedLink] = useState(false);
 
@@ -246,21 +250,27 @@ function ViewProfileContent() {
 
           const myEmail = (me?.email || '').toLowerCase();
 
-          const targetFollowers = followsData.filter(f => (f.following_email || '').toLowerCase() === cleanTargetEmail);
+          
 
-          const targetFollowing = followsData.filter(f => (f.follower_email || '').toLowerCase() === cleanTargetEmail);
+          // Followers: who follows this target user
+
+          const targetFollowersRaw = followsData.filter(f => (f.following_email || '').toLowerCase() === cleanTargetEmail);
+
+          // Following: who this target user follows
+
+          const targetFollowingRaw = followsData.filter(f => (f.follower_email || '').toLowerCase() === cleanTargetEmail);
 
 
 
-          setFollowersCount(targetFollowers.length);
+          setFollowersCount(targetFollowersRaw.length);
 
-          setFollowingCount(targetFollowing.length);
+          setFollowingCount(targetFollowingRaw.length);
 
 
 
           if (myEmail) {
 
-            const alreadyFollowing = targetFollowers.some(f => (f.follower_email || '').toLowerCase() === myEmail);
+            const alreadyFollowing = targetFollowersRaw.some(f => (f.follower_email || '').toLowerCase() === myEmail);
 
             setIsFollowing(alreadyFollowing);
 
@@ -268,23 +278,71 @@ function ViewProfileContent() {
 
 
 
-          const followerEmails = targetFollowers.map(f => (f.follower_email || '').toLowerCase()).slice(0, 20);
+          // Distinct emails
 
-          if (followerEmails.length > 0) {
+          const followerEmails = targetFollowersRaw.map(f => (f.follower_email || '').toLowerCase());
 
-            const { data: previewProfiles } = await supabase
+          const followingEmails = targetFollowingRaw.map(f => (f.following_email || '').toLowerCase());
+
+
+
+          const allDistinctEmails = Array.from(new Set([...followerEmails, ...followingEmails]));
+
+
+
+          if (allDistinctEmails.length > 0) {
+
+            const { data: fetchedProfiles } = await supabase
 
               .from('profiles')
 
               .select('email, name, full_name, avatar_url, last_seen, headline, is_pro')
 
-              .in('email', followerEmails);
+              .in('email', allDistinctEmails);
 
 
 
-            if (previewProfiles) {
+            if (fetchedProfiles) {
 
-              setFollowersList(previewProfiles);
+              const profilesMap = {};
+
+              fetchedProfiles.forEach(p => {
+
+                if (p.email) profilesMap[p.email.toLowerCase()] = p;
+
+              });
+
+
+
+              // Map followers
+
+              const mappedFollowers = followerEmails.map(email => profilesMap[email] || {
+
+                email,
+
+                full_name: email.split('@')[0],
+
+                avatar_url: null
+
+              });
+
+              setFollowersProfiles(mappedFollowers);
+
+
+
+              // Map following
+
+              const mappedFollowing = followingEmails.map(email => profilesMap[email] || {
+
+                email,
+
+                full_name: email.split('@')[0],
+
+                avatar_url: null
+
+              });
+
+              setFollowingProfiles(mappedFollowing);
 
             }
 
@@ -425,8 +483,6 @@ function ViewProfileContent() {
     if (!cleanEmail) return;
 
 
-
-    // Direct browser URL assignment avoids router freeze on mobile
 
     window.location.href = `/profile?tab=messages&chatWith=${encodeURIComponent(cleanEmail)}`;
 
@@ -1148,17 +1204,41 @@ function ViewProfileContent() {
 
 
 
-            {/* Followers / Following Stats */}
+            {/* Followers / Following Stats (Interactive) */}
 
             <div style={{ display: 'flex', gap: '1.2rem', fontSize: '0.82rem', marginTop: '0.5rem', color: '#94a3b8' }}>
 
-              <div onClick={() => setShowFriendsModal(true)} style={{ cursor: 'pointer' }}>
+              <div 
+
+                onClick={() => {
+
+                  setFriendsModalTab('followers');
+
+                  setShowFriendsModal(true);
+
+                }} 
+
+                style={{ cursor: 'pointer' }}
+
+              >
 
                 <strong style={{ color: '#fff' }}>{followersCount}</strong> Followers
 
               </div>
 
-              <div onClick={() => setShowFriendsModal(true)} style={{ cursor: 'pointer' }}>
+              <div 
+
+                onClick={() => {
+
+                  setFriendsModalTab('following');
+
+                  setShowFriendsModal(true);
+
+                }} 
+
+                style={{ cursor: 'pointer' }}
+
+              >
 
                 <strong style={{ color: '#fff' }}>{followingCount}</strong> Following
 
@@ -1176,7 +1256,7 @@ function ViewProfileContent() {
 
 
 
-          {/* EXACT FACEBOOK-STYLE ACTION BUTTONS (HIGH-PRIORITY TOUCH BINDINGS) */}
+          {/* EXACT FACEBOOK-STYLE ACTION BUTTONS */}
 
           <div style={{ display: 'flex', gap: '0.55rem', alignItems: 'center', marginTop: '1.1rem', position: 'relative', zIndex: 30 }}>
 
@@ -1282,7 +1362,7 @@ function ViewProfileContent() {
 
 
 
-                {/* 2. Facebook Messenger Official Blue Button (INSTANT RELIABLE REDIRECT) */}
+                {/* 2. Facebook Messenger Official Blue Button */}
 
                 <button
 
@@ -1556,7 +1636,7 @@ function ViewProfileContent() {
 
                     </h3>
 
-                    <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{followersCount} total connections</span>
+                    <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{followersCount} Followers • {followingCount} Following</span>
 
                   </div>
 
@@ -1564,7 +1644,13 @@ function ViewProfileContent() {
 
                     type="button" 
 
-                    onClick={() => setShowFriendsModal(true)} 
+                    onClick={() => {
+
+                      setFriendsModalTab('followers');
+
+                      setShowFriendsModal(true);
+
+                    }} 
 
                     style={{ background: 'none', border: 'none', color: '#1877f2', fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer', padding: 0 }}
 
@@ -1578,7 +1664,7 @@ function ViewProfileContent() {
 
 
 
-                {followersList.length === 0 ? (
+                {followersProfiles.length === 0 ? (
 
                   <div style={{ color: '#64748b', fontSize: '0.8rem', textAlign: 'center', padding: '1rem' }}>
 
@@ -1590,7 +1676,7 @@ function ViewProfileContent() {
 
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.65rem' }}>
 
-                    {followersList.slice(0, 4).map((f, idx) => {
+                    {followersProfiles.slice(0, 4).map((f, idx) => {
 
                       const fName = f.full_name || f.name || f.email?.split('@')[0] || 'Member';
 
@@ -2528,7 +2614,7 @@ function ViewProfileContent() {
 
 
 
-      {/* ALL CONNECTIONS / FRIENDS MODAL */}
+      {/* ALL CONNECTIONS / NETWORK MODAL WITH DEDICATED TABS */}
 
       {showFriendsModal && (
 
@@ -2544,15 +2630,17 @@ function ViewProfileContent() {
 
             onClick={(e) => e.stopPropagation()}
 
-            style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', maxWidth: '440px', width: '100%', maxHeight: '75vh', overflowY: 'auto', padding: '1.2rem', color: '#fff' }}
+            style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', maxWidth: '440px', width: '100%', maxHeight: '78vh', overflowY: 'auto', padding: '1.2rem', color: '#fff' }}
 
           >
+
+            {/* Modal Header */}
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '0.65rem', marginBottom: '0.8rem' }}>
 
               <div style={{ fontWeight: '800', fontSize: '0.95rem' }}>
 
-                Followers & Friends ({followersList.length})
+                Network Connections
 
               </div>
 
@@ -2562,79 +2650,237 @@ function ViewProfileContent() {
 
 
 
+            {/* Modal Internal Tabs (Followers vs Following) */}
+
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.9rem', backgroundColor: '#131b2e', padding: '0.25rem', borderRadius: '8px' }}>
+
+              <button
+
+                type="button"
+
+                onClick={() => setFriendsModalTab('followers')}
+
+                style={{
+
+                  flex: 1,
+
+                  backgroundColor: friendsModalTab === 'followers' ? '#0284c7' : 'transparent',
+
+                  color: friendsModalTab === 'followers' ? '#fff' : '#94a3b8',
+
+                  border: 'none',
+
+                  padding: '0.45rem',
+
+                  borderRadius: '6px',
+
+                  fontSize: '0.8rem',
+
+                  fontWeight: '700',
+
+                  cursor: 'pointer'
+
+                }}
+
+              >
+
+                Followers ({followersCount})
+
+              </button>
+
+              <button
+
+                type="button"
+
+                onClick={() => setFriendsModalTab('following')}
+
+                style={{
+
+                  flex: 1,
+
+                  backgroundColor: friendsModalTab === 'following' ? '#0284c7' : 'transparent',
+
+                  color: friendsModalTab === 'following' ? '#fff' : '#94a3b8',
+
+                  border: 'none',
+
+                  padding: '0.45rem',
+
+                  borderRadius: '6px',
+
+                  fontSize: '0.8rem',
+
+                  fontWeight: '700',
+
+                  cursor: 'pointer'
+
+                }}
+
+              >
+
+                Following ({followingCount})
+
+              </button>
+
+            </div>
+
+
+
+            {/* Modal List View */}
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
 
-              {followersList.length === 0 ? (
+              {friendsModalTab === 'followers' ? (
 
-                <div style={{ color: '#64748b', textAlign: 'center', padding: '2rem 1rem', fontSize: '0.82rem' }}>
+                followersProfiles.length === 0 ? (
 
-                  No connections found.
+                  <div style={{ color: '#64748b', textAlign: 'center', padding: '2rem 1rem', fontSize: '0.82rem' }}>
 
-                </div>
+                    No followers found for this user.
 
-              ) : (
+                  </div>
 
-                followersList.map((f, idx) => {
+                ) : (
 
-                  const fName = f.full_name || f.name || f.email?.split('@')[0];
+                  followersProfiles.map((f, idx) => {
 
-                  return (
+                    const fName = f.full_name || f.name || f.email?.split('@')[0];
 
-                    <div 
+                    return (
 
-                      key={idx} 
+                      <div 
 
-                      onClick={() => {
+                        key={idx} 
 
-                        setShowFriendsModal(false);
+                        onClick={() => {
 
-                        window.location.href = `/view-profile?email=${encodeURIComponent(f.email || '')}`;
+                          setShowFriendsModal(false);
 
-                      }}
+                          window.location.href = `/view-profile?email=${encodeURIComponent(f.email || '')}`;
 
-                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 0.8rem', backgroundColor: '#131b2e', borderRadius: '10px', cursor: 'pointer' }}
+                        }}
 
-                    >
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 0.8rem', backgroundColor: '#131b2e', borderRadius: '10px', cursor: 'pointer' }}
 
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                      >
 
-                        <div style={{ width: '38px', height: '38px', borderRadius: '50%', backgroundColor: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#fff', overflow: 'hidden' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
 
-                          {f.avatar_url ? (
+                          <div style={{ width: '38px', height: '38px', borderRadius: '50%', backgroundColor: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#fff', overflow: 'hidden' }}>
 
-                            <img src={f.avatar_url} alt={fName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            {f.avatar_url ? (
 
-                          ) : (
+                              <img src={f.avatar_url} alt={fName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
 
-                            fName.charAt(0).toUpperCase()
+                            ) : (
 
-                          )}
+                              fName.charAt(0).toUpperCase()
 
-                        </div>
-
-                        <div>
-
-                          <div style={{ color: '#fff', fontSize: '0.85rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-
-                            <span>{fName}</span>
-
-                            {f.is_pro && <ProVerifiedBadge size={14} />}
+                            )}
 
                           </div>
 
-                          <div style={{ color: '#64748b', fontSize: '0.7rem' }}>{f.headline || f.email}</div>
+                          <div>
+
+                            <div style={{ color: '#fff', fontSize: '0.85rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+
+                              <span>{fName}</span>
+
+                              {f.is_pro && <ProVerifiedBadge size={14} />}
+
+                            </div>
+
+                            <div style={{ color: '#64748b', fontSize: '0.7rem' }}>{f.headline || f.email}</div>
+
+                          </div>
 
                         </div>
 
+                        <span style={{ color: '#38bdf8', fontSize: '0.75rem', fontWeight: 'bold' }}>View ↗</span>
+
                       </div>
 
-                      <span style={{ color: '#38bdf8', fontSize: '0.75rem', fontWeight: 'bold' }}>View ↗</span>
+                    );
 
-                    </div>
+                  })
 
-                  );
+                )
 
-                })
+              ) : (
+
+                followingProfiles.length === 0 ? (
+
+                  <div style={{ color: '#64748b', textAlign: 'center', padding: '2rem 1rem', fontSize: '0.82rem' }}>
+
+                    This user is not following anyone yet.
+
+                  </div>
+
+                ) : (
+
+                  followingProfiles.map((f, idx) => {
+
+                    const fName = f.full_name || f.name || f.email?.split('@')[0];
+
+                    return (
+
+                      <div 
+
+                        key={idx} 
+
+                        onClick={() => {
+
+                          setShowFriendsModal(false);
+
+                          window.location.href = `/view-profile?email=${encodeURIComponent(f.email || '')}`;
+
+                        }}
+
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 0.8rem', backgroundColor: '#131b2e', borderRadius: '10px', cursor: 'pointer' }}
+
+                      >
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+
+                          <div style={{ width: '38px', height: '38px', borderRadius: '50%', backgroundColor: '#1e293b', border: '1px solid #334155', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#38bdf8', overflow: 'hidden' }}>
+
+                            {f.avatar_url ? (
+
+                              <img src={f.avatar_url} alt={fName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+
+                            ) : (
+
+                              fName.charAt(0).toUpperCase()
+
+                            )}
+
+                          </div>
+
+                          <div>
+
+                            <div style={{ color: '#fff', fontSize: '0.85rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+
+                              <span>{fName}</span>
+
+                              {f.is_pro && <ProVerifiedBadge size={14} />}
+
+                            </div>
+
+                            <div style={{ color: '#64748b', fontSize: '0.7rem' }}>{f.headline || f.email}</div>
+
+                          </div>
+
+                        </div>
+
+                        <span style={{ color: '#38bdf8', fontSize: '0.75rem', fontWeight: 'bold' }}>View ↗</span>
+
+                      </div>
+
+                    );
+
+                  })
+
+                )
 
               )}
 
