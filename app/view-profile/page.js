@@ -136,6 +136,26 @@ function ViewProfileContent() {
 
 
 
+  // Feed Actions State (Likes, Comments Drawer, Post Dropdowns)
+
+  const [likedPostsMap, setLikedPostsMap] = useState({});
+
+  const [likesCountMap, setLikesCountMap] = useState({});
+
+  const [activeCommentsPostId, setActiveCommentsPostId] = useState(null);
+
+  const [postCommentsMap, setPostCommentsMap] = useState({});
+
+  const [newCommentText, setNewCommentText] = useState({});
+
+  const [submittingComment, setSubmittingComment] = useState(false);
+
+  const [activePostMenuId, setActivePostMenuId] = useState(null);
+
+  const [savedPostsMap, setSavedPostsMap] = useState({});
+
+
+
   useEffect(() => {
 
     async function loadProfile() {
@@ -248,8 +268,6 @@ function ViewProfileContent() {
 
 
 
-          // Fetch Followers preview profiles
-
           const followerEmails = targetFollowers.map(f => (f.follower_email || '').toLowerCase()).slice(0, 20);
 
           if (followerEmails.length > 0) {
@@ -294,6 +312,86 @@ function ViewProfileContent() {
 
           setUserPosts(postsData);
 
+
+
+          // Initialize Likes & Comments count
+
+          const initialLikes = {};
+
+          const initialLikesCount = {};
+
+          postsData.forEach(p => {
+
+            initialLikesCount[p.id] = p.likes_count || 0;
+
+          });
+
+          setLikesCountMap(initialLikesCount);
+
+
+
+          // If current user is logged in, fetch their liked posts
+
+          if (me?.email) {
+
+            const postIds = postsData.map(p => p.id);
+
+            if (postIds.length > 0) {
+
+              const { data: userLikes } = await supabase
+
+                .from('post_likes')
+
+                .select('post_id')
+
+                .ilike('user_email', me.email.toLowerCase())
+
+                .in('post_id', postIds);
+
+
+
+              if (userLikes) {
+
+                userLikes.forEach(l => {
+
+                  initialLikes[l.post_id] = true;
+
+                });
+
+                setLikedPostsMap(initialLikes);
+
+              }
+
+
+
+              // Also check saved posts
+
+              const { data: savedData } = await supabase
+
+                .from('saved_posts')
+
+                .select('post_id')
+
+                .ilike('user_email', me.email.toLowerCase())
+
+                .in('post_id', postIds);
+
+
+
+              if (savedData) {
+
+                const svMap = {};
+
+                savedData.forEach(s => { svMap[s.post_id] = true; });
+
+                setSavedPostsMap(svMap);
+
+              }
+
+            }
+
+          }
+
         }
 
       } catch (err) {
@@ -313,6 +411,296 @@ function ViewProfileContent() {
     loadProfile();
 
   }, [targetEmailParam]);
+
+
+
+  // Handle Like / Unlike
+
+  async function handleToggleLike(postId) {
+
+    if (!currentUser) {
+
+      router.push('/auth');
+
+      return;
+
+    }
+
+    const myEmail = currentUser.email.toLowerCase();
+
+    const currentlyLiked = !!likedPostsMap[postId];
+
+
+
+    // Optimistic UI update
+
+    setLikedPostsMap(prev => ({ ...prev, [postId]: !currentlyLiked }));
+
+    setLikesCountMap(prev => ({
+
+      ...prev,
+
+      [postId]: Math.max(0, (prev[postId] || 0) + (currentlyLiked ? -1 : 1))
+
+    }));
+
+
+
+    try {
+
+      if (currentlyLiked) {
+
+        await supabase
+
+          .from('post_likes')
+
+          .delete()
+
+          .eq('post_id', postId)
+
+          .ilike('user_email', myEmail);
+
+      } else {
+
+        await supabase
+
+          .from('post_likes')
+
+          .insert([{ post_id: postId, user_email: myEmail }]);
+
+      }
+
+    } catch (err) {
+
+      console.error('Like toggle error:', err);
+
+      // Revert on error
+
+      setLikedPostsMap(prev => ({ ...prev, [postId]: currentlyLiked }));
+
+      setLikesCountMap(prev => ({
+
+        ...prev,
+
+        [postId]: Math.max(0, (prev[postId] || 0) + (currentlyLiked ? 1 : -1))
+
+      }));
+
+    }
+
+  }
+
+
+
+  // Load & Toggle Comments Drawer
+
+  async function handleToggleComments(postId) {
+
+    if (activeCommentsPostId === postId) {
+
+      setActiveCommentsPostId(null);
+
+      return;
+
+    }
+
+    setActiveCommentsPostId(postId);
+
+
+
+    if (!postCommentsMap[postId]) {
+
+      try {
+
+        const { data: comments } = await supabase
+
+          .from('post_comments')
+
+          .select('*')
+
+          .eq('post_id', postId)
+
+          .order('created_at', { ascending: true });
+
+
+
+        setPostCommentsMap(prev => ({ ...prev, [postId]: comments || [] }));
+
+      } catch (err) {
+
+        console.error('Error loading comments:', err);
+
+      }
+
+    }
+
+  }
+
+
+
+  // Submit New Comment
+
+  async function handleAddComment(postId) {
+
+    const commentBody = (newCommentText[postId] || '').trim();
+
+    if (!commentBody) return;
+
+    if (!currentUser) {
+
+      router.push('/auth');
+
+      return;
+
+    }
+
+
+
+    const myEmail = currentUser.email.toLowerCase();
+
+    setSubmittingComment(true);
+
+
+
+    try {
+
+      const { data: inserted, error } = await supabase
+
+        .from('post_comments')
+
+        .insert([{
+
+          post_id: postId,
+
+          user_email: myEmail,
+
+          comment: commentBody
+
+        }])
+
+        .select()
+
+        .single();
+
+
+
+      if (error) throw error;
+
+
+
+      setPostCommentsMap(prev => ({
+
+        ...prev,
+
+        [postId]: [...(prev[postId] || []), inserted]
+
+      }));
+
+      setNewCommentText(prev => ({ ...prev, [postId]: '' }));
+
+    } catch (err) {
+
+      alert('Could not post comment: ' + err.message);
+
+    } finally {
+
+      setSubmittingComment(false);
+
+    }
+
+  }
+
+
+
+  // Save / Bookmark Post
+
+  async function handleSavePost(postId) {
+
+    if (!currentUser) {
+
+      router.push('/auth');
+
+      return;
+
+    }
+
+    const myEmail = currentUser.email.toLowerCase();
+
+    const isSaved = !!savedPostsMap[postId];
+
+
+
+    try {
+
+      if (isSaved) {
+
+        await supabase
+
+          .from('saved_posts')
+
+          .delete()
+
+          .eq('post_id', postId)
+
+          .ilike('user_email', myEmail);
+
+        setSavedPostsMap(prev => ({ ...prev, [postId]: false }));
+
+        alert('Post removed from saved bookmarks.');
+
+      } else {
+
+        await supabase
+
+          .from('saved_posts')
+
+          .insert([{ post_id: postId, user_email: myEmail }]);
+
+        setSavedPostsMap(prev => ({ ...prev, [postId]: true }));
+
+        alert('Post bookmarked successfully! View in Menu > Saved Posts.');
+
+      }
+
+    } catch (err) {
+
+      alert('Error updating bookmark: ' + err.message);
+
+    } finally {
+
+      setActivePostMenuId(null);
+
+    }
+
+  }
+
+
+
+  // Handle Share / Repost
+
+  function handleSharePost(post) {
+
+    if (typeof navigator !== 'undefined' && navigator.share) {
+
+      navigator.share({
+
+        title: `${displayName} on Shanora`,
+
+        text: post.content,
+
+        url: window.location.href
+
+      }).catch(() => {});
+
+    } else {
+
+      navigator.clipboard.writeText(`${window.location.origin}/feed?post=${post.id}`);
+
+      alert('Post link copied to clipboard!');
+
+    }
+
+  }
 
 
 
@@ -400,8 +788,6 @@ function ViewProfileContent() {
 
 
 
-  // Handle Direct Message: Navigates straight to /profile with messenger tab and receiver active
-
   function handleOpenMessage() {
 
     if (!currentUser) {
@@ -441,8 +827,6 @@ function ViewProfileContent() {
   function handleShareToWhatsApp() {
 
     if (typeof window !== 'undefined') {
-
-      const shareUrl = encodeURIComponent(window.location.href);
 
       const text = encodeURIComponent(`Check out ${displayName}'s profile on Shanora.pk:\n${window.location.href}`);
 
@@ -624,7 +1008,7 @@ function ViewProfileContent() {
 
 
 
-      {/* Main Profile Body Container */}
+      {/* Main Profile Body */}
 
       <main style={{ maxWidth: '640px', margin: '0 auto', padding: '0 0 90px 0' }}>
 
@@ -1270,9 +1654,9 @@ function ViewProfileContent() {
 
 
 
-              {/* Feed Posts */}
+              {/* FEED-STYLE INTERACTIVE POSTS */}
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
 
                 <div style={{ fontSize: '0.9rem', fontWeight: '800', color: '#fff' }}>
 
@@ -1292,65 +1676,549 @@ function ViewProfileContent() {
 
                 ) : (
 
-                  userPosts.map(post => (
+                  userPosts.map(post => {
 
-                    <div key={post.id} style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                    const isLiked = !!likedPostsMap[post.id];
 
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                    const likeCount = likesCountMap[post.id] || 0;
 
-                        <div style={{ width: '38px', height: '38px', borderRadius: '50%', backgroundColor: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', overflow: 'hidden' }}>
+                    const isCommentsOpen = activeCommentsPostId === post.id;
 
-                          {targetUser.avatar_url ? (
+                    const comments = postCommentsMap[post.id] || [];
 
-                            <img src={targetUser.avatar_url} alt={displayName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    const isMenuOpen = activePostMenuId === post.id;
 
-                          ) : (
+                    const isSaved = !!savedPostsMap[post.id];
 
-                            displayName.charAt(0).toUpperCase()
 
-                          )}
 
-                        </div>
+                    return (
 
-                        <div>
+                      <div key={post.id} style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', position: 'relative' }}>
 
-                          <div style={{ fontSize: '0.88rem', fontWeight: '800', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                        
 
-                            <span>{displayName}</span>
+                        {/* Post Header: Avatar, Name, Timestamp & Top-Right ... Menu */}
 
-                            {targetUser.is_pro && <ProVerifiedBadge size={14} />}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+
+                            <div style={{ width: '42px', height: '42px', borderRadius: '50%', backgroundColor: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', overflow: 'hidden' }}>
+
+                              {targetUser.avatar_url ? (
+
+                                <img src={targetUser.avatar_url} alt={displayName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+
+                              ) : (
+
+                                displayName.charAt(0).toUpperCase()
+
+                              )}
+
+                            </div>
+
+                            <div>
+
+                              <div style={{ fontSize: '0.9rem', fontWeight: '800', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+
+                                <span>{displayName}</span>
+
+                                {targetUser.is_pro && <ProVerifiedBadge size={15} />}
+
+                              </div>
+
+                              <div style={{ fontSize: '0.7rem', color: '#64748b' }}>
+
+                                {new Date(post.created_at).toLocaleDateString()} at {new Date(post.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • 🌐
+
+                              </div>
+
+                            </div>
 
                           </div>
 
-                          <div style={{ fontSize: '0.68rem', color: '#64748b' }}>
 
-                            {new Date(post.created_at).toLocaleDateString()} at {new Date(post.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+
+                          {/* Post Action Menu (...) */}
+
+                          <div style={{ position: 'relative' }}>
+
+                            <button
+
+                              type="button"
+
+                              onClick={() => setActivePostMenuId(isMenuOpen ? null : post.id)}
+
+                              style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.1rem', cursor: 'pointer', padding: '0.3rem' }}
+
+                            >
+
+                              •••
+
+                            </button>
+
+
+
+                            {isMenuOpen && (
+
+                              <div style={{
+
+                                position: 'absolute',
+
+                                right: 0,
+
+                                top: '30px',
+
+                                backgroundColor: '#131e33',
+
+                                border: '1px solid #334155',
+
+                                borderRadius: '10px',
+
+                                padding: '0.4rem',
+
+                                width: '180px',
+
+                                zIndex: 100,
+
+                                boxShadow: '0 8px 20px rgba(0,0,0,0.6)',
+
+                                display: 'flex',
+
+                                flexDirection: 'column',
+
+                                gap: '0.3rem'
+
+                              }}>
+
+                                <button
+
+                                  type="button"
+
+                                  onClick={() => handleSavePost(post.id)}
+
+                                  style={{ background: 'none', border: 'none', color: isSaved ? '#facc15' : '#cbd5e1', padding: '0.45rem 0.6rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: 'bold', cursor: 'pointer', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+
+                                >
+
+                                  <span>{isSaved ? '★' : '☆'}</span>
+
+                                  <span>{isSaved ? 'Remove from Saved' : 'Save Post'}</span>
+
+                                </button>
+
+                                <button
+
+                                  type="button"
+
+                                  onClick={() => {
+
+                                    navigator.clipboard.writeText(`${window.location.origin}/feed?post=${post.id}`);
+
+                                    alert('Post link copied to clipboard!');
+
+                                    setActivePostMenuId(null);
+
+                                  }}
+
+                                  style={{ background: 'none', border: 'none', color: '#cbd5e1', padding: '0.45rem 0.6rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: 'bold', cursor: 'pointer', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+
+                                >
+
+                                  <span>🔗</span>
+
+                                  <span>Copy Link</span>
+
+                                </button>
+
+                              </div>
+
+                            )}
 
                           </div>
 
                         </div>
+
+
+
+                        {/* Post Content */}
+
+                        <p style={{ margin: 0, fontSize: '0.88rem', color: '#e2e8f0', lineHeight: '1.5', whiteSpace: 'pre-line' }}>
+
+                          {decodeHtmlEntities(post.content)}
+
+                        </p>
+
+
+
+                        {/* Post Image Attachment */}
+
+                        {post.image_url && (
+
+                          <img src={post.image_url} alt="Post attachment" style={{ width: '100%', maxHeight: '340px', objectFit: 'cover', borderRadius: '10px' }} />
+
+                        )}
+
+
+
+                        {/* Likes & Comments Counter Header */}
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', color: '#94a3b8', borderTop: '1px solid #1e293b', paddingTop: '0.6rem', marginTop: '0.2rem' }}>
+
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+
+                            <span style={{ backgroundColor: '#0284c7', color: '#fff', borderRadius: '50%', width: '16px', height: '16px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.55rem' }}>👍</span>
+
+                            <span>{likeCount} {likeCount === 1 ? 'Like' : 'Likes'}</span>
+
+                          </span>
+
+                          <span onClick={() => handleToggleComments(post.id)} style={{ cursor: 'pointer' }}>
+
+                            {comments.length > 0 ? `${comments.length} comments` : 'Comments'}
+
+                          </span>
+
+                        </div>
+
+
+
+                        {/* FULL FEED-STYLE ACTION BAR (LIKE, COMMENT, REPOST, SEND) */}
+
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.35rem', borderTop: '1px solid #1e293b', paddingTop: '0.4rem' }}>
+
+                          {/* 1. LIKE */}
+
+                          <button
+
+                            type="button"
+
+                            onClick={() => handleToggleLike(post.id)}
+
+                            style={{
+
+                              backgroundColor: isLiked ? 'rgba(56, 189, 248, 0.12)' : 'transparent',
+
+                              border: 'none',
+
+                              color: isLiked ? '#38bdf8' : '#94a3b8',
+
+                              padding: '0.5rem 0.2rem',
+
+                              borderRadius: '8px',
+
+                              fontSize: '0.78rem',
+
+                              fontWeight: '700',
+
+                              cursor: 'pointer',
+
+                              display: 'flex',
+
+                              alignItems: 'center',
+
+                              justifyContent: 'center',
+
+                              gap: '0.3rem',
+
+                              transition: 'all 0.2s'
+
+                            }}
+
+                          >
+
+                            <span>{isLiked ? '👍' : '👍'}</span>
+
+                            <span>{isLiked ? 'Liked' : 'Like'}</span>
+
+                          </button>
+
+
+
+                          {/* 2. COMMENT */}
+
+                          <button
+
+                            type="button"
+
+                            onClick={() => handleToggleComments(post.id)}
+
+                            style={{
+
+                              backgroundColor: isCommentsOpen ? 'rgba(56, 189, 248, 0.12)' : 'transparent',
+
+                              border: 'none',
+
+                              color: isCommentsOpen ? '#38bdf8' : '#94a3b8',
+
+                              padding: '0.5rem 0.2rem',
+
+                              borderRadius: '8px',
+
+                              fontSize: '0.78rem',
+
+                              fontWeight: '700',
+
+                              cursor: 'pointer',
+
+                              display: 'flex',
+
+                              alignItems: 'center',
+
+                              justifyContent: 'center',
+
+                              gap: '0.3rem'
+
+                            }}
+
+                          >
+
+                            <span>💬</span>
+
+                            <span>Comment</span>
+
+                          </button>
+
+
+
+                          {/* 3. REPOST / SHARE */}
+
+                          <button
+
+                            type="button"
+
+                            onClick={() => handleSharePost(post)}
+
+                            style={{
+
+                              backgroundColor: 'transparent',
+
+                              border: 'none',
+
+                              color: '#94a3b8',
+
+                              padding: '0.5rem 0.2rem',
+
+                              borderRadius: '8px',
+
+                              fontSize: '0.78rem',
+
+                              fontWeight: '700',
+
+                              cursor: 'pointer',
+
+                              display: 'flex',
+
+                              alignItems: 'center',
+
+                              justifyContent: 'center',
+
+                              gap: '0.3rem'
+
+                            }}
+
+                          >
+
+                            <span>🔁</span>
+
+                            <span>Repost</span>
+
+                          </button>
+
+
+
+                          {/* 4. SEND (Direct message share) */}
+
+                          <button
+
+                            type="button"
+
+                            onClick={() => {
+
+                              handleOpenMessage();
+
+                            }}
+
+                            style={{
+
+                              backgroundColor: 'transparent',
+
+                              border: 'none',
+
+                              color: '#94a3b8',
+
+                              padding: '0.5rem 0.2rem',
+
+                              borderRadius: '8px',
+
+                              fontSize: '0.78rem',
+
+                              fontWeight: '700',
+
+                              cursor: 'pointer',
+
+                              display: 'flex',
+
+                              alignItems: 'center',
+
+                              justifyContent: 'center',
+
+                              gap: '0.3rem'
+
+                            }}
+
+                          >
+
+                            <span>✈️</span>
+
+                            <span>Send</span>
+
+                          </button>
+
+                        </div>
+
+
+
+                        {/* EXPANDABLE COMMENTS DRAWER */}
+
+                        {isCommentsOpen && (
+
+                          <div style={{ backgroundColor: '#131b2e', border: '1px solid #1e293b', borderRadius: '10px', padding: '0.8rem', marginTop: '0.4rem', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+
+                            {/* Comment Input */}
+
+                            <div style={{ display: 'flex', gap: '0.45rem', alignItems: 'center' }}>
+
+                              <input
+
+                                type="text"
+
+                                placeholder="Write a comment..."
+
+                                value={newCommentText[post.id] || ''}
+
+                                onChange={(e) => setNewCommentText(prev => ({ ...prev, [post.id]: e.target.value }))}
+
+                                onKeyDown={(e) => {
+
+                                  if (e.key === 'Enter') handleAddComment(post.id);
+
+                                }}
+
+                                style={{
+
+                                  flex: 1,
+
+                                  backgroundColor: '#0f172a',
+
+                                  border: '1px solid #334155',
+
+                                  borderRadius: '20px',
+
+                                  padding: '0.45rem 0.85rem',
+
+                                  color: '#fff',
+
+                                  fontSize: '0.78rem',
+
+                                  outline: 'none'
+
+                                }}
+
+                              />
+
+                              <button
+
+                                type="button"
+
+                                disabled={submittingComment || !(newCommentText[post.id] || '').trim()}
+
+                                onClick={() => handleAddComment(post.id)}
+
+                                style={{
+
+                                  backgroundColor: '#0284c7',
+
+                                  color: '#fff',
+
+                                  border: 'none',
+
+                                  borderRadius: '20px',
+
+                                  padding: '0.45rem 0.8rem',
+
+                                  fontSize: '0.74rem',
+
+                                  fontWeight: 'bold',
+
+                                  cursor: 'pointer'
+
+                                }}
+
+                              >
+
+                                {submittingComment ? '...' : 'Post'}
+
+                              </button>
+
+                            </div>
+
+
+
+                            {/* Comments List */}
+
+                            {comments.length === 0 ? (
+
+                              <div style={{ fontSize: '0.74rem', color: '#64748b', textAlign: 'center', padding: '0.4rem 0' }}>
+
+                                No comments yet. Be the first to share your thoughts!
+
+                              </div>
+
+                            ) : (
+
+                              comments.map(c => (
+
+                                <div key={c.id} style={{ display: 'flex', gap: '0.5rem', backgroundColor: '#0f172a', padding: '0.5rem 0.7rem', borderRadius: '8px' }}>
+
+                                  <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: '#1e293b', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#38bdf8', fontSize: '0.75rem', fontWeight: 'bold', flexShrink: 0 }}>
+
+                                    {(c.user_email || 'U').charAt(0).toUpperCase()}
+
+                                  </div>
+
+                                  <div style={{ flex: 1, overflow: 'hidden' }}>
+
+                                    <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#38bdf8' }}>
+
+                                      {c.user_email?.split('@')[0]}
+
+                                    </div>
+
+                                    <div style={{ fontSize: '0.78rem', color: '#e2e8f0', marginTop: '0.1rem', wordBreak: 'break-word' }}>
+
+                                      {c.comment}
+
+                                    </div>
+
+                                  </div>
+
+                                </div>
+
+                              ))
+
+                            )}
+
+                          </div>
+
+                        )}
 
                       </div>
 
+                    );
 
-
-                      <p style={{ margin: 0, fontSize: '0.85rem', color: '#e2e8f0', lineHeight: '1.45', whiteSpace: 'pre-line' }}>
-
-                        {decodeHtmlEntities(post.content)}
-
-                      </p>
-
-
-
-                      {post.image_url && (
-
-                        <img src={post.image_url} alt="Post attachment" style={{ width: '100%', maxHeight: '320px', objectFit: 'cover', borderRadius: '10px', marginTop: '0.3rem' }} />
-
-                      )}
-
-                    </div>
-
-                  ))
+                  })
 
                 )}
 
@@ -1656,7 +2524,7 @@ function ViewProfileContent() {
 
 
 
-      {/* ALL CONNECTIONS / FRIENDS MODAL ("See all") */}
+      {/* ALL CONNECTIONS / FRIENDS MODAL */}
 
       {showFriendsModal && (
 
