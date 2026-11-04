@@ -1278,13 +1278,17 @@ function ViewProfileContent() {
 
 
 
-                {/* 2. Facebook Messenger Official Blue Button */}
-
-               <button
+  {/* Direct Message Action Button */}
+<button
   type="button"
-  onClick={() => {
-    if (targetEmail) {
-      router.push(`/profile?tab=messages&chatWith=${encodeURIComponent(targetEmail.toLowerCase())}`);
+  onClick={(e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const cleanEmail = (targetEmail || searchParams?.get('email') || '').trim().toLowerCase();
+    if (cleanEmail) {
+      window.location.href = `/profile?tab=messages&chatWith=${encodeURIComponent(cleanEmail)}`;
+    } else {
+      window.location.href = '/profile?tab=messages';
     }
   }}
   style={{
@@ -1292,7 +1296,7 @@ function ViewProfileContent() {
     backgroundColor: '#1877f2',
     color: '#ffffff',
     border: 'none',
-    padding: '0.6rem 1rem',
+    padding: '0.65rem 1rem',
     borderRadius: '10px',
     fontSize: '0.85rem',
     fontWeight: '800',
@@ -1301,14 +1305,16 @@ function ViewProfileContent() {
     alignItems: 'center',
     justifyContent: 'center',
     gap: '0.45rem',
-    boxShadow: '0 4px 14px rgba(24, 119, 242, 0.4)'
+    boxShadow: '0 4px 14px rgba(24, 119, 242, 0.4)',
+    position: 'relative',
+    zIndex: 10,
+    pointerEvents: 'auto',
+    userSelect: 'none'
   }}
 >
-  <span>💬</span>
+  <span style={{ fontSize: '1rem' }}>💬</span>
   <span>Message</span>
 </button>
-
-
                 {/* 3. Three Dots Options */}
 
                 <button
