@@ -5514,7 +5514,7 @@ function ProfilePortalContent() {
 
             onClick={(e) => e.stopPropagation()}
 
-            style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', maxWidth: '520px', width: '100%', maxHeight: '92vh', overflowY: 'auto', padding: '1.2rem', color: '#fff', boxSizing: 'border-box' }}
+           style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', maxWidth: '520px', width: '100%', maxHeight: '82vh', overflowY: 'auto', padding: '1.2rem 1.2rem 3.5rem 1.2rem', boxSizing: 'border-box' }}
 
           >
 
@@ -5779,7 +5779,7 @@ function ProfilePortalContent() {
                 })}
 
               </div>
-
+                <div style={{ height: '70px', width: '100%', flexShrink: 0 }}> </div>
             </div>
 
           </div>
