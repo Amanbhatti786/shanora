@@ -70,6 +70,26 @@ function ProVerifiedBadge({ size = 18 }) {
 
 
 
+function decodeHtmlEntities(str) {
+
+  if (!str) return '';
+
+  return str
+
+    .replace(/&amp;/g, '&')
+
+    .replace(/&lt;/g, '<')
+
+    .replace(/&gt;/g, '>')
+
+    .replace(/&quot;/g, '"')
+
+    .replace(/&#039;/g, "'");
+
+}
+
+
+
 function ViewProfileContent() {
 
   const router = useRouter();
@@ -100,9 +120,17 @@ function ViewProfileContent() {
 
   const [followingList, setFollowingList] = useState([]);
 
+  const [followersCount, setFollowersCount] = useState(0);
+
+  const [followingCount, setFollowingCount] = useState(0);
+
+
+
   const [userPosts, setUserPosts] = useState([]);
 
   const [showOptionsModal, setShowOptionsModal] = useState(false);
+
+  const [showFriendsModal, setShowFriendsModal] = useState(false);
 
   const [copiedLink, setCopiedLink] = useState(false);
 
@@ -156,15 +184,13 @@ function ViewProfileContent() {
 
         } else {
 
-          // Fallback if profile row is not yet initialized
-
           setTargetUser({
 
             email: cleanTargetEmail,
 
             full_name: cleanTargetEmail.split('@')[0],
 
-            headline: 'Professional Member on Shanora.pk',
+            headline: 'Professional Member on Shanora',
 
             city: 'Pakistan',
 
@@ -175,6 +201,8 @@ function ViewProfileContent() {
             avatar_url: '',
 
             resume_url: '',
+
+            education: 'Higher Professional Studies',
 
             is_pro: false
 
@@ -190,7 +218,7 @@ function ViewProfileContent() {
 
           .from('user_follows')
 
-          .select('*');
+          .select('id, follower_email, following_email, created_at');
 
 
 
@@ -204,13 +232,11 @@ function ViewProfileContent() {
 
 
 
-          setFollowersList(targetFollowers);
+          setFollowersCount(targetFollowers.length);
 
-          setFollowingList(targetFollowing);
+          setFollowingCount(targetFollowing.length);
 
 
-
-          // Check if currently logged in user follows this profile
 
           if (myEmail) {
 
@@ -222,19 +248,19 @@ function ViewProfileContent() {
 
 
 
-          // Fetch Followers preview avatars
+          // Fetch Followers preview profiles
 
-          const previewEmails = targetFollowers.map(f => (f.follower_email || '').toLowerCase()).slice(0, 10);
+          const followerEmails = targetFollowers.map(f => (f.follower_email || '').toLowerCase()).slice(0, 20);
 
-          if (previewEmails.length > 0) {
+          if (followerEmails.length > 0) {
 
             const { data: previewProfiles } = await supabase
 
               .from('profiles')
 
-              .select('email, name, full_name, avatar_url, last_seen')
+              .select('email, name, full_name, avatar_url, last_seen, headline, is_pro')
 
-              .in('email', previewEmails);
+              .in('email', followerEmails);
 
 
 
@@ -290,7 +316,7 @@ function ViewProfileContent() {
 
 
 
-  // Handle Follow / Unfollow
+  // Handle Follow / Unfollow with live UI counter
 
   async function handleToggleFollow() {
 
@@ -328,6 +354,8 @@ function ViewProfileContent() {
 
     setIsFollowing(nextFollowingState);
 
+    setFollowersCount(prev => (nextFollowingState ? prev + 1 : Math.max(0, prev - 1)));
+
 
 
     try {
@@ -360,6 +388,8 @@ function ViewProfileContent() {
 
       setIsFollowing(!nextFollowingState);
 
+      setFollowersCount(prev => (!nextFollowingState ? prev + 1 : Math.max(0, prev - 1)));
+
     } finally {
 
       setActionLoading(false);
@@ -370,7 +400,7 @@ function ViewProfileContent() {
 
 
 
-  // Handle Direct Message Redirection to Profile/Messenger tab
+  // Handle Direct Message: Navigates straight to /profile with messenger tab and receiver active
 
   function handleOpenMessage() {
 
@@ -385,8 +415,6 @@ function ViewProfileContent() {
     if (!targetUser?.email) return;
 
 
-
-    // Navigate to /profile with messenger tab and receiver preloaded
 
     router.push(`/profile?tab=messages&chat=${encodeURIComponent(targetUser.email)}`);
 
@@ -403,6 +431,24 @@ function ViewProfileContent() {
       setCopiedLink(true);
 
       setTimeout(() => setCopiedLink(false), 2000);
+
+    }
+
+  }
+
+
+
+  function handleShareToWhatsApp() {
+
+    if (typeof window !== 'undefined') {
+
+      const shareUrl = encodeURIComponent(window.location.href);
+
+      const text = encodeURIComponent(`Check out ${displayName}'s profile on Shanora.pk:\n${window.location.href}`);
+
+      window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
+
+      setShowOptionsModal(false);
 
     }
 
@@ -468,13 +514,15 @@ function ViewProfileContent() {
 
   const displayName = targetUser.full_name || targetUser.name || targetUser.email.split('@')[0];
 
+  const photosList = userPosts.filter(p => Boolean(p.image_url));
+
 
 
   return (
 
     <div style={{ minHeight: '100vh', backgroundColor: '#070b14', color: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
 
-      {/* Top Header (Facebook Style with Back arrow and Title) */}
+      {/* Top Header */}
 
       <header style={{ backgroundColor: '#0f172a', borderBottom: '1px solid #1e293b', padding: '0.8rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100 }}>
 
@@ -582,7 +630,7 @@ function ViewProfileContent() {
 
         
 
-        {/* Profile Banner Background */}
+        {/* Banner */}
 
         <div style={{
 
@@ -598,7 +646,7 @@ function ViewProfileContent() {
 
 
 
-        {/* User Avatar & Identity Header */}
+        {/* User Identity Header */}
 
         <div style={{ padding: '0 1rem', position: 'relative', marginTop: '-50px', marginBottom: '1rem' }}>
 
@@ -706,7 +754,7 @@ function ViewProfileContent() {
 
               <p style={{ margin: '0.65rem 0 0.8rem 0', fontSize: '0.85rem', color: '#cbd5e1', lineHeight: '1.45' }}>
 
-                {targetUser.bio}
+                {decodeHtmlEntities(targetUser.bio)}
 
               </p>
 
@@ -718,19 +766,19 @@ function ViewProfileContent() {
 
             <div style={{ display: 'flex', gap: '1.2rem', fontSize: '0.82rem', marginTop: '0.5rem', color: '#94a3b8' }}>
 
-              <div>
+              <div onClick={() => setShowFriendsModal(true)} style={{ cursor: 'pointer' }}>
 
-                <strong style={{ color: '#fff' }}>{followersList.length}</strong> Followers
-
-              </div>
-
-              <div>
-
-                <strong style={{ color: '#fff' }}>{followingList.length}</strong> Following
+                <strong style={{ color: '#fff' }}>{followersCount}</strong> Followers
 
               </div>
 
-              <div>
+              <div onClick={() => setShowFriendsModal(true)} style={{ cursor: 'pointer' }}>
+
+                <strong style={{ color: '#fff' }}>{followingCount}</strong> Following
+
+              </div>
+
+              <div onClick={() => setActiveTab('all')} style={{ cursor: 'pointer' }}>
 
                 <strong style={{ color: '#fff' }}>{userPosts.length}</strong> Posts
 
@@ -742,7 +790,7 @@ function ViewProfileContent() {
 
 
 
-          {/* EXACT FACEBOOK-STYLE ACTION BUTTONS (FOLLOW + MESSAGE + MORE) */}
+          {/* EXACT FACEBOOK-STYLE ACTION BUTTONS */}
 
           <div style={{ display: 'flex', gap: '0.55rem', alignItems: 'center', marginTop: '1.1rem' }}>
 
@@ -796,7 +844,7 @@ function ViewProfileContent() {
 
               <>
 
-                {/* 1. Friends / Following Button (Grey / Dark Facebook Style) */}
+                {/* 1. Friends / Following Button */}
 
                 <button
 
@@ -824,7 +872,7 @@ function ViewProfileContent() {
 
                     fontWeight: '800',
 
-                    cursor: 'pointer',
+                    cursor: actionLoading ? 'not-allowed' : 'pointer',
 
                     display: 'flex',
 
@@ -840,7 +888,7 @@ function ViewProfileContent() {
 
                 >
 
-                  <span>{isFollowing ? '👥 Following' : '➕ Follow'}</span>
+                  <span>{actionLoading ? 'Updating...' : isFollowing ? '👥 Following' : '➕ Follow'}</span>
 
                 </button>
 
@@ -858,7 +906,7 @@ function ViewProfileContent() {
 
                     flex: 1.2,
 
-                    backgroundColor: '#1877f2', // Official Facebook Messenger Blue
+                    backgroundColor: '#1877f2',
 
                     color: '#ffffff',
 
@@ -946,15 +994,15 @@ function ViewProfileContent() {
 
 
 
-        {/* TAB BAR NAVIGATION (REELS EXCLUDED) */}
+        {/* TAB BAR NAVIGATION */}
 
-        <div style={{ display: 'flex', borderBottom: '1px solid #1e293b', backgroundColor: '#0f172a', padding: '0 0.5rem' }}>
+        <div style={{ display: 'flex', borderBottom: '1px solid #1e293b', backgroundColor: '#0f172a', padding: '0 0.5rem', position: 'sticky', top: '56px', zIndex: 90 }}>
 
           {[
 
             { id: 'all', label: 'All Posts' },
 
-            { id: 'photos', label: 'Photos' },
+            { id: 'photos', label: `Photos (${photosList.length})` },
 
             { id: 'about', label: 'About Details' }
 
@@ -1004,363 +1052,337 @@ function ViewProfileContent() {
 
 
 
-        {/* TAB CONTENT */}
+        {/* DYNAMIC TAB CONTENT */}
 
         <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
 
           
 
-          {/* PERSONAL DETAILS SECTION (FACEBOOK STYLE ICONOGRAPHY) */}
-
-          <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.1rem' }}>
-
-            <h3 style={{ margin: '0 0 0.85rem 0', fontSize: '0.92rem', fontWeight: '800', color: '#fff' }}>
-
-              Personal Details
-
-            </h3>
-
-
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.84rem', color: '#cbd5e1' }}>
-
-              
-
-              {/* Location */}
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-
-                <span style={{ fontSize: '1.2rem', width: '22px', textAlign: 'center' }}>📍</span>
-
-                <div>
-
-                  Lives in <strong style={{ color: '#fff' }}>{targetUser.city || 'Pakistan'}</strong>
-
-                </div>
-
-              </div>
-
-
-
-              {/* Work / Designation */}
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-
-                <span style={{ fontSize: '1.2rem', width: '22px', textAlign: 'center' }}>💼</span>
-
-                <div>
-
-                  Work: <strong style={{ color: '#fff' }}>{targetUser.headline || 'Professional Specialist on Shanora'}</strong>
-
-                </div>
-
-              </div>
-
-
-
-              {/* Education */}
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-
-                <span style={{ fontSize: '1.2rem', width: '22px', textAlign: 'center' }}>🎓</span>
-
-                <div>
-
-                  Education: <strong style={{ color: '#fff' }}>{targetUser.education || 'Higher Professional Studies'}</strong>
-
-                </div>
-
-              </div>
-
-
-
-              {/* Skills */}
-
-              {targetUser.skills && (
-
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', marginTop: '0.2rem' }}>
-
-                  <span style={{ fontSize: '1.2rem', width: '22px', textAlign: 'center' }}>⚡</span>
-
-                  <div>
-
-                    <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '0.3rem' }}>Key Competencies:</div>
-
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
-
-                      {targetUser.skills.split(',').map((skill, idx) => (
-
-                        <span key={idx} style={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#38bdf8', padding: '0.2rem 0.55rem', borderRadius: '6px', fontSize: '0.74rem', fontWeight: '600' }}>
-
-                          {skill.trim()}
-
-                        </span>
-
-                      ))}
-
-                    </div>
-
-                  </div>
-
-                </div>
-
-              )}
-
-
-
-              {/* Attached CV / Portfolio */}
-
-              {targetUser.resume_url && (
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', borderTop: '1px solid #1e293b', paddingTop: '0.7rem' }}>
-
-                  <span style={{ fontSize: '1.2rem', width: '22px', textAlign: 'center' }}>📄</span>
-
-                  <div>
-
-                    <a href={targetUser.resume_url} target="_blank" rel="noreferrer" style={{ color: '#38bdf8', textDecoration: 'none', fontWeight: '700', fontSize: '0.8rem' }}>
-
-                      View Verified CV / Portfolio ↗
-
-                    </a>
-
-                  </div>
-
-                </div>
-
-              )}
-
-            </div>
-
-          </div>
-
-
-
-          {/* NETWORK / FRIENDS HORIZONTAL PREVIEW GRID */}
-
-          <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.1rem' }}>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
-
-              <div>
-
-                <h3 style={{ margin: 0, fontSize: '0.92rem', fontWeight: '800', color: '#fff' }}>
-
-                  Network & Friends
-
-                </h3>
-
-                <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{followersList.length} total connections</span>
-
-              </div>
-
-              <span style={{ color: '#1877f2', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer' }}>
-
-                See all
-
-              </span>
-
-            </div>
-
-
-
-            {followersList.length === 0 ? (
-
-              <div style={{ color: '#64748b', fontSize: '0.8rem', textAlign: 'center', padding: '1rem' }}>
-
-                No public connections visible yet.
-
-              </div>
-
-            ) : (
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.65rem' }}>
-
-                {followersList.slice(0, 4).map((f, idx) => {
-
-                  const fName = f.full_name || f.name || f.email?.split('@')[0] || 'Member';
-
-                  return (
-
-                    <Link
-
-                      key={idx}
-
-                      href={`/view-profile?email=${encodeURIComponent(f.email || '')}`}
-
-                      style={{ textDecoration: 'none', textAlign: 'center', overflow: 'hidden' }}
-
-                    >
-
-                      <div style={{
-
-                        width: '56px',
-
-                        height: '56px',
-
-                        borderRadius: '12px',
-
-                        backgroundColor: '#1e293b',
-
-                        border: '1px solid #334155',
-
-                        margin: '0 auto 0.35rem auto',
-
-                        display: 'flex',
-
-                        alignItems: 'center',
-
-                        justifyContent: 'center',
-
-                        color: '#38bdf8',
-
-                        fontWeight: 'bold',
-
-                        overflow: 'hidden'
-
-                      }}>
-
-                        {f.avatar_url ? (
-
-                          <img src={f.avatar_url} alt={fName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-
-                        ) : (
-
-                          fName.charAt(0).toUpperCase()
-
-                        )}
-
-                      </div>
-
-                      <div style={{ fontSize: '0.74rem', color: '#fff', fontWeight: '700', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-
-                        {fName}
-
-                      </div>
-
-                    </Link>
-
-                  );
-
-                })}
-
-              </div>
-
-            )}
-
-          </div>
-
-
-
-          {/* ALL POSTS TAB */}
+          {/* TAB 1: ALL POSTS VIEW */}
 
           {activeTab === 'all' && (
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+            <>
 
-              <div style={{ fontSize: '0.9rem', fontWeight: '800', color: '#fff' }}>
+              {/* Personal Details Section */}
 
-                Posts ({userPosts.length})
+              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.1rem' }}>
 
-              </div>
+                <h3 style={{ margin: '0 0 0.85rem 0', fontSize: '0.92rem', fontWeight: '800', color: '#fff' }}>
+
+                  Personal Details
+
+                </h3>
 
 
 
-              {userPosts.length === 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.84rem', color: '#cbd5e1' }}>
 
-                <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '2.5rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
 
-                  No updates posted by {displayName} yet.
+                    <span style={{ fontSize: '1.2rem', width: '22px', textAlign: 'center' }}>📍</span>
 
-                </div>
+                    <div>
 
-              ) : (
+                      Lives in <strong style={{ color: '#fff' }}>{targetUser.city || 'Pakistan'}</strong>
 
-                userPosts.map(post => (
+                    </div>
 
-                  <div key={post.id} style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                  </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
 
-                      <div style={{ width: '38px', height: '38px', borderRadius: '50%', backgroundColor: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', overflow: 'hidden' }}>
 
-                        {targetUser.avatar_url ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
 
-                          <img src={targetUser.avatar_url} alt={displayName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <span style={{ fontSize: '1.2rem', width: '22px', textAlign: 'center' }}>💼</span>
 
-                        ) : (
+                    <div>
 
-                          displayName.charAt(0).toUpperCase()
+                      Work: <strong style={{ color: '#fff' }}>{targetUser.headline || 'Professional Member on Shanora'}</strong>
 
-                        )}
+                    </div>
 
-                      </div>
+                  </div>
+
+
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+
+                    <span style={{ fontSize: '1.2rem', width: '22px', textAlign: 'center' }}>🎓</span>
+
+                    <div>
+
+                      Education: <strong style={{ color: '#fff' }}>{targetUser.education || 'Higher Professional Studies'}</strong>
+
+                    </div>
+
+                  </div>
+
+
+
+                  {targetUser.resume_url && (
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', borderTop: '1px solid #1e293b', paddingTop: '0.7rem' }}>
+
+                      <span style={{ fontSize: '1.2rem', width: '22px', textAlign: 'center' }}>📄</span>
 
                       <div>
 
-                        <div style={{ fontSize: '0.88rem', fontWeight: '800', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                        <a href={targetUser.resume_url} target="_blank" rel="noreferrer" style={{ color: '#38bdf8', textDecoration: 'none', fontWeight: '700', fontSize: '0.8rem' }}>
 
-                          <span>{displayName}</span>
+                          View Verified Resume / Portfolio ↗
 
-                          {targetUser.is_pro && <ProVerifiedBadge size={14} />}
-
-                        </div>
-
-                        <div style={{ fontSize: '0.68rem', color: '#64748b' }}>
-
-                          {new Date(post.created_at).toLocaleDateString()} at {new Date(post.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-
-                        </div>
+                        </a>
 
                       </div>
 
                     </div>
 
+                  )}
 
+                </div>
 
-                    <p style={{ margin: 0, fontSize: '0.85rem', color: '#e2e8f0', lineHeight: '1.45', whiteSpace: 'pre-line' }}>
-
-                      {post.content}
-
-                    </p>
+              </div>
 
 
 
-                    {post.image_url && (
+              {/* Network & Friends Grid Preview */}
 
-                      <img src={post.image_url} alt="Post attachment" style={{ width: '100%', maxHeight: '320px', objectFit: 'cover', borderRadius: '10px', marginTop: '0.3rem' }} />
+              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.1rem' }}>
 
-                    )}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
+
+                  <div>
+
+                    <h3 style={{ margin: 0, fontSize: '0.92rem', fontWeight: '800', color: '#fff' }}>
+
+                      Network & Friends
+
+                    </h3>
+
+                    <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{followersCount} total connections</span>
 
                   </div>
 
-                ))
+                  <button 
 
-              )}
+                    type="button" 
 
-            </div>
+                    onClick={() => setShowFriendsModal(true)} 
+
+                    style={{ background: 'none', border: 'none', color: '#1877f2', fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer', padding: 0 }}
+
+                  >
+
+                    See all
+
+                  </button>
+
+                </div>
+
+
+
+                {followersList.length === 0 ? (
+
+                  <div style={{ color: '#64748b', fontSize: '0.8rem', textAlign: 'center', padding: '1rem' }}>
+
+                    No public connections visible yet.
+
+                  </div>
+
+                ) : (
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.65rem' }}>
+
+                    {followersList.slice(0, 4).map((f, idx) => {
+
+                      const fName = f.full_name || f.name || f.email?.split('@')[0] || 'Member';
+
+                      return (
+
+                        <Link
+
+                          key={idx}
+
+                          href={`/view-profile?email=${encodeURIComponent(f.email || '')}`}
+
+                          style={{ textDecoration: 'none', textAlign: 'center', overflow: 'hidden' }}
+
+                        >
+
+                          <div style={{
+
+                            width: '56px',
+
+                            height: '56px',
+
+                            borderRadius: '12px',
+
+                            backgroundColor: '#1e293b',
+
+                            border: '1px solid #334155',
+
+                            margin: '0 auto 0.35rem auto',
+
+                            display: 'flex',
+
+                            alignItems: 'center',
+
+                            justifyContent: 'center',
+
+                            color: '#38bdf8',
+
+                            fontWeight: 'bold',
+
+                            overflow: 'hidden'
+
+                          }}>
+
+                            {f.avatar_url ? (
+
+                              <img src={f.avatar_url} alt={fName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+
+                            ) : (
+
+                              fName.charAt(0).toUpperCase()
+
+                            )}
+
+                          </div>
+
+                          <div style={{ fontSize: '0.74rem', color: '#fff', fontWeight: '700', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+
+                            {fName}
+
+                          </div>
+
+                        </Link>
+
+                      );
+
+                    })}
+
+                  </div>
+
+                )}
+
+              </div>
+
+
+
+              {/* Feed Posts */}
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+
+                <div style={{ fontSize: '0.9rem', fontWeight: '800', color: '#fff' }}>
+
+                  Posts ({userPosts.length})
+
+                </div>
+
+
+
+                {userPosts.length === 0 ? (
+
+                  <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '2.5rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
+
+                    No updates posted by {displayName} yet.
+
+                  </div>
+
+                ) : (
+
+                  userPosts.map(post => (
+
+                    <div key={post.id} style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+
+                        <div style={{ width: '38px', height: '38px', borderRadius: '50%', backgroundColor: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', overflow: 'hidden' }}>
+
+                          {targetUser.avatar_url ? (
+
+                            <img src={targetUser.avatar_url} alt={displayName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+
+                          ) : (
+
+                            displayName.charAt(0).toUpperCase()
+
+                          )}
+
+                        </div>
+
+                        <div>
+
+                          <div style={{ fontSize: '0.88rem', fontWeight: '800', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+
+                            <span>{displayName}</span>
+
+                            {targetUser.is_pro && <ProVerifiedBadge size={14} />}
+
+                          </div>
+
+                          <div style={{ fontSize: '0.68rem', color: '#64748b' }}>
+
+                            {new Date(post.created_at).toLocaleDateString()} at {new Date(post.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+
+                          </div>
+
+                        </div>
+
+                      </div>
+
+
+
+                      <p style={{ margin: 0, fontSize: '0.85rem', color: '#e2e8f0', lineHeight: '1.45', whiteSpace: 'pre-line' }}>
+
+                        {decodeHtmlEntities(post.content)}
+
+                      </p>
+
+
+
+                      {post.image_url && (
+
+                        <img src={post.image_url} alt="Post attachment" style={{ width: '100%', maxHeight: '320px', objectFit: 'cover', borderRadius: '10px', marginTop: '0.3rem' }} />
+
+                      )}
+
+                    </div>
+
+                  ))
+
+                )}
+
+              </div>
+
+            </>
 
           )}
 
 
 
-          {/* PHOTOS TAB */}
+          {/* TAB 2: PHOTOS VIEW */}
 
           {activeTab === 'photos' && (
 
-            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1rem' }}>
+            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.1rem' }}>
 
-              <div style={{ fontSize: '0.88rem', fontWeight: '800', color: '#fff', marginBottom: '0.8rem' }}>
+              <div style={{ fontSize: '0.92rem', fontWeight: '800', color: '#fff', marginBottom: '0.85rem' }}>
 
-                Uploaded Photos
+                Photos & Media ({photosList.length})
 
               </div>
 
-              {userPosts.filter(p => Boolean(p.image_url)).length === 0 ? (
 
-                <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b', fontSize: '0.82rem' }}>
 
-                  No photos shared yet.
+              {photosList.length === 0 ? (
+
+                <div style={{ textAlign: 'center', padding: '3rem 1rem', color: '#64748b', fontSize: '0.84rem' }}>
+
+                  <div style={{ fontSize: '2rem', marginBottom: '0.4rem' }}>📷</div>
+
+                  No photos uploaded by this member yet.
 
                 </div>
 
@@ -1368,9 +1390,21 @@ function ViewProfileContent() {
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.45rem' }}>
 
-                  {userPosts.filter(p => Boolean(p.image_url)).map((p, idx) => (
+                  {photosList.map((p, idx) => (
 
-                    <img key={idx} src={p.image_url} alt="User media" style={{ width: '100%', height: '110px', objectFit: 'cover', borderRadius: '8px' }} />
+                    <div key={idx} style={{ position: 'relative', paddingBottom: '100%', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#1e293b' }}>
+
+                      <img 
+
+                        src={p.image_url} 
+
+                        alt="User media" 
+
+                        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} 
+
+                      />
+
+                    </div>
 
                   ))}
 
@@ -1384,33 +1418,113 @@ function ViewProfileContent() {
 
 
 
-          {/* ABOUT DETAILS TAB */}
+          {/* TAB 3: ABOUT DETAILS VIEW */}
 
           {activeTab === 'about' && (
 
-            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.2rem', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.2rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
 
-              <div style={{ fontSize: '0.9rem', fontWeight: '800', color: '#fff', borderBottom: '1px solid #1e293b', paddingBottom: '0.5rem' }}>
+              <div style={{ fontSize: '1rem', fontWeight: '800', color: '#fff', borderBottom: '1px solid #1e293b', paddingBottom: '0.6rem' }}>
 
-                About {displayName}
-
-              </div>
-
-              <div style={{ fontSize: '0.82rem', color: '#94a3b8' }}>
-
-                Official Shanora ID: <strong style={{ color: '#fff' }}>{targetUser.email}</strong>
+                Detailed Overview
 
               </div>
 
-              <div style={{ fontSize: '0.82rem', color: '#94a3b8' }}>
 
-                Member Status: <strong style={{ color: targetUser.is_pro ? '#38bdf8' : '#cbd5e1' }}>{targetUser.is_pro ? 'PRO Verified ✓' : 'Standard Member'}</strong>
 
-              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', fontSize: '0.84rem', color: '#cbd5e1' }}>
 
-              <div style={{ fontSize: '0.82rem', color: '#94a3b8' }}>
+                <div>
 
-                Profile Summary: <span style={{ color: '#cbd5e1' }}>{targetUser.bio || 'Professional member actively networking on Shanora.pk'}</span>
+                  <span style={{ fontSize: '0.72rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold' }}>Full Name</span>
+
+                  <div style={{ fontSize: '0.95rem', fontWeight: '700', color: '#fff', marginTop: '0.1rem' }}>{displayName}</div>
+
+                </div>
+
+
+
+                <div>
+
+                  <span style={{ fontSize: '0.72rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold' }}>Professional Headline</span>
+
+                  <div style={{ color: '#38bdf8', fontWeight: '600', marginTop: '0.1rem' }}>{targetUser.headline || 'Member on Shanora'}</div>
+
+                </div>
+
+
+
+                <div>
+
+                  <span style={{ fontSize: '0.72rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold' }}>Location</span>
+
+                  <div style={{ color: '#fff', marginTop: '0.1rem' }}>{targetUser.city || 'Pakistan'}</div>
+
+                </div>
+
+
+
+                <div>
+
+                  <span style={{ fontSize: '0.72rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold' }}>Education</span>
+
+                  <div style={{ color: '#fff', marginTop: '0.1rem' }}>{targetUser.education || 'Higher Professional Studies'}</div>
+
+                </div>
+
+
+
+                {targetUser.bio && (
+
+                  <div>
+
+                    <span style={{ fontSize: '0.72rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold' }}>Bio & Summary</span>
+
+                    <div style={{ color: '#cbd5e1', lineHeight: '1.5', marginTop: '0.2rem' }}>{decodeHtmlEntities(targetUser.bio)}</div>
+
+                  </div>
+
+                )}
+
+
+
+                {targetUser.skills && (
+
+                  <div>
+
+                    <span style={{ fontSize: '0.72rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold' }}>Skills & Endorsements</span>
+
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginTop: '0.3rem' }}>
+
+                      {targetUser.skills.split(',').map((skill, idx) => (
+
+                        <span key={idx} style={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#38bdf8', padding: '0.25rem 0.65rem', borderRadius: '6px', fontSize: '0.76rem', fontWeight: '600' }}>
+
+                          {skill.trim()}
+
+                        </span>
+
+                      ))}
+
+                    </div>
+
+                  </div>
+
+                )}
+
+
+
+                <div style={{ borderTop: '1px solid #1e293b', paddingTop: '0.8rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+
+                  <span style={{ color: '#94a3b8' }}>Account Type:</span>
+
+                  <span style={{ color: targetUser.is_pro ? '#facc15' : '#94a3b8', fontWeight: 'bold' }}>
+
+                    {targetUser.is_pro ? 'Shanora PRO 👑' : 'Standard Member'}
+
+                  </span>
+
+                </div>
 
               </div>
 
@@ -1478,6 +1592,24 @@ function ViewProfileContent() {
 
                 type="button"
 
+                onClick={handleShareToWhatsApp}
+
+                style={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#22c55e', padding: '0.65rem', borderRadius: '8px', fontSize: '0.82rem', fontWeight: 'bold', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+
+              >
+
+                <span>🟢</span>
+
+                <span>Share via WhatsApp</span>
+
+              </button>
+
+
+
+              <button
+
+                type="button"
+
                 onClick={handleOpenMessage}
 
                 style={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#38bdf8', padding: '0.65rem', borderRadius: '8px', fontSize: '0.82rem', fontWeight: 'bold', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
@@ -1513,6 +1645,126 @@ function ViewProfileContent() {
                 <span>Report Profile</span>
 
               </button>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      )}
+
+
+
+      {/* ALL CONNECTIONS / FRIENDS MODAL ("See all") */}
+
+      {showFriendsModal && (
+
+        <div 
+
+          onClick={() => setShowFriendsModal(false)}
+
+          style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0, 0, 0, 0.8)', zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
+
+        >
+
+          <div 
+
+            onClick={(e) => e.stopPropagation()}
+
+            style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', maxWidth: '440px', width: '100%', maxHeight: '75vh', overflowY: 'auto', padding: '1.2rem', color: '#fff' }}
+
+          >
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '0.65rem', marginBottom: '0.8rem' }}>
+
+              <div style={{ fontWeight: '800', fontSize: '0.95rem' }}>
+
+                Followers & Friends ({followersList.length})
+
+              </div>
+
+              <button type="button" onClick={() => setShowFriendsModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer' }}>✕</button>
+
+            </div>
+
+
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
+
+              {followersList.length === 0 ? (
+
+                <div style={{ color: '#64748b', textAlign: 'center', padding: '2rem 1rem', fontSize: '0.82rem' }}>
+
+                  No connections found.
+
+                </div>
+
+              ) : (
+
+                followersList.map((f, idx) => {
+
+                  const fName = f.full_name || f.name || f.email?.split('@')[0];
+
+                  return (
+
+                    <div 
+
+                      key={idx} 
+
+                      onClick={() => {
+
+                        setShowFriendsModal(false);
+
+                        router.push(`/view-profile?email=${encodeURIComponent(f.email || '')}`);
+
+                      }}
+
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 0.8rem', backgroundColor: '#131b2e', borderRadius: '10px', cursor: 'pointer' }}
+
+                    >
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+
+                        <div style={{ width: '38px', height: '38px', borderRadius: '50%', backgroundColor: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#fff', overflow: 'hidden' }}>
+
+                          {f.avatar_url ? (
+
+                            <img src={f.avatar_url} alt={fName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+
+                          ) : (
+
+                            fName.charAt(0).toUpperCase()
+
+                          )}
+
+                        </div>
+
+                        <div>
+
+                          <div style={{ color: '#fff', fontSize: '0.85rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+
+                            <span>{fName}</span>
+
+                            {f.is_pro && <ProVerifiedBadge size={14} />}
+
+                          </div>
+
+                          <div style={{ color: '#64748b', fontSize: '0.7rem' }}>{f.headline || f.email}</div>
+
+                        </div>
+
+                      </div>
+
+                      <span style={{ color: '#38bdf8', fontSize: '0.75rem', fontWeight: 'bold' }}>View ↗</span>
+
+                    </div>
+
+                  );
+
+                })
+
+              )}
 
             </div>
 
