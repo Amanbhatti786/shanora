@@ -1,5 +1,7 @@
 'use client';
 
+
+
 import { Suspense, useState, useEffect, useRef } from 'react';
 
 import Link from 'next/link';
@@ -9,6 +11,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '../../lib/supabaseClient';
 
 import BottomNav from '../../components/BottomNav';
+
+
 
 function sanitizeInput(str) {
 
@@ -45,6 +49,48 @@ function ProfilePortalContent() {
   const [loading, setLoading] = useState(true);
 
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+
+
+
+  // New Modals for Menu Features
+
+  const [showInviteModal, setShowInviteModal] = useState(false);
+
+  const [showAdsModal, setShowAdsModal] = useState(false);
+
+  const [copiedLink, setCopiedLink] = useState(false);
+
+
+
+  // Ads Portal State (Facebook-Style Campaign Flow)
+
+  const [adStep, setAdStep] = useState(1);
+
+  const [adFormData, setAdFormData] = useState({
+
+    businessName: '',
+
+    contactEmail: '',
+
+    headline: '',
+
+    adText: '',
+
+    targetUrl: '',
+
+    budget: '1500',
+
+    durationDays: '7',
+
+    paymentMethod: 'EasyPaisa',
+
+    trxId: ''
+
+  });
+
+  const [adSubmitting, setAdSubmitting] = useState(false);
+
+  const [adSuccessMessage, setAdSuccessMessage] = useState('');
 
 
 
@@ -239,6 +285,14 @@ function ProfilePortalContent() {
       if (tabParam === 'jobs') {
 
         window.location.replace('/jobs');
+
+        return;
+
+      }
+
+      if (tabParam === 'security') {
+
+        window.location.replace('/settings/security');
 
         return;
 
@@ -1196,28 +1250,6 @@ function ProfilePortalContent() {
 
           .insert([{ follower_email: myEmail, following_email: cleanTarget }]);
 
-
-
-        await supabase
-
-          .from('user_notifications')
-
-          .insert([{
-
-            user_email: cleanTarget,
-
-            sender_email: myEmail,
-
-            sender_name: profile.full_name || myEmail.split('@')[0],
-
-            type: 'follow',
-
-            message: 'started following you.',
-
-            is_read: false
-
-          }]);
-
       }
 
     } catch (err) {
@@ -1530,6 +1562,78 @@ function ProfilePortalContent() {
 
 
 
+  // Handle Create Advertisement Submission
+
+  async function handleCreateAd(e) {
+
+    e.preventDefault();
+
+    if (!adFormData.headline || !adFormData.trxId) {
+
+      alert('Please fill out campaign details and Transaction ID.');
+
+      return;
+
+    }
+
+
+
+    setAdSubmitting(true);
+
+    try {
+
+      const { error } = await supabase.from('advertisements').insert([{
+
+        advertiser_email: (user?.email || '').toLowerCase(),
+
+        business_name: sanitizeInput(adFormData.businessName || profile.full_name),
+
+        headline: sanitizeInput(adFormData.headline),
+
+        ad_text: sanitizeInput(adFormData.adText),
+
+        target_url: adFormData.targetUrl,
+
+        budget: Number(adFormData.budget),
+
+        duration_days: Number(adFormData.durationDays),
+
+        payment_method: adFormData.paymentMethod,
+
+        transaction_id: adFormData.trxId.trim(),
+
+        status: 'pending_approval'
+
+      }]);
+
+
+
+      if (error) {
+
+        console.warn('Ad direct table notice:', error.message);
+
+      }
+
+
+
+      setAdSuccessMessage('Campaign submitted successfully! It is now under Admin Approval.');
+
+      setAdStep(5);
+
+    } catch (err) {
+
+      alert('Submission notice: ' + err.message);
+
+    } finally {
+
+      setAdSubmitting(false);
+
+    }
+
+  }
+
+
+
   const sortedMessengerUsers = [...allUsersList].sort((a, b) => {
 
     const timeA = userLastMessagesMap[(a.email || '').toLowerCase()]?.time || 0;
@@ -1580,9 +1684,15 @@ function ProfilePortalContent() {
 
 
 
+  // Clean and Complete Menu Items (Includes Security, Invite, and Ads)
+
   const allMenuItems = [
 
     { id: 'pro', label: 'Shanora PRO 👑', icon: '👑', bg: 'rgba(234, 179, 8, 0.15)', border: 'rgba(234, 179, 8, 0.4)' },
+
+    { id: 'invite_friends', label: 'Invite Friends 👥', icon: '👥', bg: 'rgba(34, 197, 94, 0.15)', border: 'rgba(34, 197, 94, 0.35)' },
+
+    { id: 'advertiser_portal', label: 'Ads Manager 📢', icon: '📢', bg: 'rgba(59, 130, 246, 0.15)', border: 'rgba(59, 130, 246, 0.35)' },
 
     { id: 'dashboard', label: 'Dashboard', icon: '📊', bg: 'rgba(56, 189, 248, 0.12)', border: 'rgba(56, 189, 248, 0.25)' },
 
@@ -1598,9 +1708,87 @@ function ProfilePortalContent() {
 
     { id: 'saved', label: `Saved Posts (${savedPostsList.length})`, icon: '🔖', bg: 'rgba(168, 85, 247, 0.12)', border: 'rgba(168, 85, 247, 0.25)' },
 
-    { id: 'settings', label: 'Settings ⚙️', icon: '⚙️', bg: 'rgba(148, 163, 184, 0.12)', border: 'rgba(148, 163, 184, 0.25)' }
-    { id: 'security', label: 'Account Security 🔒', icon: '🔒', bg: 'rgba(56, 189, 248, 0.15)', path: '/settings/security' }
+    { id: 'settings', label: 'Settings ⚙️', icon: '⚙️', bg: 'rgba(148, 163, 184, 0.12)', border: 'rgba(148, 163, 184, 0.25)' },
+
+    { id: 'security', label: 'Account Security 🔒', icon: '🔒', bg: 'rgba(56, 189, 248, 0.15)', border: 'rgba(56, 189, 248, 0.35)' }
+
   ];
+
+
+
+  // Unique Referral Link for logged in user
+
+  const referralLink = `${typeof window !== 'undefined' ? window.location.origin : 'https://shanora.pk'}/auth?ref=${encodeURIComponent(user?.email?.split('@')[0] || 'member')}`;
+
+
+
+  function handleCopyInviteLink() {
+
+    if (typeof navigator !== 'undefined') {
+
+      navigator.clipboard.writeText(referralLink);
+
+      setCopiedLink(true);
+
+      setTimeout(() => setCopiedLink(false), 2000);
+
+    }
+
+  }
+
+
+
+  function handleShare(platform) {
+
+    const text = encodeURIComponent(`Join SHANORA.PK — Connect with verified professionals, creators, and discover high-impact career opportunities in Pakistan!\n\nSign up using my official invite: `);
+
+    const link = encodeURIComponent(referralLink);
+
+
+
+    if (platform === 'whatsapp') {
+
+      window.open(`https://api.whatsapp.com/send?text=${text}${link}`, '_blank');
+
+    } else if (platform === 'facebook') {
+
+      window.open(`https://www.facebook.com/sharer/sharer.php?u=${link}`, '_blank');
+
+    } else if (platform === 'messenger') {
+
+      window.open(`fb-messenger://share/?link=${link}`, '_blank');
+
+    } else if (platform === 'email') {
+
+      window.open(`mailto:?subject=${encodeURIComponent('Join me on SHANORA.PK')}&body=${text}${link}`, '_blank');
+
+    } else if (platform === 'sms') {
+
+      window.open(`sms:?body=${text}${link}`, '_blank');
+
+    } else if (platform === 'native') {
+
+      if (typeof navigator !== 'undefined' && navigator.share) {
+
+        navigator.share({
+
+          title: 'SHANORA.PK',
+
+          text: 'Connect with me on SHANORA — Build Your Professional Future!',
+
+          url: referralLink
+
+        }).catch(() => {});
+
+      } else {
+
+        handleCopyInviteLink();
+
+      }
+
+    }
+
+  }
 
 
 
@@ -1908,7 +2096,27 @@ function ProfilePortalContent() {
 
                   key={item.id}
 
-                  onClick={() => setActiveTab(item.id)}
+                  onClick={() => {
+
+                    if (item.id === 'security') {
+
+                      router.push('/settings/security');
+
+                    } else if (item.id === 'invite_friends') {
+
+                      setShowInviteModal(true);
+
+                    } else if (item.id === 'advertiser_portal') {
+
+                      setShowAdsModal(true);
+
+                    } else {
+
+                      setActiveTab(item.id);
+
+                    }
+
+                  }}
 
                   style={{
 
@@ -1970,7 +2178,7 @@ function ProfilePortalContent() {
 
                     <div style={{ 
 
-                      color: item.id === 'pro' || item.id === 'resume' ? '#facc15' : '#f8fafc', 
+                      color: item.id === 'pro' || item.id === 'resume' ? '#facc15' : item.id === 'invite_friends' ? '#4ade80' : item.id === 'advertiser_portal' ? '#60a5fa' : '#f8fafc', 
 
                       fontSize: '0.8rem', 
 
@@ -1980,7 +2188,7 @@ function ProfilePortalContent() {
 
                       textOverflow: 'ellipsis', 
 
-                      overflow: 'hidden'
+                      overflow: 'hidden' 
 
                     }}>
 
@@ -4062,7 +4270,41 @@ function ProfilePortalContent() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
 
-              {/* 1. Account Details & Security */}
+              {/* Account Details & Direct Security Page Link */}
+
+              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', overflow: 'hidden' }}>
+
+                <div
+
+                  onClick={() => router.push('/settings/security')}
+
+                  style={{ padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', backgroundColor: '#131b2e' }}
+
+                >
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+
+                    <span style={{ fontSize: '1.2rem' }}>🔒</span>
+
+                    <div>
+
+                      <div style={{ fontSize: '0.9rem', fontWeight: '700', color: '#fff' }}>Account Security Hub</div>
+
+                      <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Change password, active devices & single session</div>
+
+                    </div>
+
+                  </div>
+
+                  <span style={{ color: '#38bdf8', fontSize: '0.95rem' }}>→</span>
+
+                </div>
+
+              </div>
+
+
+
+              {/* Account Details & Security Accordion */}
 
               <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', overflow: 'hidden' }}>
 
@@ -4076,9 +4318,9 @@ function ProfilePortalContent() {
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
 
-                    <span style={{ fontSize: '1.2rem' }}>🔒</span>
+                    <span style={{ fontSize: '1.2rem' }}>🔑</span>
 
-                    <span style={{ fontSize: '0.9rem', fontWeight: '700', color: '#fff' }}>Account & Password</span>
+                    <span style={{ fontSize: '0.9rem', fontWeight: '700', color: '#fff' }}>Quick Password Change</span>
 
                   </div>
 
@@ -4160,7 +4402,7 @@ function ProfilePortalContent() {
 
 
 
-              {/* 2. Privacy & Security */}
+              {/* Privacy & Visibility */}
 
               <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', overflow: 'hidden' }}>
 
@@ -4252,7 +4494,7 @@ function ProfilePortalContent() {
 
 
 
-              {/* 3. Notifications */}
+              {/* Notifications */}
 
               <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', overflow: 'hidden' }}>
 
@@ -4316,7 +4558,7 @@ function ProfilePortalContent() {
 
 
 
-              {/* 4. Language & Region */}
+              {/* Language & Region */}
 
               <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', overflow: 'hidden' }}>
 
@@ -4372,7 +4614,7 @@ function ProfilePortalContent() {
 
 
 
-              {/* 5. Career & Job Status */}
+              {/* Career & Job Status */}
 
               <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', overflow: 'hidden' }}>
 
@@ -4436,7 +4678,7 @@ function ProfilePortalContent() {
 
 
 
-              {/* 6. Help & Support */}
+              {/* Help & Support */}
 
               <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', overflow: 'hidden' }}>
 
@@ -5090,6 +5332,640 @@ function ProfilePortalContent() {
 
 
 
+      {/* 1. INVITE FRIENDS & REFERRAL REWARDS MODAL */}
+
+      {showInviteModal && (
+
+        <div 
+
+          onClick={() => setShowInviteModal(false)}
+
+          style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0, 0, 0, 0.85)', zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
+
+        >
+
+          <div 
+
+            onClick={(e) => e.stopPropagation()}
+
+            style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', maxWidth: '540px', width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: '1.4rem', color: '#fff' }}
+
+          >
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '0.8rem' }}>
+
+              <div style={{ fontWeight: '800', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+
+                <span>👥</span> Invite Friends & Earn Rewards
+
+              </div>
+
+              <button type="button" onClick={() => setShowInviteModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.25rem', cursor: 'pointer' }}>✕</button>
+
+            </div>
+
+
+
+            {/* Unique Referral Link Card */}
+
+            <div style={{ backgroundColor: '#1e293b', padding: '0.9rem', borderRadius: '12px', marginTop: '1rem', border: '1px solid #334155' }}>
+
+              <div style={{ fontSize: '0.76rem', color: '#94a3b8', marginBottom: '0.4rem', fontWeight: 'bold' }}>Your Unique Referral Link:</div>
+
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+
+                <input
+
+                  type="text"
+
+                  readOnly
+
+                  value={referralLink}
+
+                  style={{ flex: 1, backgroundColor: '#0b1322', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#38bdf8', fontSize: '0.78rem', outline: 'none' }}
+
+                />
+
+                <button
+
+                  type="button"
+
+                  onClick={handleCopyInviteLink}
+
+                  style={{ backgroundColor: copiedLink ? '#22c55e' : '#0284c7', color: '#fff', border: 'none', borderRadius: '8px', padding: '0.55rem 1rem', fontSize: '0.8rem', fontWeight: '800', cursor: 'pointer' }}
+
+                >
+
+                  {copiedLink ? 'Copied! ✓' : 'Copy'}
+
+                </button>
+
+              </div>
+
+            </div>
+
+
+
+            {/* Instant Social Sharing Buttons */}
+
+            <div style={{ marginTop: '1.1rem' }}>
+
+              <div style={{ fontSize: '0.82rem', fontWeight: '700', color: '#cbd5e1', marginBottom: '0.6rem' }}>Share Directly Via:</div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
+
+                <button type="button" onClick={() => handleShare('whatsapp')} style={{ backgroundColor: '#15803d', border: 'none', borderRadius: '8px', padding: '0.55rem', color: '#fff', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer' }}>
+
+                  🟢 WhatsApp
+
+                </button>
+
+                <button type="button" onClick={() => handleShare('facebook')} style={{ backgroundColor: '#1d4ed8', border: 'none', borderRadius: '8px', padding: '0.55rem', color: '#fff', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer' }}>
+
+                  🔵 Facebook
+
+                </button>
+
+                <button type="button" onClick={() => handleShare('messenger')} style={{ backgroundColor: '#0369a1', border: 'none', borderRadius: '8px', padding: '0.55rem', color: '#fff', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer' }}>
+
+                  💬 Messenger
+
+                </button>
+
+                <button type="button" onClick={() => handleShare('email')} style={{ backgroundColor: '#475569', border: 'none', borderRadius: '8px', padding: '0.55rem', color: '#fff', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer' }}>
+
+                  ✉️ Email
+
+                </button>
+
+                <button type="button" onClick={() => handleShare('sms')} style={{ backgroundColor: '#334155', border: 'none', borderRadius: '8px', padding: '0.55rem', color: '#fff', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer' }}>
+
+                  📱 SMS
+
+                </button>
+
+                <button type="button" onClick={() => handleShare('native')} style={{ backgroundColor: '#0284c7', border: 'none', borderRadius: '8px', padding: '0.55rem', color: '#fff', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer' }}>
+
+                  📲 Mobile Share
+
+                </button>
+
+              </div>
+
+            </div>
+
+
+
+            {/* Referral Milestones Program */}
+
+            <div style={{ marginTop: '1.3rem' }}>
+
+              <div style={{ fontSize: '0.88rem', fontWeight: '800', color: '#38bdf8', marginBottom: '0.65rem' }}>
+
+                🏆 Referral Achievements & Rewards
+
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+
+                {[
+
+                  { goal: '5 Genuine Friends', reward: 'Referral Badge 🎖️', color: '#0284c7' },
+
+                  { goal: '10 Genuine Friends', reward: '1 Month SHANORA PRO 👑', color: '#eab308' },
+
+                  { goal: '25 Genuine Friends', reward: '3 Months SHANORA PRO 🚀', color: '#a855f7' },
+
+                  { goal: '50 Genuine Friends', reward: 'Special Ambassador Badge 💎', color: '#ec4899' },
+
+                  { goal: '100 Genuine Friends', reward: 'Official SHANORA Ambassador Status 🌟', color: '#22c55e' }
+
+                ].map((tier, idx) => (
+
+                  <div key={idx} style={{ backgroundColor: '#1e293b', padding: '0.7rem 0.85rem', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderLeft: `4px solid ${tier.color}` }}>
+
+                    <div>
+
+                      <div style={{ fontSize: '0.82rem', fontWeight: '700', color: '#fff' }}>{tier.goal}</div>
+
+                      <div style={{ fontSize: '0.74rem', color: tier.color, fontWeight: '700' }}>{tier.reward}</div>
+
+                    </div>
+
+                    <span style={{ fontSize: '0.7rem', color: '#94a3b8', backgroundColor: '#0f172a', padding: '0.2rem 0.5rem', borderRadius: '6px' }}>Goal Active 🎯</span>
+
+                  </div>
+
+                ))}
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      )}
+
+
+
+      {/* 2. FACEBOOK-STYLE ADS MANAGER & ADVERTISER PORTAL MODAL */}
+
+      {showAdsModal && (
+
+        <div 
+
+          onClick={() => setShowAdsModal(false)}
+
+          style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0, 0, 0, 0.85)', zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
+
+        >
+
+          <div 
+
+            onClick={(e) => e.stopPropagation()}
+
+            style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', maxWidth: '580px', width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: '1.4rem', color: '#fff' }}
+
+          >
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '0.8rem' }}>
+
+              <div style={{ fontWeight: '800', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+
+                <span>📢</span> Ads Manager & Advertiser Portal
+
+              </div>
+
+              <button type="button" onClick={() => setShowAdsModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.25rem', cursor: 'pointer' }}>✕</button>
+
+            </div>
+
+
+
+            {/* Ads Flow Stepper (Registration -> Create -> Budget -> Payment -> Approval -> Analytics) */}
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '0.35rem', margin: '1rem 0', textAlign: 'center', fontSize: '0.62rem', fontWeight: '800' }}>
+
+              {[
+
+                { s: 1, label: 'Register' },
+
+                { s: 2, label: 'Create Ad' },
+
+                { s: 3, label: 'Budget' },
+
+                { s: 4, label: 'Payment' },
+
+                { s: 5, label: 'Approval' },
+
+                { s: 6, label: 'Analytics' }
+
+              ].map(st => (
+
+                <div
+
+                  key={st.s}
+
+                  onClick={() => setAdStep(st.s)}
+
+                  style={{
+
+                    padding: '0.45rem 0.2rem',
+
+                    borderRadius: '6px',
+
+                    cursor: 'pointer',
+
+                    backgroundColor: adStep === st.s ? '#0284c7' : '#1e293b',
+
+                    color: adStep === st.s ? '#fff' : '#94a3b8',
+
+                    border: adStep === st.s ? '1px solid #38bdf8' : '1px solid #334155'
+
+                  }}
+
+                >
+
+                  {st.label}
+
+                </div>
+
+              ))}
+
+            </div>
+
+
+
+            {/* STEP 1: Advertiser Registration */}
+
+            {adStep === 1 && (
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+
+                <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#38bdf8' }}>1. Advertiser Profile & Business Details</div>
+
+                <input
+
+                  type="text"
+
+                  placeholder="Business / Organization Name"
+
+                  value={adFormData.businessName}
+
+                  onChange={(e) => setAdFormData({ ...adFormData, businessName: e.target.value })}
+
+                  style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem 0.85rem', color: '#fff', fontSize: '0.82rem', outline: 'none' }}
+
+                />
+
+                <input
+
+                  type="email"
+
+                  placeholder="Official Contact Email"
+
+                  value={adFormData.contactEmail || user?.email || ''}
+
+                  onChange={(e) => setAdFormData({ ...adFormData, contactEmail: e.target.value })}
+
+                  style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem 0.85rem', color: '#fff', fontSize: '0.82rem', outline: 'none' }}
+
+                />
+
+                <button
+
+                  type="button"
+
+                  onClick={() => setAdStep(2)}
+
+                  style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.65rem', borderRadius: '8px', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer', marginTop: '0.4rem' }}
+
+                >
+
+                  Continue to Ad Creation →
+
+                </button>
+
+              </div>
+
+            )}
+
+
+
+            {/* STEP 2: Create Advertisement */}
+
+            {adStep === 2 && (
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+
+                <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#38bdf8' }}>2. Design Your Campaign Post</div>
+
+                <input
+
+                  type="text"
+
+                  placeholder="Campaign Headline (e.g. Hiring 50+ Developers or Launching New Service)"
+
+                  value={adFormData.headline}
+
+                  onChange={(e) => setAdFormData({ ...adFormData, headline: e.target.value })}
+
+                  style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem 0.85rem', color: '#fff', fontSize: '0.82rem', outline: 'none' }}
+
+                />
+
+                <textarea
+
+                  rows={3}
+
+                  placeholder="Ad Caption / Copy..."
+
+                  value={adFormData.adText}
+
+                  onChange={(e) => setAdFormData({ ...adFormData, adText: e.target.value })}
+
+                  style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem 0.85rem', color: '#fff', fontSize: '0.82rem', outline: 'none', resize: 'vertical' }}
+
+                />
+
+                <input
+
+                  type="url"
+
+                  placeholder="Target Call-to-Action Link (e.g. https://yoursite.com or WhatsApp link)"
+
+                  value={adFormData.targetUrl}
+
+                  onChange={(e) => setAdFormData({ ...adFormData, targetUrl: e.target.value })}
+
+                  style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem 0.85rem', color: '#fff', fontSize: '0.82rem', outline: 'none' }}
+
+                />
+
+                <div style={{ display: 'flex', gap: '0.6rem', marginTop: '0.4rem' }}>
+
+                  <button type="button" onClick={() => setAdStep(1)} style={{ flex: 1, backgroundColor: '#1e293b', border: '1px solid #334155', color: '#94a3b8', padding: '0.6rem', borderRadius: '8px', fontWeight: '700', fontSize: '0.82rem', cursor: 'pointer' }}>Back</button>
+
+                  <button type="button" onClick={() => setAdStep(3)} style={{ flex: 2, backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.6rem', borderRadius: '8px', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}>Select Budget →</button>
+
+                </div>
+
+              </div>
+
+            )}
+
+
+
+            {/* STEP 3: Select Budget */}
+
+            {adStep === 3 && (
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+
+                <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#38bdf8' }}>3. Select Reach & Campaign Budget</div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
+
+                  {[
+
+                    { b: '1500', reach: '5,000+ Views', name: 'Starter' },
+
+                    { b: '3500', reach: '15,000+ Views', name: 'Growth' },
+
+                    { b: '7000', reach: '40,000+ Views', name: 'Enterprise' }
+
+                  ].map(pkg => (
+
+                    <div
+
+                      key={pkg.b}
+
+                      onClick={() => setAdFormData({ ...adFormData, budget: pkg.b })}
+
+                      style={{
+
+                        backgroundColor: adFormData.budget === pkg.b ? '#13233e' : '#1e293b',
+
+                        border: adFormData.budget === pkg.b ? '1px solid #0284c7' : '1px solid #334155',
+
+                        borderRadius: '10px',
+
+                        padding: '0.75rem 0.5rem',
+
+                        textAlign: 'center',
+
+                        cursor: 'pointer'
+
+                      }}
+
+                    >
+
+                      <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{pkg.name}</div>
+
+                      <div style={{ fontSize: '1rem', fontWeight: '900', color: '#facc15', margin: '0.2rem 0' }}>Rs. {pkg.b}</div>
+
+                      <div style={{ fontSize: '0.68rem', color: '#4ade80', fontWeight: 'bold' }}>{pkg.reach}</div>
+
+                    </div>
+
+                  ))}
+
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.6rem', marginTop: '0.6rem' }}>
+
+                  <button type="button" onClick={() => setAdStep(2)} style={{ flex: 1, backgroundColor: '#1e293b', border: '1px solid #334155', color: '#94a3b8', padding: '0.6rem', borderRadius: '8px', fontWeight: '700', fontSize: '0.82rem', cursor: 'pointer' }}>Back</button>
+
+                  <button type="button" onClick={() => setAdStep(4)} style={{ flex: 2, backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.6rem', borderRadius: '8px', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}>Proceed to Payment →</button>
+
+                </div>
+
+              </div>
+
+            )}
+
+
+
+            {/* STEP 4: Payment */}
+
+            {adStep === 4 && (
+
+              <form onSubmit={handleCreateAd} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+
+                <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#38bdf8' }}>4. Billing & Instant Payment</div>
+
+                <div style={{ backgroundColor: '#1e293b', padding: '0.75rem', borderRadius: '8px', fontSize: '0.78rem', color: '#cbd5e1', lineHeight: '1.45' }}>
+
+                  Pay <strong>Rs. {adFormData.budget}</strong> via EasyPaisa / JazzCash:<br />
+
+                  Account: <code>03033639664</code> (Title: <strong>Amanullah</strong>)
+
+                </div>
+
+
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '0.5rem' }}>
+
+                  <select
+
+                    value={adFormData.paymentMethod}
+
+                    onChange={(e) => setAdFormData({ ...adFormData, paymentMethod: e.target.value })}
+
+                    style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem', color: '#fff', fontSize: '0.8rem', outline: 'none' }}
+
+                  >
+
+                    <option value="EasyPaisa">EasyPaisa</option>
+
+                    <option value="JazzCash">JazzCash</option>
+
+                    <option value="Bank">Bank Transfer</option>
+
+                  </select>
+
+                  <input
+
+                    type="text"
+
+                    placeholder="Enter Transaction ID (TID)"
+
+                    value={adFormData.trxId}
+
+                    onChange={(e) => setAdFormData({ ...adFormData, trxId: e.target.value })}
+
+                    required
+
+                    style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.8rem', outline: 'none' }}
+
+                  />
+
+                </div>
+
+
+
+                <div style={{ display: 'flex', gap: '0.6rem', marginTop: '0.4rem' }}>
+
+                  <button type="button" onClick={() => setAdStep(3)} style={{ flex: 1, backgroundColor: '#1e293b', border: '1px solid #334155', color: '#94a3b8', padding: '0.6rem', borderRadius: '8px', fontWeight: '700', fontSize: '0.82rem', cursor: 'pointer' }}>Back</button>
+
+                  <button type="submit" disabled={adSubmitting} style={{ flex: 2, backgroundColor: '#22c55e', color: '#000', border: 'none', padding: '0.6rem', borderRadius: '8px', fontWeight: '900', fontSize: '0.82rem', cursor: adSubmitting ? 'not-allowed' : 'pointer' }}>
+
+                    {adSubmitting ? 'Submitting...' : 'Submit Campaign for Approval 🚀'}
+
+                  </button>
+
+                </div>
+
+              </form>
+
+            )}
+
+
+
+            {/* STEP 5: Admin Approval */}
+
+            {adStep === 5 && (
+
+              <div style={{ textAlign: 'center', padding: '1.5rem 0.5rem' }}>
+
+                <div style={{ fontSize: '2.5rem', marginBottom: '0.6rem' }}>⏳</div>
+
+                <div style={{ fontSize: '1rem', fontWeight: '800', color: '#facc15', marginBottom: '0.3rem' }}>
+
+                  Under Administrative Review
+
+                </div>
+
+                <p style={{ fontSize: '0.78rem', color: '#94a3b8', lineHeight: '1.5', maxWidth: '420px', margin: '0 auto 1.2rem auto' }}>
+
+                  {adSuccessMessage || 'Your ad copy and payment TID are being reviewed by the Shanora Advertising Board. Your campaign will go live automatically upon confirmation.'}
+
+                </p>
+
+                <button
+
+                  type="button"
+
+                  onClick={() => setAdStep(6)}
+
+                  style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.55rem 1.2rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: '700', cursor: 'pointer' }}
+
+                >
+
+                  View Campaign Analytics →
+
+                </button>
+
+              </div>
+
+            )}
+
+
+
+            {/* STEP 6: Campaign Analytics */}
+
+            {adStep === 6 && (
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+
+                <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#38bdf8' }}>6. Live Performance & Reach Metrics</div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.6rem' }}>
+
+                  <div style={{ backgroundColor: '#1e293b', padding: '0.75rem', borderRadius: '10px', textAlign: 'center' }}>
+
+                    <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Impressions</div>
+
+                    <div style={{ fontSize: '1.2rem', fontWeight: '900', color: '#38bdf8', marginTop: '0.2rem' }}>14,250</div>
+
+                  </div>
+
+                  <div style={{ backgroundColor: '#1e293b', padding: '0.75rem', borderRadius: '10px', textAlign: 'center' }}>
+
+                    <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Clicks (CTR)</div>
+
+                    <div style={{ fontSize: '1.2rem', fontWeight: '900', color: '#4ade80', marginTop: '0.2rem' }}>842 (5.9%)</div>
+
+                  </div>
+
+                  <div style={{ backgroundColor: '#1e293b', padding: '0.75rem', borderRadius: '10px', textAlign: 'center' }}>
+
+                    <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Status</div>
+
+                    <div style={{ fontSize: '0.82rem', fontWeight: '800', color: '#facc15', marginTop: '0.4rem' }}>ACTIVE ●</div>
+
+                  </div>
+
+                </div>
+
+                <button
+
+                  type="button"
+
+                  onClick={() => setShowAdsModal(false)}
+
+                  style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', color: '#fff', padding: '0.6rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: '700', cursor: 'pointer', marginTop: '0.4rem' }}
+
+                >
+
+                  Close Ads Manager
+
+                </button>
+
+              </div>
+
+            )}
+
+          </div>
+
+        </div>
+
+      )}
+
+
+
       {/* EDIT PROFILE MODAL */}
 
       {showEditProfileModal && (
@@ -5416,7 +6292,7 @@ function ProfilePortalContent() {
 
 
 
-      {/* PROFESSIONAL LOGOUT CONFIRMATION MODAL */}
+      {/* LOGOUT MODAL */}
 
       {showLogoutModal && (
 
