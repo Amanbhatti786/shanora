@@ -18,7 +18,11 @@ export default function MessagesPage() {
   const [onlineUsers, setOnlineUsers] = useState(new Set());
   const [isMobileChatOpen, setIsMobileChatOpen] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  
   const messagesEndRef = useRef(null);
+  const imageInputRef = useRef(null);
+  const docInputRef = useRef(null);
 
   // 1. Session check & Identity
   useEffect(() => {
@@ -52,7 +56,7 @@ export default function MessagesPage() {
     };
   }, []);
 
-  // 2. Realtime Presence Tracking (Sirf active users track honge)
+  // 2. Realtime Presence Tracking
   useEffect(() => {
     if (!currentUser) return;
 
@@ -149,7 +153,7 @@ export default function MessagesPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // 6. Send Message Action
+  // 6. Send Text Message
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!newMessage.trim() || !activeConversationId || isSending) return;
@@ -159,7 +163,6 @@ export default function MessagesPage() {
     setIsSending(true);
 
     const senderId = currentUser?.id || 'anon-sender';
-
     const tempId = 'temp-' + Date.now();
     const optimisticMessage = {
       id: tempId,
@@ -182,15 +185,56 @@ export default function MessagesPage() {
         .select()
         .single();
 
-      if (error) {
-        console.error('Send error:', error);
-      } else if (data) {
+      if (data && !error) {
         setMessages((prev) => prev.map((m) => (m.id === tempId ? data : m)));
       }
     } catch (err) {
-      console.error('Transmission error:', err);
+      console.error('Send error:', err);
     } finally {
       setIsSending(false);
+    }
+  };
+
+  // 7. File & Image Upload Handler
+  const handleFileUpload = async (event, fileType) => {
+    const file = event.target.files?.[0];
+    if (!file || !activeConversationId) return;
+
+    setIsUploading(true);
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+    const filePath = `${activeConversationId}/${fileName}`;
+
+    try {
+      const { error: uploadError } = await supabase.storage
+        .from('chat-attachments')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('chat-attachments')
+        .getPublicUrl(filePath);
+
+      // Encode payload to identify media type: [IMAGE:url] or [DOC:url|filename]
+      const encodedContent = fileType === 'image' 
+        ? `[IMAGE:${publicUrl}]`
+        : `[DOC:${publicUrl}|${file.name}]`;
+
+      const senderId = currentUser?.id || 'anon-sender';
+
+      await supabase.from('messages').insert({
+        conversation_id: activeConversationId,
+        sender_id: senderId,
+        content: encodedContent,
+      });
+
+    } catch (error) {
+      console.error('Upload Error:', error);
+      alert('File upload failed. Ensure "chat-attachments" public bucket is created in Supabase Storage.');
+    } finally {
+      setIsUploading(false);
+      event.target.value = '';
     }
   };
 
@@ -198,8 +242,62 @@ export default function MessagesPage() {
     (u.full_name || u.email || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Sirf online users top bar mein aayenge
   const activeTalentUsers = displayedUsers.filter((u) => onlineUsers.has(u.id));
+
+  // Render message bubble contents (Text / Image / Document)
+  const renderMessageContent = (content) => {
+    if (content.startsWith('[IMAGE:') && content.endsWith(']')) {
+      const imgUrl = content.replace('[IMAGE:', '').slice(0, -1);
+      return (
+        <a href={imgUrl} target="_blank" rel="noopener noreferrer">
+          <img
+            src={imgUrl}
+            alt="attachment"
+            style={{
+              maxWidth: '100%',
+              maxHeight: '260px',
+              borderRadius: '12px',
+              objectFit: 'cover',
+              display: 'block'
+            }}
+          />
+        </a>
+      );
+    }
+
+    if (content.startsWith('[DOC:') && content.endsWith(']')) {
+      const raw = content.replace('[DOC:', '').slice(0, -1);
+      const [docUrl, docName] = raw.split('|');
+      return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+          <div style={{ padding: '8px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.15)', display: 'flex' }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+            </svg>
+          </div>
+          <div style={{ flex: 1, overflow: 'hidden' }}>
+            <p style={{ margin: 0, fontSize: '0.86rem', fontWeight: 600, color: '#ffffff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '180px' }}>
+              {docName || 'Document File'}
+            </p>
+            <a
+              href={docUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              download
+              style={{ fontSize: '0.74rem', color: '#93c5fd', textDecoration: 'underline', marginTop: '2px', display: 'inline-block' }}
+            >
+              Download File
+            </a>
+          </div>
+        </div>
+      );
+    }
+
+    return content;
+  };
 
   return (
     <div style={{ padding: '0.5rem', maxWidth: '1280px', margin: '0 auto', color: '#e4e6eb', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
@@ -268,7 +366,7 @@ export default function MessagesPage() {
             </div>
           </div>
 
-          {/* Top Active Talent Row (Sirf tab dikhegi agar koi online ho) */}
+          {/* Active Talent Row */}
           {activeTalentUsers.length > 0 && (
             <div style={{ padding: '0.75rem 0.75rem 0.3rem', borderBottom: '1px solid #2f3031' }}>
               <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#31a24c', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Online Now</span>
@@ -320,7 +418,7 @@ export default function MessagesPage() {
             </div>
           )}
 
-          {/* Contacts Directory */}
+          {/* Directory */}
           <div style={{ flex: 1, overflowY: 'auto', padding: '0.4rem' }}>
             {displayedUsers.map((contact) => {
               const isOnline = onlineUsers.has(contact.id);
@@ -360,7 +458,6 @@ export default function MessagesPage() {
                       {(contact.full_name || contact.email || 'U')[0].toUpperCase()}
                     </div>
 
-                    {/* Green dot sirf online user par show hoga */}
                     {isOnline ? (
                       <span
                         style={{
@@ -418,7 +515,7 @@ export default function MessagesPage() {
         >
           {selectedUser ? (
             <>
-              {/* Chat Header */}
+              {/* Header */}
               <div
                 style={{
                   padding: '0.75rem 1rem',
@@ -493,7 +590,6 @@ export default function MessagesPage() {
                   </div>
                 </div>
 
-                {/* Secure Badge */}
                 <span style={{ fontSize: '0.72rem', color: '#94a3b8', background: 'rgba(255,255,255,0.05)', padding: '4px 8px', borderRadius: '8px' }}>
                   Encrypted
                 </span>
@@ -517,7 +613,7 @@ export default function MessagesPage() {
                     </div>
                     <h3 style={{ margin: '0 0 0.25rem', color: '#f5f6f7', fontSize: '1.1rem' }}>{selectedUser.full_name}</h3>
                     <p style={{ margin: 0, fontSize: '0.85rem' }}>Direct private channel on Shanora</p>
-                    <p style={{ margin: '0.35rem 0 0', fontSize: '0.78rem', color: '#0084ff' }}>Send a message to start conversation</p>
+                    <p style={{ margin: '0.35rem 0 0', fontSize: '0.78rem', color: '#0084ff' }}>Send a message or media to start conversation</p>
                   </div>
                 ) : (
                   messages.map((msg) => {
@@ -527,8 +623,8 @@ export default function MessagesPage() {
                         key={msg.id}
                         style={{
                           alignSelf: isOwnMessage ? 'flex-end' : 'flex-start',
-                          maxWidth: '68%',
-                          padding: '0.65rem 0.95rem',
+                          maxWidth: '70%',
+                          padding: msg.content.startsWith('[IMAGE:') ? '4px' : '0.65rem 0.95rem',
                           borderRadius: '18px',
                           borderBottomRightRadius: isOwnMessage ? '4px' : '18px',
                           borderBottomLeftRadius: isOwnMessage ? '18px' : '4px',
@@ -537,19 +633,88 @@ export default function MessagesPage() {
                           fontSize: '0.92rem',
                           lineHeight: '1.38',
                           wordBreak: 'break-word',
+                          boxShadow: '0 1px 2px rgba(0,0,0,0.2)',
+                          overflow: 'hidden'
                         }}
                       >
-                        {msg.content}
+                        {renderMessageContent(msg.content)}
                       </div>
                     );
                   })
                 )}
+                {isUploading && (
+                  <div style={{ alignSelf: 'flex-end', fontSize: '0.8rem', color: '#93c5fd', fontStyle: 'italic' }}>
+                    Uploading attachment...
+                  </div>
+                )}
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Bottom Input */}
+              {/* Bottom Input Dock with Pic & Document Buttons */}
               <div style={{ padding: '0.75rem 1rem', backgroundColor: '#242526', borderTop: '1px solid #2f3031' }}>
-                <form onSubmit={handleSendMessage} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <form onSubmit={handleSendMessage} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  
+                  {/* Hidden inputs for Image & Document */}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    ref={imageInputRef}
+                    style={{ display: 'none' }}
+                    onChange={(e) => handleFileUpload(e, 'image')}
+                  />
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.txt"
+                    ref={docInputRef}
+                    style={{ display: 'none' }}
+                    onChange={(e) => handleFileUpload(e, 'doc')}
+                  />
+
+                  {/* Picture / Gallery Button */}
+                  <button
+                    type="button"
+                    onClick={() => imageInputRef.current?.click()}
+                    title="Send Picture"
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#0084ff',
+                      cursor: 'pointer',
+                      padding: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                      <circle cx="8.5" cy="8.5" r="1.5"/>
+                      <polyline points="21 15 16 10 5 21"/>
+                    </svg>
+                  </button>
+
+                  {/* Document / File Button */}
+                  <button
+                    type="button"
+                    onClick={() => docInputRef.current?.click()}
+                    title="Send Document"
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#0084ff',
+                      cursor: 'pointer',
+                      padding: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+                    </svg>
+                  </button>
+
+                  {/* Text Input */}
                   <div style={{ flex: 1, backgroundColor: '#3a3b3c', borderRadius: '24px', padding: '0.2rem 0.85rem' }}>
                     <input
                       type="text"
@@ -568,6 +733,7 @@ export default function MessagesPage() {
                     />
                   </div>
 
+                  {/* Send Button */}
                   <button
                     type="submit"
                     disabled={!newMessage.trim()}
