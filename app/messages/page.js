@@ -195,7 +195,7 @@ export default function MessagesPage() {
     }
   };
 
-  // 7. File & Image Upload Handler
+  // 7. Instant Photo & Document Upload Handler
   const handleFileUpload = async (event, fileType) => {
     const file = event.target.files?.[0];
     if (!file || !activeConversationId) return;
@@ -205,10 +205,29 @@ export default function MessagesPage() {
     const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
     const filePath = `${activeConversationId}/${fileName}`;
 
+    // Instant local preview
+    const localBlobUrl = URL.createObjectURL(file);
+    const tempId = 'temp-' + Date.now();
+    const tempContent = fileType === 'image' 
+      ? `[IMAGE:${localBlobUrl}]` 
+      : `[DOC:${localBlobUrl}|${file.name}]`;
+
+    const senderId = currentUser?.id || 'anon-sender';
+
+    const optimisticMessage = {
+      id: tempId,
+      conversation_id: activeConversationId,
+      sender_id: senderId,
+      content: tempContent,
+      created_at: new Date().toISOString(),
+    };
+
+    setMessages((prev) => [...prev, optimisticMessage]);
+
     try {
       const { error: uploadError } = await supabase.storage
         .from('chat-attachments')
-        .upload(filePath, file);
+        .upload(filePath, file, { cacheControl: '3600', upsert: true });
 
       if (uploadError) throw uploadError;
 
@@ -216,22 +235,29 @@ export default function MessagesPage() {
         .from('chat-attachments')
         .getPublicUrl(filePath);
 
-      // Encode payload to identify media type: [IMAGE:url] or [DOC:url|filename]
-      const encodedContent = fileType === 'image' 
+      const realContent = fileType === 'image' 
         ? `[IMAGE:${publicUrl}]`
         : `[DOC:${publicUrl}|${file.name}]`;
 
-      const senderId = currentUser?.id || 'anon-sender';
+      const { data, error: insertError } = await supabase
+        .from('messages')
+        .insert({
+          conversation_id: activeConversationId,
+          sender_id: senderId,
+          content: realContent,
+        })
+        .select()
+        .single();
 
-      await supabase.from('messages').insert({
-        conversation_id: activeConversationId,
-        sender_id: senderId,
-        content: encodedContent,
-      });
+      if (insertError) throw insertError;
 
+      if (data) {
+        setMessages((prev) => prev.map((m) => (m.id === tempId ? data : m)));
+      }
     } catch (error) {
       console.error('Upload Error:', error);
-      alert('File upload failed. Ensure "chat-attachments" public bucket is created in Supabase Storage.');
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
+      alert('Photo upload failed. Supabase SQL editor mein bucket policies check karein.');
     } finally {
       setIsUploading(false);
       event.target.value = '';
@@ -244,7 +270,7 @@ export default function MessagesPage() {
 
   const activeTalentUsers = displayedUsers.filter((u) => onlineUsers.has(u.id));
 
-  // Render message bubble contents (Text / Image / Document)
+  // Render message bubble contents
   const renderMessageContent = (content) => {
     if (content.startsWith('[IMAGE:') && content.endsWith(']')) {
       const imgUrl = content.replace('[IMAGE:', '').slice(0, -1);
@@ -252,7 +278,7 @@ export default function MessagesPage() {
         <a href={imgUrl} target="_blank" rel="noopener noreferrer">
           <img
             src={imgUrl}
-            alt="attachment"
+            alt="chat-image"
             style={{
               maxWidth: '100%',
               maxHeight: '260px',
@@ -650,11 +676,11 @@ export default function MessagesPage() {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Bottom Input Dock with Pic & Document Buttons */}
+              {/* Input Dock with Picture & Document Buttons */}
               <div style={{ padding: '0.75rem 1rem', backgroundColor: '#242526', borderTop: '1px solid #2f3031' }}>
                 <form onSubmit={handleSendMessage} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   
-                  {/* Hidden inputs for Image & Document */}
+                  {/* File Pickers */}
                   <input
                     type="file"
                     accept="image/*"
@@ -670,7 +696,7 @@ export default function MessagesPage() {
                     onChange={(e) => handleFileUpload(e, 'doc')}
                   />
 
-                  {/* Picture / Gallery Button */}
+                  {/* Picture Button */}
                   <button
                     type="button"
                     onClick={() => imageInputRef.current?.click()}
@@ -693,7 +719,7 @@ export default function MessagesPage() {
                     </svg>
                   </button>
 
-                  {/* Document / File Button */}
+                  {/* Document Button */}
                   <button
                     type="button"
                     onClick={() => docInputRef.current?.click()}
