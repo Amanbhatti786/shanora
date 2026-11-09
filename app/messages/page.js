@@ -67,23 +67,25 @@ export default function MessagesPage() {
     };
   }, [currentUser]);
 
-  // 3. Load user conversations and active profiles
+  // 3. Load user profiles (Fixed Schema Columns: id, full_name, email, city)
   useEffect(() => {
     if (!currentUser) return;
 
     async function loadData() {
+      const { data: profiles, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, city')
+        .neq('id', currentUser.id)
+        .limit(50);
+
+      if (profiles && !error) {
+        setAvailableUsers(profiles);
+      }
+
       const { data: convData } = await supabase
         .from('conversations')
         .select('*')
         .or(`participant_one.eq.${currentUser.id},participant_two.eq.${currentUser.id}`);
-
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, full_name, username, avatar_url')
-        .neq('id', currentUser.id)
-        .limit(50);
-
-      if (profiles) setAvailableUsers(profiles);
 
       if (convData && convData.length > 0 && profiles) {
         const mapped = convData.map((conv) => {
@@ -91,7 +93,7 @@ export default function MessagesPage() {
           const partnerProfile = profiles.find((p) => p.id === partnerId) || {
             id: partnerId,
             full_name: `User ${partnerId.slice(0, 5)}`,
-            username: partnerId.slice(0, 6)
+            email: ''
           };
           return {
             conversationId: conv.id,
@@ -105,7 +107,7 @@ export default function MessagesPage() {
     loadData();
   }, [currentUser]);
 
-  // 4. Select contact / start secure conversation
+  // 4. Select contact / start private conversation
   const selectContact = async (contact) => {
     if (!currentUser) return;
     setSelectedUser(contact);
@@ -141,7 +143,7 @@ export default function MessagesPage() {
     }
   };
 
-  // 5. Strict Realtime message synchronization (Private channel per room)
+  // 5. Strict Private Realtime message room
   useEffect(() => {
     if (!activeConversationId || !currentUser) return;
 
@@ -200,7 +202,7 @@ export default function MessagesPage() {
   };
 
   const displayedContacts = availableUsers.filter((user) =>
-    (user.full_name || user.username || '').toLowerCase().includes(searchQuery.toLowerCase())
+    (user.full_name || user.email || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -219,7 +221,7 @@ export default function MessagesPage() {
           position: 'relative'
         }}
       >
-        {/* Left Sidebar (Contacts List) */}
+        {/* Left Sidebar (Contacts Directory) */}
         <div
           style={{
             width: '100%',
@@ -244,7 +246,7 @@ export default function MessagesPage() {
                 </h2>
               </div>
               <span style={{ fontSize: '0.75rem', fontWeight: 600, padding: '3px 9px', borderRadius: '20px', background: 'rgba(56, 189, 248, 0.12)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.25)' }}>
-                {conversations.length} Active
+                {availableUsers.length} Talent
               </span>
             </div>
 
@@ -278,7 +280,7 @@ export default function MessagesPage() {
           <div style={{ flex: 1, overflowY: 'auto', padding: '0.5rem' }}>
             {displayedContacts.length === 0 ? (
               <div style={{ padding: '2rem 1rem', textAlign: 'center', color: '#64748b', fontSize: '0.85rem' }}>
-                No peer candidates found.
+                No candidates available.
               </div>
             ) : (
               displayedContacts.map((contact) => {
@@ -314,12 +316,12 @@ export default function MessagesPage() {
                           alignItems: 'center',
                           justifyContent: 'center',
                           border: '1.5px solid rgba(255, 255, 255, 0.1)',
+                          fontWeight: 700,
+                          fontSize: '1rem',
+                          color: '#38bdf8'
                         }}
                       >
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
-                          <circle cx="12" cy="7" r="4"></circle>
-                        </svg>
+                        {(contact.full_name || contact.email || 'U')[0].toUpperCase()}
                       </div>
 
                       {isOnline && (
@@ -341,10 +343,10 @@ export default function MessagesPage() {
 
                     <div style={{ flex: 1, overflow: 'hidden' }}>
                       <p style={{ fontSize: '0.92rem', fontWeight: 600, margin: 0, color: isSelected ? '#ffffff' : '#e2e8f0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {contact.full_name || contact.username || 'Candidate'}
+                        {contact.full_name || contact.email}
                       </p>
                       <span style={{ fontSize: '0.75rem', fontWeight: 500, color: isOnline ? '#34d399' : '#64748b' }}>
-                        {isOnline ? 'Online now' : 'Offline'}
+                        {contact.city ? `${contact.city} • ` : ''}{isOnline ? 'Online' : 'Offline'}
                       </span>
                     </div>
                   </div>
@@ -367,7 +369,7 @@ export default function MessagesPage() {
         >
           {selectedUser ? (
             <>
-              {/* Chat Header with Mobile Back Button */}
+              {/* Header with Back Button */}
               <div
                 style={{
                   padding: '0.75rem 1rem',
@@ -379,7 +381,6 @@ export default function MessagesPage() {
                   backdropFilter: 'blur(12px)',
                 }}
               >
-                {/* Back Button for Mobile */}
                 <button
                   type="button"
                   onClick={() => setIsMobileChatOpen(false)}
@@ -415,12 +416,11 @@ export default function MessagesPage() {
                       alignItems: 'center',
                       justifyContent: 'center',
                       boxShadow: '0 0 14px rgba(56, 189, 248, 0.3)',
+                      fontWeight: 700,
+                      color: '#ffffff'
                     }}
                   >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
-                      <circle cx="12" cy="7" r="4"></circle>
-                    </svg>
+                    {(selectedUser.full_name || selectedUser.email || 'U')[0].toUpperCase()}
                   </div>
                   {onlineUsers.has(selectedUser.id) && (
                     <span
@@ -440,7 +440,7 @@ export default function MessagesPage() {
                 </div>
                 <div style={{ flex: 1 }}>
                   <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#ffffff' }}>
-                    {selectedUser.full_name || selectedUser.username}
+                    {selectedUser.full_name || selectedUser.email}
                   </h3>
                   <span
                     style={{
@@ -449,12 +449,12 @@ export default function MessagesPage() {
                       color: onlineUsers.has(selectedUser.id) ? '#34d399' : '#64748b',
                     }}
                   >
-                    {onlineUsers.has(selectedUser.id) ? '● Active now' : 'Encrypted private room'}
+                    {onlineUsers.has(selectedUser.id) ? '● Active now' : 'Private chat room'}
                   </span>
                 </div>
               </div>
 
-              {/* Message Feed */}
+              {/* Messages Feed */}
               <div
                 style={{
                   flex: 1,
@@ -473,7 +473,7 @@ export default function MessagesPage() {
                       </svg>
                     </div>
                     <p style={{ margin: 0, fontSize: '0.92rem', fontWeight: 600, color: '#e2e8f0' }}>End-to-End Private Channel</p>
-                    <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.8rem' }}>Messages are visible only to you and {selectedUser.full_name || selectedUser.username}.</p>
+                    <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.8rem' }}>Messages are strictly private between both of you.</p>
                   </div>
                 ) : (
                   messages.map((msg) => {
@@ -510,7 +510,7 @@ export default function MessagesPage() {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Bottom Input Dock */}
+              {/* Input Dock */}
               <div style={{ padding: '0.75rem 1rem', background: 'rgba(10, 16, 31, 0.9)', borderTop: '1px solid rgba(255, 255, 255, 0.07)' }}>
                 <form
                   onSubmit={handleSendMessage}
@@ -583,7 +583,7 @@ export default function MessagesPage() {
                   <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
                 </svg>
               </div>
-              <p style={{ margin: 0, fontSize: '0.95rem', fontWeight: 500, color: '#94a3b8' }}>Select a peer or candidate to open their private chat</p>
+              <p style={{ margin: 0, fontSize: '0.95rem', fontWeight: 500, color: '#94a3b8' }}>Select a candidate to open their private chat</p>
             </div>
           )}
         </div>
