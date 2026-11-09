@@ -3,7 +3,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
-// Initialize Supabase Client directly using public env vars
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
@@ -18,6 +17,7 @@ export default function MessagesPage() {
   const [newMessage, setNewMessage] = useState('');
   const [onlineUsers, setOnlineUsers] = useState(new Set());
   const [searchQuery, setSearchQuery] = useState('');
+  const [isMobileChatOpen, setIsMobileChatOpen] = useState(false);
   const messagesEndRef = useRef(null);
 
   // 1. Session check
@@ -105,10 +105,11 @@ export default function MessagesPage() {
     loadData();
   }, [currentUser]);
 
-  // 4. Select contact / start conversation
+  // 4. Select contact / start secure conversation
   const selectContact = async (contact) => {
     if (!currentUser) return;
     setSelectedUser(contact);
+    setIsMobileChatOpen(true);
 
     const { data: existingConvs } = await supabase
       .from('conversations')
@@ -140,9 +141,9 @@ export default function MessagesPage() {
     }
   };
 
-  // 5. Realtime message synchronization
+  // 5. Strict Realtime message synchronization (Private channel per room)
   useEffect(() => {
-    if (!activeConversationId) return;
+    if (!activeConversationId || !currentUser) return;
 
     async function fetchMessages() {
       const { data } = await supabase
@@ -156,7 +157,7 @@ export default function MessagesPage() {
     fetchMessages();
 
     const channel = supabase
-      .channel(`room:${activeConversationId}`)
+      .channel(`chat-room-${activeConversationId}`)
       .on(
         'postgres_changes',
         {
@@ -167,7 +168,7 @@ export default function MessagesPage() {
         },
         (payload) => {
           setMessages((prev) => {
-            if (prev.some((msg) => msg.id === payload.new.id)) return prev;
+            if (prev.some((m) => m.id === payload.new.id)) return prev;
             return [...prev, payload.new];
           });
         }
@@ -177,9 +178,8 @@ export default function MessagesPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [activeConversationId]);
+  }, [activeConversationId, currentUser]);
 
-  // Auto-scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -204,32 +204,37 @@ export default function MessagesPage() {
   );
 
   return (
-    <div style={{ padding: '1.25rem', maxWidth: '1300px', margin: '0 auto', color: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+    <div style={{ padding: '0.75rem', maxWidth: '1300px', margin: '0 auto', color: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       <div
         style={{
           display: 'flex',
-          height: '82vh',
+          height: 'calc(100vh - 110px)',
+          minHeight: '580px',
           background: 'radial-gradient(ellipse at top left, #0d1527 0%, #060913 100%)',
-          borderRadius: '24px',
+          borderRadius: '20px',
           border: '1px solid rgba(255, 255, 255, 0.08)',
           boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.8), 0 0 40px rgba(59, 130, 246, 0.05)',
           overflow: 'hidden',
           backdropFilter: 'blur(20px)',
+          position: 'relative'
         }}
       >
-        {/* Left Sidebar */}
+        {/* Left Sidebar (Contacts List) */}
         <div
           style={{
-            width: '340px',
-            borderRight: '1px solid rgba(255, 255, 255, 0.07)',
-            display: 'flex',
+            width: '100%',
+            maxWidth: isMobileChatOpen ? '0px' : '100%',
+            display: isMobileChatOpen ? 'none' : 'flex',
             flexDirection: 'column',
-            background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.75) 0%, rgba(10, 15, 29, 0.95) 100%)',
+            borderRight: '1px solid rgba(255, 255, 255, 0.07)',
+            background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.85) 0%, rgba(10, 15, 29, 0.98) 100%)',
+            transition: 'all 0.3s ease',
           }}
+          className="sidebar-container"
         >
           {/* Header */}
-          <div style={{ padding: '1.25rem', borderBottom: '1px solid rgba(255, 255, 255, 0.06)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+          <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid rgba(255, 255, 255, 0.06)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
@@ -243,7 +248,7 @@ export default function MessagesPage() {
               </span>
             </div>
 
-            {/* Search */}
+            {/* Search Input */}
             <div style={{ position: 'relative' }}>
               <input
                 type="text"
@@ -269,107 +274,147 @@ export default function MessagesPage() {
             </div>
           </div>
 
-          {/* Contact List */}
+          {/* Contact Directory */}
           <div style={{ flex: 1, overflowY: 'auto', padding: '0.5rem' }}>
-            {displayedContacts.map((contact) => {
-              const isOnline = onlineUsers.has(contact.id);
-              const isSelected = selectedUser?.id === contact.id;
+            {displayedContacts.length === 0 ? (
+              <div style={{ padding: '2rem 1rem', textAlign: 'center', color: '#64748b', fontSize: '0.85rem' }}>
+                No peer candidates found.
+              </div>
+            ) : (
+              displayedContacts.map((contact) => {
+                const isOnline = onlineUsers.has(contact.id);
+                const isSelected = selectedUser?.id === contact.id;
 
-              return (
-                <div
-                  key={contact.id}
-                  onClick={() => selectContact(contact)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.85rem',
-                    padding: '0.85rem 1rem',
-                    borderRadius: '14px',
-                    cursor: 'pointer',
-                    marginBottom: '0.35rem',
-                    backgroundColor: isSelected ? 'rgba(37, 99, 235, 0.18)' : 'transparent',
-                    border: isSelected ? '1px solid rgba(56, 189, 248, 0.35)' : '1px solid transparent',
-                    boxShadow: isSelected ? '0 4px 15px rgba(37, 99, 235, 0.15)' : 'none',
-                    transition: 'all 0.25s ease',
-                  }}
-                >
-                  <div style={{ position: 'relative' }}>
-                    <div
-                      style={{
-                        width: '44px',
-                        height: '44px',
-                        borderRadius: '50%',
-                        background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        border: '1.5px solid rgba(255, 255, 255, 0.1)',
-                      }}
-                    >
-                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
-                        <circle cx="12" cy="7" r="4"></circle>
-                      </svg>
+                return (
+                  <div
+                    key={contact.id}
+                    onClick={() => selectContact(contact)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.85rem',
+                      padding: '0.75rem 0.9rem',
+                      borderRadius: '14px',
+                      cursor: 'pointer',
+                      marginBottom: '0.35rem',
+                      backgroundColor: isSelected ? 'rgba(37, 99, 235, 0.2)' : 'transparent',
+                      border: isSelected ? '1px solid rgba(56, 189, 248, 0.35)' : '1px solid transparent',
+                      boxShadow: isSelected ? '0 4px 15px rgba(37, 99, 235, 0.15)' : 'none',
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
+                    <div style={{ position: 'relative' }}>
+                      <div
+                        style={{
+                          width: '44px',
+                          height: '44px',
+                          borderRadius: '50%',
+                          background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          border: '1.5px solid rgba(255, 255, 255, 0.1)',
+                        }}
+                      >
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+                          <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
+                      </div>
+
+                      {isOnline && (
+                        <span
+                          style={{
+                            position: 'absolute',
+                            bottom: '1px',
+                            right: '1px',
+                            width: '12px',
+                            height: '12px',
+                            borderRadius: '50%',
+                            backgroundColor: '#10b981',
+                            border: '2px solid #0b1120',
+                            boxShadow: '0 0 10px #10b981',
+                          }}
+                        />
+                      )}
                     </div>
 
-                    {isOnline && (
-                      <span
-                        style={{
-                          position: 'absolute',
-                          bottom: '1px',
-                          right: '1px',
-                          width: '12px',
-                          height: '12px',
-                          borderRadius: '50%',
-                          backgroundColor: '#10b981',
-                          border: '2px solid #0b1120',
-                          boxShadow: '0 0 10px #10b981',
-                        }}
-                      />
-                    )}
+                    <div style={{ flex: 1, overflow: 'hidden' }}>
+                      <p style={{ fontSize: '0.92rem', fontWeight: 600, margin: 0, color: isSelected ? '#ffffff' : '#e2e8f0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {contact.full_name || contact.username || 'Candidate'}
+                      </p>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 500, color: isOnline ? '#34d399' : '#64748b' }}>
+                        {isOnline ? 'Online now' : 'Offline'}
+                      </span>
+                    </div>
                   </div>
-
-                  <div style={{ flex: 1, overflow: 'hidden' }}>
-                    <p style={{ fontSize: '0.92rem', fontWeight: 600, margin: 0, color: isSelected ? '#ffffff' : '#e2e8f0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {contact.full_name || contact.username || 'Candidate'}
-                    </p>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 500, color: isOnline ? '#34d399' : '#64748b' }}>
-                      {isOnline ? 'Online now' : 'Offline'}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
         </div>
 
         {/* Right Chat Arena */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'radial-gradient(circle at 50% 20%, rgba(30, 41, 59, 0.3) 0%, rgba(2, 6, 23, 0.6) 100%)' }}>
+        <div
+          style={{
+            flex: 1,
+            display: !isMobileChatOpen && typeof window !== 'undefined' && window.innerWidth < 768 ? 'none' : 'flex',
+            flexDirection: 'column',
+            background: 'radial-gradient(circle at 50% 20%, rgba(30, 41, 59, 0.35) 0%, rgba(2, 6, 23, 0.75) 100%)',
+            height: '100%',
+          }}
+          className="chat-arena-container"
+        >
           {selectedUser ? (
             <>
-              {/* Chat Header */}
+              {/* Chat Header with Mobile Back Button */}
               <div
                 style={{
-                  padding: '1rem 1.5rem',
+                  padding: '0.75rem 1rem',
                   borderBottom: '1px solid rgba(255, 255, 255, 0.07)',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '1rem',
-                  background: 'rgba(10, 16, 31, 0.85)',
+                  gap: '0.75rem',
+                  background: 'rgba(10, 16, 31, 0.9)',
                   backdropFilter: 'blur(12px)',
                 }}
               >
+                {/* Back Button for Mobile */}
+                <button
+                  type="button"
+                  onClick={() => setIsMobileChatOpen(false)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: 'rgba(255, 255, 255, 0.06)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '10px',
+                    width: '36px',
+                    height: '36px',
+                    color: '#ffffff',
+                    cursor: 'pointer',
+                    padding: 0
+                  }}
+                  className="mobile-back-btn"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="19" y1="12" x2="5" y2="12"></line>
+                    <polyline points="12 19 5 12 12 5"></polyline>
+                  </svg>
+                </button>
+
                 <div style={{ position: 'relative' }}>
                   <div
                     style={{
-                      width: '42px',
-                      height: '42px',
+                      width: '40px',
+                      height: '40px',
                       borderRadius: '50%',
                       background: 'linear-gradient(135deg, #2563eb, #38bdf8)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      boxShadow: '0 0 16px rgba(56, 189, 248, 0.35)',
+                      boxShadow: '0 0 14px rgba(56, 189, 248, 0.3)',
                     }}
                   >
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -383,8 +428,8 @@ export default function MessagesPage() {
                         position: 'absolute',
                         bottom: '0px',
                         right: '0px',
-                        width: '11px',
-                        height: '11px',
+                        width: '10px',
+                        height: '10px',
                         borderRadius: '50%',
                         backgroundColor: '#10b981',
                         border: '2px solid #0a101f',
@@ -393,18 +438,18 @@ export default function MessagesPage() {
                     />
                   )}
                 </div>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: '#ffffff', letterSpacing: '-0.01em' }}>
+                <div style={{ flex: 1 }}>
+                  <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#ffffff' }}>
                     {selectedUser.full_name || selectedUser.username}
                   </h3>
                   <span
                     style={{
-                      fontSize: '0.78rem',
+                      fontSize: '0.75rem',
                       fontWeight: 500,
                       color: onlineUsers.has(selectedUser.id) ? '#34d399' : '#64748b',
                     }}
                   >
-                    {onlineUsers.has(selectedUser.id) ? '● Active in Chat' : 'Last seen recently'}
+                    {onlineUsers.has(selectedUser.id) ? '● Active now' : 'Encrypted private room'}
                   </span>
                 </div>
               </div>
@@ -413,22 +458,22 @@ export default function MessagesPage() {
               <div
                 style={{
                   flex: 1,
-                  padding: '1.5rem',
+                  padding: '1rem',
                   overflowY: 'auto',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '0.85rem',
+                  gap: '0.75rem',
                 }}
               >
                 {messages.length === 0 ? (
-                  <div style={{ margin: 'auto', textAlign: 'center', color: '#64748b' }}>
-                    <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(56, 189, 248, 0.08)', margin: '0 auto 1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(56, 189, 248, 0.15)' }}>
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
+                  <div style={{ margin: 'auto', textAlign: 'center', color: '#64748b', padding: '1rem' }}>
+                    <div style={{ width: '50px', height: '50px', borderRadius: '50%', background: 'rgba(56, 189, 248, 0.08)', margin: '0 auto 0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(56, 189, 248, 0.15)' }}>
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
                       </svg>
                     </div>
-                    <p style={{ margin: 0, fontSize: '0.95rem', fontWeight: 600, color: '#e2e8f0' }}>End-to-End Direct Message Room</p>
-                    <p style={{ margin: '0.35rem 0 0 0', fontSize: '0.82rem' }}>Say hello and start collaborating directly.</p>
+                    <p style={{ margin: 0, fontSize: '0.92rem', fontWeight: 600, color: '#e2e8f0' }}>End-to-End Private Channel</p>
+                    <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.8rem' }}>Messages are visible only to you and {selectedUser.full_name || selectedUser.username}.</p>
                   </div>
                 ) : (
                   messages.map((msg) => {
@@ -438,22 +483,22 @@ export default function MessagesPage() {
                         key={msg.id}
                         style={{
                           alignSelf: isOwnMessage ? 'flex-end' : 'flex-start',
-                          maxWidth: '68%',
-                          padding: '0.75rem 1.15rem',
-                          borderRadius: '18px',
-                          borderBottomRightRadius: isOwnMessage ? '3px' : '18px',
-                          borderBottomLeftRadius: isOwnMessage ? '18px' : '3px',
+                          maxWidth: '75%',
+                          padding: '0.65rem 1rem',
+                          borderRadius: '16px',
+                          borderBottomRightRadius: isOwnMessage ? '3px' : '16px',
+                          borderBottomLeftRadius: isOwnMessage ? '16px' : '3px',
                           background: isOwnMessage
                             ? 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)'
-                            : 'rgba(30, 41, 59, 0.75)',
+                            : 'rgba(30, 41, 59, 0.85)',
                           color: '#ffffff',
-                          fontSize: '0.92rem',
-                          lineHeight: '1.45',
+                          fontSize: '0.9rem',
+                          lineHeight: '1.4',
                           wordBreak: 'break-word',
                           border: isOwnMessage ? '1px solid rgba(255, 255, 255, 0.15)' : '1px solid rgba(255, 255, 255, 0.06)',
                           boxShadow: isOwnMessage
-                            ? '0 8px 20px -4px rgba(37, 99, 235, 0.45)'
-                            : '0 4px 15px rgba(0, 0, 0, 0.25)',
+                            ? '0 6px 16px -3px rgba(37, 99, 235, 0.4)'
+                            : '0 3px 12px rgba(0, 0, 0, 0.2)',
                           backdropFilter: 'blur(8px)',
                         }}
                       >
@@ -465,24 +510,24 @@ export default function MessagesPage() {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Input Dock */}
-              <div style={{ padding: '1rem 1.5rem', background: 'rgba(10, 16, 31, 0.85)', borderTop: '1px solid rgba(255, 255, 255, 0.07)' }}>
+              {/* Bottom Input Dock */}
+              <div style={{ padding: '0.75rem 1rem', background: 'rgba(10, 16, 31, 0.9)', borderTop: '1px solid rgba(255, 255, 255, 0.07)' }}>
                 <form
                   onSubmit={handleSendMessage}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '0.75rem',
-                    background: 'rgba(15, 23, 42, 0.8)',
-                    padding: '0.4rem 0.5rem 0.4rem 1.15rem',
-                    borderRadius: '30px',
+                    gap: '0.5rem',
+                    background: 'rgba(15, 23, 42, 0.85)',
+                    padding: '0.35rem 0.4rem 0.35rem 1rem',
+                    borderRadius: '25px',
                     border: '1px solid rgba(255, 255, 255, 0.1)',
                     boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
                   }}
                 >
                   <input
                     type="text"
-                    placeholder="Type a message..."
+                    placeholder="Type a private message..."
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
                     style={{
@@ -490,7 +535,7 @@ export default function MessagesPage() {
                       backgroundColor: 'transparent',
                       border: 'none',
                       color: '#ffffff',
-                      fontSize: '0.92rem',
+                      fontSize: '0.9rem',
                       outline: 'none',
                     }}
                   />
@@ -501,17 +546,17 @@ export default function MessagesPage() {
                       background: newMessage.trim() ? 'linear-gradient(135deg, #38bdf8 0%, #2563eb 100%)' : '#334155',
                       border: 'none',
                       borderRadius: '50%',
-                      width: '42px',
-                      height: '42px',
+                      width: '38px',
+                      height: '38px',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       cursor: newMessage.trim() ? 'pointer' : 'default',
-                      boxShadow: newMessage.trim() ? '0 0 15px rgba(56, 189, 248, 0.5)' : 'none',
+                      boxShadow: newMessage.trim() ? '0 0 12px rgba(56, 189, 248, 0.5)' : 'none',
                       transition: 'all 0.2s ease',
                     }}
                   >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                       <line x1="22" y1="2" x2="11" y2="13"></line>
                       <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
                     </svg>
@@ -529,18 +574,35 @@ export default function MessagesPage() {
                 justifyContent: 'center',
                 color: '#64748b',
                 gap: '0.75rem',
+                padding: '1.5rem',
+                textAlign: 'center'
               }}
             >
-              <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
                 </svg>
               </div>
-              <p style={{ margin: 0, fontSize: '0.95rem', fontWeight: 500 }}>Select a candidate to open their private channel</p>
+              <p style={{ margin: 0, fontSize: '0.95rem', fontWeight: 500, color: '#94a3b8' }}>Select a peer or candidate to open their private chat</p>
             </div>
           )}
         </div>
       </div>
+
+      <style jsx global>{`
+        @media (min-width: 768px) {
+          .sidebar-container {
+            max-width: 340px !important;
+            display: flex !important;
+          }
+          .chat-arena-container {
+            display: flex !important;
+          }
+          .mobile-back-btn {
+            display: none !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }
