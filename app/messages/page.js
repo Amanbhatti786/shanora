@@ -18,6 +18,7 @@ export default function MessagesPage() {
   const [newMessage, setNewMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [onlineUsers, setOnlineUsers] = useState(new Set());
+  const [lastMessages, setLastMessages] = useState({}); // Stores last message per user: { [partnerId]: { text, time, isMe } }
   const [isMobileChatOpen, setIsMobileChatOpen] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -101,7 +102,43 @@ export default function MessagesPage() {
     getProfiles();
   }, []);
 
-  // 4. Select Contact
+  // 4. Fetch All Recent Messages to show FB-style "Last Message" under names
+  const refreshLastMessages = async () => {
+    const { data } = await supabase
+      .from('messages')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (data && data.length > 0) {
+      const map = {};
+      data.forEach((msg) => {
+        if (msg.conversation_id) {
+          const parts = msg.conversation_id.split('_');
+          const otherId = parts[0] === (currentUser?.id || 'anon-user') ? parts[1] : parts[0];
+          
+          if (!map[otherId]) {
+            let snippet = msg.content || '';
+            if (snippet.startsWith('[IMAGE:')) snippet = '📷 Photo';
+            else if (snippet.startsWith('[DOC:')) snippet = '📄 Document';
+
+            const timeStr = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            map[otherId] = {
+              text: snippet,
+              time: timeStr,
+              isMe: msg.sender_id === (currentUser?.id || 'anon-sender'),
+            };
+          }
+        }
+      });
+      setLastMessages(map);
+    }
+  };
+
+  useEffect(() => {
+    refreshLastMessages();
+  }, [currentUser, availableUsers]);
+
+  // 5. Select Contact
   const handleSelectContact = (contact) => {
     setSelectedUser(contact);
     setIsMobileChatOpen(true);
@@ -111,7 +148,7 @@ export default function MessagesPage() {
     setActiveConversationId(roomKey);
   };
 
-  // 5. Realtime Messages
+  // 6. Realtime Message Room
   useEffect(() => {
     if (!activeConversationId) return;
 
@@ -142,6 +179,7 @@ export default function MessagesPage() {
             if (prev.some((m) => m.id === payload.new.id)) return prev;
             return [...prev, payload.new];
           });
+          refreshLastMessages();
         }
       )
       .subscribe();
@@ -155,7 +193,7 @@ export default function MessagesPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // 6. Send Text Message
+  // 7. Send Text Message
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!newMessage.trim() || !activeConversationId || isSending) return;
@@ -189,6 +227,7 @@ export default function MessagesPage() {
 
       if (data && !error) {
         setMessages((prev) => prev.map((m) => (m.id === tempId ? data : m)));
+        refreshLastMessages();
       }
     } catch (err) {
       console.error('Send error:', err);
@@ -197,7 +236,7 @@ export default function MessagesPage() {
     }
   };
 
-  // 7. Instant Photo & Document Upload Handler
+  // 8. Photo & Document Handler (Guaranteed Image Rendering)
   const handleFileUpload = async (event, fileType) => {
     const file = event.target.files?.[0];
     if (!file || !activeConversationId) return;
@@ -207,91 +246,101 @@ export default function MessagesPage() {
     const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
     const filePath = `${activeConversationId}/${fileName}`;
 
-    const localBlobUrl = URL.createObjectURL(file);
-    const tempId = 'temp-' + Date.now();
-    const tempContent = fileType === 'image' 
-      ? `[IMAGE:${localBlobUrl}]` 
-      : `[DOC:${localBlobUrl}|${file.name}]`;
+    // Read local image as Data URL so it renders instantly on screen
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const base64LocalUrl = e.target.result;
+      const tempId = 'temp-' + Date.now();
+      const localContent = fileType === 'image' 
+        ? `[IMAGE:${base64LocalUrl}]` 
+        : `[DOC:${base64LocalUrl}|${file.name}]`;
 
-    const senderId = currentUser?.id || 'anon-sender';
+      const senderId = currentUser?.id || 'anon-sender';
 
-    const optimisticMessage = {
-      id: tempId,
-      conversation_id: activeConversationId,
-      sender_id: senderId,
-      content: tempContent,
-      created_at: new Date().toISOString(),
-    };
-
-    setMessages((prev) => [...prev, optimisticMessage]);
-
-    try {
-      const { error: uploadError } = await supabase.storage
-        .from('chat-attachments')
-        .upload(filePath, file, { cacheControl: '3600', upsert: true });
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('chat-attachments')
-        .getPublicUrl(filePath);
-
-      const realContent = fileType === 'image' 
-        ? `[IMAGE:${publicUrl}]` 
-        : `[DOC:${publicUrl}|${file.name}]`;
-
-      const { data, error: insertError } = await supabase
-        .from('messages')
-        .insert({
+      // Instantly show on UI
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: tempId,
           conversation_id: activeConversationId,
           sender_id: senderId,
-          content: realContent,
-        })
-        .select()
-        .single();
+          content: localContent,
+          created_at: new Date().toISOString(),
+        }
+      ]);
 
-      if (insertError) throw insertError;
+      try {
+        // Upload to Supabase bucket
+        const { error: uploadError } = await supabase.storage
+          .from('chat-attachments')
+          .upload(filePath, file, { cacheControl: '3600', upsert: true });
 
-      if (data) {
-        setMessages((prev) => prev.map((m) => (m.id === tempId ? data : m)));
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('chat-attachments')
+          .getPublicUrl(filePath);
+
+        const realContent = fileType === 'image' 
+          ? `[IMAGE:${publicUrl}]` 
+          : `[DOC:${publicUrl}|${file.name}]`;
+
+        const { data, error: insertError } = await supabase
+          .from('messages')
+          .insert({
+            conversation_id: activeConversationId,
+            sender_id: senderId,
+            content: realContent,
+          })
+          .select()
+          .single();
+
+        if (insertError) throw insertError;
+
+        if (data) {
+          setMessages((prev) => prev.map((m) => (m.id === tempId ? data : m)));
+          refreshLastMessages();
+        }
+      } catch (error) {
+        console.error('Upload Error:', error);
+      } finally {
+        setIsUploading(false);
+        event.target.value = '';
       }
-    } catch (error) {
-      console.error('Upload Error:', error);
-      setMessages((prev) => prev.filter((m) => m.id !== tempId));
-    } finally {
-      setIsUploading(false);
-      event.target.value = '';
-    }
+    };
+
+    reader.readAsDataURL(file);
   };
 
   const displayedUsers = availableUsers.filter((u) =>
     (u.full_name || u.email || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const activeTalentUsers = displayedUsers.filter((u) => onlineUsers.has(u.id));
-
+  // Render message bubble content (Photos / Documents / Text)
   const renderMessageContent = (content) => {
-    if (content.startsWith('[IMAGE:') && content.endsWith(']')) {
-      const imgUrl = content.replace('[IMAGE:', '').slice(0, -1);
+    if (content.startsWith('[IMAGE:')) {
+      const imgUrl = content.substring(7, content.length - 1);
       return (
-        <a href={imgUrl} target="_blank" rel="noopener noreferrer">
+        <a href={imgUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'block' }}>
           <img
             src={imgUrl}
-            alt="chat-image"
+            alt="chat-photo"
             style={{
               maxWidth: '100%',
-              maxHeight: '260px',
+              width: '260px',
+              maxHeight: '320px',
               borderRadius: '12px',
               objectFit: 'cover',
-              display: 'block'
+              display: 'block',
+              backgroundColor: '#1e293b'
             }}
           />
         </a>
       );
     }
 
-    if (content.startsWith('[DOC:') && content.endsWith(']')) {
-      const raw = content.replace('[DOC:', '').slice(0, -1);
+    if (content.startsWith('[DOC:')) {
+      const raw = content.substring(5, content.length - 1);
       const [docUrl, docName] = raw.split('|');
       return (
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
@@ -324,6 +373,8 @@ export default function MessagesPage() {
     return content;
   };
 
+  const isSelectedUserOnline = selectedUser ? onlineUsers.has(selectedUser.id) : false;
+
   return (
     <div style={{ padding: '0.5rem', maxWidth: '1280px', margin: '0 auto', color: '#e4e6eb', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
       <div
@@ -350,12 +401,10 @@ export default function MessagesPage() {
           }}
           className="sidebar-container"
         >
-          {/* Header with Back to Feed / Close Button */}
+          {/* Header */}
           <div style={{ padding: '1rem', borderBottom: '1px solid #2f3031' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                
-                {/* Back to Feed Button (<- / X) */}
                 <button
                   type="button"
                   onClick={() => router.push('/feed')}
@@ -371,10 +420,7 @@ export default function MessagesPage() {
                     border: '1px solid #4e4f50',
                     color: '#e4e6eb',
                     cursor: 'pointer',
-                    transition: 'all 0.2s ease',
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#4e4f50'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#3a3b3c'}
                 >
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="19" y1="12" x2="5" y2="12"></line>
@@ -390,7 +436,6 @@ export default function MessagesPage() {
                 <h1 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0, color: '#f5f6f7' }}>Shanora Chats</h1>
               </div>
 
-              {/* Close Button that lands on Feed */}
               <button
                 type="button"
                 onClick={() => router.push('/feed')}
@@ -409,8 +454,6 @@ export default function MessagesPage() {
                   fontSize: '1.1rem',
                   fontWeight: 700
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = '#ffffff'; e.currentTarget.style.backgroundColor = '#3a3b3c'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = '#b0b3b8'; e.currentTarget.style.backgroundColor = 'transparent'; }}
               >
                 ✕
               </button>
@@ -441,63 +484,12 @@ export default function MessagesPage() {
             </div>
           </div>
 
-          {/* Active Talent Row */}
-          {activeTalentUsers.length > 0 && (
-            <div style={{ padding: '0.75rem 0.75rem 0.3rem', borderBottom: '1px solid #2f3031' }}>
-              <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#31a24c', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Online Now</span>
-              <div style={{ display: 'flex', gap: '0.75rem', overflowX: 'auto', padding: '0.5rem 0 0.3rem', scrollbarWidth: 'none' }}>
-                {activeTalentUsers.map((u) => (
-                  <div
-                    key={'active-' + u.id}
-                    onClick={() => handleSelectContact(u)}
-                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', minWidth: '52px' }}
-                  >
-                    <div style={{ position: 'relative' }}>
-                      <div
-                        style={{
-                          width: '44px',
-                          height: '44px',
-                          borderRadius: '50%',
-                          background: 'linear-gradient(135deg, #0084ff, #00c6ff)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontWeight: 700,
-                          fontSize: '1rem',
-                          color: '#ffffff',
-                          border: '2px solid #242526',
-                          boxShadow: '0 0 0 2px #31a24c',
-                        }}
-                      >
-                        {(u.full_name || u.email || 'U')[0].toUpperCase()}
-                      </div>
-                      <span
-                        style={{
-                          position: 'absolute',
-                          bottom: '1px',
-                          right: '1px',
-                          width: '11px',
-                          height: '11px',
-                          borderRadius: '50%',
-                          backgroundColor: '#31a24c',
-                          border: '2px solid #242526',
-                        }}
-                      />
-                    </div>
-                    <span style={{ fontSize: '0.7rem', color: '#e4e6eb', marginTop: '4px', maxWidth: '52px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {(u.full_name || 'User').split(' ')[0]}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Directory */}
+          {/* Directory with FB-style Last Message & Green Active Tick */}
           <div style={{ flex: 1, overflowY: 'auto', padding: '0.4rem' }}>
             {displayedUsers.map((contact) => {
               const isOnline = onlineUsers.has(contact.id);
               const isSelected = selectedUser?.id === contact.id;
+              const lastMsg = lastMessages[contact.id];
 
               return (
                 <div
@@ -507,7 +499,7 @@ export default function MessagesPage() {
                     display: 'flex',
                     alignItems: 'center',
                     gap: '0.85rem',
-                    padding: '0.65rem 0.8rem',
+                    padding: '0.7rem 0.85rem',
                     borderRadius: '12px',
                     cursor: 'pointer',
                     backgroundColor: isSelected ? '#3a3b3c' : 'transparent',
@@ -515,60 +507,71 @@ export default function MessagesPage() {
                     transition: 'background-color 0.15s ease',
                   }}
                 >
+                  {/* Avatar with Green Active Tick/Badge */}
                   <div style={{ position: 'relative' }}>
                     <div
                       style={{
-                        width: '44px',
-                        height: '44px',
+                        width: '48px',
+                        height: '48px',
                         borderRadius: '50%',
                         backgroundColor: '#3a3b3c',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         fontWeight: 700,
-                        fontSize: '1rem',
+                        fontSize: '1.05rem',
                         color: '#0084ff',
+                        border: '1px solid rgba(255,255,255,0.06)'
                       }}
                     >
                       {(contact.full_name || contact.email || 'U')[0].toUpperCase()}
                     </div>
 
-                    {isOnline ? (
+                    {isOnline && (
                       <span
+                        title="Online"
                         style={{
                           position: 'absolute',
                           bottom: '1px',
                           right: '1px',
-                          width: '11px',
-                          height: '11px',
+                          width: '13px',
+                          height: '13px',
                           borderRadius: '50%',
                           backgroundColor: '#31a24c',
-                          border: '2px solid #242526',
+                          border: '2.5px solid #242526',
                           boxShadow: '0 0 6px #31a24c',
-                        }}
-                      />
-                    ) : (
-                      <span
-                        style={{
-                          position: 'absolute',
-                          bottom: '1px',
-                          right: '1px',
-                          width: '9px',
-                          height: '9px',
-                          borderRadius: '50%',
-                          backgroundColor: '#65676b',
-                          border: '2px solid #242526',
                         }}
                       />
                     )}
                   </div>
 
+                  {/* Name + Facebook Style Last Message Snippet */}
                   <div style={{ flex: 1, overflow: 'hidden' }}>
-                    <p style={{ fontSize: '0.92rem', fontWeight: 600, margin: 0, color: '#f5f6f7', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {contact.full_name || contact.email}
-                    </p>
-                    <p style={{ fontSize: '0.75rem', color: isOnline ? '#31a24c' : '#b0b3b8', margin: '2px 0 0', fontWeight: isOnline ? 600 : 400 }}>
-                      {isOnline ? 'Active now' : 'Offline'}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <p style={{ fontSize: '0.94rem', fontWeight: 600, margin: 0, color: '#f5f6f7', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {contact.full_name || contact.email}
+                      </p>
+                      {lastMsg?.time && (
+                        <span style={{ fontSize: '0.7rem', color: '#8a8d91', marginLeft: '4px' }}>
+                          {lastMsg.time}
+                        </span>
+                      )}
+                    </div>
+                    
+                    {/* FB Messenger style text under name */}
+                    <p style={{ fontSize: '0.8rem', color: isSelected ? '#e4e6eb' : '#b0b3b8', margin: '3px 0 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {lastMsg ? (
+                        <>
+                          <span style={{ color: lastMsg.isMe ? '#93c5fd' : '#b0b3b8' }}>
+                            {lastMsg.isMe ? 'You: ' : ''}
+                          </span>
+                          {lastMsg.text}
+                        </>
+                      ) : (
+                        <span style={{ color: isOnline ? '#31a24c' : '#707478', fontSize: '0.75rem' }}>
+                          {isOnline ? '● Active now' : (contact.city || 'Available on Shanora')}
+                        </span>
+                      )}
                     </p>
                   </div>
                 </div>
@@ -590,7 +593,7 @@ export default function MessagesPage() {
         >
           {selectedUser ? (
             <>
-              {/* Header */}
+              {/* Inbox Header with Online/Offline Status */}
               <div
                 style={{
                   padding: '0.75rem 1rem',
@@ -626,8 +629,8 @@ export default function MessagesPage() {
                   <div style={{ position: 'relative' }}>
                     <div
                       style={{
-                        width: '40px',
-                        height: '40px',
+                        width: '42px',
+                        height: '42px',
                         borderRadius: '50%',
                         background: 'linear-gradient(135deg, #0084ff, #00c6ff)',
                         display: 'flex',
@@ -639,14 +642,14 @@ export default function MessagesPage() {
                     >
                       {(selectedUser.full_name || selectedUser.email || 'U')[0].toUpperCase()}
                     </div>
-                    {onlineUsers.has(selectedUser.id) && (
+                    {isSelectedUserOnline && (
                       <span
                         style={{
                           position: 'absolute',
                           bottom: '0px',
                           right: '0px',
-                          width: '10px',
-                          height: '10px',
+                          width: '11px',
+                          height: '11px',
                           borderRadius: '50%',
                           backgroundColor: '#31a24c',
                           border: '2px solid #242526',
@@ -656,11 +659,13 @@ export default function MessagesPage() {
                   </div>
 
                   <div>
-                    <h2 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 700, color: '#f5f6f7' }}>
+                    <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#f5f6f7' }}>
                       {selectedUser.full_name || selectedUser.email}
                     </h2>
-                    <span style={{ fontSize: '0.72rem', color: onlineUsers.has(selectedUser.id) ? '#31a24c' : '#b0b3b8', fontWeight: 500 }}>
-                      {onlineUsers.has(selectedUser.id) ? 'Active now' : 'Offline'}
+                    {/* Real Online / Offline inside Inbox Header */}
+                    <span style={{ fontSize: '0.74rem', color: isSelectedUserOnline ? '#31a24c' : '#8a8d91', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: isSelectedUserOnline ? '#31a24c' : '#65676b', display: 'inline-block' }}></span>
+                      {isSelectedUserOnline ? 'Active now' : 'Offline'}
                     </span>
                   </div>
                 </div>
@@ -688,18 +693,19 @@ export default function MessagesPage() {
                     </div>
                     <h3 style={{ margin: '0 0 0.25rem', color: '#f5f6f7', fontSize: '1.1rem' }}>{selectedUser.full_name}</h3>
                     <p style={{ margin: 0, fontSize: '0.85rem' }}>Direct private channel on Shanora</p>
-                    <p style={{ margin: '0.35rem 0 0', fontSize: '0.78rem', color: '#0084ff' }}>Send a message or media to start conversation</p>
+                    <p style={{ margin: '0.35rem 0 0', fontSize: '0.78rem', color: '#0084ff' }}>Send a message or photo to start conversation</p>
                   </div>
                 ) : (
                   messages.map((msg) => {
                     const isOwnMessage = msg.sender_id === (currentUser?.id || 'anon-sender');
+                    const isMedia = msg.content.startsWith('[IMAGE:');
                     return (
                       <div
                         key={msg.id}
                         style={{
                           alignSelf: isOwnMessage ? 'flex-end' : 'flex-start',
-                          maxWidth: '70%',
-                          padding: msg.content.startsWith('[IMAGE:') ? '4px' : '0.65rem 0.95rem',
+                          maxWidth: '72%',
+                          padding: isMedia ? '4px' : '0.65rem 0.95rem',
                           borderRadius: '18px',
                           borderBottomRightRadius: isOwnMessage ? '4px' : '18px',
                           borderBottomLeftRadius: isOwnMessage ? '18px' : '4px',
