@@ -1,11 +1,14 @@
 'use client';
 
 import React, { useEffect, useState, useRef } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { Send, User as UserIcon, Search, Sparkles } from 'lucide-react';
+import { createClient } from '@supabase/supabase-js';
+
+// Initialize Supabase Client directly using public env vars
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function MessagesPage() {
-  const supabase = createClientComponentClient();
   const [currentUser, setCurrentUser] = useState(null);
   const [conversations, setConversations] = useState([]);
   const [availableUsers, setAvailableUsers] = useState([]);
@@ -26,7 +29,15 @@ export default function MessagesPage() {
       }
     }
     getUser();
-  }, [supabase]);
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setCurrentUser(session?.user ?? null);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   // 2. Realtime presence tracker
   useEffect(() => {
@@ -54,7 +65,7 @@ export default function MessagesPage() {
     return () => {
       channel.unsubscribe();
     };
-  }, [currentUser, supabase]);
+  }, [currentUser]);
 
   // 3. Load user conversations and active profiles
   useEffect(() => {
@@ -92,14 +103,13 @@ export default function MessagesPage() {
     }
 
     loadData();
-  }, [currentUser, supabase]);
+  }, [currentUser]);
 
-  // 4. Select contact / start conversation (Fixed Query)
+  // 4. Select contact / start conversation
   const selectContact = async (contact) => {
     if (!currentUser) return;
     setSelectedUser(contact);
 
-    // Fetch existing conversation safely
     const { data: existingConvs } = await supabase
       .from('conversations')
       .select('id, participant_one, participant_two')
@@ -130,7 +140,7 @@ export default function MessagesPage() {
     }
   };
 
-  // 5. Realtime message synchronization (Fixed Duplicate Handling)
+  // 5. Realtime message synchronization
   useEffect(() => {
     if (!activeConversationId) return;
 
@@ -167,7 +177,7 @@ export default function MessagesPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [activeConversationId, supabase]);
+  }, [activeConversationId]);
 
   // Auto-scroll
   useEffect(() => {
@@ -221,7 +231,9 @@ export default function MessagesPage() {
           <div style={{ padding: '1.25rem', borderBottom: '1px solid rgba(255, 255, 255, 0.06)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Sparkles size={18} color="#38bdf8" />
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
+                </svg>
                 <h2 style={{ fontSize: '1.15rem', fontWeight: 700, margin: 0, letterSpacing: '-0.02em', background: 'linear-gradient(90deg, #ffffff, #93c5fd)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                   Direct Chats
                 </h2>
@@ -250,10 +262,10 @@ export default function MessagesPage() {
                   boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.3)'
                 }}
               />
-              <Search
-                size={15}
-                style={{ position: 'absolute', left: '0.75rem', top: '0.8rem', color: '#64748b' }}
-              />
+              <svg style={{ position: 'absolute', left: '0.75rem', top: '0.8rem' }} width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
             </div>
           </div>
 
@@ -294,7 +306,10 @@ export default function MessagesPage() {
                         border: '1.5px solid rgba(255, 255, 255, 0.1)',
                       }}
                     >
-                      <UserIcon size={22} color="#94a3b8" />
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                      </svg>
                     </div>
 
                     {isOnline && (
@@ -357,7 +372,10 @@ export default function MessagesPage() {
                       boxShadow: '0 0 16px rgba(56, 189, 248, 0.35)',
                     }}
                   >
-                    <UserIcon size={20} color="#ffffff" />
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+                      <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
                   </div>
                   {onlineUsers.has(selectedUser.id) && (
                     <span
@@ -405,7 +423,9 @@ export default function MessagesPage() {
                 {messages.length === 0 ? (
                   <div style={{ margin: 'auto', textAlign: 'center', color: '#64748b' }}>
                     <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(56, 189, 248, 0.08)', margin: '0 auto 1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(56, 189, 248, 0.15)' }}>
-                      <Sparkles size={24} color="#38bdf8" />
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
+                      </svg>
                     </div>
                     <p style={{ margin: 0, fontSize: '0.95rem', fontWeight: 600, color: '#e2e8f0' }}>End-to-End Direct Message Room</p>
                     <p style={{ margin: '0.35rem 0 0 0', fontSize: '0.82rem' }}>Say hello and start collaborating directly.</p>
@@ -491,7 +511,10 @@ export default function MessagesPage() {
                       transition: 'all 0.2s ease',
                     }}
                   >
-                    <Send size={18} color="#ffffff" />
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="22" y1="2" x2="11" y2="13"></line>
+                      <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                    </svg>
                   </button>
                 </form>
               </div>
@@ -509,7 +532,9 @@ export default function MessagesPage() {
               }}
             >
               <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Sparkles size={28} color="#38bdf8" />
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
+                </svg>
               </div>
               <p style={{ margin: 0, fontSize: '0.95rem', fontWeight: 500 }}>Select a candidate to open their private channel</p>
             </div>
