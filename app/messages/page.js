@@ -70,7 +70,7 @@ export default function MessagesPage() {
         .from('profiles')
         .select('id, full_name, username, avatar_url')
         .neq('id', currentUser.id)
-        .limit(25);
+        .limit(50);
 
       if (profiles) setAvailableUsers(profiles);
 
@@ -94,20 +94,27 @@ export default function MessagesPage() {
     loadData();
   }, [currentUser, supabase]);
 
-  // 4. Select contact / start conversation
+  // 4. Select contact / start conversation (Fixed Query)
   const selectContact = async (contact) => {
+    if (!currentUser) return;
     setSelectedUser(contact);
 
-    const { data: existingConv } = await supabase
+    // Fetch existing conversation safely
+    const { data: existingConvs } = await supabase
       .from('conversations')
-      .select('id')
-      .or(`and(participant_one.eq.${currentUser.id},participant_two.eq.${contact.id}),and(participant_one.eq.${contact.id},participant_two.eq.${currentUser.id})`)
-      .maybeSingle();
+      .select('id, participant_one, participant_two')
+      .or(`participant_one.eq.${currentUser.id},participant_two.eq.${currentUser.id}`);
+
+    const existingConv = existingConvs?.find(
+      (c) =>
+        (c.participant_one === currentUser.id && c.participant_two === contact.id) ||
+        (c.participant_one === contact.id && c.participant_two === currentUser.id)
+    );
 
     if (existingConv) {
       setActiveConversationId(existingConv.id);
     } else {
-      const { data: newConv } = await supabase
+      const { data: newConv, error } = await supabase
         .from('conversations')
         .insert({
           participant_one: currentUser.id,
@@ -116,14 +123,14 @@ export default function MessagesPage() {
         .select()
         .single();
 
-      if (newConv) {
+      if (newConv && !error) {
         setActiveConversationId(newConv.id);
         setConversations((prev) => [...prev, { conversationId: newConv.id, partner: contact }]);
       }
     }
   };
 
-  // 5. Realtime message synchronization
+  // 5. Realtime message synchronization (Fixed Duplicate Handling)
   useEffect(() => {
     if (!activeConversationId) return;
 
@@ -149,7 +156,10 @@ export default function MessagesPage() {
           filter: `conversation_id=eq.${activeConversationId}`,
         },
         (payload) => {
-          setMessages((prev) => [...prev, payload.new]);
+          setMessages((prev) => {
+            if (prev.some((msg) => msg.id === payload.new.id)) return prev;
+            return [...prev, payload.new];
+          });
         }
       )
       .subscribe();
@@ -185,7 +195,6 @@ export default function MessagesPage() {
 
   return (
     <div style={{ padding: '1.25rem', maxWidth: '1300px', margin: '0 auto', color: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-      {/* Outer Glassmorphic Card */}
       <div
         style={{
           display: 'flex',
@@ -208,7 +217,7 @@ export default function MessagesPage() {
             background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.75) 0%, rgba(10, 15, 29, 0.95) 100%)',
           }}
         >
-          {/* Sidebar Header */}
+          {/* Header */}
           <div style={{ padding: '1.25rem', borderBottom: '1px solid rgba(255, 255, 255, 0.06)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -222,7 +231,7 @@ export default function MessagesPage() {
               </span>
             </div>
 
-            {/* Glowing Search Bar */}
+            {/* Search */}
             <div style={{ position: 'relative' }}>
               <input
                 type="text"
@@ -238,7 +247,6 @@ export default function MessagesPage() {
                   color: '#f8fafc',
                   fontSize: '0.85rem',
                   outline: 'none',
-                  transition: 'all 0.2s ease',
                   boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.3)'
                 }}
               />
@@ -249,7 +257,7 @@ export default function MessagesPage() {
             </div>
           </div>
 
-          {/* User Directory List */}
+          {/* Contact List */}
           <div style={{ flex: 1, overflowY: 'auto', padding: '0.5rem' }}>
             {displayedContacts.map((contact) => {
               const isOnline = onlineUsers.has(contact.id);
@@ -289,7 +297,6 @@ export default function MessagesPage() {
                       <UserIcon size={22} color="#94a3b8" />
                     </div>
 
-                    {/* Glowing Live Dot */}
                     {isOnline && (
                       <span
                         style={{
@@ -325,7 +332,7 @@ export default function MessagesPage() {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'radial-gradient(circle at 50% 20%, rgba(30, 41, 59, 0.3) 0%, rgba(2, 6, 23, 0.6) 100%)' }}>
           {selectedUser ? (
             <>
-              {/* Top Glass Header */}
+              {/* Chat Header */}
               <div
                 style={{
                   padding: '1rem 1.5rem',
@@ -384,7 +391,7 @@ export default function MessagesPage() {
                 </div>
               </div>
 
-              {/* Message Feed Area */}
+              {/* Message Feed */}
               <div
                 style={{
                   flex: 1,
@@ -400,7 +407,7 @@ export default function MessagesPage() {
                     <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(56, 189, 248, 0.08)', margin: '0 auto 1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(56, 189, 248, 0.15)' }}>
                       <Sparkles size={24} color="#38bdf8" />
                     </div>
-                    <p style={{ margin: 0, fontSize: '0.95rem', fontWeight: 600, color: '#e2e8f0' }}>End-to-End Encrypted Message Room</p>
+                    <p style={{ margin: 0, fontSize: '0.95rem', fontWeight: 600, color: '#e2e8f0' }}>End-to-End Direct Message Room</p>
                     <p style={{ margin: '0.35rem 0 0 0', fontSize: '0.82rem' }}>Say hello and start collaborating directly.</p>
                   </div>
                 ) : (
@@ -438,7 +445,7 @@ export default function MessagesPage() {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Floating Input Dock */}
+              {/* Input Dock */}
               <div style={{ padding: '1rem 1.5rem', background: 'rgba(10, 16, 31, 0.85)', borderTop: '1px solid rgba(255, 255, 255, 0.07)' }}>
                 <form
                   onSubmit={handleSendMessage}
