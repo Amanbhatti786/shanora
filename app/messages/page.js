@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://izdtmpowrcimaittuffv.supabase.co';
@@ -8,6 +9,7 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOi
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function MessagesPage() {
+  const router = useRouter();
   const [currentUser, setCurrentUser] = useState(null);
   const [availableUsers, setAvailableUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -205,7 +207,6 @@ export default function MessagesPage() {
     const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
     const filePath = `${activeConversationId}/${fileName}`;
 
-    // Instant local preview
     const localBlobUrl = URL.createObjectURL(file);
     const tempId = 'temp-' + Date.now();
     const tempContent = fileType === 'image' 
@@ -236,7 +237,7 @@ export default function MessagesPage() {
         .getPublicUrl(filePath);
 
       const realContent = fileType === 'image' 
-        ? `[IMAGE:${publicUrl}]`
+        ? `[IMAGE:${publicUrl}]` 
         : `[DOC:${publicUrl}|${file.name}]`;
 
       const { data, error: insertError } = await supabase
@@ -257,7 +258,6 @@ export default function MessagesPage() {
     } catch (error) {
       console.error('Upload Error:', error);
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
-      alert('Photo upload failed. Supabase SQL editor mein bucket policies check karein.');
     } finally {
       setIsUploading(false);
       event.target.value = '';
@@ -270,7 +270,6 @@ export default function MessagesPage() {
 
   const activeTalentUsers = displayedUsers.filter((u) => onlineUsers.has(u.id));
 
-  // Render message bubble contents
   const renderMessageContent = (content) => {
     if (content.startsWith('[IMAGE:') && content.endsWith(']')) {
       const imgUrl = content.replace('[IMAGE:', '').slice(0, -1);
@@ -351,20 +350,70 @@ export default function MessagesPage() {
           }}
           className="sidebar-container"
         >
-          {/* Header */}
+          {/* Header with Back to Feed / Close Button */}
           <div style={{ padding: '1rem', borderBottom: '1px solid #2f3031' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                
+                {/* Back to Feed Button (<- / X) */}
+                <button
+                  type="button"
+                  onClick={() => router.push('/feed')}
+                  title="Back to Feed"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '34px',
+                    height: '34px',
+                    borderRadius: '50%',
+                    backgroundColor: '#3a3b3c',
+                    border: '1px solid #4e4f50',
+                    color: '#e4e6eb',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#4e4f50'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#3a3b3c'}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="19" y1="12" x2="5" y2="12"></line>
+                    <polyline points="12 19 5 12 12 5"></polyline>
+                  </svg>
+                </button>
+
                 <div style={{ width: '32px', height: '32px', borderRadius: '10px', background: 'linear-gradient(135deg, #0084ff, #00c6ff)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
                   </svg>
                 </div>
-                <h1 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, color: '#f5f6f7' }}>Shanora Chats</h1>
+                <h1 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0, color: '#f5f6f7' }}>Shanora Chats</h1>
               </div>
-              <span style={{ fontSize: '0.75rem', fontWeight: 600, padding: '2px 8px', borderRadius: '12px', background: 'rgba(0, 132, 255, 0.15)', color: '#0084ff', border: '1px solid rgba(0, 132, 255, 0.3)' }}>
-                {onlineUsers.size} Online
-              </span>
+
+              {/* Close Button that lands on Feed */}
+              <button
+                type="button"
+                onClick={() => router.push('/feed')}
+                title="Exit to Feed"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  backgroundColor: 'transparent',
+                  border: 'none',
+                  color: '#b0b3b8',
+                  cursor: 'pointer',
+                  fontSize: '1.1rem',
+                  fontWeight: 700
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = '#ffffff'; e.currentTarget.style.backgroundColor = '#3a3b3c'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = '#b0b3b8'; e.currentTarget.style.backgroundColor = 'transparent'; }}
+              >
+                ✕
+              </button>
             </div>
 
             {/* Search Box */}
@@ -676,7 +725,7 @@ export default function MessagesPage() {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Input Dock with Picture & Document Buttons */}
+              {/* Bottom Input Dock */}
               <div style={{ padding: '0.75rem 1rem', backgroundColor: '#242526', borderTop: '1px solid #2f3031' }}>
                 <form onSubmit={handleSendMessage} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   
