@@ -538,27 +538,6 @@ function AlertsContent() {
             >
               ⚙️
             </button>
-
-            <Link
-              href="/chat"
-              style={{
-                backgroundColor: '#0f172a',
-                color: '#38bdf8',
-                border: '1px solid #1e293b',
-                borderRadius: '20px',
-                height: '38px',
-                padding: '0 1rem',
-                fontSize: '0.85rem',
-                fontWeight: '700',
-                textDecoration: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.45rem',
-                boxSizing: 'border-box'
-              }}
-            >
-              <span style={{ fontSize: '1rem' }}>💬</span> Chat
-            </Link>
           </div>
         </div>
       </header>
@@ -829,7 +808,7 @@ function AlertsContent() {
                     backgroundColor: '#0f172a',
                     border: '1px solid #1e293b',
                     color: '#38bdf8',
-                    padding: '0.5rem 1.25rem',
+                    padding: '0.5rem 125rem',
                     borderRadius: '12px',
                     fontSize: '0.8rem',
                     fontWeight: '700',
