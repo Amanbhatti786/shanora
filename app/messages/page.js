@@ -18,16 +18,16 @@ export default function MessagesPage() {
   const [newMessage, setNewMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [onlineUsers, setOnlineUsers] = useState(new Set());
-  const [lastMessages, setLastMessages] = useState({}); // Stores last message per user: { [partnerId]: { text, time, isMe } }
+  const [lastMessages, setLastMessages] = useState({});
   const [isMobileChatOpen, setIsMobileChatOpen] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  
+
   const messagesEndRef = useRef(null);
   const imageInputRef = useRef(null);
   const docInputRef = useRef(null);
 
-  // 1. Session check & Identity
+  // 1. Session check & Identity Resolution
   useEffect(() => {
     async function loadIdentity() {
       const { data: { session } } = await supabase.auth.getSession();
@@ -102,35 +102,41 @@ export default function MessagesPage() {
     getProfiles();
   }, []);
 
-  // 4. Fetch All Recent Messages to show FB-style "Last Message" under names
+  // 4. Fetch All Recent Messages to populate FB-style "Last Message" under names
   const refreshLastMessages = async () => {
-    const { data } = await supabase
-      .from('messages')
-      .select('*')
-      .order('created_at', { ascending: false });
+    try {
+      const { data } = await supabase
+        .from('messages')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-    if (data && data.length > 0) {
-      const map = {};
-      data.forEach((msg) => {
-        if (msg.conversation_id) {
-          const parts = msg.conversation_id.split('_');
-          const otherId = parts[0] === (currentUser?.id || 'anon-user') ? parts[1] : parts[0];
-          
-          if (!map[otherId]) {
-            let snippet = msg.content || '';
-            if (snippet.startsWith('[IMAGE:')) snippet = '📷 Photo';
-            else if (snippet.startsWith('[DOC:')) snippet = '📄 Document';
+      if (data && data.length > 0) {
+        const map = {};
+        const myId = currentUser?.id || localStorage.getItem('shanora_device_uid') || 'anon-user';
 
-            const timeStr = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            map[otherId] = {
-              text: snippet,
-              time: timeStr,
-              isMe: msg.sender_id === (currentUser?.id || 'anon-sender'),
-            };
+        data.forEach((msg) => {
+          if (msg.conversation_id) {
+            const parts = msg.conversation_id.split('_');
+            const otherId = parts[0] === myId ? parts[1] : parts[0];
+
+            if (otherId && !map[otherId]) {
+              let snippet = msg.content || '';
+              if (snippet.startsWith('[IMAGE:')) snippet = '📷 Photo';
+              else if (snippet.startsWith('[DOC:')) snippet = '📄 Document';
+
+              const timeStr = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              map[otherId] = {
+                text: snippet,
+                time: timeStr,
+                isMe: msg.sender_id === myId,
+              };
+            }
           }
-        }
-      });
-      setLastMessages(map);
+        });
+        setLastMessages(map);
+      }
+    } catch (err) {
+      console.error('Error fetching last messages:', err);
     }
   };
 
@@ -138,28 +144,30 @@ export default function MessagesPage() {
     refreshLastMessages();
   }, [currentUser, availableUsers]);
 
-  // 5. Select Contact
+  // 5. Select Contact & Resolve Conversation ID
   const handleSelectContact = (contact) => {
     setSelectedUser(contact);
     setIsMobileChatOpen(true);
 
-    const myId = currentUser?.id || 'anon-user';
+    const myId = currentUser?.id || localStorage.getItem('shanora_device_uid') || 'anon-user';
     const roomKey = [myId, contact.id].sort().join('_');
     setActiveConversationId(roomKey);
   };
 
-  // 6. Realtime Message Room
+  // 6. Realtime Messages Loader & Channel Listener
   useEffect(() => {
     if (!activeConversationId) return;
 
     async function loadChatMessages() {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('messages')
         .select('*')
         .eq('conversation_id', activeConversationId)
         .order('created_at', { ascending: true });
 
-      if (data) setMessages(data);
+      if (data && !error) {
+        setMessages(data);
+      }
     }
 
     loadChatMessages();
@@ -193,7 +201,7 @@ export default function MessagesPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // 7. Send Text Message
+  // 7. Send Text Message (Guaranteed Database Insert)
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!newMessage.trim() || !activeConversationId || isSending) return;
@@ -202,7 +210,7 @@ export default function MessagesPage() {
     setNewMessage('');
     setIsSending(true);
 
-    const senderId = currentUser?.id || 'anon-sender';
+    const senderId = currentUser?.id || localStorage.getItem('shanora_device_uid') || 'guest-user';
     const tempId = 'temp-' + Date.now();
     const optimisticMessage = {
       id: tempId,
@@ -212,52 +220,59 @@ export default function MessagesPage() {
       created_at: new Date().toISOString(),
     };
 
+    // Instant local render
     setMessages((prev) => [...prev, optimisticMessage]);
 
     try {
       const { data, error } = await supabase
         .from('messages')
-        .insert({
-          conversation_id: activeConversationId,
-          sender_id: senderId,
-          content,
-        })
+        .insert([
+          {
+            conversation_id: activeConversationId,
+            sender_id: senderId,
+            content: content,
+          }
+        ])
         .select()
         .single();
 
-      if (data && !error) {
+      if (error) {
+        console.error('Database Save Error:', error);
+        alert('Message save failed: ' + error.message);
+        // Rollback optimistic update if failed
+        setMessages((prev) => prev.filter((m) => m.id !== tempId));
+      } else if (data) {
         setMessages((prev) => prev.map((m) => (m.id === tempId ? data : m)));
         refreshLastMessages();
       }
     } catch (err) {
-      console.error('Send error:', err);
+      console.error('Transmission error:', err);
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
     } finally {
       setIsSending(false);
     }
   };
 
-  // 8. Photo & Document Handler (Guaranteed Image Rendering)
+  // 8. Photo & Document Upload Handler
   const handleFileUpload = async (event, fileType) => {
     const file = event.target.files?.[0];
     if (!file || !activeConversationId) return;
 
     setIsUploading(true);
     const fileExt = file.name.split('.').pop();
-    const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
-    const filePath = `${activeConversationId}/${fileName}`;
+    const cleanFileName = `${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+    const filePath = `chat/${cleanFileName}`;
 
-    // Read local image as Data URL so it renders instantly on screen
     const reader = new FileReader();
     reader.onload = async (e) => {
       const base64LocalUrl = e.target.result;
       const tempId = 'temp-' + Date.now();
-      const localContent = fileType === 'image' 
-        ? `[IMAGE:${base64LocalUrl}]` 
+      const localContent = fileType === 'image'
+        ? `[IMAGE:${base64LocalUrl}]`
         : `[DOC:${base64LocalUrl}|${file.name}]`;
 
-      const senderId = currentUser?.id || 'anon-sender';
+      const senderId = currentUser?.id || localStorage.getItem('shanora_device_uid') || 'guest-user';
 
-      // Instantly show on UI
       setMessages((prev) => [
         ...prev,
         {
@@ -270,7 +285,6 @@ export default function MessagesPage() {
       ]);
 
       try {
-        // Upload to Supabase bucket
         const { error: uploadError } = await supabase.storage
           .from('chat-attachments')
           .upload(filePath, file, { cacheControl: '3600', upsert: true });
@@ -281,17 +295,19 @@ export default function MessagesPage() {
           .from('chat-attachments')
           .getPublicUrl(filePath);
 
-        const realContent = fileType === 'image' 
-          ? `[IMAGE:${publicUrl}]` 
+        const realContent = fileType === 'image'
+          ? `[IMAGE:${publicUrl}]`
           : `[DOC:${publicUrl}|${file.name}]`;
 
         const { data, error: insertError } = await supabase
           .from('messages')
-          .insert({
-            conversation_id: activeConversationId,
-            sender_id: senderId,
-            content: realContent,
-          })
+          .insert([
+            {
+              conversation_id: activeConversationId,
+              sender_id: senderId,
+              content: realContent,
+            }
+          ])
           .select()
           .single();
 
@@ -302,7 +318,9 @@ export default function MessagesPage() {
           refreshLastMessages();
         }
       } catch (error) {
-        console.error('Upload Error:', error);
+        console.error('Media upload/insert error:', error);
+        alert('Media upload error: ' + error.message);
+        setMessages((prev) => prev.filter((m) => m.id !== tempId));
       } finally {
         setIsUploading(false);
         event.target.value = '';
@@ -316,7 +334,6 @@ export default function MessagesPage() {
     (u.full_name || u.email || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Render message bubble content (Photos / Documents / Text)
   const renderMessageContent = (content) => {
     if (content.startsWith('[IMAGE:')) {
       const imgUrl = content.substring(7, content.length - 1);
@@ -484,7 +501,7 @@ export default function MessagesPage() {
             </div>
           </div>
 
-          {/* Directory with FB-style Last Message & Green Active Tick */}
+          {/* Directory with Last Message & Active Indicator */}
           <div style={{ flex: 1, overflowY: 'auto', padding: '0.4rem' }}>
             {displayedUsers.map((contact) => {
               const isOnline = onlineUsers.has(contact.id);
@@ -507,7 +524,6 @@ export default function MessagesPage() {
                     transition: 'background-color 0.15s ease',
                   }}
                 >
-                  {/* Avatar with Green Active Tick/Badge */}
                   <div style={{ position: 'relative' }}>
                     <div
                       style={{
@@ -545,7 +561,6 @@ export default function MessagesPage() {
                     )}
                   </div>
 
-                  {/* Name + Facebook Style Last Message Snippet */}
                   <div style={{ flex: 1, overflow: 'hidden' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <p style={{ fontSize: '0.94rem', fontWeight: 600, margin: 0, color: '#f5f6f7', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -557,8 +572,7 @@ export default function MessagesPage() {
                         </span>
                       )}
                     </div>
-                    
-                    {/* FB Messenger style text under name */}
+
                     <p style={{ fontSize: '0.8rem', color: isSelected ? '#e4e6eb' : '#b0b3b8', margin: '3px 0 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {lastMsg ? (
                         <>
@@ -593,7 +607,7 @@ export default function MessagesPage() {
         >
           {selectedUser ? (
             <>
-              {/* Inbox Header with Online/Offline Status */}
+              {/* Inbox Header */}
               <div
                 style={{
                   padding: '0.75rem 1rem',
@@ -662,7 +676,6 @@ export default function MessagesPage() {
                     <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#f5f6f7' }}>
                       {selectedUser.full_name || selectedUser.email}
                     </h2>
-                    {/* Real Online / Offline inside Inbox Header */}
                     <span style={{ fontSize: '0.74rem', color: isSelectedUserOnline ? '#31a24c' : '#8a8d91', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: isSelectedUserOnline ? '#31a24c' : '#65676b', display: 'inline-block' }}></span>
                       {isSelectedUserOnline ? 'Active now' : 'Offline'}
@@ -697,8 +710,9 @@ export default function MessagesPage() {
                   </div>
                 ) : (
                   messages.map((msg) => {
-                    const isOwnMessage = msg.sender_id === (currentUser?.id || 'anon-sender');
-                    const isMedia = msg.content.startsWith('[IMAGE:');
+                    const myId = currentUser?.id || (typeof window !== 'undefined' ? localStorage.getItem('shanora_device_uid') : null);
+                    const isOwnMessage = msg.sender_id === myId;
+                    const isMedia = msg.content?.startsWith('[IMAGE:');
                     return (
                       <div
                         key={msg.id}
@@ -734,8 +748,6 @@ export default function MessagesPage() {
               {/* Bottom Input Dock */}
               <div style={{ padding: '0.75rem 1rem', backgroundColor: '#242526', borderTop: '1px solid #2f3031' }}>
                 <form onSubmit={handleSendMessage} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  
-                  {/* File Pickers */}
                   <input
                     type="file"
                     accept="image/*"
@@ -751,7 +763,6 @@ export default function MessagesPage() {
                     onChange={(e) => handleFileUpload(e, 'doc')}
                   />
 
-                  {/* Picture Button */}
                   <button
                     type="button"
                     onClick={() => imageInputRef.current?.click()}
@@ -774,7 +785,6 @@ export default function MessagesPage() {
                     </svg>
                   </button>
 
-                  {/* Document Button */}
                   <button
                     type="button"
                     onClick={() => docInputRef.current?.click()}
@@ -795,7 +805,6 @@ export default function MessagesPage() {
                     </svg>
                   </button>
 
-                  {/* Text Input */}
                   <div style={{ flex: 1, backgroundColor: '#3a3b3c', borderRadius: '24px', padding: '0.2rem 0.85rem' }}>
                     <input
                       type="text"
@@ -814,7 +823,6 @@ export default function MessagesPage() {
                     />
                   </div>
 
-                  {/* Send Button */}
                   <button
                     type="submit"
                     disabled={!newMessage.trim()}
