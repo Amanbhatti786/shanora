@@ -102,15 +102,15 @@ export default function MessagesPage() {
     getProfiles();
   }, []);
 
-  // 4. Fetch All Recent Messages to populate FB-style "Last Message" under names
+  // 4. Fetch All Recent Messages to populate Last Message snippets
   const refreshLastMessages = async () => {
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('messages')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (data && data.length > 0) {
+      if (data && !error) {
         const map = {};
         const myId = currentUser?.id || localStorage.getItem('shanora_device_uid') || 'anon-user';
 
@@ -124,7 +124,7 @@ export default function MessagesPage() {
               if (snippet.startsWith('[IMAGE:')) snippet = '📷 Photo';
               else if (snippet.startsWith('[DOC:')) snippet = '📄 Document';
 
-              const timeStr = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              const timeStr = msg.created_at ? new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
               map[otherId] = {
                 text: snippet,
                 time: timeStr,
@@ -144,17 +144,17 @@ export default function MessagesPage() {
     refreshLastMessages();
   }, [currentUser, availableUsers]);
 
-  // 5. Select Contact & Resolve Conversation ID
+  // 5. Select Contact & Form Standardized Room Key
   const handleSelectContact = (contact) => {
     setSelectedUser(contact);
     setIsMobileChatOpen(true);
 
     const myId = currentUser?.id || localStorage.getItem('shanora_device_uid') || 'anon-user';
-    const roomKey = [myId, contact.id].sort().join('_');
+    const roomKey = [String(myId), String(contact.id)].sort().join('_');
     setActiveConversationId(roomKey);
   };
 
-  // 6. Realtime Messages Loader & Channel Listener
+  // 6. Realtime Messages Loader
   useEffect(() => {
     if (!activeConversationId) return;
 
@@ -167,6 +167,8 @@ export default function MessagesPage() {
 
       if (data && !error) {
         setMessages(data);
+      } else if (error) {
+        console.error('Failed to load messages:', error);
       }
     }
 
@@ -201,7 +203,7 @@ export default function MessagesPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // 7. Send Text Message (Guaranteed Database Insert)
+  // 7. Send Text Message (Guaranteed Database Insert & Alert on Failure)
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!newMessage.trim() || !activeConversationId || isSending) return;
@@ -220,7 +222,6 @@ export default function MessagesPage() {
       created_at: new Date().toISOString(),
     };
 
-    // Instant local render
     setMessages((prev) => [...prev, optimisticMessage]);
 
     try {
@@ -228,25 +229,25 @@ export default function MessagesPage() {
         .from('messages')
         .insert([
           {
-            conversation_id: activeConversationId,
-            sender_id: senderId,
+            conversation_id: String(activeConversationId),
+            sender_id: String(senderId),
             content: content,
           }
         ])
-        .select()
-        .single();
+        .select();
 
       if (error) {
         console.error('Database Save Error:', error);
-        alert('Message save failed: ' + error.message);
-        // Rollback optimistic update if failed
+        alert('Database save failed: ' + error.message);
         setMessages((prev) => prev.filter((m) => m.id !== tempId));
-      } else if (data) {
-        setMessages((prev) => prev.map((m) => (m.id === tempId ? data : m)));
+      } else if (data && data.length > 0) {
+        const savedRecord = data[0];
+        setMessages((prev) => prev.map((m) => (m.id === tempId ? savedRecord : m)));
         refreshLastMessages();
       }
     } catch (err) {
       console.error('Transmission error:', err);
+      alert('Network transmission failed: ' + err.message);
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
     } finally {
       setIsSending(false);
@@ -303,23 +304,22 @@ export default function MessagesPage() {
           .from('messages')
           .insert([
             {
-              conversation_id: activeConversationId,
-              sender_id: senderId,
+              conversation_id: String(activeConversationId),
+              sender_id: String(senderId),
               content: realContent,
             }
           ])
-          .select()
-          .single();
+          .select();
 
         if (insertError) throw insertError;
 
-        if (data) {
-          setMessages((prev) => prev.map((m) => (m.id === tempId ? data : m)));
+        if (data && data.length > 0) {
+          setMessages((prev) => prev.map((m) => (m.id === tempId ? data[0] : m)));
           refreshLastMessages();
         }
       } catch (error) {
         console.error('Media upload/insert error:', error);
-        alert('Media upload error: ' + error.message);
+        alert('Upload/Save Error: ' + error.message);
         setMessages((prev) => prev.filter((m) => m.id !== tempId));
       } finally {
         setIsUploading(false);
@@ -335,7 +335,7 @@ export default function MessagesPage() {
   );
 
   const renderMessageContent = (content) => {
-    if (content.startsWith('[IMAGE:')) {
+    if (content?.startsWith('[IMAGE:')) {
       const imgUrl = content.substring(7, content.length - 1);
       return (
         <a href={imgUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'block' }}>
@@ -356,7 +356,7 @@ export default function MessagesPage() {
       );
     }
 
-    if (content.startsWith('[DOC:')) {
+    if (content?.startsWith('[DOC:')) {
       const raw = content.substring(5, content.length - 1);
       const [docUrl, docName] = raw.split('|');
       return (
