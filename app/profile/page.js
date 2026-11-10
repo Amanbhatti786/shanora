@@ -2256,48 +2256,6 @@ function ProfilePortalContent() {
 
         </div>
 
-
-
-        <button
-
-          type="button"
-
-          onClick={() => setActiveTab('messages')}
-
-          style={{
-
-            backgroundColor: activeTab === 'messages' ? '#0284c7' : '#1e293b',
-
-            border: '1px solid #334155',
-
-            color: activeTab === 'messages' ? '#fff' : '#38bdf8',
-
-            padding: '0.45rem 0.85rem',
-
-            borderRadius: '20px',
-
-            cursor: 'pointer',
-
-            display: 'flex',
-
-            alignItems: 'center',
-
-            gap: '0.4rem',
-
-            fontSize: '0.8rem',
-
-            fontWeight: '700'
-
-          }}
-
-        >
-
-          <span>💬</span>
-
-          <span>Messenger</span>
-
-        </button>
-
       </header>
 
 
