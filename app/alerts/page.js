@@ -105,10 +105,10 @@ function AlertsContent() {
         (resolvedEmail ? resolvedEmail.split('@')[0] : resolvedUsername || 'User');
 
       let targetProfileUrl = '';
-      if (resolvedUsername) {
-        targetProfileUrl = `/view-profile?username=${encodeURIComponent(resolvedUsername)}`;
-      } else if (resolvedEmail) {
-        targetProfileUrl = `/view-profile?email=${encodeURIComponent(resolvedEmail.toLowerCase())}`;
+      if (resolvedEmail) {
+        targetProfileUrl = `/view-profile?email=${encodeURIComponent(resolvedEmail.toLowerCase().trim())}`;
+      } else if (resolvedUsername) {
+        targetProfileUrl = `/view-profile?username=${encodeURIComponent(resolvedUsername.toLowerCase().trim())}`;
       }
 
       return {
@@ -296,45 +296,21 @@ function AlertsContent() {
     }
   };
 
-  // ACCURATE ROUTING HANDLER (Based on action_type & content)
+  // FACEBOOK-STYLE SMART ROUTING HANDLER
   const handleCardClick = (notif) => {
     if (!notif) return;
     handleMarkAsRead(notif);
 
     const action = safeString(notif.action_type).toLowerCase();
     const content = safeString(notif.content).toLowerCase();
+    const notifType = safeString(notif.type).toLowerCase();
     const postId = notif.post_id;
     const jobId = notif.job_id;
+    const senderEmail = notif.resolvedEmail || notif.sender_email;
 
-    // 1. FOLLOWER OR CONNECTION ALERTS -> DIRECT PROFILE
-    const isFollow =
-      action.includes('follow') ||
-      content.includes('follow') ||
-      content.includes('started following');
-
-    const isConnection =
-      action.includes('connect') ||
-      content.includes('connect') ||
-      content.includes('connection');
-
-    if (isFollow || isConnection) {
-      if (notif.targetProfileUrl) {
-        router.push(notif.targetProfileUrl);
-        return;
-      }
-      if (notif.sender_username) {
-        router.push(`/view-profile?username=${encodeURIComponent(notif.sender_username)}`);
-        return;
-      }
-      if (notif.sender_email) {
-        router.push(`/view-profile?email=${encodeURIComponent(notif.sender_email.toLowerCase())}`);
-        return;
-      }
-      return;
-    }
-
-    // 2. COMMENT ALERTS -> DIRECT POST & COMMENT FOCUS
+    // 1. COMMENT ALERTS -> DIRECT POST & COMMENT FOCUS (Facebook-style)
     const isComment =
+      notifType.includes('comment') ||
       action.includes('comment') ||
       content.includes('comment') ||
       content.includes('commented') ||
@@ -350,11 +326,16 @@ function AlertsContent() {
       return;
     }
 
-    // 3. LIKE ALERTS -> FEED TARGET POST
+    // 2. LIKE & REACTION ALERTS -> DIRECT POST SCROLL & GLOW
     const isLike =
+      notifType.includes('like') ||
+      notifType.includes('reaction') ||
+      notifType.includes('relay') ||
       action.includes('like') ||
       content.includes('like') ||
-      content.includes('liked');
+      content.includes('liked') ||
+      action.includes('reaction') ||
+      action.includes('relay');
 
     if (isLike) {
       if (postId) {
@@ -365,22 +346,47 @@ function AlertsContent() {
       return;
     }
 
-    // 4. JOBS
-    if (action.includes('job') || content.includes('job') || jobId) {
-      if (jobId) {
-        router.push(`/jobs?jobId=${encodeURIComponent(jobId)}`);
-      } else {
-        router.push('/jobs');
+    // 3. FOLLOWER OR CONNECTION ALERTS -> OPEN SENDER'S VIEW-PROFILE
+    const isFollow =
+      notifType.includes('follow') ||
+      action.includes('follow') ||
+      content.includes('follow') ||
+      content.includes('started following');
+
+    const isConnection =
+      notifType.includes('connect') ||
+      action.includes('connect') ||
+      content.includes('connect') ||
+      content.includes('connection');
+
+    if (isFollow || isConnection) {
+      if (senderEmail) {
+        router.push(`/view-profile?email=${encodeURIComponent(senderEmail.toLowerCase().trim())}`);
+        return;
+      }
+      if (notif.targetProfileUrl) {
+        router.push(notif.targetProfileUrl);
+        return;
       }
       return;
     }
 
-    // 5. MESSAGES
-    if (action.includes('message') || content.includes('message')) {
-      if (notif.sender_email) {
-        router.push(`/chat?recipient=${encodeURIComponent(notif.sender_email.toLowerCase())}`);
+    // 4. MESSAGES / CHAT ALERTS -> DIRECT CHAT THREAD
+    if (notifType.includes('message') || notifType.includes('chat') || action.includes('message') || content.includes('message')) {
+      if (senderEmail) {
+        router.push(`/profile?tab=messages&chatWith=${encodeURIComponent(senderEmail.toLowerCase().trim())}`);
       } else {
-        router.push('/chat');
+        router.push('/profile?tab=messages');
+      }
+      return;
+    }
+
+    // 5. JOBS
+    if (notifType.includes('job') || action.includes('job') || content.includes('job') || jobId) {
+      if (jobId) {
+        router.push(`/jobs?jobId=${encodeURIComponent(jobId)}`);
+      } else {
+        router.push('/jobs');
       }
       return;
     }
@@ -398,17 +404,18 @@ function AlertsContent() {
   const getTypeMeta = (notif) => {
     const action = safeString(notif?.action_type).toLowerCase();
     const content = safeString(notif?.content).toLowerCase();
+    const notifType = safeString(notif?.type).toLowerCase();
 
-    if (action.includes('like') || content.includes('liked')) {
+    if (notifType.includes('like') || action.includes('like') || content.includes('liked')) {
       return { icon: '❤️', bg: 'rgba(239, 68, 68, 0.18)', border: '#ef4444' };
     }
-    if (action.includes('comment') || content.includes('commented') || action.includes('reply') || content.includes('replied')) {
+    if (notifType.includes('comment') || action.includes('comment') || content.includes('commented') || action.includes('reply') || content.includes('replied')) {
       return { icon: '💬', bg: 'rgba(56, 189, 248, 0.18)', border: '#38bdf8' };
     }
-    if (action.includes('connect') || content.includes('connection')) {
+    if (notifType.includes('connect') || action.includes('connect') || content.includes('connection')) {
       return { icon: '🤝', bg: 'rgba(168, 85, 247, 0.18)', border: '#a855f7' };
     }
-    if (action.includes('job') || content.includes('job')) {
+    if (notifType.includes('job') || action.includes('job') || content.includes('job')) {
       return { icon: '💼', bg: 'rgba(245, 158, 11, 0.18)', border: '#f59e0b' };
     }
     return { icon: '👤', bg: 'rgba(2, 132, 199, 0.18)', border: '#0284c7' };
@@ -652,7 +659,7 @@ function AlertsContent() {
               const meta = getTypeMeta(n);
               const isUnread = !n?.is_read;
               const contentText = safeString(n?.content) || '';
-              const profileHref = n.targetProfileUrl || (n.sender_email ? `/view-profile?email=${encodeURIComponent(n.sender_email.toLowerCase())}` : '#');
+              const profileHref = n.targetProfileUrl || (n.resolvedEmail ? `/view-profile?email=${encodeURIComponent(n.resolvedEmail.toLowerCase())}` : '#');
 
               return (
                 <div
@@ -808,7 +815,7 @@ function AlertsContent() {
                     backgroundColor: '#0f172a',
                     border: '1px solid #1e293b',
                     color: '#38bdf8',
-                    padding: '0.5rem 125rem',
+                    padding: '0.5rem 1.25rem',
                     borderRadius: '12px',
                     fontSize: '0.8rem',
                     fontWeight: '700',
