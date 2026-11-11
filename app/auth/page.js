@@ -1,502 +1,274 @@
 'use client';
+
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { supabase } from '../../lib/supabaseClient';
+import Link from 'next/link';
 
 export default function AuthPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState('signin'); // 'signin' | 'signup'
-  const [isForgotMode, setIsForgotMode] = useState(false);
+  const [isSignup, setIsSignup] = useState(false);
 
-  const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  // Form states
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    username: '',
+    email: '',
+    password: '',
+    dob: '',
+    country: 'Pakistan',
+    accountType: 'Professional',
+    agreeTerms: false
+  });
 
   const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
-  // Handle Sign In / Sign Up
-  async function handleSubmit(e) {
+  const countriesList = [
+    'Pakistan', 'United States', 'United Kingdom', 'Canada', 'United Arab Emirates', 
+    'Saudi Arabia', 'Australia', 'Germany', 'France', 'Other'
+  ];
+
+  const accountTypes = [
+    'Job Seeker', 'Student', 'Employer / Recruiter', 'Company', 'Freelancer', 'Professional'
+  ];
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+  };
+
+  const handleAuth = async (e) => {
     e.preventDefault();
-    setErrorMsg('');
-    setSuccessMsg('');
+    setErrorMessage('');
     setLoading(true);
 
-    const cleanEmail = email.trim().toLowerCase();
-
     try {
-      if (activeTab === 'signup') {
-        if (!fullName.trim()) {
-          throw new Error('Please enter your full name.');
+      const cleanEmail = formData.email.trim().toLowerCase();
+
+      if (isSignup) {
+        if (!formData.agreeTerms) {
+          setErrorMessage('You must agree to the Terms & Conditions and Privacy Policy.');
+          setLoading(false);
+          return;
         }
 
+        if (formData.password.length < 6) {
+          setErrorMessage('Password must be at least 6 characters long.');
+          setLoading(false);
+          return;
+        }
+
+        // 1. Check unique username
+        const { data: existingUser } = await supabase
+          .from('profiles')
+          .select('id')
+          .ilike('username', formData.username.trim())
+          .maybeSingle();
+
+        if (existingUser) {
+          setErrorMessage('Username is already taken. Please choose another.');
+          setLoading(false);
+          return;
+        }
+
+        // 2. Supabase Signup
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email: cleanEmail,
-          password: password,
+          password: formData.password,
           options: {
-            data: { full_name: fullName.trim() }
+            data: {
+              full_name: `${formData.firstName} ${formData.lastName}`,
+              username: formData.username.trim(),
+              account_type: formData.accountType
+            }
           }
         });
 
         if (authError) throw authError;
 
-        if (authData?.user) {
-          const username = cleanEmail.split('@')[0];
-          await supabase.from('profiles').upsert({
-            id: authData.user.id,
+        // 3. Upsert into profiles table
+        await supabase
+          .from('profiles')
+          .upsert({
             email: cleanEmail,
-            name: fullName.trim(),
-            username: username
-          });
-        }
+            first_name: formData.firstName.trim(),
+            last_name: formData.lastName.trim(),
+            full_name: `${formData.firstName} ${formData.lastName}`,
+            username: formData.username.trim().toLowerCase(),
+            country: formData.country,
+            account_type: formData.accountType,
+            date_of_birth: formData.dob || null,
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'email' });
 
-        router.push('/feed');
+        alert('Registration successful! Please check your email for verification link.');
+        router.push('/profile?tab=profile');
+
       } else {
-        // Sign In
-        const { error: signInError } = await supabase.auth.signInWithPassword({
+        // Sign In Flow
+        const { error: signinError } = await supabase.auth.signInWithPassword({
           email: cleanEmail,
-          password: password
+          password: formData.password
         });
 
-        if (signInError) throw signInError;
+        if (signinError) throw signinError;
 
         router.push('/feed');
       }
+
     } catch (err) {
-      setErrorMsg(err.message || 'Authentication failed. Please check your credentials.');
+      setErrorMessage(err.message || 'Authentication failed.');
     } finally {
       setLoading(false);
     }
-  }
+  };
 
-  // Handle Forgot Password Reset Link
-  async function handleForgotPassword(e) {
-    e.preventDefault();
-    setErrorMsg('');
-    setSuccessMsg('');
-    setLoading(true);
-
-    const cleanEmail = email.trim().toLowerCase();
-    if (!cleanEmail) {
-      setErrorMsg('Please enter your registered email address.');
-      setLoading(false);
-      return;
-    }
-
+  const handleGoogleAuth = async () => {
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
-        redirectTo: `${window.location.origin}/auth?reset=true`
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/profile?tab=profile`
+        }
       });
-
       if (error) throw error;
-
-      setSuccessMsg('Password reset link has been sent to your email! 📩');
     } catch (err) {
-      setErrorMsg(err.message || 'Failed to send reset email.');
-    } finally {
-      setLoading(false);
+      setErrorMessage('Google Authentication error: ' + err.message);
     }
-  }
+  };
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      backgroundColor: '#070b14',
-      display: 'flex',
-      flexDirection: 'column',
-      justifyContent: 'center',
-      alignItems: 'center',
-      padding: '1.5rem 1rem',
-      fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      color: '#f8fafc'
-    }}>
-<Link href="/feed" style={{
-  textDecoration: 'none',
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: '0.65rem',
-  backgroundColor: '#0b1322',
-  border: '1px solid #1e293b',
-  borderRadius: '10px',
-  padding: '0.28rem 0.65rem 0.28rem 0.35rem',
-  boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
-  flexShrink: 0
-}}>
-  {/* Official "S" Badge */}
-  <div style={{
-    width: '28px',
-    height: '28px',
-    borderRadius: '7px',
-    background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
-    border: '1px solid rgba(255, 255, 255, 0.2)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    boxShadow: '0 0 10px rgba(2, 132, 199, 0.45)',
-    flexShrink: 0
-  }}>
-    <span style={{ color: '#ffffff', fontSize: '0.95rem', fontWeight: '900', lineHeight: 1 }}>
-      S
-    </span>
-  </div>
+    <div style={{ minHeight: '100vh', backgroundColor: '#070b14', color: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem 1rem', fontFamily: 'system-ui, sans-serif' }}>
+      <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', maxWidth: '480px', width: '100%', padding: '2rem', boxShadow: '0 20px 40px rgba(0,0,0,0.6)' }}>
+        
+        {/* Branding Header */}
+        <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+          <Link href="/" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#0b1322', border: '1px solid #1e293b', padding: '0.4rem 1rem', borderRadius: '12px', marginBottom: '0.8rem' }}>
+            <span style={{ color: '#fff', fontWeight: '900', fontSize: '1.2rem', background: 'linear-gradient(135deg, #0284c7, #0369a1)', padding: '2px 8px', borderRadius: '6px' }}>S</span>
+            <span style={{ fontWeight: '900', fontSize: '1.25rem', color: '#fff' }}>SHANORA<span style={{ color: '#38bdf8', fontSize: '0.8rem' }}>.PK</span></span>
+          </Link>
+          <h2 style={{ fontSize: '1.35rem', fontWeight: '800', color: '#fff', margin: 0 }}>
+            {isSignup ? 'Join the Professional Network' : 'Welcome Back to SHANORA'}
+          </h2>
+          <p style={{ color: '#94a3b8', fontSize: '0.82rem', marginTop: '0.3rem' }}>
+            {isSignup ? 'Build your career, connect with employers, and grow.' : 'Sign in to access your professional feed and messages.'}
+          </p>
+        </div>
 
-  {/* Brand Wordmark */}
-  <span style={{
-    fontSize: '1.05rem',
-    fontWeight: '900',
-    color: '#ffffff',
-    letterSpacing: '-0.3px',
-    whiteSpace: 'nowrap'
-  }}>
-    SHANORA<span style={{
-      fontSize: '0.55rem',
-      fontWeight: '800',
-      color: '#38bdf8',
-      verticalAlign: 'super',
-      marginLeft: '2px',
-      letterSpacing: '0.5px'
-    }}>.PK</span>
-  </span>
-</Link>
-      {/* Main Form Card */}
-      <div style={{
-        width: '100%',
-        maxWidth: '410px',
-        backgroundColor: '#0b1322',
-        border: '1px solid #1e293b',
-        borderRadius: '16px',
-        padding: '1.8rem 1.6rem',
-        boxSizing: 'border-box',
-        boxShadow: '0 15px 35px -5px rgba(0, 0, 0, 0.6)'
-      }}>
-
-        {!isForgotMode ? (
-          <>
-            {/* Top Switcher: Sign In vs Sign Up */}
-            <div style={{
-              display: 'flex',
-              backgroundColor: '#111c30',
-              padding: '0.25rem',
-              borderRadius: '10px',
-              border: '1px solid #1e293b',
-              marginBottom: '1.4rem'
-            }}>
-              <button
-                type="button"
-                onClick={() => { setActiveTab('signin'); setErrorMsg(''); setSuccessMsg(''); }}
-                style={{
-                  flex: 1,
-                  padding: '0.55rem 0',
-                  border: 'none',
-                  borderRadius: '8px',
-                  backgroundColor: activeTab === 'signin' ? '#0284c7' : 'transparent',
-                  color: activeTab === 'signin' ? '#ffffff' : '#94a3b8',
-                  fontSize: '0.85rem',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease'
-                }}
-              >
-                Sign In
-              </button>
-              <button
-                type="button"
-                onClick={() => { setActiveTab('signup'); setErrorMsg(''); setSuccessMsg(''); }}
-                style={{
-                  flex: 1,
-                  padding: '0.55rem 0',
-                  border: 'none',
-                  borderRadius: '8px',
-                  backgroundColor: activeTab === 'signup' ? '#0284c7' : 'transparent',
-                  color: activeTab === 'signup' ? '#ffffff' : '#94a3b8',
-                  fontSize: '0.85rem',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease'
-                }}
-              >
-                Sign Up
-              </button>
-            </div>
-
-            {/* Title & Subtitle */}
-            <div style={{ marginBottom: '1.3rem' }}>
-              <h2 style={{ margin: 0, fontSize: '1.3rem', fontWeight: '800', color: '#f8fafc' }}>
-                {activeTab === 'signin' ? 'Welcome Back 👋' : 'Join Shanora 🚀'}
-              </h2>
-              <p style={{ margin: '0.35rem 0 0 0', fontSize: '0.78rem', color: '#94a3b8' }}>
-                {activeTab === 'signin'
-                  ? 'Enter your credentials to access your portal'
-                  : 'Create your account to start networking'}
-              </p>
-            </div>
-
-            {/* Error Alert */}
-            {errorMsg && (
-              <div style={{
-                backgroundColor: 'rgba(239, 68, 68, 0.15)',
-                border: '1px solid #ef4444',
-                color: '#fca5a5',
-                padding: '0.6rem 0.8rem',
-                borderRadius: '8px',
-                fontSize: '0.78rem',
-                marginBottom: '1rem',
-                display: 'flex',
-                gap: '0.4rem',
-                alignItems: 'center'
-              }}>
-                <span>⚠️</span>
-                <span>{errorMsg}</span>
-              </div>
-            )}
-
-            {/* Form Inputs */}
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.95rem' }}>
-
-              {activeTab === 'signup' && (
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: '#cbd5e1', marginBottom: '0.35rem' }}>
-                    Full Name
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Muhammad Ali"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    style={{
-                      width: '100%',
-                      boxSizing: 'border-box',
-                      backgroundColor: '#e2e8f0',
-                      border: '1px solid #cbd5e1',
-                      borderRadius: '8px',
-                      padding: '0.65rem 0.85rem',
-                      fontSize: '0.85rem',
-                      color: '#0f172a',
-                      fontWeight: '500',
-                      outline: 'none'
-                    }}
-                  />
-                </div>
-              )}
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: '#cbd5e1', marginBottom: '0.35rem' }}>
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  required
-                  placeholder="name@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  style={{
-                    width: '100%',
-                    boxSizing: 'border-box',
-                    backgroundColor: '#e2e8f0',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '8px',
-                    padding: '0.65rem 0.85rem',
-                    fontSize: '0.85rem',
-                    color: '#0f172a',
-                    fontWeight: '500',
-                    outline: 'none'
-                  }}
-                />
-              </div>
-
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
-                  <label style={{ fontSize: '0.75rem', fontWeight: '700', color: '#cbd5e1' }}>
-                    Password
-                  </label>
-                  {activeTab === 'signin' && (
-                    <span
-                      onClick={() => { setIsForgotMode(true); setErrorMsg(''); setSuccessMsg(''); }}
-                      style={{ fontSize: '0.72rem', color: '#38bdf8', cursor: 'pointer', fontWeight: '700' }}
-                    >
-                      Forgot Password?
-                    </span>
-                  )}
-                </div>
-
-                <div style={{ position: 'relative' }}>
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    minLength={6}
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    style={{
-                      width: '100%',
-                      boxSizing: 'border-box',
-                      backgroundColor: '#e2e8f0',
-                      border: '1px solid #cbd5e1',
-                      borderRadius: '8px',
-                      padding: '0.65rem 2.4rem 0.65rem 0.85rem',
-                      fontSize: '0.85rem',
-                      color: '#0f172a',
-                      fontWeight: '500',
-                      outline: 'none'
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    style={{
-                      position: 'absolute',
-                      right: '8px',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      background: 'none',
-                      border: 'none',
-                      color: '#64748b',
-                      cursor: 'pointer',
-                      fontSize: '0.9rem',
-                      padding: '0.2rem'
-                    }}
-                  >
-                    {showPassword ? '🙈' : '👁️'}
-                  </button>
-                </div>
-                <span style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: '0.3rem', display: 'block' }}>
-                  Minimum 6 characters
-                </span>
-              </div>
-
-              {/* Main Submit Button */}
-              <button
-                type="submit"
-                disabled={loading}
-                style={{
-                  width: '100%',
-                  backgroundColor: '#0284c7',
-                  color: '#ffffff',
-                  border: 'none',
-                  borderRadius: '8px',
-                  padding: '0.7rem',
-                  fontSize: '0.9rem',
-                  fontWeight: '700',
-                  cursor: loading ? 'not-allowed' : 'pointer',
-                  opacity: loading ? 0.7 : 1,
-                  marginTop: '0.5rem',
-                  boxShadow: '0 4px 12px rgba(2, 132, 199, 0.35)',
-                  transition: 'background 0.15s ease'
-                }}
-              >
-                {loading ? 'Processing...' : (activeTab === 'signin' ? 'Sign In' : 'Sign Up')}
-              </button>
-            </form>
-          </>
-        ) : (
-          /* Forgot Password View */
-          <div>
-            <div style={{ marginBottom: '1.3rem' }}>
-              <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800', color: '#f8fafc' }}>
-                Reset Password 🔑
-              </h2>
-              <p style={{ margin: '0.35rem 0 0 0', fontSize: '0.78rem', color: '#94a3b8' }}>
-                Enter your registered email to receive a password reset link.
-              </p>
-            </div>
-
-            {errorMsg && (
-              <div style={{
-                backgroundColor: 'rgba(239, 68, 68, 0.15)',
-                border: '1px solid #ef4444',
-                color: '#fca5a5',
-                padding: '0.6rem 0.8rem',
-                borderRadius: '8px',
-                fontSize: '0.78rem',
-                marginBottom: '1rem'
-              }}>
-                {errorMsg}
-              </div>
-            )}
-
-            {successMsg && (
-              <div style={{
-                backgroundColor: 'rgba(34, 197, 94, 0.15)',
-                border: '1px solid #22c55e',
-                color: '#86efac',
-                padding: '0.6rem 0.8rem',
-                borderRadius: '8px',
-                fontSize: '0.78rem',
-                marginBottom: '1rem'
-              }}>
-                {successMsg}
-              </div>
-            )}
-
-            <form onSubmit={handleForgotPassword} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: '#cbd5e1', marginBottom: '0.35rem' }}>
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  required
-                  placeholder="name@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  style={{
-                    width: '100%',
-                    boxSizing: 'border-box',
-                    backgroundColor: '#e2e8f0',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '8px',
-                    padding: '0.65rem 0.85rem',
-                    fontSize: '0.85rem',
-                    color: '#0f172a',
-                    fontWeight: '500',
-                    outline: 'none'
-                  }}
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                style={{
-                  width: '100%',
-                  backgroundColor: '#0284c7',
-                  color: '#ffffff',
-                  border: 'none',
-                  borderRadius: '8px',
-                  padding: '0.7rem',
-                  fontSize: '0.88rem',
-                  fontWeight: '700',
-                  cursor: loading ? 'not-allowed' : 'pointer',
-                  opacity: loading ? 0.7 : 1
-                }}
-              >
-                {loading ? 'Sending Link...' : 'Send Reset Link'}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => { setIsForgotMode(false); setErrorMsg(''); setSuccessMsg(''); }}
-                style={{
-                  width: '100%',
-                  background: 'none',
-                  border: '1px solid #334155',
-                  color: '#94a3b8',
-                  borderRadius: '8px',
-                  padding: '0.6rem',
-                  fontSize: '0.8rem',
-                  fontWeight: '700',
-                  cursor: 'pointer'
-                }}
-              >
-                ← Back to Sign In
-              </button>
-            </form>
+        {errorMessage && (
+          <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#ef4444', padding: '0.75rem', borderRadius: '8px', fontSize: '0.82rem', marginBottom: '1rem', textAlign: 'center' }}>
+            {errorMessage}
           </div>
         )}
+
+        {/* Google OAuth Button */}
+        <button
+          type="button"
+          onClick={handleGoogleAuth}
+          style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', color: '#fff', padding: '0.7rem', borderRadius: '10px', fontSize: '0.85rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem', marginBottom: '1.2rem' }}
+        >
+          <span>🌐</span> Continue with Google
+        </button>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', color: '#64748b', fontSize: '0.75rem', marginBottom: '1.2rem' }}>
+          <div style={{ flex: 1, height: '1px', backgroundColor: '#1e293b' }} />
+          <span>OR WITH EMAIL</span>
+          <div style={{ flex: 1, height: '1px', backgroundColor: '#1e293b' }} />
+        </div>
+
+        {/* Main Auth Form */}
+        <form onSubmit={handleAuth} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+          
+          {isSignup && (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
+                <div>
+                  <label style={{ fontSize: '0.72rem', color: '#cbd5e1', fontWeight: 'bold' }}>First Name *</label>
+                  <input type="text" name="firstName" placeholder="Aman" value={formData.firstName} onChange={handleChange} required style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.72rem', color: '#cbd5e1', fontWeight: 'bold' }}>Last Name *</label>
+                  <input type="text" name="lastName" placeholder="Ullah" value={formData.lastName} onChange={handleChange} required style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.72rem', color: '#cbd5e1', fontWeight: 'bold' }}>Username (@username) *</label>
+                <input type="text" name="username" placeholder="amanullah_pk" value={formData.username} onChange={handleChange} required style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }} />
+              </div>
+            </>
+          )}
+
+          <div>
+            <label style={{ fontSize: '0.72rem', color: '#cbd5e1', fontWeight: 'bold' }}>Email Address *</label>
+            <input type="email" name="email" placeholder="name@example.com" value={formData.email} onChange={handleChange} required style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }} />
+          </div>
+
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.2rem' }}>
+              <label style={{ fontSize: '0.72rem', color: '#cbd5e1', fontWeight: 'bold' }}>Password *</label>
+              {!isSignup && (
+                <Link href="/auth/forgot-password" style={{ fontSize: '0.72rem', color: '#38bdf8', textDecoration: 'none' }}>
+                  Forgot Password?
+                </Link>
+              )}
+            </div>
+            <input type="password" name="password" placeholder="••••••••" value={formData.password} onChange={handleChange} required style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }} />
+          </div>
+
+          {isSignup && (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
+                <div>
+                  <label style={{ fontSize: '0.72rem', color: '#cbd5e1', fontWeight: 'bold' }}>Date of Birth</label>
+                  <input type="date" name="dob" value={formData.dob} onChange={handleChange} style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.72rem', color: '#cbd5e1', fontWeight: 'bold' }}>Country</label>
+                  <select name="country" value={formData.country} onChange={handleChange} style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none' }}>
+                    {countriesList.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.72rem', color: '#cbd5e1', fontWeight: 'bold' }}>Account Type</label>
+                <select name="accountType" value={formData.accountType} onChange={handleChange} style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none' }}>
+                  {accountTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', marginTop: '0.4rem' }}>
+                <input type="checkbox" name="agreeTerms" checked={formData.agreeTerms} onChange={handleChange} id="terms" style={{ marginTop: '2px', accentColor: '#0284c7', cursor: 'pointer' }} />
+                <label htmlFor="terms" style={{ fontSize: '0.74rem', color: '#94a3b8', lineHeight: '1.35', cursor: 'pointer' }}>
+                  I agree to SHANORA's <Link href="/terms" style={{ color: '#38bdf8' }}>Terms & Conditions</Link> and <Link href="/privacy" style={{ color: '#38bdf8' }}>Privacy Policy</Link>.
+                </label>
+              </div>
+            </>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            style={{ width: '100%', backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.75rem', borderRadius: '10px', fontSize: '0.88rem', fontWeight: '800', cursor: loading ? 'not-allowed' : 'pointer', marginTop: '0.6rem', boxShadow: '0 4px 12px rgba(2, 132, 199, 0.4)' }}
+          >
+            {loading ? (isSignup ? 'Creating Account...' : 'Signing In...') : (isSignup ? 'Create Account 🚀' : 'Sign In ➔')}
+          </button>
+        </form>
+
+        {/* Toggle between Sign In and Sign Up */}
+        <div style={{ textAlign: 'center', marginTop: '1.2rem', fontSize: '0.8rem', color: '#94a3b8' }}>
+          {isSignup ? (
+            <>Already have an account? <button type="button" onClick={() => setIsSignup(false)} style={{ background: 'none', border: 'none', color: '#38bdf8', fontWeight: 'bold', cursor: 'pointer', padding: 0, fontSize: '0.8rem' }}>Sign In</button></>
+          ) : (
+            <>New to SHANORA? <button type="button" onClick={() => setIsSignup(true)} style={{ background: 'none', border: 'none', color: '#38bdf8', fontWeight: 'bold', cursor: 'pointer', padding: 0, fontSize: '0.8rem' }}>Join Free</button></>
+          )}
+        </div>
 
       </div>
     </div>
