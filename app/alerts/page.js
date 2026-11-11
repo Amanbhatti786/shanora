@@ -16,6 +16,7 @@ function AlertsContent() {
   const [hasMore, setHasMore] = useState(true);
   const [activeFilter, setActiveFilter] = useState('All');
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showClearConfirmModal, setShowClearConfirmModal] = useState(false);
 
   const [prefs, setPrefs] = useState({
     push_enabled: true,
@@ -51,7 +52,7 @@ function AlertsContent() {
       if (diffInSeconds < 60) return `${diffInSeconds}s ago`;
       const diffInMinutes = Math.floor(diffInSeconds / 60);
       if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
-      const diffInHours = Math.floor(diffInMinutes / 60);
+      const diffInHours = Math.floor(diffInSeconds / 60);
       if (diffInHours < 24) return `${diffInHours}h ago`;
       const diffInDays = Math.floor(diffInHours / 24);
       if (diffInDays === 1) return 'Yesterday';
@@ -70,7 +71,7 @@ function AlertsContent() {
         rawList
           .map((n) => n.sender_email || n.sender_username)
           .filter(Boolean)
-          .map(item => item.toLowerCase().trim())
+          .map((item) => item.toLowerCase().trim())
       )
     );
 
@@ -108,7 +109,7 @@ function AlertsContent() {
       if (resolvedEmail) {
         targetProfileUrl = `/view-profile?email=${encodeURIComponent(resolvedEmail.toLowerCase().trim())}`;
       } else if (resolvedUsername) {
-        targetProfileUrl = `/view-profile?username=${encodeURIComponent(resolvedUsername.toLowerCase().trim())}`;
+        targetProfileUrl = `/view-profile?username=${encodeURIComponent(resolvedUsername)}`;
       }
 
       return {
@@ -279,10 +280,10 @@ function AlertsContent() {
     }
   };
 
-  const handleClearAll = async () => {
+  // Professional Modal Action instead of browser popup
+  const executeClearAll = async () => {
+    setShowClearConfirmModal(false);
     if (!currentUser || notifications.length === 0) return;
-    const confirmClear = window.confirm('Are you sure you want to mark all as read?');
-    if (!confirmClear) return;
 
     setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
     try {
@@ -296,23 +297,42 @@ function AlertsContent() {
     }
   };
 
-  // FACEBOOK-STYLE SMART ROUTING HANDLER
+  // Facebook-Style Deep Linking
   const handleCardClick = (notif) => {
     if (!notif) return;
     handleMarkAsRead(notif);
 
     const action = safeString(notif.action_type).toLowerCase();
     const content = safeString(notif.content).toLowerCase();
-    const notifType = safeString(notif.type).toLowerCase();
     const postId = notif.post_id;
     const jobId = notif.job_id;
-    const senderEmail = notif.resolvedEmail || notif.sender_email;
 
-    // 1. COMMENT ALERTS -> DIRECT POST & COMMENT FOCUS (Facebook-style)
+    // Follow / Connect
+    const isFollow =
+      action.includes('follow') ||
+      content.includes('follow') ||
+      content.includes('started following');
+
+    const isConnection =
+      action.includes('connect') ||
+      content.includes('connection');
+
+    if (isFollow || isConnection) {
+      const email = notif.resolvedEmail || notif.sender_email;
+      if (email) {
+        router.push(`/view-profile?email=${encodeURIComponent(email.toLowerCase().trim())}`);
+        return;
+      }
+      if (notif.targetProfileUrl) {
+        router.push(notif.targetProfileUrl);
+        return;
+      }
+      return;
+    }
+
+    // Comment
     const isComment =
-      notifType.includes('comment') ||
       action.includes('comment') ||
-      content.includes('comment') ||
       content.includes('commented') ||
       action.includes('reply') ||
       content.includes('replied');
@@ -326,11 +346,8 @@ function AlertsContent() {
       return;
     }
 
-    // 2. LIKE & REACTION ALERTS -> DIRECT POST SCROLL & GLOW
+    // Like
     const isLike =
-      notifType.includes('like') ||
-      notifType.includes('reaction') ||
-      notifType.includes('relay') ||
       action.includes('like') ||
       content.includes('like') ||
       content.includes('liked') ||
@@ -346,43 +363,8 @@ function AlertsContent() {
       return;
     }
 
-    // 3. FOLLOWER OR CONNECTION ALERTS -> OPEN SENDER'S VIEW-PROFILE
-    const isFollow =
-      notifType.includes('follow') ||
-      action.includes('follow') ||
-      content.includes('follow') ||
-      content.includes('started following');
-
-    const isConnection =
-      notifType.includes('connect') ||
-      action.includes('connect') ||
-      content.includes('connect') ||
-      content.includes('connection');
-
-    if (isFollow || isConnection) {
-      if (senderEmail) {
-        router.push(`/view-profile?email=${encodeURIComponent(senderEmail.toLowerCase().trim())}`);
-        return;
-      }
-      if (notif.targetProfileUrl) {
-        router.push(notif.targetProfileUrl);
-        return;
-      }
-      return;
-    }
-
-    // 4. MESSAGES / CHAT ALERTS -> DIRECT CHAT THREAD
-    if (notifType.includes('message') || notifType.includes('chat') || action.includes('message') || content.includes('message')) {
-      if (senderEmail) {
-        router.push(`/profile?tab=messages&chatWith=${encodeURIComponent(senderEmail.toLowerCase().trim())}`);
-      } else {
-        router.push('/profile?tab=messages');
-      }
-      return;
-    }
-
-    // 5. JOBS
-    if (notifType.includes('job') || action.includes('job') || content.includes('job') || jobId) {
+    // Job
+    if (action.includes('job') || content.includes('job') || jobId) {
       if (jobId) {
         router.push(`/jobs?jobId=${encodeURIComponent(jobId)}`);
       } else {
@@ -391,7 +373,18 @@ function AlertsContent() {
       return;
     }
 
-    // FALLBACK
+    // Message
+    if (action.includes('message') || content.includes('message') || action.includes('chat')) {
+      const email = notif.sender_email || notif.resolvedEmail;
+      if (email) {
+        router.push(`/profile?tab=messages&chatWith=${encodeURIComponent(email.toLowerCase().trim())}`);
+      } else {
+        router.push('/profile?tab=messages');
+      }
+      return;
+    }
+
+    // Fallback
     if (postId) {
       router.push(`/feed?postId=${encodeURIComponent(postId)}`);
     } else if (notif.targetProfileUrl) {
@@ -404,18 +397,17 @@ function AlertsContent() {
   const getTypeMeta = (notif) => {
     const action = safeString(notif?.action_type).toLowerCase();
     const content = safeString(notif?.content).toLowerCase();
-    const notifType = safeString(notif?.type).toLowerCase();
 
-    if (notifType.includes('like') || action.includes('like') || content.includes('liked')) {
+    if (action.includes('like') || content.includes('liked') || action.includes('relay')) {
       return { icon: '❤️', bg: 'rgba(239, 68, 68, 0.18)', border: '#ef4444' };
     }
-    if (notifType.includes('comment') || action.includes('comment') || content.includes('commented') || action.includes('reply') || content.includes('replied')) {
+    if (action.includes('comment') || content.includes('commented') || action.includes('reply') || content.includes('replied')) {
       return { icon: '💬', bg: 'rgba(56, 189, 248, 0.18)', border: '#38bdf8' };
     }
-    if (notifType.includes('connect') || action.includes('connect') || content.includes('connection')) {
+    if (action.includes('connect') || content.includes('connection')) {
       return { icon: '🤝', bg: 'rgba(168, 85, 247, 0.18)', border: '#a855f7' };
     }
-    if (notifType.includes('job') || action.includes('job') || content.includes('job')) {
+    if (action.includes('job') || content.includes('job')) {
       return { icon: '💼', bg: 'rgba(245, 158, 11, 0.18)', border: '#f59e0b' };
     }
     return { icon: '👤', bg: 'rgba(2, 132, 199, 0.18)', border: '#0284c7' };
@@ -573,14 +565,17 @@ function AlertsContent() {
           {unreadTotal > 0 && (
             <button
               type="button"
-              onClick={handleClearAll}
+              onClick={() => setShowClearConfirmModal(true)}
               style={{
                 background: 'none',
                 border: 'none',
-                color: '#64748b',
+                color: '#38bdf8',
                 fontSize: '0.76rem',
+                fontWeight: '700',
                 cursor: 'pointer',
-                padding: '4px 6px'
+                padding: '4px 8px',
+                borderRadius: '6px',
+                backgroundColor: 'rgba(56, 189, 248, 0.1)'
               }}
             >
               Mark all as read
@@ -659,7 +654,9 @@ function AlertsContent() {
               const meta = getTypeMeta(n);
               const isUnread = !n?.is_read;
               const contentText = safeString(n?.content) || '';
-              const profileHref = n.targetProfileUrl || (n.resolvedEmail ? `/view-profile?email=${encodeURIComponent(n.resolvedEmail.toLowerCase())}` : '#');
+              const profileHref = (n.resolvedEmail || n.sender_email)
+                ? `/view-profile?email=${encodeURIComponent((n.resolvedEmail || n.sender_email).toLowerCase().trim())}`
+                : (n.targetProfileUrl || '#');
 
               return (
                 <div
@@ -678,7 +675,7 @@ function AlertsContent() {
                     transition: 'background-color 0.15s ease'
                   }}
                 >
-                  {/* Avatar (Click to Profile) */}
+                  {/* Avatar */}
                   <Link
                     href={profileHref}
                     onClick={(e) => {
@@ -815,7 +812,7 @@ function AlertsContent() {
                     backgroundColor: '#0f172a',
                     border: '1px solid #1e293b',
                     color: '#38bdf8',
-                    padding: '0.5rem 1.25rem',
+                    padding: '0.55rem 1.4rem',
                     borderRadius: '12px',
                     fontSize: '0.8rem',
                     fontWeight: '700',
@@ -830,9 +827,104 @@ function AlertsContent() {
         )}
       </main>
 
+      {/* PROFESSIONAL CUSTOM CONFIRMATION CARD (Replaces browser default alert popup) */}
+      {showClearConfirmModal && (
+        <div
+          onClick={() => setShowClearConfirmModal(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(3, 7, 18, 0.78)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 999999,
+            padding: '1.2rem'
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: '#0f172a',
+              border: '1px solid #1e293b',
+              borderRadius: '20px',
+              padding: '1.5rem',
+              maxWidth: '380px',
+              width: '100%',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.85), 0 0 20px rgba(56, 189, 248, 0.1)',
+              textAlign: 'center',
+              animation: 'modalSlideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
+            }}
+          >
+            <div
+              style={{
+                width: '56px',
+                height: '56px',
+                borderRadius: '50%',
+                backgroundColor: 'rgba(56, 189, 248, 0.12)',
+                border: '1px solid rgba(56, 189, 248, 0.25)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 1.1rem auto',
+                fontSize: '1.6rem'
+              }}
+            >
+              ✓
+            </div>
+
+            <h3 style={{ margin: '0 0 0.45rem 0', fontSize: '1.15rem', fontWeight: '800', color: '#ffffff' }}>
+              Mark All as Read?
+            </h3>
+            <p style={{ margin: '0 0 1.5rem 0', fontSize: '0.82rem', color: '#94a3b8', lineHeight: '1.45' }}>
+              All your pending notifications and alerts will be marked as read immediately.
+            </p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              <button
+                type="button"
+                onClick={() => setShowClearConfirmModal(false)}
+                style={{
+                  backgroundColor: '#1e293b',
+                  border: '1px solid #334155',
+                  color: '#cbd5e1',
+                  padding: '0.68rem',
+                  borderRadius: '12px',
+                  fontSize: '0.84rem',
+                  fontWeight: '700',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={executeClearAll}
+                style={{
+                  background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+                  border: 'none',
+                  color: '#ffffff',
+                  boxShadow: '0 4px 14px rgba(2, 132, 199, 0.4)',
+                  padding: '0.68rem',
+                  borderRadius: '12px',
+                  fontSize: '0.84rem',
+                  fontWeight: '800',
+                  cursor: 'pointer'
+                }}
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Settings Modal */}
       {showSettingsModal && (
         <div
+          onClick={() => setShowSettingsModal(false)}
           style={{
             position: 'fixed',
             inset: 0,
@@ -845,6 +937,7 @@ function AlertsContent() {
           }}
         >
           <div
+            onClick={(e) => e.stopPropagation()}
             style={{
               backgroundColor: '#0f172a',
               border: '1px solid #334155',
