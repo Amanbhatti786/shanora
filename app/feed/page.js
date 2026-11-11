@@ -176,23 +176,44 @@ function FeedContent() {
 
     const cleanUserEmail = userEmail ? userEmail.toLowerCase() : null;
 
-    if (personalPostIds.length > 0) {
-      const { data: pLikes } = await supabase.from('post_likes').select('*').in('post_id', personalPostIds);
-      (pLikes || []).forEach(l => {
+    try {
+      const promises = [];
+
+      if (personalPostIds.length > 0) {
+        promises.push(supabase.from('post_likes').select('*').in('post_id', personalPostIds));
+        promises.push(supabase.from('post_relays').select('*').in('post_id', personalPostIds));
+        promises.push(supabase.from('post_comments').select('*').in('post_id', personalPostIds).order('created_at', { ascending: true }));
+      } else {
+        promises.push(Promise.resolve({ data: [] }));
+        promises.push(Promise.resolve({ data: [] }));
+        promises.push(Promise.resolve({ data: [] }));
+      }
+
+      if (pagePostIds.length > 0) {
+        promises.push(supabase.from('page_post_likes').select('*').in('post_id', pagePostIds));
+        promises.push(supabase.from('page_post_relays').select('*').in('post_id', pagePostIds));
+        promises.push(supabase.from('page_post_comments').select('*').in('post_id', pagePostIds).order('created_at', { ascending: true }));
+      } else {
+        promises.push(Promise.resolve({ data: [] }));
+        promises.push(Promise.resolve({ data: [] }));
+        promises.push(Promise.resolve({ data: [] }));
+      }
+
+      const [pLikesRes, pRelaysRes, pCommentsRes, pgLikesRes, pgRelaysRes, pgCommentsRes] = await Promise.all(promises);
+
+      (pLikesRes.data || []).forEach(l => {
         const key = `user-${l.post_id}`;
         countsLikes[key] = (countsLikes[key] || 0) + 1;
         if (cleanUserEmail && l.user_email?.toLowerCase() === cleanUserEmail) likedMap[key] = true;
       });
 
-      const { data: pRelays } = await supabase.from('post_relays').select('*').in('post_id', personalPostIds);
-      (pRelays || []).forEach(r => {
+      (pRelaysRes.data || []).forEach(r => {
         const key = `user-${r.post_id}`;
         countsRelays[key] = (countsRelays[key] || 0) + 1;
         if (cleanUserEmail && r.user_email?.toLowerCase() === cleanUserEmail) relayedMap[key] = true;
       });
 
-      const { data: pComments } = await supabase.from('post_comments').select('*').in('post_id', personalPostIds).order('created_at', { ascending: true });
-      (pComments || []).forEach(c => {
+      (pCommentsRes.data || []).forEach(c => {
         const key = `user-${c.post_id}`;
         if (!commentsMap[key]) commentsMap[key] = [];
         allCommentIds.push(c.id);
@@ -205,25 +226,20 @@ function FeedContent() {
           created_at: c.created_at
         });
       });
-    }
 
-    if (pagePostIds.length > 0) {
-      const { data: pgLikes } = await supabase.from('page_post_likes').select('*').in('post_id', pagePostIds);
-      (pgLikes || []).forEach(l => {
+      (pgLikesRes.data || []).forEach(l => {
         const key = `page-${l.post_id}`;
         countsLikes[key] = (countsLikes[key] || 0) + 1;
         if (cleanUserEmail && l.user_email?.toLowerCase() === cleanUserEmail) likedMap[key] = true;
       });
 
-      const { data: pgRelays } = await supabase.from('page_post_relays').select('*').in('post_id', pagePostIds);
-      (pgRelays || []).forEach(r => {
+      (pgRelaysRes.data || []).forEach(r => {
         const key = `page-${r.post_id}`;
         countsRelays[key] = (countsRelays[key] || 0) + 1;
         if (cleanUserEmail && r.user_email?.toLowerCase() === cleanUserEmail) relayedMap[key] = true;
       });
 
-      const { data: pgComments } = await supabase.from('page_post_comments').select('*').in('post_id', pagePostIds).order('created_at', { ascending: true });
-      (pgComments || []).forEach(c => {
+      (pgCommentsRes.data || []).forEach(c => {
         const key = `page-${c.post_id}`;
         if (!commentsMap[key]) commentsMap[key] = [];
         allCommentIds.push(c.id);
@@ -236,16 +252,14 @@ function FeedContent() {
           created_at: c.created_at
         });
       });
-    }
 
-    setPostLikesCount(prev => ({ ...prev, ...countsLikes }));
-    setLikedPosts(prev => ({ ...prev, ...likedMap }));
-    setPostRelaysCount(prev => ({ ...prev, ...countsRelays }));
-    setRelayedPosts(prev => ({ ...prev, ...relayedMap }));
-    setPostComments(prev => ({ ...prev, ...commentsMap }));
+      setPostLikesCount(prev => ({ ...prev, ...countsLikes }));
+      setLikedPosts(prev => ({ ...prev, ...likedMap }));
+      setPostRelaysCount(prev => ({ ...prev, ...countsRelays }));
+      setRelayedPosts(prev => ({ ...prev, ...relayedMap }));
+      setPostComments(prev => ({ ...prev, ...commentsMap }));
 
-    if (allCommentIds.length > 0) {
-      try {
+      if (allCommentIds.length > 0) {
         const { data: rxData } = await supabase.from('comment_reactions').select('*').in('comment_id', allCommentIds);
         if (rxData) {
           const rMap = {};
@@ -259,9 +273,9 @@ function FeedContent() {
           });
           setCommentReactions(prev => ({ ...prev, ...rMap }));
         }
-      } catch (err) {
-        console.warn('Reactions fetch notice:', err);
       }
+    } catch (err) {
+      console.warn('Interactions fetch error:', err);
     }
   };
 
@@ -271,31 +285,63 @@ function FeedContent() {
         const { data: { user } } = await supabase.auth.getUser();
         setCurrentUser(user);
 
+        const profilePromise = user?.email
+          ? supabase.from('profiles').select('*').eq('email', user.email).maybeSingle()
+          : Promise.resolve({ data: null });
+
+        const followsPromise = user?.email
+          ? supabase.from('user_follows').select('following_email').eq('follower_email', user.email)
+          : Promise.resolve({ data: null });
+
+        const personalPostsPromise = supabase
+          .from('user_posts')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .range(0, POSTS_PER_PAGE - 1);
+
+        const pagePostsPromise = supabase
+          .from('page_posts')
+          .select(`id, content, image_url, created_at, pages (id, name, slug, logo_url, owner_email, monetization_status)`)
+          .order('created_at', { ascending: false })
+          .limit(15);
+
+        const relaysPromise = supabase
+          .from('page_post_relays')
+          .select(`id, user_email, created_at, post_id, page_posts (id, content, image_url, created_at, pages (id, name, slug, logo_url, owner_email, monetization_status))`)
+          .order('created_at', { ascending: false })
+          .limit(15);
+
+        const [profileRes, followsRes, personalPostsRes, pagePostsRes, relaysRes] = await Promise.all([
+          profilePromise,
+          followsPromise,
+          personalPostsPromise,
+          pagePostsPromise,
+          relaysPromise
+        ]);
+
         if (user?.email) {
-          const { data: profile } = await supabase.from('profiles').select('*').eq('email', user.email).maybeSingle();
-          setUserProfile(profile || {
+          setUserProfile(profileRes.data || {
             name: user.user_metadata?.full_name || user.email.split('@')[0],
             username: user.email.split('@')[0],
             avatar_url: null
           });
 
-          const { data: followsData } = await supabase.from('user_follows').select('following_email').eq('follower_email', user.email);
-          if (followsData) {
+          if (followsRes.data) {
             const map = {};
-            followsData.forEach(f => {
+            followsRes.data.forEach(f => {
               if (f.following_email) map[f.following_email.toLowerCase()] = true;
             });
             setFollowingMap(map);
           }
         }
 
-        const { data: personalPosts } = await supabase.from('user_posts').select('*').order('created_at', { ascending: false }).range(0, POSTS_PER_PAGE - 1);
-        if (personalPosts && personalPosts.length < POSTS_PER_PAGE) setHasMore(false);
+        const personalPosts = personalPostsRes.data || [];
+        if (personalPosts.length < POSTS_PER_PAGE) setHasMore(false);
 
-        const { data: pagePosts } = await supabase.from('page_posts').select(`id, content, image_url, created_at, pages (id, name, slug, logo_url, owner_email, monetization_status)`).order('created_at', { ascending: false }).limit(25);
-        const { data: relays } = await supabase.from('page_post_relays').select(`id, user_email, created_at, post_id, page_posts (id, content, image_url, created_at, pages (id, name, slug, logo_url, owner_email, monetization_status))`).order('created_at', { ascending: false }).limit(25);
+        const pagePosts = pagePostsRes.data || [];
+        const relays = relaysRes.data || [];
 
-        const formattedPersonal = (personalPosts || []).map(p => {
+        const formattedPersonal = personalPosts.map(p => {
           const rawEmail = p.user_email || p.email || p.author_email || '';
           const uname = rawEmail.split('@')[0] || p.user_name || 'user';
           return {
@@ -318,7 +364,7 @@ function FeedContent() {
           };
         });
 
-        const formattedPages = (pagePosts || []).map(p => {
+        const formattedPages = pagePosts.map(p => {
           const ownerEmail = (p.pages?.owner_email || '').toLowerCase();
           return {
             feedItemId: `page-${p.id}`,
@@ -340,7 +386,7 @@ function FeedContent() {
           };
         });
 
-        const formattedRelays = (relays || []).filter(r => r.page_posts && r.page_posts.pages).map(r => {
+        const formattedRelays = relays.filter(r => r.page_posts && r.page_posts.pages).map(r => {
           const ownerEmail = (r.page_posts.pages?.owner_email || '').toLowerCase();
           return {
             feedItemId: `page-${r.page_posts.id}`,
@@ -365,10 +411,11 @@ function FeedContent() {
 
         const merged = [...formattedPersonal, ...formattedPages, ...formattedRelays].sort((a, b) => b.sortTime - a.sortTime);
         setFeedItems(merged);
-        await loadInteractions(merged, user?.email);
+        setLoading(false);
+
+        loadInteractions(merged, user?.email);
       } catch (err) {
         console.error('Error fetching feed:', err);
-      } finally {
         setLoading(false);
       }
     }
@@ -376,7 +423,7 @@ function FeedContent() {
   }, []);
 
   const loadMorePosts = useCallback(async () => {
-    if (loadingMore || !hasMore) return;
+    if (loading || loadingMore || !hasMore) return;
     setLoadingMore(true);
 
     try {
@@ -384,7 +431,12 @@ function FeedContent() {
       const from = nextPage * POSTS_PER_PAGE;
       const to = from + POSTS_PER_PAGE - 1;
 
-      const { data, error } = await supabase.from('user_posts').select('*').order('created_at', { ascending: false }).range(from, to);
+      const { data, error } = await supabase
+        .from('user_posts')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .range(from, to);
+
       if (error) throw error;
 
       if (data) {
@@ -414,25 +466,27 @@ function FeedContent() {
 
         setFeedItems(prev => [...prev, ...formattedMore]);
         setPage(nextPage);
-        await loadInteractions(formattedMore, currentUser?.email);
+        loadInteractions(formattedMore, currentUser?.email);
       }
     } catch (err) {
       console.error('Error loading more posts:', err);
     } finally {
       setLoadingMore(false);
     }
-  }, [loadingMore, hasMore, page, currentUser]);
+  }, [loading, loadingMore, hasMore, page, currentUser]);
 
   const lastPostElementRef = useCallback((node) => {
-    if (loadingMore) return;
+    if (loading || loadingMore) return;
     if (observerRef.current) observerRef.current.disconnect();
 
     observerRef.current = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting && hasMore) loadMorePosts();
+      if (entries[0].isIntersecting && hasMore) {
+        loadMorePosts();
+      }
     }, { threshold: 0.5 });
 
     if (node) observerRef.current.observe(node);
-  }, [loadingMore, hasMore, loadMorePosts]);
+  }, [loading, loadingMore, hasMore, loadMorePosts]);
 
   useEffect(() => {
     function handleClickOutside() {
@@ -1051,7 +1105,7 @@ function FeedContent() {
 
         {/* Feed Stream */}
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '3rem', color: '#38bdf8' }}>Loading feed...</div>
+          <div style={{ textAlign: 'center', padding: '3.5rem 1rem', color: '#38bdf8', fontSize: '0.9rem' }}>Loading feed...</div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             {feedItems.map(item => {
