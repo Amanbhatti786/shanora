@@ -124,6 +124,7 @@ function ProfilePortalContent() {
     education: 'Bachelor of Science in Computer Science\nUniversity of Information Technology (2020 - 2024)',
     languages: 'English (Professional), Urdu (Native)'
   });
+  const [selectedTemplate, setSelectedTemplate] = useState('executive-classic');
 
   const [trxId, setTrxId] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('EasyPaisa');
@@ -2258,388 +2259,151 @@ function ProfilePortalContent() {
           </div>
         )}
 
-        {/* TAB 6: ATS RESUME BUILDER (SHANORA PRO) */}
+        {/* TAB 6: ATS RESUME BUILDER (SHANORA PRO & FREE TEMPLATES) */}
         {activeTab === 'resume' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.4rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0f172a', padding: '0.65rem 0.9rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
-              <span style={{ fontWeight: '800', fontSize: '0.9rem', color: '#facc15' }}>📄 ATS Resume Studio</span>
-              <button type="button" onClick={() => navigateToTab('menu')} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer', padding: 0 }}>✕</button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', padding: '1rem 0' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <div>
+                <h2 style={{ fontSize: '1.2rem', fontWeight: '800', color: '#fff', margin: 0 }}>ATS Resume Studio 📄</h2>
+                <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: '0.2rem 0 0 0' }}>
+                  Choose from free templates or preview our elite PRO executive designs.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => window.print()}
+                style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.55rem 1.1rem', borderRadius: '8px', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer', boxShadow: '0 4px 12px rgba(2, 132, 199, 0.4)' }}
+              >
+                🖨️ Download Official PDF
+              </button>
             </div>
 
-            {!profile.is_pro ? (
-              <div
-                style={{
-                  backgroundColor: '#0f172a',
-                  border: '1px solid rgba(234, 179, 8, 0.35)',
-                  borderRadius: '16px',
-                  padding: '3rem 1.5rem',
-                  textAlign: 'center'
-                }}
-              >
-                <div style={{ fontSize: '3.2rem', marginBottom: '0.6rem' }}>📄</div>
-                <h3 style={{ margin: '0 0 0.5rem 0', color: '#facc15', fontSize: '1.3rem', fontWeight: '800' }}>
-                  Shanora PRO Exclusive Feature
-                </h3>
-                <p style={{ margin: '0 auto 1.5rem auto', color: '#cbd5e1', fontSize: '0.85rem', lineHeight: '1.5', maxWidth: '440px' }}>
-                  ATS-Friendly Resume Builder and Instant Official PDF Export are exclusive privileges for <strong>Shanora PRO</strong> members.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => navigateToTab('pro')}
-                  style={{
-                    backgroundColor: '#eab308',
-                    color: '#000',
-                    border: 'none',
-                    padding: '0.8rem 1.8rem',
-                    borderRadius: '10px',
-                    fontSize: '0.9rem',
-                    fontWeight: '900',
-                    cursor: 'pointer',
-                    boxShadow: '0 4px 15px rgba(234, 179, 8, 0.35)'
-                  }}
-                >
-                  Unlock with Shanora PRO 👑 (Rs. 499)
-                </button>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
-                <div style={{
-                  backgroundColor: '#0f172a',
-                  border: '1px solid #1e293b',
-                  borderRadius: '14px',
-                  padding: '1rem 1.2rem',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                  gap: '0.8rem'
-                }}>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span style={{ fontSize: '1.1rem', fontWeight: '900', color: '#fff' }}>ATS Resume Studio</span>
-                      <ProVerifiedBadge size={18} />
-                    </div>
-                    <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '0.2rem' }}>
-                      Standard Executive Layout with Direct PDF Printing
-                    </div>
-                  </div>
+            {/* 12+ Templates Grid (Free vs Pro Preview Only) */}
+            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.2rem' }}>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: '700', color: '#fff', marginBottom: '0.8rem' }}>
+                Select or Preview Templates (12 Professional Layouts)
+              </h3>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                    <button
-                      type="button"
-                      onClick={() => window.print()}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.85rem', maxHeight: '350px', overflowY: 'auto', paddingRight: '4px' }}>
+                {[
+                  { id: 'executive-classic', name: '1. Executive Classic', type: 'Free', desc: 'Clean single-column standard ATS format.', badge: 'FREE 🔓', color: '#0f172a' },
+                  { id: 'modern-executive', name: '2. Modern Executive', type: 'Free', desc: 'Contemporary layout with accent highlights.', badge: 'FREE 🔓', color: '#0284c7' },
+                  { id: 'corporate-standard', name: '3. Corporate Standard', type: 'Free', desc: 'Traditional office and admin layout.', badge: 'FREE 🔓', color: '#334155' },
+                  { id: 'minimal-clean', name: '4. Minimal Clean', type: 'Free', desc: 'Distraction-free simple layout.', badge: 'FREE 🔓', color: '#64748b' },
+                  { id: 'international-pro', name: '5. International Elite', type: 'Pro', desc: 'Global multinational executive layout.', badge: 'PRO 🔒', color: '#7c3aed' },
+                  { id: 'tech-specialist', name: '6. Tech Stack Master', type: 'Pro', desc: 'Optimized for software engineers & IT.', badge: 'PRO 🔒', color: '#059669' },
+                  { id: 'creative-director', name: '7. Creative Director', type: 'Pro', desc: 'Stunning grid style for top creators.', badge: 'PRO 🔒', color: '#db2777' },
+                  { id: 'executive-board', name: '8. Boardroom Director', type: 'Pro', desc: 'High-end corporate leadership style.', badge: 'PRO 🔒', color: '#d97706' },
+                  { id: 'startup-founder', name: '9. Startup Venture Lead', type: 'Pro', desc: 'Dynamic metrics & venture format.', badge: 'PRO 🔒', color: '#2563eb' },
+                  { id: 'academic-scholar', name: '10. Academic Scholar', type: 'Pro', desc: 'Structured research & publications layout.', badge: 'PRO 🔒', color: '#4f46e5' },
+                  { id: 'global-enterprise', name: '11. Global Enterprise', type: 'Pro', desc: 'The ultimate multinational format.', badge: 'PRO 🔒', color: '#dc2626' },
+                  { id: 'ultimate-titan', name: '12. Titan Executive Pro', type: 'Pro', desc: 'Elite styling for top-tier professionals.', badge: 'PRO 🌟', color: '#0891b2' }
+                ].map((tmpl) => {
+                  const isPro = tmpl.type === 'Pro';
+                  const isLocked = isPro && !profile.is_pro;
+
+                  return (
+                    <div
+                      key={tmpl.id}
+                      onClick={() => {
+                        if (isLocked) {
+                          alert('🔒 This is an exclusive SHANORA PRO template. Upgrade to PRO to unlock and use this elite design!');
+                          navigateToTab('pro');
+                        } else {
+                          setSelectedTemplate(tmpl.id);
+                        }
+                      }}
                       style={{
-                        backgroundColor: '#0284c7',
-                        color: '#fff',
-                        border: 'none',
-                        padding: '0.55rem 1.2rem',
-                        borderRadius: '8px',
-                        fontSize: '0.82rem',
-                        fontWeight: '800',
+                        backgroundColor: '#070b14',
+                        border: isLocked ? '1px dashed #7c3aed' : '1px solid #334155',
+                        borderRadius: '12px',
+                        padding: '0.85rem',
                         cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.4rem',
-                        boxShadow: '0 4px 12px rgba(2, 132, 199, 0.35)'
+                        position: 'relative',
+                        opacity: isLocked ? 0.85 : 1,
+                        transition: 'all 0.2s ease'
                       }}
                     >
-                      <span>🖨️</span>
-                      <span>Download Official PDF</span>
-                    </button>
-                  </div>
-                </div>
+                      <div style={{
+                        position: 'absolute',
+                        top: '10px',
+                        right: '10px',
+                        fontSize: '0.6rem',
+                        fontWeight: '800',
+                        backgroundColor: isPro ? '#7c3aed' : '#0284c7',
+                        color: '#fff',
+                        padding: '2px 6px',
+                        borderRadius: '4px'
+                      }}>
+                        {tmpl.badge}
+                      </div>
 
-                <div
-                  id="printable-ats-cv"
-                  style={{
-                    backgroundColor: '#ffffff',
-                    color: '#0f172a',
-                    padding: '3rem 2.8rem',
-                    borderRadius: '12px',
-                    boxShadow: '0 15px 35px rgba(0,0,0,0.45)',
-                    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
-                    maxWidth: '100%',
-                    boxSizing: 'border-box'
-                  }}
-                >
-                  <div style={{ borderBottom: '2.5px solid #0f172a', paddingBottom: '1.2rem', marginBottom: '1.5rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <div>
-                        <h1 style={{
-                          margin: '0 0 0.3rem 0',
-                          fontSize: '2rem',
-                          fontWeight: '900',
-                          color: '#0f172a',
-                          letterSpacing: '-0.5px',
-                          textTransform: 'uppercase'
-                        }}>
-                          {profile.full_name || 'Your Full Name'}
-                        </h1>
-                        <div style={{ fontSize: '1rem', fontWeight: '700', color: '#0284c7' }}>
-                          {profile.headline || 'Senior Professional & Specialist'}
+                      <div style={{ width: '26px', height: '26px', borderRadius: '6px', backgroundColor: tmpl.color, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem' }}>
+                        📄
+                      </div>
+
+                      <h4 style={{ fontSize: '0.82rem', fontWeight: '700', color: '#fff', margin: '0 0 0.2rem 0' }}>
+                        {tmpl.name}
+                      </h4>
+                      <p style={{ fontSize: '0.7rem', color: '#94a3b8', margin: 0, lineHeight: '1.3' }}>
+                        {tmpl.desc}
+                      </p>
+
+                      {isLocked && (
+                        <div style={{ marginTop: '0.5rem', fontSize: '0.65rem', color: '#c084fc', fontWeight: 'bold' }}>
+                          🔒 Preview Only — Upgrade to Edit
                         </div>
-                      </div>
-
-                      <div style={{ textAlign: 'right', fontSize: '0.78rem', color: '#475569', lineHeight: '1.6' }}>
-                        <div>{profile.email}</div>
-                        <div>{profile.phone || '+92 300 0000000'}</div>
-                        <div>{profile.city || 'Pakistan'}</div>
-                      </div>
+                      )}
                     </div>
-                  </div>
-
-                  <div style={{ marginBottom: '1.4rem' }}>
-                    <div style={{
-                      fontSize: '0.85rem',
-                      fontWeight: '900',
-                      textTransform: 'uppercase',
-                      letterSpacing: '1px',
-                      color: '#0f172a',
-                      borderBottom: '1px solid #e2e8f0',
-                      paddingBottom: '0.3rem',
-                      marginBottom: '0.6rem'
-                    }}>
-                      Executive Summary
-                    </div>
-                    <textarea
-                      rows={3}
-                      value={resumeData.summary !== undefined && resumeData.summary !== '' ? resumeData.summary : (profile.bio || '')}
-                      onChange={(e) => setResumeData(prev => ({ ...prev, summary: e.target.value }))}
-                      placeholder="Brief overview of your professional achievements and qualifications..."
-                      style={{
-                        width: '100%',
-                        border: '1px solid transparent',
-                        borderRadius: '6px',
-                        padding: '0.4rem',
-                        fontSize: '0.85rem',
-                        color: '#334155',
-                        lineHeight: '1.5',
-                        outline: 'none',
-                        resize: 'vertical',
-                        backgroundColor: 'transparent',
-                        boxSizing: 'border-box',
-                        fontFamily: 'inherit'
-                      }}
-                    />
-                  </div>
-
-                  <div style={{ marginBottom: '1.4rem' }}>
-                    <div style={{
-                      fontSize: '0.85rem',
-                      fontWeight: '900',
-                      textTransform: 'uppercase',
-                      letterSpacing: '1px',
-                      color: '#0f172a',
-                      borderBottom: '1px solid #e2e8f0',
-                      paddingBottom: '0.3rem',
-                      marginBottom: '0.6rem'
-                    }}>
-                      Key Competencies & Core Skills
-                    </div>
-                    <input
-                      type="text"
-                      value={resumeData.skills !== undefined && resumeData.skills !== '' ? resumeData.skills : (profile.skills || 'Next.js, React, Tailwind CSS, Supabase, Executive Strategy')}
-                      onChange={(e) => setResumeData(prev => ({ ...prev, skills: e.target.value }))}
-                      placeholder="Enter skills separated by commas..."
-                      style={{
-                        width: '100%',
-                        border: '1px solid transparent',
-                        borderRadius: '6px',
-                        padding: '0.4rem',
-                        fontSize: '0.85rem',
-                        color: '#1e293b',
-                        fontWeight: '600',
-                        outline: 'none',
-                        backgroundColor: 'transparent',
-                        boxSizing: 'border-box',
-                        fontFamily: 'inherit'
-                      }}
-                    />
-                  </div>
-
-                  <div style={{ marginBottom: '1.4rem' }}>
-                    <div style={{
-                      fontSize: '0.85rem',
-                      fontWeight: '900',
-                      textTransform: 'uppercase',
-                      letterSpacing: '1px',
-                      color: '#0f172a',
-                      borderBottom: '1px solid #e2e8f0',
-                      paddingBottom: '0.3rem',
-                      marginBottom: '0.6rem'
-                    }}>
-                      Work History & Professional Experience
-                    </div>
-                    <textarea
-                      rows={6}
-                      value={resumeData.experience}
-                      onChange={(e) => setResumeData(prev => ({ ...prev, experience: e.target.value }))}
-                      placeholder="Senior Specialist | Tech Solutions (2024 - Present)..."
-                      style={{
-                        width: '100%',
-                        border: '1px solid transparent',
-                        borderRadius: '6px',
-                        padding: '0.4rem',
-                        fontSize: '0.85rem',
-                        color: '#334155',
-                        lineHeight: '1.6',
-                        outline: 'none',
-                        resize: 'vertical',
-                        backgroundColor: 'transparent',
-                        boxSizing: 'border-box',
-                        fontFamily: 'inherit'
-                      }}
-                    />
-                  </div>
-
-            {/* TAB 6: ATS RESUME BUILDER (SHANORA PRO & FREE TEMPLATES) */}
-activeTab === 'resume' && (
-  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', padding: '1rem 0' }}>
-    
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-      <div>
-        <h2 style={{ fontSize: '1.2rem', fontWeight: '800', color: '#fff', margin: 0 }}>ATS Resume Studio 📄</h2>
-        <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: '0.2rem 0 0 0' }}>
-          Choose from free templates or preview our elite PRO executive designs.
-        </p>
-      </div>
-      <button
-        type="button"
-        onClick={() => window.print()}
-        style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.55rem 1.1rem', borderRadius: '8px', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer', boxShadow: '0 4px 12px rgba(2, 132, 199, 0.4)' }}
-      >
-        🖨️ Download Official PDF
-      </button>
-    </div>
-
-    {/* 12+ Templates Grid (Free vs Pro Preview Only) */}
-    <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.2rem' }}>
-      <h3 style={{ fontSize: '0.9rem', fontWeight: '700', color: '#fff', marginBottom: '0.8rem' }}>
-        Select or Preview Templates (12 Professional Layouts)
-      </h3>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.85rem', maxHeight: '350px', overflowY: 'auto', paddingRight: '4px' }}>
-        {[
-          // Free Templates (Fully Editable)
-          { id: 'executive-classic', name: '1. Executive Classic', type: 'Free', desc: 'Clean single-column standard ATS format.', badge: 'FREE 🔓', color: '#0f172a' },
-          { id: 'modern-executive', name: '2. Modern Executive', type: 'Free', desc: 'Contemporary layout with accent highlights.', badge: 'FREE 🔓', color: '#0284c7' },
-          { id: 'corporate-standard', name: '3. Corporate Standard', type: 'Free', desc: 'Traditional office and admin layout.', badge: 'FREE 🔓', color: '#334155' },
-          { id: 'minimal-clean', name: '4. Minimal Clean', type: 'Free', desc: 'Distraction-free simple layout.', badge: 'FREE 🔓', color: '#64748b' },
-
-          // Pro Templates (Elite Design Preview Only - Locked for Non-Pro)
-          { id: 'international-pro', name: '5. International Elite', type: 'Pro', desc: 'Global multinational executive layout.', badge: 'PRO 🔒', color: '#7c3aed' },
-          { id: 'tech-specialist', name: '6. Tech Stack Master', type: 'Pro', desc: 'Optimized for software engineers & IT.', badge: 'PRO 🔒', color: '#059669' },
-          { id: 'creative-director', name: '7. Creative Director', type: 'Pro', desc: 'Stunning grid style for top creators.', badge: 'PRO 🔒', color: '#db2777' },
-          { id: 'executive-board', name: '8. Boardroom Director', type: 'Pro', desc: 'High-end corporate leadership style.', badge: 'PRO 🔒', color: '#d97706' },
-          { id: 'startup-founder', name: '9. Startup Venture Lead', type: 'Pro', desc: 'Dynamic metrics & venture format.', badge: 'PRO 🔒', color: '#2563eb' },
-          { id: 'academic-scholar', name: '10. Academic Scholar', type: 'Pro', desc: 'Structured research & publications layout.', badge: 'PRO 🔒', color: '#4f46e5' },
-          { id: 'global-enterprise', name: '11. Global Enterprise', type: 'Pro', desc: 'The ultimate multinational format.', badge: 'PRO 🔒', color: '#dc2626' },
-          { id: 'ultimate-titan', name: '12. Titan Executive Pro', type: 'Pro', desc: 'Elite styling for top-tier professionals.', badge: 'PRO 🌟', color: '#0891b2' }
-        ].map((tmpl) => {
-          const isPro = tmpl.type === 'Pro';
-          const isLocked = isPro && !profile.is_pro;
-
-          return (
-            <div
-              key={tmpl.id}
-              onClick={() => {
-                if (isLocked) {
-                  alert('🔒 This is an exclusive SHANORA PRO template. Upgrade to PRO to unlock and use this elite design!');
-                  navigateTab('pro'); // Redirects to Pro upgrade section
-                } else {
-                  setSelectedTemplate(tmpl.id);
-                }
-              }}
-              style={{
-                backgroundColor: '#070b14',
-                border: isLocked ? '1px dashed #7c3aed' : '1px solid #334155',
-                borderRadius: '12px',
-                padding: '0.85rem',
-                cursor: 'pointer',
-                position: 'relative',
-                opacity: isLocked ? 0.85 : 1,
-                transition: 'all 0.2s ease'
-              }}
-            >
-              <div style={{
-                position: 'absolute',
-                top: '10px',
-                right: '10px',
-                fontSize: '0.6rem',
-                fontWeight: '800',
-                backgroundColor: isPro ? '#7c3aed' : '#0284c7',
-                color: '#fff',
-                padding: '2px 6px',
-                borderRadius: '4px'
-              }}>
-                {tmpl.badge}
+                  );
+                })}
               </div>
-
-              <div style={{ width: '26px', height: '26px', borderRadius: '6px', backgroundColor: tmpl.color, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem' }}>
-                📄
-              </div>
-
-              <h4 style={{ fontSize: '0.82rem', fontWeight: '700', color: '#fff', margin: '0 0 0.2rem 0' }}>
-                {tmpl.name}
-              </h4>
-              <p style={{ fontSize: '0.7rem', color: '#94a3b8', margin: 0, lineHeight: '1.3' }}>
-                {tmpl.desc}
-              </p>
-
-              {isLocked && (
-                <div style={{ marginTop: '0.5rem', fontSize: '0.65rem', color: '#c084fc', fontWeight: 'bold' }}>
-                  🔒 Preview Only — Upgrade to Edit
-                </div>
-              )}
             </div>
-          );
-        })}
-      </div>
-    </div>
 
-    {/* Live CV Preview Box */}
-    <div style={{ backgroundColor: '#ffffff', color: '#0f172a', padding: '2.5rem', borderRadius: '16px', boxShadow: '0 15px 40px rgba(0,0,0,0.5)' }}>
-      <div style={{ borderBottom: '2px solid #0284c7', paddingBottom: '1rem', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div>
-          <h1 style={{ fontSize: '1.8rem', fontWeight: '900', color: '#0f172a', margin: '0 0 0.3rem 0' }}>
-            {profile.full_name || 'Amanullah Mahtam'}
-          </h1>
-          <p style={{ fontSize: '1rem', fontWeight: '700', color: '#0284c7', margin: 0 }}>
-            {profile.headline || 'Office Assistant & IT Technical Support Professional'}
-          </p>
-        </div>
-        <div style={{ textAlign: 'right', fontSize: '0.8rem', color: '#475569', lineHeight: '1.4' }}>
-          <p style={{ margin: 0 }}>{profile.email || 'amanullahmahtam7@gmail.com'}</p>
-          <p style={{ margin: 0 }}>{profile.phone || '+92 303 3639664'}</p>
-          <p style={{ margin: 0 }}>{profile.country || 'Saddar, Karachi, Sindh'}</p>
-        </div>
-      </div>
+            {/* Live CV Preview Box */}
+            <div style={{ backgroundColor: '#ffffff', color: '#0f172a', padding: '2.5rem', borderRadius: '16px', boxShadow: '0 15px 40px rgba(0,0,0,0.5)' }}>
+              <div style={{ borderBottom: '2px solid #0284c7', paddingBottom: '1rem', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <h1 style={{ fontSize: '1.8rem', fontWeight: '900', color: '#0f172a', margin: '0 0 0.3rem 0' }}>
+                    {profile.full_name || 'Your Full Name'}
+                  </h1>
+                  <p style={{ fontSize: '1rem', fontWeight: '700', color: '#0284c7', margin: 0 }}>
+                    {profile.headline || 'Senior Professional & Specialist'}
+                  </p>
+                </div>
+                <div style={{ textAlign: 'right', fontSize: '0.8rem', color: '#475569', lineHeight: '1.4' }}>
+                  <p style={{ margin: 0 }}>{profile.email}</p>
+                  <p style={{ margin: 0 }}>{profile.phone || '+92 300 0000000'}</p>
+                  <p style={{ margin: 0 }}>{profile.city || 'Pakistan'}</p>
+                </div>
+              </div>
 
-      <div style={{ marginBottom: '1.2rem' }}>
-        <h3 style={{ fontSize: '0.9rem', fontWeight: '800', color: '#0f172a', textTransform: 'uppercase', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.3rem', marginBottom: '0.4rem' }}>
-          Professional Experience
-        </h3>
-        <p style={{ fontSize: '0.82rem', color: '#334155', margin: '0.3rem 0', fontWeight: 'bold' }}>
-          Office Assistant & IT Technical Support — Shah Latif Model Secondary School Thikratho (2019 – Present)
-        </p>
-        <p style={{ fontSize: '0.8rem', color: '#475569', margin: 0, lineHeight: '1.5' }}>
-          Managing administrative records, hardware/software troubleshooting, MS Office, basic networking setup, and digital productivity tools.
-        </p>
-      </div>
+              <div style={{ marginBottom: '1.2rem' }}>
+                <h3 style={{ fontSize: '0.9rem', fontWeight: '800', color: '#0f172a', textTransform: 'uppercase', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.3rem', marginBottom: '0.4rem' }}>
+                  Professional Experience
+                </h3>
+                <textarea
+                  rows={4}
+                  value={resumeData.experience}
+                  onChange={(e) => setResumeData(prev => ({ ...prev, experience: e.target.value }))}
+                  style={{ width: '100%', border: '1px solid transparent', backgroundColor: 'transparent', color: '#334155', fontSize: '0.82rem', fontFamily: 'inherit', resize: 'vertical' }}
+                />
+              </div>
 
-      <div>
-        <h3 style={{ fontSize: '0.9rem', fontWeight: '800', color: '#0f172a', textTransform: 'uppercase', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.3rem', marginBottom: '0.4rem' }}>
-          Education & Credentials
-        </h3>
-        <p style={{ fontSize: '0.82rem', color: '#334155', margin: 0 }}>
-          <b>Bachelor of Science (B.Sc.)</b> — Shah Abdul Latif University, Khairpur | <b>Diploma in IT (DIT)</b> | Google AI Certified
-        </p>
-      </div>
-    </div>
-
-  </div>
-)}
-              
+              <div>
+                <h3 style={{ fontSize: '0.9rem', fontWeight: '800', color: '#0f172a', textTransform: 'uppercase', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.3rem', marginBottom: '0.4rem' }}>
+                  Education & Credentials
+                </h3>
+                <textarea
+                  rows={2}
+                  value={resumeData.education}
+                  onChange={(e) => setResumeData(prev => ({ ...prev, education: e.target.value }))}
+                  style={{ width: '100%', border: '1px solid transparent', backgroundColor: 'transparent', color: '#334155', fontSize: '0.82rem', fontFamily: 'inherit', resize: 'vertical' }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* TAB 7: MONETIZATION */}
         {activeTab === 'monetization' && (
