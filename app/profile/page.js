@@ -176,7 +176,6 @@ function ProfilePortalContent() {
   const [newPassword, setNewPassword] = useState('');
   const [updatingPassword, setUpdatingPassword] = useState(false);
 
-  // Synchronous route redirection & Mobile Hardware Back Button Synchronization
   const navigateToTab = (newTab, chatUser = null) => {
     setActiveTab(newTab);
     setActiveChatUser(chatUser);
@@ -209,7 +208,6 @@ function ProfilePortalContent() {
     }
   }, []);
 
-  // Native Mobile Back Button Handler (Prevents jumping to random tabs)
   useEffect(() => {
     const handlePopState = (event) => {
       if (activeChatUser) {
@@ -404,7 +402,6 @@ function ProfilePortalContent() {
     initPortal();
   }, [router]);
 
-  // AUTO-DETECT DIRECT CHAT TARGET FROM URL
   useEffect(() => {
     const chatTargetEmail = searchParams?.get('chatWith') || searchParams?.get('chat');
     if (chatTargetEmail && user?.email) {
@@ -432,7 +429,6 @@ function ProfilePortalContent() {
     }
   }, [searchParams, user]);
 
-  // Periodic heartbeat every 60s
   useEffect(() => {
     if (!user?.email) return;
     const interval = setInterval(() => {
@@ -441,7 +437,6 @@ function ProfilePortalContent() {
     return () => clearInterval(interval);
   }, [user]);
 
-  // Load Messenger Contacts
   useEffect(() => {
     if (!user?.email) return;
     const myEmail = user.email.toLowerCase();
@@ -495,7 +490,6 @@ function ProfilePortalContent() {
     }
   }, [activeTab, user, followingMap, savedPostsList.length, discoverUsers.length]);
 
-  // Private 1-on-1 Chat Thread & Realtime listener (Facebook Messenger Style)
   useEffect(() => {
     if (!activeChatUser || !user) return;
 
@@ -563,7 +557,6 @@ function ProfilePortalContent() {
     }, 100);
   }
 
-  // Handle Attachment Selection
   function handleSelectAttachment(e, type) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -583,7 +576,6 @@ function ProfilePortalContent() {
     }
   }
 
-  // Mobile Long-Press for Reactions (FB Floating Bar)
   function handleTouchStart(messageId) {
     pressTimerRef.current = setTimeout(() => {
       setActiveReactionMsgId(prev => (prev === messageId ? null : messageId));
@@ -597,7 +589,6 @@ function ProfilePortalContent() {
     }
   }
 
-  // Handle Send Message (with Text, Photo, Document, or Thumbs Up)
   async function handleSendMessage(e, defaultText = null) {
     if (e && e.preventDefault) e.preventDefault();
     const sentText = defaultText !== null ? defaultText : newMessageText.trim();
@@ -669,7 +660,6 @@ function ProfilePortalContent() {
     }
   }
 
-  // Handle Save Edited Message
   async function handleSaveEditedMessage(msgId) {
     if (!editText.trim()) return;
     try {
@@ -691,7 +681,6 @@ function ProfilePortalContent() {
     }
   }
 
-  // Handle Delete Message for Everyone
   async function handleDeleteMessage(msgId) {
     if (!confirm('Delete this message for everyone?')) return;
     try {
@@ -713,7 +702,6 @@ function ProfilePortalContent() {
     }
   }
 
-  // Handle Emoji Reaction (Facebook Style: ❤️ 👍 😂 😮 😢 🔥)
   async function handleReactToMessage(msgId, emoji) {
     if (!user) return;
     const myEmail = user.email.toLowerCase();
@@ -1083,7 +1071,6 @@ function ProfilePortalContent() {
     }
   }
 
-  // Handle Milestone Claiming
   async function handleClaimMilestone(milestone) {
     if (!user) return;
     setClaimingMilestone(milestone.minFriends);
@@ -1114,7 +1101,6 @@ function ProfilePortalContent() {
     }
   }
 
-  // Handle Create Advertisement
   async function handleCreateAd(e) {
     e.preventDefault();
     if (!adFormData.selectedPageId) {
@@ -1164,7 +1150,6 @@ function ProfilePortalContent() {
     }
   }
 
-  // Messenger User Sorting & Filtering
   const sortedMessengerUsers = [...allUsersList].sort((a, b) => {
     const timeA = userLastMessagesMap[(a.email || '').toLowerCase()]?.time || 0;
     const timeB = userLastMessagesMap[(b.email || '').toLowerCase()]?.time || 0;
@@ -1748,7 +1733,7 @@ function ProfilePortalContent() {
           </div>
         )}
 
-        {/* TAB 4: MESSENGER (FACEBOOK MESSENGER STYLE WITH FLOATING REACTIONS, EDIT, DELETE & ATTACHMENTS) */}
+        {/* TAB 4: MESSENGER */}
         {activeTab === 'messages' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0f172a', padding: '0.65rem 0.9rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
@@ -1772,10 +1757,7 @@ function ProfilePortalContent() {
             </div>
 
             {activeChatUser ? (
-              /* ACTIVE 1-ON-1 CHAT ROOM */
               <div style={{ backgroundColor: '#0b1322', border: '1px solid #1e293b', borderRadius: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: '72vh', minHeight: '520px', boxShadow: '0 8px 24px rgba(0,0,0,0.5)' }}>
-                
-                {/* Chat Header */}
                 <div style={{ backgroundColor: '#0f172a', padding: '0.75rem 1rem', borderBottom: '1px solid #1e293b', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 10 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     <button
@@ -1817,7 +1799,6 @@ function ProfilePortalContent() {
                   </Link>
                 </div>
 
-                {/* Message Bubble Feed */}
                 <div style={{ flex: 1, padding: '1rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
                   {chatMessages.length === 0 ? (
                     <div style={{ textAlign: 'center', margin: 'auto', color: '#64748b', fontSize: '0.82rem' }}>
@@ -1833,8 +1814,6 @@ function ProfilePortalContent() {
 
                       return (
                         <div key={msg.id} style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start', position: 'relative' }}>
-                          
-                          {/* FACEBOOK FLOATING EMOJI BAR (Press & Hold or Click trigger) */}
                           {isReactionOpen && !msg.is_deleted && (
                             <div 
                               style={{
@@ -1870,7 +1849,6 @@ function ProfilePortalContent() {
                           )}
 
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', maxWidth: '82%', flexDirection: isMe ? 'row-reverse' : 'row' }}>
-                            {/* Message Bubble */}
                             <div 
                               onTouchStart={() => handleTouchStart(msg.id)}
                               onTouchEnd={handleTouchEnd}
@@ -1890,7 +1868,6 @@ function ProfilePortalContent() {
                                 cursor: 'pointer'
                               }}
                             >
-                              {/* Inline Editing Form */}
                               {isEditing ? (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', minWidth: '180px' }}>
                                   <input
@@ -1907,7 +1884,6 @@ function ProfilePortalContent() {
                                 </div>
                               ) : (
                                 <>
-                                  {/* Attached Image */}
                                   {msg.attachment_url && msg.attachment_type === 'image' && (
                                     <div 
                                       onClick={() => setPreviewModalImg(msg.attachment_url)} 
@@ -1917,7 +1893,6 @@ function ProfilePortalContent() {
                                     </div>
                                   )}
 
-                                  {/* Attached Document */}
                                   {msg.attachment_url && msg.attachment_type === 'document' && (
                                     <a 
                                       href={msg.attachment_url} 
@@ -1932,7 +1907,6 @@ function ProfilePortalContent() {
                                     </a>
                                   )}
 
-                                  {/* Text Message */}
                                   <div>{msg.message}</div>
 
                                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.35rem', marginTop: '0.3rem' }}>
@@ -1947,7 +1921,6 @@ function ProfilePortalContent() {
                               )}
                             </div>
 
-                            {/* Message Context Options Trigger */}
                             {!msg.is_deleted && (
                               <button
                                 type="button"
@@ -1960,7 +1933,6 @@ function ProfilePortalContent() {
                             )}
                           </div>
 
-                          {/* Action Popover Menu (Edit, Delete, React) */}
                           {isMenuOpen && (
                             <div style={{
                               position: 'absolute',
@@ -2015,7 +1987,6 @@ function ProfilePortalContent() {
                             </div>
                           )}
 
-                          {/* Display Reactions pill on Bubble Corner */}
                           {hasReactions && !msg.is_deleted && (
                             <div style={{
                               display: 'flex',
@@ -2049,7 +2020,6 @@ function ProfilePortalContent() {
                   <div ref={messagesEndRef} />
                 </div>
 
-                {/* Attachment Selection Preview Bar */}
                 {selectedAttachment && (
                   <div style={{ backgroundColor: '#131e33', padding: '0.5rem 0.9rem', borderTop: '1px solid #1e293b', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', overflow: 'hidden' }}>
@@ -2076,14 +2046,10 @@ function ProfilePortalContent() {
                   </div>
                 )}
 
-                {/* Chat Input Bar (Facebook Messenger Style) */}
                 <form onSubmit={handleSendMessage} style={{ padding: '0.65rem 0.85rem', backgroundColor: '#0f172a', borderTop: '1px solid #1e293b', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  
-                  {/* Hidden Inputs */}
                   <input type="file" ref={fileInputRef} accept="image/*" onChange={(e) => handleSelectAttachment(e, 'image')} style={{ display: 'none' }} />
                   <input type="file" ref={docInputRef} accept=".pdf,.doc,.docx,.zip,.txt" onChange={(e) => handleSelectAttachment(e, 'document')} style={{ display: 'none' }} />
 
-                  {/* Photo File Input */}
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
@@ -2093,7 +2059,6 @@ function ProfilePortalContent() {
                     🖼️
                   </button>
 
-                  {/* Document File Input */}
                   <button
                     type="button"
                     onClick={() => docInputRef.current?.click()}
@@ -2111,7 +2076,6 @@ function ProfilePortalContent() {
                     style={{ flex: 1, backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '24px', padding: '0.6rem 1rem', color: '#fff', fontSize: '0.84rem', outline: 'none' }}
                   />
 
-                  {/* Send Arrow or Quick Facebook Thumb 👍 */}
                   {newMessageText.trim() || selectedAttachment ? (
                     <button
                       type="submit"
@@ -2145,7 +2109,6 @@ function ProfilePortalContent() {
                 </form>
               </div>
             ) : (
-              /* CONVERSATION LIST & SEARCH */
               <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
                 <div style={{ position: 'relative' }}>
                   <input
@@ -2259,14 +2222,20 @@ function ProfilePortalContent() {
           </div>
         )}
 
-        {/* TAB 6: ATS RESUME BUILDER (SHANORA PRO & FREE TEMPLATES) */}
+        {/* TAB 6: ATS RESUME BUILDER & TEMPLATES STUDIO */}
         {activeTab === 'resume' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', padding: '1rem 0' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', padding: '0.5rem 0' }}>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0f172a', padding: '0.65rem 0.9rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
+              <span style={{ fontWeight: '800', fontSize: '0.9rem', color: '#facc15' }}>📄 ATS Resume Studio</span>
+              <button type="button" onClick={() => navigateToTab('menu')} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer', padding: 0 }}>✕</button>
+            </div>
+
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
               <div>
-                <h2 style={{ fontSize: '1.2rem', fontWeight: '800', color: '#fff', margin: 0 }}>ATS Resume Studio 📄</h2>
-                <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: '0.2rem 0 0 0' }}>
-                  Choose from free templates or preview our elite PRO executive designs.
+                <h2 style={{ fontSize: '1.1rem', fontWeight: '800', color: '#fff', margin: 0 }}>Choose Layout & Templates</h2>
+                <p style={{ fontSize: '0.76rem', color: '#94a3b8', margin: '0.2rem 0 0 0' }}>
+                  Select from free templates or preview our elite PRO executive designs.
                 </p>
               </div>
               <button
@@ -2278,9 +2247,9 @@ function ProfilePortalContent() {
               </button>
             </div>
 
-            {/* 12+ Templates Grid (Free vs Pro Preview Only) */}
+            {/* 12 Templates Grid with Working Click Handlers */}
             <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.2rem' }}>
-              <h3 style={{ fontSize: '0.9rem', fontWeight: '700', color: '#fff', marginBottom: '0.8rem' }}>
+              <h3 style={{ fontSize: '0.85rem', fontWeight: '700', color: '#fff', marginBottom: '0.8rem' }}>
                 Select or Preview Templates (12 Professional Layouts)
               </h3>
 
@@ -2301,6 +2270,7 @@ function ProfilePortalContent() {
                 ].map((tmpl) => {
                   const isPro = tmpl.type === 'Pro';
                   const isLocked = isPro && !profile.is_pro;
+                  const isSelected = selectedTemplate === tmpl.id;
 
                   return (
                     <div
@@ -2314,8 +2284,8 @@ function ProfilePortalContent() {
                         }
                       }}
                       style={{
-                        backgroundColor: '#070b14',
-                        border: isLocked ? '1px dashed #7c3aed' : '1px solid #334155',
+                        backgroundColor: isSelected ? '#1e293b' : '#070b14',
+                        border: isSelected ? '2px solid #38bdf8' : isLocked ? '1px dashed #7c3aed' : '1px solid #334155',
                         borderRadius: '12px',
                         padding: '0.85rem',
                         cursor: 'pointer',
@@ -2343,7 +2313,7 @@ function ProfilePortalContent() {
                       </div>
 
                       <h4 style={{ fontSize: '0.82rem', fontWeight: '700', color: '#fff', margin: '0 0 0.2rem 0' }}>
-                        {tmpl.name}
+                        {tmpl.name} {isSelected && '✓'}
                       </h4>
                       <p style={{ fontSize: '0.7rem', color: '#94a3b8', margin: 0, lineHeight: '1.3' }}>
                         {tmpl.desc}
@@ -2365,16 +2335,16 @@ function ProfilePortalContent() {
               <div style={{ borderBottom: '2px solid #0284c7', paddingBottom: '1rem', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                   <h1 style={{ fontSize: '1.8rem', fontWeight: '900', color: '#0f172a', margin: '0 0 0.3rem 0' }}>
-                    {profile.full_name || 'Your Full Name'}
+                    {profile.full_name || 'Amanullah Mahtam'}
                   </h1>
                   <p style={{ fontSize: '1rem', fontWeight: '700', color: '#0284c7', margin: 0 }}>
-                    {profile.headline || 'Senior Professional & Specialist'}
+                    {profile.headline || 'Office Assistant & IT Technical Support Professional'}
                   </p>
                 </div>
                 <div style={{ textAlign: 'right', fontSize: '0.8rem', color: '#475569', lineHeight: '1.4' }}>
-                  <p style={{ margin: 0 }}>{profile.email}</p>
-                  <p style={{ margin: 0 }}>{profile.phone || '+92 300 0000000'}</p>
-                  <p style={{ margin: 0 }}>{profile.city || 'Pakistan'}</p>
+                  <p style={{ margin: 0 }}>{profile.email || 'amanullahmahtam7@gmail.com'}</p>
+                  <p style={{ margin: 0 }}>{profile.phone || '+92 303 3639664'}</p>
+                  <p style={{ margin: 0 }}>{profile.city || 'Saddar, Karachi, Sindh'}</p>
                 </div>
               </div>
 
@@ -2382,26 +2352,24 @@ function ProfilePortalContent() {
                 <h3 style={{ fontSize: '0.9rem', fontWeight: '800', color: '#0f172a', textTransform: 'uppercase', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.3rem', marginBottom: '0.4rem' }}>
                   Professional Experience
                 </h3>
-                <textarea
-                  rows={4}
-                  value={resumeData.experience}
-                  onChange={(e) => setResumeData(prev => ({ ...prev, experience: e.target.value }))}
-                  style={{ width: '100%', border: '1px solid transparent', backgroundColor: 'transparent', color: '#334155', fontSize: '0.82rem', fontFamily: 'inherit', resize: 'vertical' }}
-                />
+                <p style={{ fontSize: '0.82rem', color: '#334155', margin: '0.3rem 0', fontWeight: 'bold' }}>
+                  Office Assistant & IT Technical Support — Shah Latif Model Secondary School Thikratho (2019 – Present)
+                </p>
+                <p style={{ fontSize: '0.8rem', color: '#475569', margin: 0, lineHeight: '1.5' }}>
+                  Managing administrative records, hardware/software troubleshooting, MS Office, basic networking setup, and digital productivity tools.
+                </p>
               </div>
 
               <div>
                 <h3 style={{ fontSize: '0.9rem', fontWeight: '800', color: '#0f172a', textTransform: 'uppercase', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.3rem', marginBottom: '0.4rem' }}>
                   Education & Credentials
                 </h3>
-                <textarea
-                  rows={2}
-                  value={resumeData.education}
-                  onChange={(e) => setResumeData(prev => ({ ...prev, education: e.target.value }))}
-                  style={{ width: '100%', border: '1px solid transparent', backgroundColor: 'transparent', color: '#334155', fontSize: '0.82rem', fontFamily: 'inherit', resize: 'vertical' }}
-                />
+                <p style={{ fontSize: '0.82rem', color: '#334155', margin: 0 }}>
+                  <b>Bachelor of Science (B.Sc.)</b> — Shah Abdul Latif University, Khairpur | <b>Diploma in IT (DIT)</b> | Google AI Certified
+                </p>
               </div>
             </div>
+
           </div>
         )}
 
@@ -2666,7 +2634,7 @@ function ProfilePortalContent() {
           </div>
         )}
 
-        {/* TAB 9: SETTINGS (VERTICAL ACCORDION STYLE) */}
+        {/* TAB 9: SETTINGS */}
         {activeTab === 'settings' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0f172a', padding: '0.65rem 0.9rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
@@ -2675,7 +2643,6 @@ function ProfilePortalContent() {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-              {/* Account Security Hub Link */}
               <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', overflow: 'hidden' }}>
                 <div
                   onClick={() => router.push('/settings/security')}
@@ -2692,7 +2659,6 @@ function ProfilePortalContent() {
                 </div>
               </div>
 
-              {/* Quick Password Change Accordion */}
               <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', overflow: 'hidden' }}>
                 <div
                   onClick={() => setSettingsActiveSubTab(settingsActiveSubTab === 'account' ? null : 'account')}
@@ -2741,7 +2707,6 @@ function ProfilePortalContent() {
                 )}
               </div>
 
-              {/* Privacy & Visibility */}
               <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', overflow: 'hidden' }}>
                 <div
                   onClick={() => setSettingsActiveSubTab(settingsActiveSubTab === 'privacy' ? null : 'privacy')}
@@ -2786,131 +2751,11 @@ function ProfilePortalContent() {
                   </div>
                 )}
               </div>
-
-              {/* Notifications */}
-              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', overflow: 'hidden' }}>
-                <div
-                  onClick={() => setSettingsActiveSubTab(settingsActiveSubTab === 'notifications' ? null : 'notifications')}
-                  style={{ padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', backgroundColor: settingsActiveSubTab === 'notifications' ? '#131b2e' : 'transparent' }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <span style={{ fontSize: '1.2rem' }}>🔔</span>
-                    <span style={{ fontSize: '0.9rem', fontWeight: '700', color: '#fff' }}>Notification Alerts</span>
-                  </div>
-                  <span style={{ color: '#38bdf8', fontSize: '0.85rem' }}>{settingsActiveSubTab === 'notifications' ? '▲' : '▼'}</span>
-                </div>
-
-                {settingsActiveSubTab === 'notifications' && (
-                  <div style={{ padding: '1rem', borderTop: '1px solid #1e293b' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <div style={{ color: '#fff', fontSize: '0.82rem', fontWeight: 'bold' }}>Email Alerts</div>
-                        <div style={{ color: '#94a3b8', fontSize: '0.7rem' }}>Receive application alerts & notifications</div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleToggleSetting('email_alerts', profile.email_alerts)}
-                        style={{ backgroundColor: profile.email_alerts ? '#22c55e' : '#334155', color: '#000', border: 'none', padding: '0.35rem 0.8rem', borderRadius: '20px', fontSize: '0.72rem', fontWeight: '900', cursor: 'pointer' }}
-                      >
-                        {profile.email_alerts ? 'ON' : 'OFF'}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Language & Region */}
-              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', overflow: 'hidden' }}>
-                <div
-                  onClick={() => setSettingsActiveSubTab(settingsActiveSubTab === 'language' ? null : 'language')}
-                  style={{ padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', backgroundColor: settingsActiveSubTab === 'language' ? '#131b2e' : 'transparent' }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <span style={{ fontSize: '1.2rem' }}>🌐</span>
-                    <span style={{ fontSize: '0.9rem', fontWeight: '700', color: '#fff' }}>Language & Region</span>
-                  </div>
-                  <span style={{ color: '#38bdf8', fontSize: '0.85rem' }}>{settingsActiveSubTab === 'language' ? '▲' : '▼'}</span>
-                </div>
-
-                {settingsActiveSubTab === 'language' && (
-                  <div style={{ padding: '1rem', borderTop: '1px solid #1e293b', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                    <select
-                      value={profile.app_language}
-                      onChange={(e) => handleSelectSetting('app_language', e.target.value)}
-                      style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem', color: '#fff', fontSize: '0.82rem', outline: 'none' }}
-                    >
-                      <option value="English">English (Default)</option>
-                      <option value="Urdu">Urdu (اردو)</option>
-                    </select>
-                    <span style={{ fontSize: '0.72rem', color: '#64748b' }}>Timezone: Asia/Karachi (PKT - UTC+5)</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Career & Job Status */}
-              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', overflow: 'hidden' }}>
-                <div
-                  onClick={() => setSettingsActiveSubTab(settingsActiveSubTab === 'professional' ? null : 'professional')}
-                  style={{ padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', backgroundColor: settingsActiveSubTab === 'professional' ? '#131b2e' : 'transparent' }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <span style={{ fontSize: '1.2rem' }}>💼</span>
-                    <span style={{ fontSize: '0.9rem', fontWeight: '700', color: '#fff' }}>Career Preferences</span>
-                  </div>
-                  <span style={{ color: '#38bdf8', fontSize: '0.85rem' }}>{settingsActiveSubTab === 'professional' ? '▲' : '▼'}</span>
-                </div>
-
-                {settingsActiveSubTab === 'professional' && (
-                  <div style={{ padding: '1rem', borderTop: '1px solid #1e293b' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <div style={{ color: '#fff', fontSize: '0.82rem', fontWeight: 'bold' }}>"Open to Work" Badge</div>
-                        <div style={{ color: '#94a3b8', fontSize: '0.7rem' }}>Signal recruiters that you are available</div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleToggleSetting('open_to_work', profile.open_to_work)}
-                        style={{ backgroundColor: profile.open_to_work ? '#22c55e' : '#334155', color: '#000', border: 'none', padding: '0.35rem 0.8rem', borderRadius: '20px', fontSize: '0.72rem', fontWeight: '900', cursor: 'pointer' }}
-                      >
-                        {profile.open_to_work ? 'ACTIVE' : 'OFF'}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Help & Support */}
-              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', overflow: 'hidden' }}>
-                <div
-                  onClick={() => setSettingsActiveSubTab(settingsActiveSubTab === 'support' ? null : 'support')}
-                  style={{ padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', backgroundColor: settingsActiveSubTab === 'support' ? '#131b2e' : 'transparent' }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <span style={{ fontSize: '1.2rem' }}>💬</span>
-                    <span style={{ fontSize: '0.9rem', fontWeight: '700', color: '#fff' }}>Help & Support</span>
-                  </div>
-                  <span style={{ color: '#38bdf8', fontSize: '0.85rem' }}>{settingsActiveSubTab === 'support' ? '▲' : '▼'}</span>
-                </div>
-
-                {settingsActiveSubTab === 'support' && (
-                  <div style={{ padding: '1rem', borderTop: '1px solid #1e293b', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                    <div style={{ fontSize: '0.78rem', color: '#cbd5e1' }}>Official Email: <strong>support@shanora.pk</strong></div>
-                    <a
-                      href="https://wa.me/923033639664"
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{ backgroundColor: '#22c55e', color: '#000', padding: '0.5rem', textAlign: 'center', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 'bold', textDecoration: 'none' }}
-                    >
-                      Chat on WhatsApp
-                    </a>
-                  </div>
-                )}
-              </div>
             </div>
           </div>
         )}
 
-        {/* TAB 10: NETWORK / FOLLOWERS (WITH FOLLOW + MESSAGE ACTION BUTTONS & EXECUTIVE PRO BADGE) */}
+        {/* TAB 10: NETWORK / FOLLOWERS */}
         {activeTab === 'network' && (
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0f172a', padding: '0.65rem 0.9rem', borderRadius: '12px', border: '1px solid #1e293b', marginBottom: '0.8rem' }}>
@@ -2958,7 +2803,6 @@ function ProfilePortalContent() {
               </button>
             </div>
 
-            {/* SubTab: Followers */}
             {networkSubTab === 'followers' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 {followersList.length === 0 ? (
@@ -3070,7 +2914,6 @@ function ProfilePortalContent() {
               </div>
             )}
 
-            {/* SubTab: Following */}
             {networkSubTab === 'following' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 {followingList.length === 0 ? (
@@ -3181,135 +3024,10 @@ function ProfilePortalContent() {
                 )}
               </div>
             )}
-
-            {/* Discover People Section with Message + Follow */}
-            <div style={{ marginTop: '2.2rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
-                <span style={{ fontSize: '0.88rem', fontWeight: '800', color: '#fff' }}>
-                  People You May Know
-                </span>
-                <span style={{ fontSize: '0.74rem', color: '#38bdf8', fontWeight: '700' }}>
-                  Discover
-                </span>
-              </div>
-
-              {discoverUsers.length === 0 ? (
-                <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.5rem', textAlign: 'center', color: '#64748b', fontSize: '0.82rem' }}>
-                  No new creators found for recommendation.
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-                  {discoverUsers.map(creator => {
-                    const cleanEmail = (creator.email || '').toLowerCase();
-                    const username = creator.name || creator.full_name || cleanEmail.split('@')[0];
-                    const isFollowing = !!followingMap[cleanEmail];
-
-                    return (
-                      <div key={creator.id || cleanEmail} style={{
-                        backgroundColor: '#0f172a',
-                        border: '1px solid #1e293b',
-                        borderRadius: '12px',
-                        padding: '0.75rem 0.95rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: '0.6rem'
-                      }}>
-                        <Link href={`/view-profile?email=${encodeURIComponent(cleanEmail)}`} style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', textDecoration: 'none', overflow: 'hidden', flex: 1 }}>
-                          <div style={{
-                            width: '46px',
-                            height: '46px',
-                            borderRadius: '50%',
-                            backgroundColor: '#0284c7',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontWeight: 'bold',
-                            color: '#fff',
-                            fontSize: '1.1rem',
-                            overflow: 'hidden',
-                            flexShrink: 0
-                          }}>
-                            {creator.avatar_url ? (
-                              <img src={creator.avatar_url} alt={username} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                            ) : (
-                              username.charAt(0).toUpperCase()
-                            )}
-                          </div>
-                          <div style={{ overflow: 'hidden' }}>
-                            <div style={{ color: '#fff', fontWeight: '700', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.3rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                              <span>{username}</span>
-                              {creator.is_pro && <ProVerifiedBadge size={16} />}
-                            </div>
-                            <div style={{ color: '#64748b', fontSize: '0.73rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                              {creator.headline || cleanEmail}
-                            </div>
-                          </div>
-                        </Link>
-
-                        <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0 }}>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setActiveChatUser({
-                                email: cleanEmail,
-                                full_name: username,
-                                avatar_url: creator.avatar_url,
-                                last_seen: creator.last_seen,
-                                is_pro: creator.is_pro
-                              });
-                              setActiveTab('messages');
-                            }}
-                            style={{
-                              backgroundColor: '#1e293b',
-                              border: '1px solid #0284c7',
-                              color: '#38bdf8',
-                              padding: '0.45rem 0.75rem',
-                              borderRadius: '8px',
-                              fontSize: '0.76rem',
-                              fontWeight: '700',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.25rem'
-                            }}
-                          >
-                            <span>💬</span>
-                            <span>Message</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => handleToggleFollow(cleanEmail)}
-                            disabled={actionLoading[cleanEmail]}
-                            style={{
-                              backgroundColor: isFollowing ? '#1e293b' : '#0284c7',
-                              color: isFollowing ? '#94a3b8' : '#fff',
-                              border: isFollowing ? '1px solid #334155' : 'none',
-                              padding: '0.45rem 0.95rem',
-                              borderRadius: '8px',
-                              fontSize: '0.76rem',
-                              fontWeight: '700',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.3rem'
-                            }}
-                          >
-                            {isFollowing ? 'Following' : '+ Follow'}
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
           </div>
         )}
       </main>
 
-      {/* Full-view Modal for Chat Images */}
       {previewModalImg && (
         <div 
           onClick={() => setPreviewModalImg(null)}
@@ -3319,7 +3037,6 @@ function ProfilePortalContent() {
         </div>
       )}
 
-      {/* 1. INVITE FRIENDS & REFERRAL REWARDS MODAL */}
       {showInviteModal && (
         <div 
           onClick={() => setShowInviteModal(false)}
@@ -3336,7 +3053,6 @@ function ProfilePortalContent() {
               <button type="button" onClick={() => setShowInviteModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.25rem', cursor: 'pointer', padding: '0.2rem' }}>✕</button>
             </div>
 
-            {/* Unique Referral Link Card */}
             <div style={{ backgroundColor: '#1e293b', padding: '0.85rem', borderRadius: '12px', marginTop: '0.9rem', border: '1px solid #334155' }}>
               <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '0.35rem', fontWeight: 'bold' }}>Your Unique Referral Link:</div>
               <div style={{ display: 'flex', gap: '0.45rem', alignItems: 'center' }}>
@@ -3356,32 +3072,18 @@ function ProfilePortalContent() {
               </div>
             </div>
 
-            {/* Social Share Grid */}
             <div style={{ marginTop: '0.9rem' }}>
               <div style={{ fontSize: '0.78rem', fontWeight: '700', color: '#cbd5e1', marginBottom: '0.5rem' }}>Share Directly Via:</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '0.45rem' }}>
-                <button type="button" onClick={() => handleShare('whatsapp')} style={{ backgroundColor: '#15803d', border: 'none', borderRadius: '8px', padding: '0.55rem 0.2rem', color: '#fff', fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  🟢 WhatsApp
-                </button>
-                <button type="button" onClick={() => handleShare('facebook')} style={{ backgroundColor: '#1d4ed8', border: 'none', borderRadius: '8px', padding: '0.55rem 0.2rem', color: '#fff', fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  🔵 Facebook
-                </button>
-                <button type="button" onClick={() => handleShare('messenger')} style={{ backgroundColor: '#0369a1', border: 'none', borderRadius: '8px', padding: '0.55rem 0.2rem', color: '#fff', fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  💬 Messenger
-                </button>
-                <button type="button" onClick={() => handleShare('email')} style={{ backgroundColor: '#475569', border: 'none', borderRadius: '8px', padding: '0.55rem 0.2rem', color: '#fff', fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  ✉️ Email
-                </button>
-                <button type="button" onClick={() => handleShare('sms')} style={{ backgroundColor: '#334155', border: 'none', borderRadius: '8px', padding: '0.55rem 0.2rem', color: '#fff', fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  📱 SMS
-                </button>
-                <button type="button" onClick={() => handleShare('native')} style={{ backgroundColor: '#0284c7', border: 'none', borderRadius: '8px', padding: '0.55rem 0.2rem', color: '#fff', fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  📲 Share
-                </button>
+                <button type="button" onClick={() => handleShare('whatsapp')} style={{ backgroundColor: '#15803d', border: 'none', borderRadius: '8px', padding: '0.55rem 0.2rem', color: '#fff', fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer' }}>🟢 WhatsApp</button>
+                <button type="button" onClick={() => handleShare('facebook')} style={{ backgroundColor: '#1d4ed8', border: 'none', borderRadius: '8px', padding: '0.55rem 0.2rem', color: '#fff', fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer' }}>🔵 Facebook</button>
+                <button type="button" onClick={() => handleShare('messenger')} style={{ backgroundColor: '#0369a1', border: 'none', borderRadius: '8px', padding: '0.55rem 0.2rem', color: '#fff', fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer' }}>💬 Messenger</button>
+                <button type="button" onClick={() => handleShare('email')} style={{ backgroundColor: '#475569', border: 'none', borderRadius: '8px', padding: '0.55rem 0.2rem', color: '#fff', fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer' }}>✉️ Email</button>
+                <button type="button" onClick={() => handleShare('sms')} style={{ backgroundColor: '#334155', border: 'none', borderRadius: '8px', padding: '0.55rem 0.2rem', color: '#fff', fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer' }}>📱 SMS</button>
+                <button type="button" onClick={() => handleShare('native')} style={{ backgroundColor: '#0284c7', border: 'none', borderRadius: '8px', padding: '0.55rem 0.2rem', color: '#fff', fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer' }}>📲 Share</button>
               </div>
             </div>
 
-            {/* LIVE REFERRAL STATS & PROGRESS TRACKER */}
             <div style={{ backgroundColor: '#131e33', border: '1px solid #0284c7', borderRadius: '12px', padding: '0.85rem', marginTop: '1rem', marginBottom: '1rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '0.78rem', fontWeight: '700', color: '#94a3b8' }}>Total Genuine Invites:</span>
@@ -3395,13 +3097,8 @@ function ProfilePortalContent() {
                   transition: 'width 0.4s ease'
                 }} />
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.68rem', color: '#94a3b8' }}>
-                <span>Milestone Progress</span>
-                <span style={{ color: '#4ade80', fontWeight: 'bold' }}>{referralCount >= 100 ? '🌟 Max Ambassador Reached!' : `${Math.max(0, 10 - referralCount)} more for 1 Month PRO`}</span>
-              </div>
             </div>
 
-            {/* DYNAMIC REWARD MILESTONES WITH CRITERIA CLAIM BUTTON */}
             <div>
               <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#38bdf8', marginBottom: '0.65rem' }}>
                 🏆 Referral Achievements & Rewards
@@ -3426,8 +3123,8 @@ function ProfilePortalContent() {
                       }}
                     >
                       <div style={{ minWidth: 0, flex: 1 }}>
-                        <div style={{ fontSize: '0.8rem', fontWeight: '700', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tier.goal}</div>
-                        <div style={{ fontSize: '0.72rem', color: tier.color, fontWeight: '700', marginTop: '0.1rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tier.reward}</div>
+                        <div style={{ fontSize: '0.8rem', fontWeight: '700', color: '#fff' }}>{tier.goal}</div>
+                        <div style={{ fontSize: '0.72rem', color: tier.color, fontWeight: '700', marginTop: '0.1rem' }}>{tier.reward}</div>
                       </div>
 
                       <div style={{ flexShrink: 0 }}>
@@ -3444,8 +3141,7 @@ function ProfilePortalContent() {
                               borderRadius: '20px',
                               fontSize: '0.72rem',
                               fontWeight: '900',
-                              cursor: 'pointer',
-                              boxShadow: '0 0 10px rgba(34, 197, 94, 0.45)'
+                              cursor: 'pointer'
                             }}
                           >
                             {isClaiming ? 'Applying...' : 'Claim Reward 🎁'}
@@ -3460,13 +3156,11 @@ function ProfilePortalContent() {
                   );
                 })}
               </div>
-              <div style={{ height: '70px', width: '100%', flexShrink: 0 }}></div>
             </div>
           </div>
         </div>
       )}
 
-      {/* 2. FACEBOOK-STYLE STRICT ADS MANAGER */}
       {showAdsModal && (
         <div 
           onClick={() => setShowAdsModal(false)}
@@ -3482,334 +3176,10 @@ function ProfilePortalContent() {
               </div>
               <button type="button" onClick={() => setShowAdsModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.25rem', cursor: 'pointer', padding: '0.2rem' }}>✕</button>
             </div>
-
-            {/* Stepper */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '0.25rem', margin: '0.9rem 0', textAlign: 'center', fontSize: '0.6rem', fontWeight: '800' }}>
-              {[
-                { s: 1, label: 'Page' },
-                { s: 2, label: 'Create Ad' },
-                { s: 3, label: 'Audience' },
-                { s: 4, label: 'Budget' },
-                { s: 5, label: 'Payment' },
-                { s: 6, label: 'Approval' }
-              ].map(st => (
-                <div
-                  key={st.s}
-                  style={{
-                    padding: '0.45rem 0.15rem',
-                    borderRadius: '6px',
-                    backgroundColor: adStep === st.s ? '#0284c7' : '#1e293b',
-                    color: adStep === st.s ? '#fff' : '#94a3b8',
-                    border: adStep === st.s ? '1px solid #38bdf8' : '1px solid #334155'
-                  }}
-                >
-                  {st.label}
-                </div>
-              ))}
-            </div>
-
-            {/* STEP 1 */}
-            {adStep === 1 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-                <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#38bdf8' }}>Step 1: Select Brand / Organization Page</div>
-                <p style={{ margin: 0, fontSize: '0.74rem', color: '#94a3b8', lineHeight: '1.45' }}>
-                  Just like Facebook Ads, all advertisements must run on behalf of a public or business Page on SHANORA.
-                </p>
-
-                {myPages.length === 0 ? (
-                  <div style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '1.2rem', textAlign: 'center' }}>
-                    <div style={{ fontSize: '2rem', marginBottom: '0.4rem' }}>🏢</div>
-                    <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#fff', marginBottom: '0.25rem' }}>No Organization Page Found</div>
-                    <p style={{ fontSize: '0.72rem', color: '#94a3b8', margin: '0 0 0.9rem 0' }}>You need an active Page to run and publish sponsored campaigns.</p>
-                    <Link
-                      href="/create-page"
-                      style={{ display: 'inline-block', backgroundColor: '#0284c7', color: '#fff', padding: '0.55rem 1.2rem', borderRadius: '8px', fontSize: '0.78rem', textDecoration: 'none', fontWeight: '800' }}
-                    >
-                      + Create Your Page First
-                    </Link>
-                  </div>
-                ) : (
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.74rem', color: '#cbd5e1', marginBottom: '0.35rem', fontWeight: 'bold' }}>Choose Page to Promote:</label>
-                    <select
-                      value={adFormData.selectedPageId}
-                      onChange={(e) => {
-                        const sel = myPages.find(p => p.id === e.target.value);
-                        setAdFormData({
-                          ...adFormData,
-                          selectedPageId: e.target.value,
-                          selectedPageSlug: sel?.slug || ''
-                        });
-                      }}
-                      style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem 0.85rem', color: '#fff', fontSize: '0.82rem', outline: 'none' }}
-                    >
-                      {myPages.map(p => (
-                        <option key={p.id} value={p.id}>{p.name} (@{p.slug})</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                <button
-                  type="button"
-                  disabled={!adFormData.selectedPageId || myPages.length === 0}
-                  onClick={() => setAdStep(2)}
-                  style={{
-                    backgroundColor: adFormData.selectedPageId ? '#0284c7' : '#1e293b',
-                    color: adFormData.selectedPageId ? '#fff' : '#64748b',
-                    border: 'none',
-                    padding: '0.65rem',
-                    borderRadius: '8px',
-                    fontWeight: '800',
-                    fontSize: '0.82rem',
-                    cursor: adFormData.selectedPageId ? 'pointer' : 'not-allowed',
-                    marginTop: '0.4rem'
-                  }}
-                >
-                  Continue to Ad Creative →
-                </button>
-              </div>
-            )}
-
-            {/* STEP 2 */}
-            {adStep === 2 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#38bdf8' }}>Step 2: Design Campaign Ad</div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.72rem', color: '#cbd5e1', marginBottom: '0.25rem', fontWeight: 'bold' }}>Ad Headline *</label>
-                  <input
-                    type="text"
-                    placeholder="Catchy headline (min 6 characters)"
-                    value={adFormData.headline}
-                    onChange={(e) => setAdFormData({ ...adFormData, headline: e.target.value })}
-                    style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem 0.85rem', color: '#fff', fontSize: '0.82rem', outline: 'none' }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.72rem', color: '#cbd5e1', marginBottom: '0.25rem', fontWeight: 'bold' }}>Ad Primary Copy / Caption *</label>
-                  <textarea
-                    rows={3}
-                    placeholder="Describe your promotion, career opening, or product..."
-                    value={adFormData.adText}
-                    onChange={(e) => setAdFormData({ ...adFormData, adText: e.target.value })}
-                    style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem 0.85rem', color: '#fff', fontSize: '0.82rem', outline: 'none', resize: 'vertical' }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.72rem', color: '#cbd5e1', marginBottom: '0.25rem', fontWeight: 'bold' }}>Destination CTA URL *</label>
-                  <input
-                    type="url"
-                    placeholder="https://example.com or WhatsApp link"
-                    value={adFormData.targetUrl}
-                    onChange={(e) => setAdFormData({ ...adFormData, targetUrl: e.target.value })}
-                    style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem 0.85rem', color: '#fff', fontSize: '0.82rem', outline: 'none' }}
-                  />
-                </div>
-
-                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.4rem' }}>
-                  <button type="button" onClick={() => setAdStep(1)} style={{ flex: 1, backgroundColor: '#1e293b', border: '1px solid #334155', color: '#94a3b8', padding: '0.6rem', borderRadius: '8px', fontWeight: '700', fontSize: '0.82rem', cursor: 'pointer' }}>Back</button>
-                  <button
-                    type="button"
-                    disabled={!adFormData.headline.trim() || !adFormData.adText.trim() || !adFormData.targetUrl.trim()}
-                    onClick={() => setAdStep(3)}
-                    style={{
-                      flex: 2,
-                      backgroundColor: (adFormData.headline.trim() && adFormData.adText.trim() && adFormData.targetUrl.trim()) ? '#0284c7' : '#1e293b',
-                      color: (adFormData.headline.trim() && adFormData.adText.trim() && adFormData.targetUrl.trim()) ? '#fff' : '#64748b',
-                      border: 'none',
-                      padding: '0.6rem',
-                      borderRadius: '8px',
-                      fontWeight: '800',
-                      fontSize: '0.82rem',
-                      cursor: (adFormData.headline.trim() && adFormData.adText.trim() && adFormData.targetUrl.trim()) ? 'pointer' : 'not-allowed'
-                    }}
-                  >
-                    Set Audience Target →
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* STEP 3 */}
-            {adStep === 3 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#38bdf8' }}>Step 3: Audience & Targeting</div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.72rem', color: '#cbd5e1', marginBottom: '0.25rem', fontWeight: 'bold' }}>Target Location / City</label>
-                  <select
-                    value={adFormData.targetCity}
-                    onChange={(e) => setAdFormData({ ...adFormData, targetCity: e.target.value })}
-                    style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem 0.85rem', color: '#fff', fontSize: '0.82rem', outline: 'none' }}
-                  >
-                    <option value="All Pakistan">All Pakistan (National Reach)</option>
-                    <option value="Karachi">Karachi</option>
-                    <option value="Lahore">Lahore</option>
-                    <option value="Islamabad / Rawalpindi">Islamabad / Rawalpindi</option>
-                    <option value="Faisalabad">Faisalabad</option>
-                    <option value="Multan">Multan</option>
-                    <option value="Peshawar">Peshawar</option>
-                    <option value="Quetta">Quetta</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.72rem', color: '#cbd5e1', marginBottom: '0.25rem', fontWeight: 'bold' }}>Campaign Objective</label>
-                  <select
-                    value={adFormData.targetObjective}
-                    onChange={(e) => setAdFormData({ ...adFormData, targetObjective: e.target.value })}
-                    style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem 0.85rem', color: '#fff', fontSize: '0.82rem', outline: 'none' }}
-                  >
-                    <option value="traffic">Drive Website Traffic / External Clicks</option>
-                    <option value="followers">Grow Page Followers & Reach</option>
-                    <option value="messages">Get Inquiries & Direct Messages</option>
-                  </select>
-                </div>
-
-                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.4rem' }}>
-                  <button type="button" onClick={() => setAdStep(2)} style={{ flex: 1, backgroundColor: '#1e293b', border: '1px solid #334155', color: '#94a3b8', padding: '0.6rem', borderRadius: '8px', fontWeight: '700', fontSize: '0.82rem', cursor: 'pointer' }}>Back</button>
-                  <button type="button" onClick={() => setAdStep(4)} style={{ flex: 2, backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.6rem', borderRadius: '8px', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}>
-                    Select Budget →
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* STEP 4 */}
-            {adStep === 4 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#38bdf8' }}>Step 4: Campaign Budget & Estimated Views</div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.45rem' }}>
-                  {[
-                    { b: '1500', reach: '5,000+ Views', name: 'Starter' },
-                    { b: '3500', reach: '15,000+ Views', name: 'Growth' },
-                    { b: '7000', reach: '40,000+ Views', name: 'Pro Scaler' }
-                  ].map(pkg => (
-                    <div
-                      key={pkg.b}
-                      onClick={() => setAdFormData({ ...adFormData, budget: pkg.b })}
-                      style={{
-                        backgroundColor: adFormData.budget === pkg.b ? '#13233e' : '#1e293b',
-                        border: adFormData.budget === pkg.b ? '1px solid #0284c7' : '1px solid #334155',
-                        borderRadius: '10px',
-                        padding: '0.75rem 0.4rem',
-                        textAlign: 'center',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{pkg.name}</div>
-                      <div style={{ fontSize: '1rem', fontWeight: '900', color: '#facc15', margin: '0.2rem 0' }}>Rs. {pkg.b}</div>
-                      <div style={{ fontSize: '0.65rem', color: '#4ade80', fontWeight: 'bold' }}>{pkg.reach}</div>
-                    </div>
-                  ))}
-                </div>
-
-                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.4rem' }}>
-                  <button type="button" onClick={() => setAdStep(3)} style={{ flex: 1, backgroundColor: '#1e293b', border: '1px solid #334155', color: '#94a3b8', padding: '0.6rem', borderRadius: '8px', fontWeight: '700', fontSize: '0.82rem', cursor: 'pointer' }}>Back</button>
-                  <button type="button" onClick={() => setAdStep(5)} style={{ flex: 2, backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.6rem', borderRadius: '8px', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}>
-                    Proceed to Payment →
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* STEP 5 */}
-            {adStep === 5 && (
-              <form onSubmit={handleCreateAd} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#38bdf8' }}>Step 5: Billing & TID Submission</div>
-
-                <div style={{ backgroundColor: '#1e293b', padding: '0.75rem', borderRadius: '8px', fontSize: '0.76rem', color: '#cbd5e1', lineHeight: '1.45' }}>
-                  Pay <strong>Rs. {adFormData.budget}</strong> to verify this campaign:<br />
-                  EasyPaisa / JazzCash: <code>03033639664</code> (Title: <strong>Amanullah</strong>)
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '0.5rem' }}>
-                  <select
-                    value={adFormData.paymentMethod}
-                    onChange={(e) => setAdFormData({ ...adFormData, paymentMethod: e.target.value })}
-                    style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem', color: '#fff', fontSize: '0.8rem', outline: 'none' }}
-                  >
-                    <option value="EasyPaisa">EasyPaisa</option>
-                    <option value="JazzCash">JazzCash</option>
-                    <option value="Bank">Bank Transfer</option>
-                  </select>
-                  <input
-                    type="text"
-                    placeholder="Enter Transaction ID (TID)"
-                    value={adFormData.trxId}
-                    onChange={(e) => setAdFormData({ ...adFormData, trxId: e.target.value })}
-                    required
-                    style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.8rem', outline: 'none' }}
-                  />
-                </div>
-
-                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.4rem' }}>
-                  <button type="button" onClick={() => setAdStep(4)} style={{ flex: 1, backgroundColor: '#1e293b', border: '1px solid #334155', color: '#94a3b8', padding: '0.6rem', borderRadius: '8px', fontWeight: '700', fontSize: '0.82rem', cursor: 'pointer' }}>Back</button>
-                  <button 
-                    type="submit" 
-                    disabled={adSubmitting || !adFormData.trxId.trim()} 
-                    style={{ 
-                      flex: 2, 
-                      backgroundColor: adFormData.trxId.trim() ? '#22c55e' : '#1e293b', 
-                      color: adFormData.trxId.trim() ? '#000' : '#64748b', 
-                      border: 'none', 
-                      padding: '0.6rem', 
-                      borderRadius: '8px', 
-                      fontWeight: '900', 
-                      fontSize: '0.82rem', 
-                      cursor: adFormData.trxId.trim() ? 'pointer' : 'not-allowed' 
-                    }}
-                  >
-                    {adSubmitting ? 'Submitting...' : 'Submit for Admin Review 🚀'}
-                  </button>
-                </div>
-              </form>
-            )}
-
-            {/* STEP 6 */}
-            {adStep === 6 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', textAlign: 'center', padding: '1rem 0' }}>
-                <div style={{ fontSize: '2.5rem' }}>⏳</div>
-                <div style={{ fontSize: '1rem', fontWeight: '800', color: '#facc15' }}>
-                  Campaign Under Admin Approval
-                </div>
-                <p style={{ fontSize: '0.76rem', color: '#94a3b8', lineHeight: '1.45', margin: 0 }}>
-                  {adSuccessMessage || 'Your ad has been queued. Once our safety and payment verification is finished, it will automatically start circulating across the feed.'}
-                </p>
-
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', marginTop: '0.6rem' }}>
-                  <div style={{ backgroundColor: '#1e293b', padding: '0.65rem', borderRadius: '8px' }}>
-                    <div style={{ fontSize: '0.68rem', color: '#94a3b8' }}>Status</div>
-                    <div style={{ fontSize: '0.82rem', fontWeight: 'bold', color: '#facc15', marginTop: '0.2rem' }}>In Review</div>
-                  </div>
-                  <div style={{ backgroundColor: '#1e293b', padding: '0.65rem', borderRadius: '8px' }}>
-                    <div style={{ fontSize: '0.68rem', color: '#94a3b8' }}>Budget</div>
-                    <div style={{ fontSize: '0.82rem', fontWeight: 'bold', color: '#38bdf8', marginTop: '0.2rem' }}>Rs. {adFormData.budget}</div>
-                  </div>
-                  <div style={{ backgroundColor: '#1e293b', padding: '0.65rem', borderRadius: '8px' }}>
-                    <div style={{ fontSize: '0.68rem', color: '#94a3b8' }}>Page</div>
-                    <div style={{ fontSize: '0.82rem', fontWeight: 'bold', color: '#4ade80', marginTop: '0.2rem' }}>Active</div>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setShowAdsModal(false)}
-                  style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', color: '#fff', padding: '0.6rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: '700', cursor: 'pointer', marginTop: '0.6rem' }}
-                >
-                  Close Ads Manager
-                </button>
-              </div>
-            )}
           </div>
         </div>
       )}
 
-      {/* EDIT PROFILE MODAL */}
       {showEditProfileModal && (
         <div 
           onClick={() => setShowEditProfileModal(false)}
@@ -3926,31 +3296,6 @@ function ProfilePortalContent() {
                 </div>
               </div>
 
-              <div style={{ backgroundColor: 'rgba(30, 41, 59, 0.4)', padding: '0.8rem', borderRadius: '10px', border: '1px solid #334155' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-                  <label style={{ fontSize: '0.74rem', color: '#38bdf8', fontWeight: '700' }}>📎 Attached Resume / CV</label>
-                  {editProfileForm.resume_url && (
-                    <a href={editProfileForm.resume_url} target="_blank" rel="noreferrer" style={{ fontSize: '0.7rem', color: '#4ade80', fontWeight: 'bold', textDecoration: 'none' }}>
-                      Current File ↗
-                    </a>
-                  )}
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                    <input type="file" accept=".pdf,.doc,.docx" onChange={handleResumeUpload} disabled={uploadingResume} style={{ fontSize: '0.74rem', color: '#cbd5e1' }} />
-                    {uploadingResume && <span style={{ fontSize: '0.7rem', color: '#facc15' }}>Uploading...</span>}
-                  </div>
-                  <input
-                    type="url"
-                    placeholder="Or enter public resume URL"
-                    value={editProfileForm.resume_url}
-                    onChange={(e) => setEditProfileForm({ ...editProfileForm, resume_url: e.target.value })}
-                    style={{ width: '100%', backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '6px', padding: '0.45rem 0.65rem', color: '#fff', fontSize: '0.78rem', outline: 'none', boxSizing: 'border-box' }}
-                  />
-                </div>
-              </div>
-
               <div style={{ display: 'flex', gap: '0.6rem', marginTop: '0.6rem' }}>
                 <button
                   type="button"
@@ -3972,7 +3317,6 @@ function ProfilePortalContent() {
         </div>
       )}
 
-      {/* LOGOUT MODAL */}
       {showLogoutModal && (
         <div
           onClick={() => setShowLogoutModal(false)}
@@ -4040,7 +3384,7 @@ function ProfilePortalContent() {
                   cursor: 'pointer'
                 }}
               >
-                Cancel
+                Screenshot Cancel
               </button>
 
               <button
@@ -4065,7 +3409,6 @@ function ProfilePortalContent() {
         </div>
       )}
 
-      {/* Shared Bottom Navigation Component */}
       <BottomNav />
     </div>
   );
