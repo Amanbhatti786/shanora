@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '../../lib/supabaseClient';
 import BottomNav from '../../components/BottomNav';
+import ResumeStudio from '../../components/ResumeStudio';
 
 function sanitizeInput(str) {
   if (typeof str !== 'string') return str;
@@ -2222,157 +2223,14 @@ function ProfilePortalContent() {
           </div>
         )}
 
-        {/* TAB 6: ATS RESUME BUILDER & TEMPLATES STUDIO */}
-        {activeTab === 'resume' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', padding: '0.5rem 0' }}>
-            
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0f172a', padding: '0.65rem 0.9rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
-              <span style={{ fontWeight: '800', fontSize: '0.9rem', color: '#facc15' }}>📄 ATS Resume Studio</span>
-              <button type="button" onClick={() => navigateToTab('menu')} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer', padding: 0 }}>✕</button>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-              <div>
-                <h2 style={{ fontSize: '1.1rem', fontWeight: '800', color: '#fff', margin: 0 }}>Choose Layout & Templates</h2>
-                <p style={{ fontSize: '0.76rem', color: '#94a3b8', margin: '0.2rem 0 0 0' }}>
-                  Select from free templates or preview our elite PRO executive designs.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => window.print()}
-                style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.55rem 1.1rem', borderRadius: '8px', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer', boxShadow: '0 4px 12px rgba(2, 132, 199, 0.4)' }}
-              >
-                🖨️ Download Official PDF
-              </button>
-            </div>
-
-            {/* 12 Templates Grid with Working Click Handlers */}
-            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.2rem' }}>
-              <h3 style={{ fontSize: '0.85rem', fontWeight: '700', color: '#fff', marginBottom: '0.8rem' }}>
-                Select or Preview Templates (12 Professional Layouts)
-              </h3>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.85rem', maxHeight: '350px', overflowY: 'auto', paddingRight: '4px' }}>
-                {[
-                  { id: 'executive-classic', name: '1. Executive Classic', type: 'Free', desc: 'Clean single-column standard ATS format.', badge: 'FREE 🔓', color: '#0f172a' },
-                  { id: 'modern-executive', name: '2. Modern Executive', type: 'Free', desc: 'Contemporary layout with accent highlights.', badge: 'FREE 🔓', color: '#0284c7' },
-                  { id: 'corporate-standard', name: '3. Corporate Standard', type: 'Free', desc: 'Traditional office and admin layout.', badge: 'FREE 🔓', color: '#334155' },
-                  { id: 'minimal-clean', name: '4. Minimal Clean', type: 'Free', desc: 'Distraction-free simple layout.', badge: 'FREE 🔓', color: '#64748b' },
-                  { id: 'international-pro', name: '5. International Elite', type: 'Pro', desc: 'Global multinational executive layout.', badge: 'PRO 🔒', color: '#7c3aed' },
-                  { id: 'tech-specialist', name: '6. Tech Stack Master', type: 'Pro', desc: 'Optimized for software engineers & IT.', badge: 'PRO 🔒', color: '#059669' },
-                  { id: 'creative-director', name: '7. Creative Director', type: 'Pro', desc: 'Stunning grid style for top creators.', badge: 'PRO 🔒', color: '#db2777' },
-                  { id: 'executive-board', name: '8. Boardroom Director', type: 'Pro', desc: 'High-end corporate leadership style.', badge: 'PRO 🔒', color: '#d97706' },
-                  { id: 'startup-founder', name: '9. Startup Venture Lead', type: 'Pro', desc: 'Dynamic metrics & venture format.', badge: 'PRO 🔒', color: '#2563eb' },
-                  { id: 'academic-scholar', name: '10. Academic Scholar', type: 'Pro', desc: 'Structured research & publications layout.', badge: 'PRO 🔒', color: '#4f46e5' },
-                  { id: 'global-enterprise', name: '11. Global Enterprise', type: 'Pro', desc: 'The ultimate multinational format.', badge: 'PRO 🔒', color: '#dc2626' },
-                  { id: 'ultimate-titan', name: '12. Titan Executive Pro', type: 'Pro', desc: 'Elite styling for top-tier professionals.', badge: 'PRO 🌟', color: '#0891b2' }
-                ].map((tmpl) => {
-                  const isPro = tmpl.type === 'Pro';
-                  const isLocked = isPro && !profile.is_pro;
-                  const isSelected = selectedTemplate === tmpl.id;
-
-                  return (
-                    <div
-                      key={tmpl.id}
-                      onClick={() => {
-                        if (isLocked) {
-                          alert('🔒 This is an exclusive SHANORA PRO template. Upgrade to PRO to unlock and use this elite design!');
-                          navigateToTab('pro');
-                        } else {
-                          setSelectedTemplate(tmpl.id);
-                        }
-                      }}
-                      style={{
-                        backgroundColor: isSelected ? '#1e293b' : '#070b14',
-                        border: isSelected ? '2px solid #38bdf8' : isLocked ? '1px dashed #7c3aed' : '1px solid #334155',
-                        borderRadius: '12px',
-                        padding: '0.85rem',
-                        cursor: 'pointer',
-                        position: 'relative',
-                        opacity: isLocked ? 0.85 : 1,
-                        transition: 'all 0.2s ease'
-                      }}
-                    >
-                      <div style={{
-                        position: 'absolute',
-                        top: '10px',
-                        right: '10px',
-                        fontSize: '0.6rem',
-                        fontWeight: '800',
-                        backgroundColor: isPro ? '#7c3aed' : '#0284c7',
-                        color: '#fff',
-                        padding: '2px 6px',
-                        borderRadius: '4px'
-                      }}>
-                        {tmpl.badge}
-                      </div>
-
-                      <div style={{ width: '26px', height: '26px', borderRadius: '6px', backgroundColor: tmpl.color, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem' }}>
-                        📄
-                      </div>
-
-                      <h4 style={{ fontSize: '0.82rem', fontWeight: '700', color: '#fff', margin: '0 0 0.2rem 0' }}>
-                        {tmpl.name} {isSelected && '✓'}
-                      </h4>
-                      <p style={{ fontSize: '0.7rem', color: '#94a3b8', margin: 0, lineHeight: '1.3' }}>
-                        {tmpl.desc}
-                      </p>
-
-                      {isLocked && (
-                        <div style={{ marginTop: '0.5rem', fontSize: '0.65rem', color: '#c084fc', fontWeight: 'bold' }}>
-                          🔒 Preview Only — Upgrade to Edit
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Live CV Preview Box */}
-            <div style={{ backgroundColor: '#ffffff', color: '#0f172a', padding: '2.5rem', borderRadius: '16px', boxShadow: '0 15px 40px rgba(0,0,0,0.5)' }}>
-              <div style={{ borderBottom: '2px solid #0284c7', paddingBottom: '1rem', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                  <h1 style={{ fontSize: '1.8rem', fontWeight: '900', color: '#0f172a', margin: '0 0 0.3rem 0' }}>
-                    {profile.full_name || 'Amanullah Mahtam'}
-                  </h1>
-                  <p style={{ fontSize: '1rem', fontWeight: '700', color: '#0284c7', margin: 0 }}>
-                    {profile.headline || 'Office Assistant & IT Technical Support Professional'}
-                  </p>
-                </div>
-                <div style={{ textAlign: 'right', fontSize: '0.8rem', color: '#475569', lineHeight: '1.4' }}>
-                  <p style={{ margin: 0 }}>{profile.email || 'amanullahmahtam7@gmail.com'}</p>
-                  <p style={{ margin: 0 }}>{profile.phone || '+92 303 3639664'}</p>
-                  <p style={{ margin: 0 }}>{profile.city || 'Saddar, Karachi, Sindh'}</p>
-                </div>
-              </div>
-
-              <div style={{ marginBottom: '1.2rem' }}>
-                <h3 style={{ fontSize: '0.9rem', fontWeight: '800', color: '#0f172a', textTransform: 'uppercase', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.3rem', marginBottom: '0.4rem' }}>
-                  Professional Experience
-                </h3>
-                <p style={{ fontSize: '0.82rem', color: '#334155', margin: '0.3rem 0', fontWeight: 'bold' }}>
-                  Office Assistant & IT Technical Support — Shah Latif Model Secondary School Thikratho (2019 – Present)
-                </p>
-                <p style={{ fontSize: '0.8rem', color: '#475569', margin: 0, lineHeight: '1.5' }}>
-                  Managing administrative records, hardware/software troubleshooting, MS Office, basic networking setup, and digital productivity tools.
-                </p>
-              </div>
-
-              <div>
-                <h3 style={{ fontSize: '0.9rem', fontWeight: '800', color: '#0f172a', textTransform: 'uppercase', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.3rem', marginBottom: '0.4rem' }}>
-                  Education & Credentials
-                </h3>
-                <p style={{ fontSize: '0.82rem', color: '#334155', margin: 0 }}>
-                  <b>Bachelor of Science (B.Sc.)</b> — Shah Abdul Latif University, Khairpur | <b>Diploma in IT (DIT)</b> | Google AI Certified
-                </p>
-              </div>
-            </div>
-
-          </div>
-        )}
-
+       {/* TAB 6: ATS RESUME BUILDER */}
+{activeTab === 'resume' && (
+  <ResumeStudio
+    profile={profile}
+    resumeData={resumeData}
+    navigateToTab={navigateToTab}
+  />
+)}
         {/* TAB 7: MONETIZATION */}
         {activeTab === 'monetization' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
