@@ -1,4 +1,5 @@
 'use client';
+
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { supabase } from '../../lib/supabaseClient';
@@ -7,8 +8,8 @@ export default function AdminPanel() {
   const [jobs, setJobs] = useState([]);
   const [profiles, setProfiles] = useState([]);
   const [proRequests, setProRequests] = useState([]);
+  const [ads, setAds] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('all');
   const [actionLoading, setActionLoading] = useState({});
 
   useEffect(() => {
@@ -17,10 +18,12 @@ export default function AdminPanel() {
         const { data: allJobs } = await supabase.from('jobs').select('*').order('created_at', { ascending: false });
         const { data: allProfiles } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
         const { data: allProRequests } = await supabase.from('pro_requests').select('*').order('created_at', { ascending: false });
+        const { data: allAds } = await supabase.from('advertisements').select('*').order('created_at', { ascending: false });
 
         if (allJobs) setJobs(allJobs);
         if (allProfiles) setProfiles(allProfiles);
         if (allProRequests) setProRequests(allProRequests);
+        if (allAds) setAds(allAds);
       } catch (err) {
         console.error('Error loading admin data:', err);
       } finally {
@@ -64,7 +67,6 @@ export default function AdminPanel() {
 
     setActionLoading(prev => ({ ...prev, [reqItem.id]: true }));
     try {
-      // 1. Update request status to 'approved'
       const { error: reqError } = await supabase
         .from('pro_requests')
         .update({ status: 'approved' })
@@ -72,7 +74,6 @@ export default function AdminPanel() {
 
       if (reqError) throw reqError;
 
-      // 2. Grant Blue Tick & PRO status in profiles table
       const { error: profileError } = await supabase
         .from('profiles')
         .update({ is_pro: true, pro_plan: 'PRO_MONTHLY' })
@@ -80,7 +81,6 @@ export default function AdminPanel() {
 
       if (profileError) throw profileError;
 
-      // 3. Send Notification to User in English
       await supabase
         .from('notifications')
         .insert([{
@@ -122,8 +122,26 @@ export default function AdminPanel() {
     }
   }
 
+  // --- ADS APPROVAL ACTIONS ---
+  async function handleUpdateAdStatus(adId, newStatus) {
+    try {
+      const { error } = await supabase
+        .from('advertisements')
+        .update({ status: newStatus })
+        .eq('id', adId);
+
+      if (error) throw error;
+
+      setAds(prev => prev.map(a => a.id === adId ? { ...a, status: newStatus } : a));
+      alert(`Ad status updated to ${newStatus.toUpperCase()} successfully! ✓`);
+    } catch (err) {
+      alert('Error updating ad status: ' + err.message);
+    }
+  }
+
   const approvedProCount = proRequests.filter(r => r.status === 'approved').length;
   const pendingProCount = proRequests.filter(r => r.status === 'pending').length;
+  const pendingAdsCount = ads.filter(a => a.status === 'pending').length;
 
   if (loading) {
     return (
@@ -140,17 +158,22 @@ export default function AdminPanel() {
       <div style={{ maxWidth: '1000px', margin: '0 auto 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1 style={{ margin: 0, fontSize: '1.4rem' }}>Shanora PK — Master Admin</h1>
-          <p style={{ margin: '0.2rem 0 0', color: '#94a3b8', fontSize: '0.85rem' }}>Manage job authenticity, PRO subscriptions, employers, and candidates.</p>
+          <p style={{ margin: '0.2rem 0 0', color: '#94a3b8', fontSize: '0.85rem' }}>Manage job authenticity, PRO subscriptions, sponsored ads, and candidates.</p>
         </div>
-        <Link href="/profile" style={{ backgroundColor: '#1e293b', color: '#38bdf8', padding: '0.5rem 1rem', borderRadius: '8px', textDecoration: 'none', fontSize: '0.82rem', border: '1px solid #334155' }}>
-          Back to Portal ➔
-        </Link>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <Link href="/ads-manager" style={{ backgroundColor: 'rgba(234, 179, 8, 0.1)', color: '#eab308', padding: '0.5rem 0.8rem', borderRadius: '8px', textDecoration: 'none', fontSize: '0.82rem', border: '1px solid rgba(234, 179, 8, 0.3)' }}>
+            📢 Ads Manager
+          </Link>
+          <Link href="/profile" style={{ backgroundColor: '#1e293b', color: '#38bdf8', padding: '0.5rem 1rem', borderRadius: '8px', textDecoration: 'none', fontSize: '0.82rem', border: '1px solid #334155' }}>
+            Back to Portal ➔
+          </Link>
+        </div>
       </div>
 
       {/* Metrics Overview */}
       <div style={{ maxWidth: '1000px', margin: '0 auto 1.5rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
         <div style={{ backgroundColor: '#0f172a', padding: '1.2rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
-          <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Total Registered Users</span>
+          <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Total Users</span>
           <h2 style={{ margin: '0.3rem 0 0', color: '#38bdf8' }}>{profiles.length}</h2>
         </div>
         <div style={{ backgroundColor: '#0f172a', padding: '1.2rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
@@ -158,8 +181,8 @@ export default function AdminPanel() {
           <h2 style={{ margin: '0.3rem 0 0', color: '#22c55e' }}>{jobs.length}</h2>
         </div>
         <div style={{ backgroundColor: '#0f172a', padding: '1.2rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
-          <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Pending PRO Requests</span>
-          <h2 style={{ margin: '0.3rem 0 0', color: '#facc15' }}>{pendingProCount}</h2>
+          <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Pending Ads</span>
+          <h2 style={{ margin: '0.3rem 0 0', color: '#facc15' }}>{pendingAdsCount}</h2>
         </div>
         <div style={{ backgroundColor: '#0f172a', padding: '1.2rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
           <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>PRO Revenue</span>
@@ -167,7 +190,92 @@ export default function AdminPanel() {
         </div>
       </div>
 
-      {/* SECTION 1: SHANORA PRO REQUESTS MANAGER */}
+      {/* SECTION 1: ADS APPROVAL MANAGER */}
+      <div style={{ maxWidth: '1000px', margin: '0 auto 1.5rem', backgroundColor: '#0f172a', padding: '1.5rem', borderRadius: '14px', border: '1px solid rgba(56, 189, 248, 0.35)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <span>📢</span> Sponsored Ads Approval ({ads.length})
+            </h3>
+            <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>Review and approve user ads to make them live on feed</span>
+          </div>
+        </div>
+
+        {ads.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b', fontSize: '0.85rem' }}>
+            No advertisements submitted yet.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+            {ads.map(ad => (
+              <div 
+                key={ad.id} 
+                style={{ 
+                  backgroundColor: '#131b2e', 
+                  padding: '1rem', 
+                  borderRadius: '10px', 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center', 
+                  flexWrap: 'wrap', 
+                  gap: '0.8rem',
+                  border: ad.status === 'pending' ? '1px solid rgba(250, 204, 21, 0.4)' : '1px solid #1e293b'
+                }}
+              >
+                <div style={{ display: 'flex', gap: '0.9rem', alignItems: 'center' }}>
+                  {ad.media_url && (
+                    <img src={ad.media_url} alt="Ad" style={{ width: '50px', height: '50px', borderRadius: '8px', objectFit: 'cover' }} />
+                  )}
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.2rem' }}>
+                      <strong style={{ color: '#fff', fontSize: '0.92rem' }}>{ad.title || ad.headline}</strong>
+                      <span style={{
+                        fontSize: '0.65rem',
+                        fontWeight: '800',
+                        padding: '0.15rem 0.45rem',
+                        borderRadius: '4px',
+                        backgroundColor: ad.status === 'approved' ? 'rgba(34, 197, 94, 0.2)' : (ad.status === 'pending' ? 'rgba(250, 204, 21, 0.2)' : 'rgba(239, 68, 68, 0.2)'),
+                        color: ad.status === 'approved' ? '#4ade80' : (ad.status === 'pending' ? '#facc15' : '#ef4444'),
+                        textTransform: 'uppercase'
+                      }}>
+                        {ad.status}
+                      </span>
+                    </div>
+
+                    <div style={{ fontSize: '0.8rem', color: '#94a3b8', display: 'flex', gap: '0.8rem', flexWrap: 'wrap' }}>
+                      <span>CTA: <strong style={{ color: '#cbd5e1' }}>{ad.cta_type}</strong></span>
+                      <span>Target: <strong style={{ color: '#38bdf8' }}>{ad.target_city || 'All Pakistan'}</strong></span>
+                      <span>Budget: <strong style={{ color: '#4ade80' }}>Rs. {ad.budget}</strong></span>
+                      <span>By: {ad.advertiser_email}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  {ad.status !== 'approved' && (
+                    <button
+                      onClick={() => handleUpdateAdStatus(ad.id, 'approved')}
+                      style={{ backgroundColor: '#22c55e', color: '#fff', border: 'none', padding: '0.45rem 0.9rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 'bold' }}
+                    >
+                      Approve ✓
+                    </button>
+                  )}
+                  {ad.status !== 'rejected' && (
+                    <button
+                      onClick={() => handleUpdateAdStatus(ad.id, 'rejected')}
+                      style={{ backgroundColor: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', border: '1px solid #ef4444', padding: '0.45rem 0.8rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 'bold' }}
+                    >
+                      Reject ✕
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* SECTION 2: SHANORA PRO REQUESTS MANAGER */}
       <div style={{ maxWidth: '1000px', margin: '0 auto 1.5rem', backgroundColor: '#0f172a', padding: '1.5rem', borderRadius: '14px', border: '1px solid rgba(250, 204, 21, 0.35)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
           <div>
@@ -231,32 +339,14 @@ export default function AdminPanel() {
                       <button
                         onClick={() => handleApprovePro(reqItem)}
                         disabled={actionLoading[reqItem.id]}
-                        style={{
-                          backgroundColor: '#22c55e',
-                          color: '#000',
-                          border: 'none',
-                          padding: '0.45rem 0.9rem',
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          fontSize: '0.78rem',
-                          fontWeight: 'bold'
-                        }}
+                        style={{ backgroundColor: '#22c55e', color: '#000', border: 'none', padding: '0.45rem 0.9rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 'bold' }}
                       >
                         {actionLoading[reqItem.id] ? 'Processing...' : 'Approve & Blue Tick ✓'}
                       </button>
                       <button
                         onClick={() => handleRejectPro(reqItem)}
                         disabled={actionLoading[reqItem.id]}
-                        style={{
-                          backgroundColor: 'rgba(239, 68, 68, 0.2)',
-                          color: '#ef4444',
-                          border: '1px solid #ef4444',
-                          padding: '0.45rem 0.8rem',
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          fontSize: '0.78rem',
-                          fontWeight: 'bold'
-                        }}
+                        style={{ backgroundColor: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', border: '1px solid #ef4444', padding: '0.45rem 0.8rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 'bold' }}
                       >
                         Reject ✕
                       </button>
@@ -273,7 +363,7 @@ export default function AdminPanel() {
         )}
       </div>
 
-      {/* SECTION 2: JOB MODERATION TABLE */}
+      {/* SECTION 3: JOB MODERATION TABLE */}
       <div style={{ maxWidth: '1000px', margin: '0 auto', backgroundColor: '#0f172a', padding: '1.5rem', borderRadius: '14px', border: '1px solid #1e293b' }}>
         <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem' }}>Job Listings Moderation</h3>
         
