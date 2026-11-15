@@ -88,6 +88,7 @@ function FeedContent() {
   const [currentUser, setCurrentUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
   const [feedItems, setFeedItems] = useState([]);
+  const [approvedAds, setApprovedAds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
@@ -311,12 +312,19 @@ function FeedContent() {
           .order('created_at', { ascending: false })
           .limit(15);
 
-        const [profileRes, followsRes, personalPostsRes, pagePostsRes, relaysRes] = await Promise.all([
+        const adsPromise = supabase
+          .from('advertisements')
+          .select('*')
+          .eq('status', 'approved')
+          .order('created_at', { ascending: false });
+
+        const [profileRes, followsRes, personalPostsRes, pagePostsRes, relaysRes, adsRes] = await Promise.all([
           profilePromise,
           followsPromise,
           personalPostsPromise,
           pagePostsPromise,
-          relaysPromise
+          relaysPromise,
+          adsPromise
         ]);
 
         if (user?.email) {
@@ -333,6 +341,10 @@ function FeedContent() {
             });
             setFollowingMap(map);
           }
+        }
+
+        if (adsRes.data) {
+          setApprovedAds(adsRes.data);
         }
 
         const personalPosts = personalPostsRes.data || [];
@@ -1005,124 +1017,131 @@ function FeedContent() {
                             {res.isVerified && <span style={{ color: '#22c55e', fontSize: '0.72rem' }}>✓</span>}
                           </div>
                           <div style={{ color: '#94a3b8', fontSize: '0.68rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{res.subtitle}</div>
-                        </div>
+                      </div>
                       </Link>
                     ))
                   )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Messenger Link */}
+        <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+          <Link
+            href="/profile?tab=messages"
+            style={{
+              backgroundColor: '#1e293b',
+              color: '#38bdf8',
+              border: '1px solid #334155',
+              width: '36px',
+              height: '36px',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              textDecoration: 'none',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+              transition: 'all 0.2s ease'
+            }}
+            title="Messages"
+          >
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+            </svg>
+          </Link>
+        </div>
+      </div>
+    </header>
+
+    <main style={{ maxWidth: '640px', margin: '0 auto', padding: '1rem 0.8rem 3rem 0.8rem' }}>
+      {/* Post Creation Box */}
+      {currentUser && (
+        <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1rem', marginBottom: '1.5rem' }}>
+          <form onSubmit={handleCreatePersonalPost}>
+            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', marginBottom: '0.8rem' }}>
+              <Link href={`/view-profile?email=${encodeURIComponent(currentUser.email || '')}`} style={{ textDecoration: 'none' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', fontSize: '1rem', flexShrink: 0, cursor: 'pointer' }}>
+                  {currentUserName.charAt(0).toUpperCase()}
                 </div>
+              </Link>
+              <input
+                type="text"
+                placeholder={`What's on your mind or share your CV, ${currentUserName}?`}
+                value={postText}
+                onChange={(e) => setPostText(e.target.value)}
+                style={{ flex: 1, backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '20px', padding: '0.6rem 1rem', color: '#fff', fontSize: '0.85rem', outline: 'none' }}
+              />
+            </div>
+
+            {photoPreview && (
+              <div style={{ position: 'relative', marginBottom: '0.8rem' }}>
+                <img src={photoPreview} alt="Preview" style={{ width: '100%', maxHeight: '200px', objectFit: 'cover', borderRadius: '8px' }} />
+                <button type="button" onClick={() => { setPostPhoto(null); setPhotoPreview(''); }} style={{ position: 'absolute', top: '5px', right: '5px', background: 'rgba(0,0,0,0.7)', color: '#fff', border: 'none', borderRadius: '50%', width: '24px', height: '24px', cursor: 'pointer' }}>✕</button>
               </div>
             )}
-          </div>
 
-          {/* Unified Messenger Link -> Opens Menu's Working Messenger */}
-          <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
-            <Link
-              href="/profile?tab=messages"
-              style={{
-                backgroundColor: '#1e293b',
-                color: '#38bdf8',
-                border: '1px solid #334155',
-                width: '36px',
-                height: '36px',
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                textDecoration: 'none',
-                boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
-                transition: 'all 0.2s ease'
-              }}
-              title="Messages"
-            >
-              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-              </svg>
-            </Link>
-          </div>
+            {postDoc && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#1e293b', border: '1px solid #38bdf8', borderRadius: '8px', padding: '0.5rem 0.8rem', marginBottom: '0.8rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', overflow: 'hidden' }}>
+                  <span style={{ fontSize: '1.2rem' }}>📄</span>
+                  <span style={{ color: '#fff', fontSize: '0.82rem', fontWeight: '700' }}>{docName}</span>
+                </div>
+                <button type="button" onClick={() => { setPostDoc(null); setDocName(''); }} style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '0.9rem', cursor: 'pointer' }}>✕</button>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #1e293b', paddingTop: '0.7rem' }}>
+              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#22c55e', fontSize: '0.82rem', fontWeight: '700', cursor: 'pointer' }}>
+                  🖼️ Photo
+                  <input type="file" accept="image/*" onChange={handleImageSelect} style={{ display: 'none' }} />
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#38bdf8', fontSize: '0.82rem', fontWeight: '700', cursor: 'pointer' }}>
+                  📄 Document / CV
+                  <input type="file" accept=".pdf,.doc,.docx,.txt" onChange={handleDocumentSelect} style={{ display: 'none' }} />
+                </label>
+              </div>
+
+              <button
+                type="submit"
+                disabled={posting || compressing || (!postText.trim() && !postPhoto && !postDoc)}
+                style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.45rem 1.2rem', borderRadius: '6px', fontSize: '0.82rem', fontWeight: '700', cursor: 'pointer' }}
+              >
+                {posting ? 'Posting...' : 'Post'}
+              </button>
+            </div>
+          </form>
         </div>
-      </header>
+      )}
 
-      <main style={{ maxWidth: '640px', margin: '0 auto', padding: '1rem 0.8rem 3rem 0.8rem' }}>
-        {/* Post Creation Box */}
-        {currentUser && (
-          <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1rem', marginBottom: '1.5rem' }}>
-            <form onSubmit={handleCreatePersonalPost}>
-              <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', marginBottom: '0.8rem' }}>
-                <Link href={`/view-profile?email=${encodeURIComponent(currentUser.email || '')}`} style={{ textDecoration: 'none' }}>
-                  <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', fontSize: '1rem', flexShrink: 0, cursor: 'pointer' }}>
-                    {currentUserName.charAt(0).toUpperCase()}
-                  </div>
-                </Link>
-                <input
-                  type="text"
-                  placeholder={`What's on your mind or share your CV, ${currentUserName}?`}
-                  value={postText}
-                  onChange={(e) => setPostText(e.target.value)}
-                  style={{ flex: 1, backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '20px', padding: '0.6rem 1rem', color: '#fff', fontSize: '0.85rem', outline: 'none' }}
-                />
-              </div>
+      {/* Feed Stream */}
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '3.5rem 1rem', color: '#38bdf8', fontSize: '0.9rem' }}>Loading feed...</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          {feedItems.map((item, index) => {
+            const isLiked = !!likedPosts[item.feedItemId];
+            const likesCount = postLikesCount[item.feedItemId] || 0;
+            const isRelayed = !!relayedPosts[item.feedItemId];
+            const relaysCount = postRelaysCount[item.feedItemId] || 0;
+            const commentsList = postComments[item.feedItemId] || [];
+            const isCommentsOpen = activeCommentPostId === item.feedItemId;
+            const authorEmailClean = (item.authorEmail || '').toLowerCase();
+            const isOwnPost = cleanCurrentUserEmail && authorEmailClean === cleanCurrentUserEmail;
+            const isFollowingAuthor = authorEmailClean ? !!followingMap[authorEmailClean] : false;
+            const isMenuOpen = openMenuPostId === item.feedItemId;
+            const parentComments = commentsList.filter(c => !c.parent_id);
 
-              {photoPreview && (
-                <div style={{ position: 'relative', marginBottom: '0.8rem' }}>
-                  <img src={photoPreview} alt="Preview" style={{ width: '100%', maxHeight: '200px', objectFit: 'cover', borderRadius: '8px' }} />
-                  <button type="button" onClick={() => { setPostPhoto(null); setPhotoPreview(''); }} style={{ position: 'absolute', top: '5px', right: '5px', background: 'rgba(0,0,0,0.7)', color: '#fff', border: 'none', borderRadius: '50%', width: '24px', height: '24px', cursor: 'pointer' }}>✕</button>
-                </div>
-              )}
+            // Calculate if we should insert an approved ad after every 4 posts
+            const adIndex = Math.floor(index / 4);
+            const currentAd = (index > 0 && (index + 1) % 4 === 0 && approvedAds.length > 0) 
+              ? approvedAds[adIndex % approvedAds.length] 
+              : null;
 
-              {postDoc && (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#1e293b', border: '1px solid #38bdf8', borderRadius: '8px', padding: '0.5rem 0.8rem', marginBottom: '0.8rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', overflow: 'hidden' }}>
-                    <span style={{ fontSize: '1.2rem' }}>📄</span>
-                    <span style={{ color: '#fff', fontSize: '0.82rem', fontWeight: '700' }}>{docName}</span>
-                  </div>
-                  <button type="button" onClick={() => { setPostDoc(null); setDocName(''); }} style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '0.9rem', cursor: 'pointer' }}>✕</button>
-                </div>
-              )}
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #1e293b', paddingTop: '0.7rem' }}>
-                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#22c55e', fontSize: '0.82rem', fontWeight: '700', cursor: 'pointer' }}>
-                    🖼️ Photo
-                    <input type="file" accept="image/*" onChange={handleImageSelect} style={{ display: 'none' }} />
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#38bdf8', fontSize: '0.82rem', fontWeight: '700', cursor: 'pointer' }}>
-                    📄 Document / CV
-                    <input type="file" accept=".pdf,.doc,.docx,.txt" onChange={handleDocumentSelect} style={{ display: 'none' }} />
-                  </label>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={posting || compressing || (!postText.trim() && !postPhoto && !postDoc)}
-                  style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.45rem 1.2rem', borderRadius: '6px', fontSize: '0.82rem', fontWeight: '700', cursor: 'pointer' }}
-                >
-                  {posting ? 'Posting...' : 'Post'}
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
-
-        {/* Feed Stream */}
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: '3.5rem 1rem', color: '#38bdf8', fontSize: '0.9rem' }}>Loading feed...</div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {feedItems.map(item => {
-              const isLiked = !!likedPosts[item.feedItemId];
-              const likesCount = postLikesCount[item.feedItemId] || 0;
-              const isRelayed = !!relayedPosts[item.feedItemId];
-              const relaysCount = postRelaysCount[item.feedItemId] || 0;
-              const commentsList = postComments[item.feedItemId] || [];
-              const isCommentsOpen = activeCommentPostId === item.feedItemId;
-              const authorEmailClean = (item.authorEmail || '').toLowerCase();
-              const isOwnPost = cleanCurrentUserEmail && authorEmailClean === cleanCurrentUserEmail;
-              const isFollowingAuthor = authorEmailClean ? !!followingMap[authorEmailClean] : false;
-              const isMenuOpen = openMenuPostId === item.feedItemId;
-              const parentComments = commentsList.filter(c => !c.parent_id);
-
-              return (
-                <div key={item.feedItemId} id={item.feedItemId} style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', position: 'relative' }}>
+            return (
+              <React.Fragment key={item.feedItemId}>
+                <div id={item.feedItemId} style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', position: 'relative' }}>
                   {item.isRelay && (
                     <div style={{ padding: '0.5rem 1rem', backgroundColor: '#1e293b', fontSize: '0.76rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.4rem', borderBottom: '1px solid #334155' }}>
                       <span style={{ color: '#4ade80', fontWeight: 'bold' }}>🔄</span> 
@@ -1265,22 +1284,57 @@ function FeedContent() {
                     </div>
                   )}
                 </div>
-              );
-            })}
-          </div>
-        )}
 
-        <div ref={lastPostElementRef} style={{ height: '50px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '1.5rem' }}>
-          {loadingMore && <div style={{ color: '#38bdf8', fontSize: '0.85rem', fontWeight: '700' }}>Loading more...</div>}
-        </div>
-      </main>
+                {/* Render Sponsored Ad after every 4 posts */}
+                {currentAd && (
+                  <div key={`ad-${currentAd.id}`} style={{ backgroundColor: '#0f172a', border: '1px solid rgba(234, 179, 8, 0.4)', borderRadius: '14px', position: 'relative', overflow: 'hidden' }}>
+                    <div style={{ padding: '0.4rem 10rem', backgroundColor: 'rgba(234, 179, 8, 0.1)', fontSize: '0.72rem', color: '#facc15', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(234, 179, 8, 0.2)' }}>
+                      <span>📢 Sponsored Advertisement</span>
+                      <span>Target: {currentAd.target_city || 'All Pakistan'}</span>
+                    </div>
 
-      {previewImage && (
-        <div onClick={() => setPreviewImage(null)} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.95)', zIndex: 999, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          <img src={previewImage} alt="Enlarged" style={{ maxWidth: '96vw', maxHeight: '82vh', objectFit: 'contain' }} />
+                    <div style={{ padding: '0.8rem 1rem', display: 'flex', alignItems: 'center', gap: '0.7rem' }}>
+                      <div>
+                        <h4 style={{ margin: '0 0 0.2rem 0', fontSize: '0.95rem', color: '#fff', fontWeight: '800' }}>{currentAd.title || currentAd.headline}</h4>
+                        <p style={{ margin: 0, fontSize: '0.82rem', color: '#cbd5e1', lineHeight: '1.4' }}>{currentAd.description || currentAd.ad_text}</p>
+                      </div>
+                    </div>
+
+                    {currentAd.media_url && (
+                      <div style={{ width: '100%', backgroundColor: '#070b14' }}>
+                        <img src={currentAd.media_url} alt="Sponsored Ad" style={{ width: '100%', maxHeight: '380px', objectFit: 'cover', display: 'block' }} />
+                      </div>
+                    )}
+
+                    <div style={{ padding: '0.8rem 1rem', display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #1e293b' }}>
+                      <a 
+                        href={currentAd.destination_url || '#'} 
+                        target="_blank" 
+                        rel="noreferrer" 
+                        style={{ backgroundColor: '#eab308', color: '#000', textDecoration: 'none', padding: '0.45rem 1.2rem', borderRadius: '8px', fontSize: '0.82rem', fontWeight: '900', display: 'inline-block' }}
+                      >
+                        {currentAd.cta_type || 'Learn More'} ➔
+                      </a>
+                    </div>
+                  </div>
+                )}
+              </React.Fragment>
+            );
+          })}
         </div>
       )}
-    </div>
+
+      <div ref={lastPostElementRef} style={{ height: '50px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '1.5rem' }}>
+        {loadingMore && <div style={{ color: '#38bdf8', fontSize: '0.85rem', fontWeight: '700' }}>Loading more...</div>}
+      </div>
+    </main>
+
+    {previewImage && (
+      <div onClick={() => setPreviewImage(null)} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.95)', zIndex: 999, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <img src={previewImage} alt="Enlarged" style={{ maxWidth: '96vw', maxHeight: '82vh', objectFit: 'contain' }} />
+      </div>
+    )}
+  </div>
   );
 }
 
