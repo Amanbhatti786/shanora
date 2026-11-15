@@ -1,15 +1,19 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@supabase/supabase-js';
 
 export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
-  // Safe Supabase Client Initialization (Compatible with standard SHANORA setup)
+  // Safe Supabase Client using standard @supabase/supabase-js
   const supabaseRef = useRef(null);
   const getSupabase = () => {
     if (!supabaseRef.current) {
       try {
-        supabaseRef.current = createClientComponentClient();
+        const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+        if (url && key) {
+          supabaseRef.current = createClient(url, key);
+        }
       } catch (e) {
         supabaseRef.current = null;
       }
@@ -23,7 +27,7 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
   const [activeStep, setActiveStep] = useState(1);
   const [showWizard, setShowWizard] = useState(false);
 
-  // Saved CVs Management (Supabase)
+  // Saved CVs Management (Supabase + LocalStorage)
   const [savedResumes, setSavedResumes] = useState([]);
   const [currentResumeId, setCurrentResumeId] = useState(null);
   const [cvTitle, setCvTitle] = useState('My Official CV');
@@ -55,7 +59,6 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
 
   // --- 12 INTERNATIONAL CV SECTIONS STATE ---
   const [cvData, setCvData] = useState({
-    // 1. Personal Information
     fullName: '',
     headline: '',
     email: '',
@@ -66,12 +69,8 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
     portfolio: '',
     photoUrl: '',
     showPhoto: false,
-
-    // 2. Professional Summary
     summary: '',
     careerObjective: '',
-
-    // 3. Work Experience (Multiple Structured Items)
     experiences: [
       {
         id: 'exp-1',
@@ -84,8 +83,6 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
         achievements: 'Streamlined digital documentation and technical support response time.'
       }
     ],
-
-    // 4. Education (Multiple Structured Items)
     educations: [
       {
         id: 'edu-1',
@@ -96,21 +93,13 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
         gradYear: '2019'
       }
     ],
-
-    // 5. Technical Skills & 6. Soft Skills
     technicalSkills: 'IT Technical Support, MS Office Suite, System Troubleshooting, Basic Networking, Full-Stack Web Tools',
     softSkills: 'Problem Solving, Team Collaboration, Time Management, Professional Communication',
-
-    // 7. Certifications & Training
     certifications: 'Diploma in Information Technology (DIT) • Google Introduction to AI Certification',
-
-    // 8. Languages (Structured with Proficiency Levels)
     languagesList: [
       { id: 'lang-1', name: 'English', level: 'Fluent' },
       { id: 'lang-2', name: 'Urdu', level: 'Native' }
     ],
-
-    // 9. Projects
     projects: [
       {
         id: 'proj-1',
@@ -119,21 +108,15 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
         url: 'https://shanora-pk.vercel.app'
       }
     ],
-
-    // 10. Achievements & Awards
     achievements: 'Recognized for outstanding technical support and digital productivity implementation.',
-
-    // 11. Professional References
     references: 'Available upon professional request.',
-
-    // 12. Additional Information
     drivingLicence: '',
     availability: 'Immediate / 2 Weeks Notice',
     relocate: 'Yes — Open to National & International Relocation',
     otherInfo: ''
   });
 
-  // Sync with SHANORA user profile on initial load without overwriting user edits
+  // Sync with SHANORA user profile on initial load
   useEffect(() => {
     setCvData((prev) => ({
       ...prev,
@@ -172,13 +155,11 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
 
   // --- PRESERVED 12 TEMPLATES (4 FREE + 8 PRO) ---
   const templates = [
-    // 4 FREE TEMPLATES
     { id: 'free-classic', name: '1. Basic Standard', type: 'Free', variant: 'free-left', accent: '#334155', subBg: '#f8fafc' },
     { id: 'free-centered', name: '2. Academic Centered', type: 'Free', variant: 'free-center', accent: '#0f172a', subBg: '#f8fafc' },
     { id: 'free-boxed', name: '3. Classic Boxed', type: 'Free', variant: 'free-box', accent: '#475569', subBg: '#f1f5f9' },
     { id: 'free-minimal', name: '4. Clean Entry', type: 'Free', variant: 'free-topbar', accent: '#0284c7', subBg: '#f0f9ff' },
 
-    // 8 PRO TEMPLATES
     { id: 'pro-crimson', name: '5. Executive Crimson', type: 'Pro', variant: 'pro-left-sidebar', accent: '#991b1b', subBg: '#fef2f2' },
     { id: 'pro-royal', name: '6. Royal Split Banner', type: 'Pro', variant: 'pro-top-banner', accent: '#4c1d95', subBg: '#f5f3ff' },
     { id: 'pro-emerald', name: '7. Tech Emerald Grid', type: 'Pro', variant: 'pro-tech-pills', accent: '#065f46', subBg: '#ecfdf5' },
@@ -212,7 +193,6 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
 
   const allSkillsCombined = [...techSkillList, ...softSkillList];
 
-  // --- WORKFLOW STEPS ---
   const steps = [
     { num: 1, label: '1. Template' },
     { num: 2, label: '2. Personal' },
@@ -224,7 +204,6 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
     { num: 8, label: '8. Save & PDF' }
   ];
 
-  // --- PHOTO UPLOAD HANDLER (Base64 / Local Preview + Supabase Compatible) ---
   const handlePhotoUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -235,7 +214,6 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
     reader.readAsDataURL(file);
   };
 
-  // --- REORDER SECTIONS ---
   const moveSection = (index, direction) => {
     const updated = [...sectionOrder];
     const targetIndex = index + direction;
@@ -246,7 +224,6 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
     setSectionOrder(updated);
   };
 
-  // --- STRICT FACT-BASED AI ASSISTANTS (Never fabricates history/degrees) ---
   const handleAiGenerateSummary = () => {
     const role = cvData.headline || 'Professional';
     const topSkills = techSkillList.slice(0, 4).join(', ');
@@ -355,7 +332,6 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
     setCoverLetter(letter);
   };
 
-  // --- SUPABASE SAVE, LOAD, RENAME, DELETE ---
   const handleSaveCvToDatabase = async (asNewVersion = false) => {
     if (activeTemplateObj.type === 'Pro' && !isUserPro) {
       alert('🔒 Cannot save a PRO template on a Free account. Please select a Free template (1–4) or upgrade to SHANORA PRO.');
@@ -371,7 +347,6 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
     setStatusMsg('');
 
     try {
-      // Always keep a local backup in localStorage so user never loses work
       localStorage.setItem('shanora_latest_cv_backup', JSON.stringify({ cvTitle, selectedTemplate, cvStandard, cvData, sectionOrder }));
 
       const supabase = getSupabase();
@@ -423,18 +398,6 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
     setStatusMsg(`✓ Loaded "${item.title}"`);
   };
 
-  const handleDeleteSavedCv = async (id) => {
-    const supabase = getSupabase();
-    if (!supabase || !profile?.id) return;
-    const { error } = await supabase.from('user_resumes').delete().eq('id', id).eq('user_id', profile.id);
-    if (!error) {
-      setSavedResumes((prev) => prev.filter((r) => r.id !== id));
-      if (currentResumeId === id) setCurrentResumeId(null);
-      setStatusMsg('🗑️ CV version deleted.');
-    }
-  };
-
-  // --- HIGH-PRECISION A4 PDF DOWNLOAD (Supports Multi-Page & Clickable Links) ---
   const handleDownloadPDF = () => {
     if (isDownloadLocked) {
       alert(`🔒 "${activeTemplateObj.name}" is an exclusive SHANORA PRO template!\n\nYou can preview and edit all fields, but downloading this PRO template requires SHANORA PRO. Switch to a Free template (1-4) to download for free, or upgrade to PRO!`);
@@ -493,7 +456,6 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
     printWindow.document.close();
   };
 
-  // --- HELPER: RENDER ORDERED CV SECTIONS IN MAIN BODY ---
   const renderOrderedMainSections = (accent) => {
     return sectionOrder.map((secKey) => {
       switch (secKey) {
@@ -674,7 +636,6 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
     });
   };
 
-  // --- MINIATURE CARD PREVIEW RENDERER (PRESERVING ALL 12 DESIGNS) ---
   const renderMiniCardDesign = (tmpl) => {
     const isRight = tmpl.variant === 'pro-right-sidebar';
     if (tmpl.type === 'Free') {
@@ -741,7 +702,6 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
     );
   };
 
-  // --- FULL-SIZE A4 LIVE CV RENDERER (PRESERVES ALL 12 TEMPLATES + CLICKABLE LINKS) ---
   const renderFullA4Template = () => {
     const v = activeTemplateObj.variant;
     const accent = activeTemplateObj.accent;
@@ -786,7 +746,6 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
       </div>
     );
 
-    // 1. Two-Column Sidebar Templates (pro-crimson, pro-navy)
     if ((v === 'pro-left-sidebar' || v === 'pro-right-sidebar') && cvStandard !== 'ats') {
       const isRight = v === 'pro-right-sidebar';
       return (
@@ -851,7 +810,6 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
       );
     }
 
-    // 2. Top Banner & Dark Titan PRO Templates (pro-royal, pro-titan)
     if ((v === 'pro-top-banner' || v === 'pro-titan-dark') && cvStandard !== 'ats') {
       return (
         <div style={{ minHeight: '842px', backgroundColor: '#ffffff', color: '#0f172a' }}>
@@ -872,7 +830,6 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
       );
     }
 
-    // 3. Remaining Free & Pro Templates (Includes Framed Luxury, Tech Grid, and Standard Single-Column)
     return (
       <div style={{ minHeight: '842px', backgroundColor: v === 'pro-luxury-crest' ? '#fffbeb' : '#ffffff', padding: v === 'pro-luxury-crest' ? '1.5rem' : '0', color: '#0f172a', textAlign: v === 'free-center' ? 'center' : 'left' }}>
         {v === 'free-topbar' && <div style={{ height: '10px', backgroundColor: accent }} />}
@@ -921,7 +878,7 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
   const labelStyle = {
     fontSize: '0.73rem',
     color: '#94a3b8',
-     fontWeight: '700',
+    fontWeight: '700',
     display: 'block',
     marginBottom: '4px'
   };
@@ -1162,22 +1119,18 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
             ))}
           </div>
 
-          {/* STEP 1: TEMPLATE & STANDARD */}
           {activeStep === 1 && (
             <div>
               <h4 style={{ color: '#38bdf8', margin: '0 0 0.6rem 0', fontSize: '0.92rem' }}>Step 1: Template & International Formatting Standard</h4>
               <p style={{ fontSize: '0.8rem', color: '#cbd5e1', margin: '0 0 0.8rem 0' }}>
                 Following international privacy and anti-discrimination standards, fields like CNIC, Father&apos;s Name, Religion, Marital Status, and Passport Number are excluded.
               </p>
-              <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
-                <button type="button" onClick={() => setActiveStep(2)} style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.55rem 1.1rem', borderRadius: '8px', fontWeight: '800', fontSize: '0.8rem', cursor: 'pointer' }}>
-                  Continue to Step 2: Personal Info →
-                </button>
-              </div>
+              <button type="button" onClick={() => setActiveStep(2)} style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.55rem 1.1rem', borderRadius: '8px', fontWeight: '800', fontSize: '0.8rem', cursor: 'pointer' }}>
+                Continue to Step 2: Personal Info →
+              </button>
             </div>
           )}
 
-          {/* STEP 2: PERSONAL INFORMATION */}
           {activeStep === 2 && (
             <div>
               <h4 style={{ color: '#38bdf8', margin: '0 0 0.8rem 0', fontSize: '0.92rem' }}>Step 2: Personal & Contact Information</h4>
@@ -1226,7 +1179,6 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
             </div>
           )}
 
-          {/* STEP 3: PROFESSIONAL SUMMARY + AI GENERATOR */}
           {activeStep === 3 && (
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.8rem' }}>
@@ -1250,7 +1202,6 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
             </div>
           )}
 
-          {/* STEP 4: WORK EXPERIENCE (DYNAMIC MULTIPLE ITEMS + AI BULLET POLISHER) */}
           {activeStep === 4 && (
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.8rem', flexWrap: 'wrap', gap: '0.5rem' }}>
@@ -1316,7 +1267,6 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
             </div>
           )}
 
-          {/* STEP 5: EDUCATION (DYNAMIC MULTIPLE QUALIFICATIONS) */}
           {activeStep === 5 && (
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.8rem' }}>
@@ -1358,7 +1308,6 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
             </div>
           )}
 
-          {/* STEP 6: SKILLS, CERTIFICATIONS, LANGUAGES, PROJECTS, REFERENCES & ADDITIONAL */}
           {activeStep === 6 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
@@ -1388,7 +1337,6 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
                 <textarea rows={2} style={inputStyle} value={cvData.certifications} onChange={(e) => setCvData({ ...cvData, certifications: e.target.value })} />
               </div>
 
-              {/* 8. Languages with Proficiency Level */}
               <div style={{ backgroundColor: '#070b14', padding: '0.85rem', borderRadius: '10px', border: '1px solid #1e293b' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                   <label style={labelStyle}>8. Languages & Proficiency Levels</label>
@@ -1413,7 +1361,6 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
                 ))}
               </div>
 
-              {/* 9. Projects */}
               <div style={{ backgroundColor: '#070b14', padding: '0.85rem', borderRadius: '10px', border: '1px solid #1e293b' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                   <label style={labelStyle}>9. Key Projects (Name, Description & URL)</label>
@@ -1446,7 +1393,6 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
                 </div>
               </div>
 
-              {/* 12. Additional Information */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.65rem' }}>
                 <div>
                   <label style={labelStyle}>Availability</label>
@@ -1468,7 +1414,6 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
             </div>
           )}
 
-          {/* STEP 7: REORDER SECTIONS & ATS CV ANALYSIS */}
           {activeStep === 7 && (
             <div>
               <h4 style={{ color: '#38bdf8', margin: '0 0 0.6rem 0', fontSize: '0.92rem' }}>Step 7: Reorder CV Sections & Run ATS Check</h4>
@@ -1515,7 +1460,6 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
             </div>
           )}
 
-          {/* STEP 8: SAVE CV, DOWNLOAD PDF & AI COVER LETTER */}
           {activeStep === 8 && (
             <div>
               <h4 style={{ color: '#38bdf8', margin: '0 0 0.8rem 0', fontSize: '0.92rem' }}>Step 8: Download Official PDF, Save CV & Generate Cover Letter</h4>
@@ -1528,7 +1472,6 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
                 </button>
               </div>
 
-              {/* AI Cover Letter Generator (PRO) */}
               <div style={{ backgroundColor: '#070b14', border: '1px solid #334155', borderRadius: '12px', padding: '1rem' }}>
                 <h5 style={{ color: '#fff', margin: '0 0 0.6rem 0', fontSize: '0.86rem' }}>
                   ✉️ AI Customized Cover Letter Generator {isUserPro ? '(PRO Active)' : '(PRO 🔒)'}
@@ -1585,7 +1528,6 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
           </div>
         </div>
 
-        {/* Responsive Horizontal Scroll Wrapper on Mobile so A4 Layout Never Breaks */}
         <div style={{ overflowX: 'auto', backgroundColor: '#cbd5e1' }}>
           <div ref={a4SheetRef} style={{ minWidth: '720px', maxWidth: '920px', margin: '0 auto', backgroundColor: '#ffffff' }}>
             {renderFullA4Template()}
