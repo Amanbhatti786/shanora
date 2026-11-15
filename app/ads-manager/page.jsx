@@ -11,15 +11,32 @@ export default function AdsManagerPage() {
   const [loading, setLoading] = useState(false);
   const [uploadingImg, setUploadingImg] = useState(false);
   const [myAds, setMyAds] = useState([]);
+  const [toast, setToast] = useState(null);
 
-  // Ad Creation Form State
+  // Form State
   const [adTitle, setAdTitle] = useState('');
   const [adDescription, setAdDescription] = useState('');
   const [mediaUrl, setMediaUrl] = useState('');
   const [ctaType, setCtaType] = useState('Learn More');
   const [destinationUrl, setDestinationUrl] = useState('');
-  const [dailyBudget, setDailyBudget] = useState('500');
+  
+  // Targeting & Budget
+  const [targetCountry, setTargetCountry] = useState('Pakistan');
   const [targetCity, setTargetCity] = useState('All Pakistan');
+  const [dailyBudget, setDailyBudget] = useState(500);
+  const [durationDays, setDurationDays] = useState(3);
+  
+  // Payment State
+  const [paymentMethod, setPaymentMethod] = useState('EasyPaisa');
+  const [transactionId, setTransactionId] = useState('');
+
+  const totalBudget = dailyBudget * durationDays;
+  const LEMON_SQUEEZY_CHECKOUT_URL = 'https://yourstore.lemonsqueezy.com/buy/your-product-id';
+
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 4000);
+  };
 
   useEffect(() => {
     fetchUserAds();
@@ -42,13 +59,12 @@ export default function AdsManagerPage() {
     }
   }
 
-  // Handle Direct Image File Upload using PUBLIC bucket 'post-images'
   async function handleImageUpload(e) {
     const file = e.target.files?.[0];
     if (!file) return;
 
     if (file.size > 5 * 1024 * 1024) {
-      alert('Image size must be less than 5MB.');
+      showToast('Image size must be less than 5MB.', 'error');
       return;
     }
 
@@ -68,9 +84,9 @@ export default function AdsManagerPage() {
         .getPublicUrl(filePath);
 
       setMediaUrl(pubData.publicUrl);
-      alert('Image uploaded successfully! ✓');
+      showToast('Ad banner uploaded successfully! ✓');
     } catch (err) {
-      alert('Image upload failed: ' + err.message);
+      showToast('Image upload failed: ' + err.message, 'error');
     } finally {
       setUploadingImg(false);
     }
@@ -79,7 +95,11 @@ export default function AdsManagerPage() {
   const handlePublishAd = async (e) => {
     e.preventDefault();
     if (!adTitle.trim() || !mediaUrl.trim()) {
-      alert('Please provide an ad title and upload an ad image.');
+      showToast('Please provide an ad headline and upload an image.', 'error');
+      return;
+    }
+    if (!transactionId.trim()) {
+      showToast('Please enter your Payment Transaction ID (TID) or Order ID.', 'error');
       return;
     }
 
@@ -87,7 +107,7 @@ export default function AdsManagerPage() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) {
-        alert('Please sign in to publish an ad.');
+        showToast('Please sign in to publish an ad.', 'error');
         router.push('/auth');
         return;
       }
@@ -95,34 +115,70 @@ export default function AdsManagerPage() {
       const { error } = await supabase.from('advertisements').insert([{
         advertiser_email: session.user.email.toLowerCase(),
         title: adTitle.trim(),
+        headline: adTitle.trim(),
         description: adDescription.trim(),
+        ad_text: adDescription.trim(),
         media_url: mediaUrl.trim(),
         cta_type: ctaType,
         destination_url: destinationUrl.trim(),
-        budget: Number(dailyBudget),
+        target_country: targetCountry,
         target_city: targetCity,
+        budget: Number(totalBudget),
+        daily_budget: Number(dailyBudget),
+        duration_days: Number(durationDays),
+        payment_method: paymentMethod,
+        transaction_id: transactionId.trim(),
         status: 'pending'
       }]);
 
       if (error) throw error;
 
-      alert('Ad campaign submitted successfully! It is now pending admin approval.');
+      showToast('🎉 Congratulations! Your ad campaign has been submitted successfully.');
       setAdTitle('');
       setAdDescription('');
       setMediaUrl('');
       setDestinationUrl('');
+      setTransactionId('');
       setActiveTab('campaigns');
       fetchUserAds();
     } catch (err) {
-      alert('Error publishing ad: ' + err.message);
+      showToast('Error publishing ad: ' + err.message, 'error');
     } finally {
       setLoading(false);
     }
   };
 
+  const pakistaniCities = [
+    'All Pakistan (Nationwide)',
+    'Karachi',
+    'Lahore',
+    'Islamabad',
+    'Faisalabad',
+    'Rawalpindi',
+    'Multan',
+    'Peshawar',
+    'Quetta',
+    'Sukkur',
+    'Hyderabad',
+    'Sialkot'
+  ];
+
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#070b14', color: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-      {/* Top Header */}
+    <div style={{ minHeight: '100vh', backgroundColor: '#070b14', color: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif', paddingBottom: '80px' }}>
+      
+      {toast && (
+        <div style={{
+          position: 'fixed', top: '20px', right: '20px', zIndex: 99999,
+          backgroundColor: toast.type === 'error' ? 'rgba(239, 68, 68, 0.95)' : 'rgba(34, 197, 94, 0.95)',
+          color: '#fff', padding: '0.9rem 1.2rem', borderRadius: '12px',
+          boxShadow: '0 10px 25px rgba(0,0,0,0.5)', fontSize: '0.88rem', fontWeight: '700',
+          display: 'flex', alignItems: 'center', gap: '0.6rem'
+        }}>
+          <span>{toast.type === 'error' ? '⚠️' : '🎉'}</span>
+          <span>{toast.message}</span>
+        </div>
+      )}
+
       <header style={{ backgroundColor: '#0f172a', borderBottom: '1px solid #1e293b', padding: '0.85rem 1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
           <button
@@ -137,12 +193,10 @@ export default function AdsManagerPage() {
             <span style={{ fontSize: '1.05rem', fontWeight: '900', color: '#ffffff' }}>SHANORA<span style={{ fontSize: '0.55rem', color: '#38bdf8', verticalAlign: 'super' }}>.PK</span></span>
           </Link>
         </div>
-        <div style={{ fontSize: '0.9rem', fontWeight: '800', color: '#38bdf8' }}>📢 Ads Manager</div>
+        <div style={{ fontSize: '0.9rem', fontWeight: '800', color: '#38bdf8' }}>📢 Professional Ads Manager</div>
       </header>
 
-      {/* Main Content */}
-      <main style={{ maxWidth: '640px', margin: '0 auto', padding: '1.2rem 0.9rem 90px 0.9rem' }}>
-        {/* Navigation Tabs */}
+      <main style={{ maxWidth: '680px', margin: '0 auto', padding: '1.2rem 0.9rem' }}>
         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.2rem', backgroundColor: '#0f172a', padding: '0.35rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
           <button
             type="button"
@@ -156,36 +210,24 @@ export default function AdsManagerPage() {
             onClick={() => setActiveTab('create')}
             style={{ flex: 1, backgroundColor: activeTab === 'create' ? '#0284c7' : 'transparent', color: activeTab === 'create' ? '#fff' : '#94a3b8', border: 'none', padding: '0.55rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer' }}
           >
-            + Create Ad 🚀
+            + Create Pro Ad 🚀
           </button>
         </div>
 
-        {/* TAB 1: CAMPAIGNS LIST */}
         {activeTab === 'campaigns' && (
           <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.4rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <div>
-                <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#fff', fontWeight: '800' }}>Active & Pending Ad Campaigns</h3>
-                <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.76rem', color: '#94a3b8' }}>Promote your business across SHANORA feed.</p>
-              </div>
-              <button type="button" onClick={() => setActiveTab('create')} style={{ backgroundColor: '#eab308', color: '#000', border: 'none', padding: '0.45rem 0.85rem', borderRadius: '8px', fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer' }}>+ Create Ad</button>
-            </div>
-
+            <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', color: '#fff', fontWeight: '800' }}>Your Ad Campaigns</h3>
             {myAds.length === 0 ? (
-              <div style={{ backgroundColor: '#131b2e', border: '1px dashed #334155', borderRadius: '12px', padding: '2.5rem 1rem', textAlign: 'center' }}>
-                <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📢</div>
-                <div style={{ fontSize: '0.9rem', fontWeight: '700', color: '#e2e8f0', marginBottom: '0.2rem' }}>No campaigns running yet</div>
-                <button type="button" onClick={() => setActiveTab('create')} style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.5rem 1.2rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', marginTop: '0.5rem' }}>Launch Ad Campaign</button>
-              </div>
+              <div style={{ textAlign: 'center', padding: '2.5rem', color: '#94a3b8' }}>No campaigns found. Create one now!</div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 {myAds.map(ad => (
-                  <div key={ad.id} style={{ backgroundColor: '#131b2e', border: '1px solid #1e293b', borderRadius: '10px', padding: '0.9rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div key={ad.id} style={{ backgroundColor: '#131b2e', border: '1px solid #1e293b', borderRadius: '10px', padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
                     <div>
-                      <h4 style={{ margin: '0 0 0.2rem 0', fontSize: '0.9rem', color: '#fff' }}>{ad.title}</h4>
-                      <p style={{ margin: 0, fontSize: '0.74rem', color: '#94a3b8' }}>CTA: {ad.cta_type} | Target: {ad.target_city || 'All Pakistan'}</p>
+                      <h4 style={{ margin: '0 0 0.2rem 0', fontSize: '0.95rem', color: '#fff' }}>{ad.title}</h4>
+                      <p style={{ margin: 0, fontSize: '0.76rem', color: '#94a3b8' }}>Target: {ad.target_city} | Budget: Rs. {ad.budget} | TID: {ad.transaction_id}</p>
                     </div>
-                    <span style={{ fontSize: '0.72rem', fontWeight: 'bold', padding: '0.25rem 0.6rem', borderRadius: '6px', backgroundColor: ad.status === 'approved' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(234, 179, 8, 0.2)', color: ad.status === 'approved' ? '#4ade80' : '#facc15' }}>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 'bold', padding: '0.3rem 0.7rem', borderRadius: '6px', backgroundColor: ad.status === 'approved' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(234, 179, 8, 0.2)', color: ad.status === 'approved' ? '#4ade80' : '#facc15' }}>
                       {ad.status.toUpperCase()}
                     </span>
                   </div>
@@ -195,18 +237,17 @@ export default function AdsManagerPage() {
           </div>
         )}
 
-        {/* TAB 2: CREATE AD FORM */}
         {activeTab === 'create' && (
           <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.4rem' }}>
-            <h3 style={{ margin: '0 0 0.3rem 0', fontSize: '1.1rem', color: '#fff', fontWeight: '800' }}>Create Sponsored Ad</h3>
-            <p style={{ margin: '0 0 1.2rem 0', fontSize: '0.76rem', color: '#94a3b8' }}>Image-only advertising with precise city targeting and custom CTAs.</p>
+            <h3 style={{ margin: '0 0 0.3rem 0', fontSize: '1.1rem', color: '#fff', fontWeight: '800' }}>Create Professional Ad Campaign</h3>
+            <p style={{ margin: '0 0 1.2rem 0', fontSize: '0.76rem', color: '#94a3b8' }}>Set precise location targeting, budget, and local wallet payment with TID verification.</p>
 
-            <form onSubmit={handlePublishAd} style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
+            <form onSubmit={handlePublishAd} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '0.74rem', color: '#94a3b8', marginBottom: '0.3rem', fontWeight: 'bold' }}>Ad Headline / Title *</label>
+                <label style={{ display: 'block', fontSize: '0.74rem', color: '#38bdf8', marginBottom: '0.3rem', fontWeight: 'bold' }}>Ad Headline / Title *</label>
                 <input
                   type="text"
-                  placeholder="e.g. Hire Professional Web Developers"
+                  placeholder="e.g. Shanora Web Development Agency"
                   value={adTitle}
                   onChange={(e) => setAdTitle(e.target.value)}
                   style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }}
@@ -215,7 +256,7 @@ export default function AdsManagerPage() {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.74rem', color: '#94a3b8', marginBottom: '0.3rem', fontWeight: 'bold' }}>Ad Description / Caption *</label>
+                <label style={{ display: 'block', fontSize: '0.74rem', color: '#38bdf8', marginBottom: '0.3rem', fontWeight: 'bold' }}>Ad Description / Caption *</label>
                 <textarea
                   rows={3}
                   placeholder="Write promotional description..."
@@ -226,73 +267,82 @@ export default function AdsManagerPage() {
                 />
               </div>
 
-              {/* Direct Image Upload Field using public bucket 'post-images' */}
               <div>
-                <label style={{ display: 'block', fontSize: '0.74rem', color: '#94a3b8', marginBottom: '0.3rem', fontWeight: 'bold' }}>Upload Ad Image *</label>
-                <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center' }}>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    disabled={uploadingImg}
-                    style={{ fontSize: '0.78rem', color: '#94a3b8', flex: 1, backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.45rem' }}
-                  />
-                  {uploadingImg && <span style={{ fontSize: '0.75rem', color: '#38bdf8' }}>Uploading...</span>}
+                <label style={{ display: 'block', fontSize: '0.74rem', color: '#38bdf8', marginBottom: '0.3rem', fontWeight: 'bold' }}>Upload Ad Banner Image *</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  disabled={uploadingImg}
+                  style={{ fontSize: '0.78rem', color: '#94a3b8', width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.45rem', boxSizing: 'border-box' }}
+                />
+                {mediaUrl && <span style={{ fontSize: '0.72rem', color: '#4ade80', marginTop: '0.4rem', display: 'block' }}>Image uploaded successfully! ✓</span>}
+              </div>
+
+              <div style={{ backgroundColor: '#131b2e', padding: '1rem', borderRadius: '10px', border: '1px solid #1e293b', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                <span style={{ fontSize: '0.82rem', fontWeight: 'bold', color: '#eab308' }}>🌍 Geographic Targeting</span>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                  <select value={targetCountry} onChange={(e) => setTargetCountry(e.target.value)} style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem', color: '#fff', fontSize: '0.82rem', outline: 'none' }}>
+                    <option value="Pakistan">Pakistan</option>
+                    <option value="International">International</option>
+                  </select>
+                  <select value={targetCity} onChange={(e) => setTargetCity(e.target.value)} style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem', color: '#fff', fontSize: '0.82rem', outline: 'none' }}>
+                    {pakistaniCities.map(city => <option key={city} value={city}>{city}</option>)}
+                  </select>
                 </div>
-                {mediaUrl && (
-                  <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <img src={mediaUrl} alt="Preview" style={{ width: '40px', height: '40px', borderRadius: '6px', objectFit: 'cover' }} />
-                    <span style={{ fontSize: '0.72rem', color: '#4ade80' }}>Image uploaded successfully! ✓</span>
-                  </div>
-                )}
+              </div>
+
+              <div style={{ backgroundColor: '#131b2e', padding: '1rem', borderRadius: '10px', border: '1px solid #1e293b', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                <span style={{ fontSize: '0.82rem', fontWeight: 'bold', color: '#4ade80' }}>💰 Budget & Duration</span>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                  <input type="number" min="200" value={dailyBudget} onChange={(e) => setDailyBudget(Number(e.target.value))} placeholder="Daily Budget" style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }} />
+                  <input type="number" min="1" max="30" value={durationDays} onChange={(e) => setDurationDays(Number(e.target.value))} placeholder="Days" style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                  <span style={{ color: '#94a3b8' }}>Total Campaign Cost:</span>
+                  <strong style={{ color: '#4ade80' }}>Rs. {totalBudget}</strong>
+                </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.74rem', color: '#94a3b8', marginBottom: '0.3rem', fontWeight: 'bold' }}>Action Button (CTA)</label>
-                  <select
-                    value={ctaType}
-                    onChange={(e) => setCtaType(e.target.value)}
-                    style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }}
-                  >
-                    <option value="Learn More">Learn More</option>
-                    <option value="Sign Up">Sign Up</option>
-                    <option value="WhatsApp">WhatsApp Message</option>
-                    <option value="Direct Message">Direct Message (SHANORA)</option>
-                    <option value="Apply Now">Apply Now</option>
-                    <option value="Visit Website">Visit Website</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.74rem', color: '#94a3b8', marginBottom: '0.3rem', fontWeight: 'bold' }}>Target Location (City)</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Karachi, Sukkur, All Pakistan"
-                    value={targetCity}
-                    onChange={(e) => setTargetCity(e.target.value)}
-                    style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }}
-                  />
-                </div>
+                <select value={ctaType} onChange={(e) => setCtaType(e.target.value)} style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem', color: '#fff', fontSize: '0.82rem', outline: 'none' }}>
+                  <option value="Learn More">Learn More</option>
+                  <option value="Sign Up">Sign Up</option>
+                  <option value="WhatsApp">WhatsApp Message</option>
+                  <option value="Apply Now">Apply Now</option>
+                </select>
+                <input type="url" placeholder="Destination URL (https://...)" value={destinationUrl} onChange={(e) => setDestinationUrl(e.target.value)} style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }} />
               </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '0.74rem', color: '#94a3b8', marginBottom: '0.3rem', fontWeight: 'bold' }}>Destination URL / Link (Or WhatsApp Link)</label>
-                <input
-                  type="url"
-                  placeholder="https://wa.me/923... or https://shanora.online/..."
-                  value={destinationUrl}
-                  onChange={(e) => setDestinationUrl(e.target.value)}
-                  style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }}
-                />
+              <div style={{ backgroundColor: '#131b2e', padding: '1rem', borderRadius: '10px', border: '1px solid #38bdf8', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                <span style={{ fontSize: '0.82rem', fontWeight: 'bold', color: '#38bdf8' }}>💳 Payment Verification (JazzCash / Easypaisa / Card)</span>
+                <p style={{ margin: 0, fontSize: '0.74rem', color: '#94a3b8' }}>
+                  Send Rs. {totalBudget} via JazzCash/Easypaisa (A/C: 0300-1234567) or Lemon Squeezy, and enter your Transaction ID (TID) / Order ID below.
+                </p>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                  <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem', color: '#fff', fontSize: '0.82rem', outline: 'none' }}>
+                    <option value="EasyPaisa">EasyPaisa</option>
+                    <option value="JazzCash">JazzCash</option>
+                    <option value="Bank Transfer">Bank Transfer</option>
+                    <option value="LemonSqueezy">Lemon Squeezy (Card)</option>
+                  </select>
+                  <input
+                    type="text"
+                    placeholder="Enter TID / Order ID *"
+                    value={transactionId}
+                    onChange={(e) => setTransactionId(e.target.value)}
+                    style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }}
+                    required
+                  />
+                </div>
               </div>
 
               <button
                 type="submit"
                 disabled={loading || uploadingImg}
-                style={{ backgroundColor: '#eab308', color: '#000', border: 'none', padding: '0.75rem', borderRadius: '10px', fontWeight: '900', fontSize: '0.85rem', cursor: loading ? 'not-allowed' : 'pointer', marginTop: '0.5rem' }}
+                style={{ backgroundColor: '#eab308', color: '#000', border: 'none', padding: '0.75rem', borderRadius: '10px', fontWeight: '900', fontSize: '0.85rem', cursor: 'pointer' }}
               >
-                {loading ? 'Publishing Campaign...' : 'Publish Ad Campaign 🚀'}
+                {loading ? 'Submitting Campaign...' : 'Publish Pro Ad Campaign 🚀'}
               </button>
             </form>
           </div>
@@ -300,4 +350,5 @@ export default function AdsManagerPage() {
       </main>
     </div>
   );
-}
+                  }
+                                           
