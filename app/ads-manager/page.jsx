@@ -1,12 +1,15 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { supabase } from '../../lib/supabaseClient';
 
 export default function AdsManagerPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'campaigns' | 'create'>('campaigns');
+  const [activeTab, setActiveTab] = useState('campaigns');
+  const [loading, setLoading] = useState(false);
+  const [myAds, setMyAds] = useState([]);
 
   // Ad Creation Form State
   const [adTitle, setAdTitle] = useState('');
@@ -16,14 +19,68 @@ export default function AdsManagerPage() {
   const [destinationUrl, setDestinationUrl] = useState('');
   const [dailyBudget, setDailyBudget] = useState('500');
 
-  const handlePublishAd = (e: React.FormEvent) => {
+  useEffect(() => {
+    fetchUserAds();
+  }, []);
+
+  async function fetchUserAds() {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return;
+
+      const { data, error } = await supabase
+        .from('advertisements')
+        .select('*')
+        .ilike('advertiser_email', session.user.email)
+        .order('created_at', { ascending: false });
+
+      if (data) setMyAds(data);
+    } catch (err) {
+      console.error('Error fetching ads:', err);
+    }
+  }
+
+  const handlePublishAd = async (e) => {
     e.preventDefault();
     if (!adTitle.trim() || !mediaUrl.trim()) {
-      alert('Please fill in the required ad title and media image URL.');
+      alert('Please fill in the required ad title and image URL.');
       return;
     }
-    alert('Ad campaign submitted successfully! It is now pending admin approval.');
-    setActiveTab('campaigns');
+
+    setLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        alert('Please sign in to publish an ad.');
+        router.push('/auth');
+        return;
+      }
+
+      const { error } = await supabase.from('advertisements').insert([{
+        advertiser_email: session.user.email.toLowerCase(),
+        title: adTitle.trim(),
+        description: adDescription.trim(),
+        media_url: mediaUrl.trim(),
+        cta_type: ctaType,
+        destination_url: destinationUrl.trim(),
+        budget: Number(dailyBudget),
+        status: 'pending'
+      }]);
+
+      if (error) throw error;
+
+      alert('Ad campaign submitted successfully! It is now pending admin approval.');
+      setAdTitle('');
+      setAdDescription('');
+      setMediaUrl('');
+      setDestinationUrl('');
+      setActiveTab('campaigns');
+      fetchUserAds();
+    } catch (err) {
+      alert('Error publishing ad: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -150,18 +207,34 @@ export default function AdsManagerPage() {
                 </button>
               </div>
 
-              <div style={{ backgroundColor: '#131b2e', border: '1px dashed #334155', borderRadius: '12px', padding: '2.5rem 1rem', textAlign: 'center' }}>
-                <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📢</div>
-                <div style={{ fontSize: '0.9rem', fontWeight: '700', color: '#e2e8f0', marginBottom: '0.2rem' }}>No campaigns running yet</div>
-                <div style={{ fontSize: '0.76rem', color: '#64748b', marginBottom: '1rem' }}>Launch your first image ad with custom WhatsApp or Signup buttons.</div>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('create')}
-                  style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.5rem 1.2rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: '700', cursor: 'pointer' }}
-                >
-                  Launch Ad Campaign
-                </button>
-              </div>
+              {myAds.length === 0 ? (
+                <div style={{ backgroundColor: '#131b2e', border: '1px dashed #334155', borderRadius: '12px', padding: '2.5rem 1rem', textAlign: 'center' }}>
+                  <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📢</div>
+                  <div style={{ fontSize: '0.9rem', fontWeight: '700', color: '#e2e8f0', marginBottom: '0.2rem' }}>No campaigns running yet</div>
+                  <div style={{ fontSize: '0.76rem', color: '#64748b', marginBottom: '1rem' }}>Launch your first image ad with custom WhatsApp or Signup buttons.</div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('create')}
+                    style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.5rem 1.2rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: '700', cursor: 'pointer' }}
+                  >
+                    Launch Ad Campaign
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  {myAds.map(ad => (
+                    <div key={ad.id} style={{ backgroundColor: '#131b2e', border: '1px solid #1e293b', borderRadius: '10px', padding: '0.9rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <h4 style={{ margin: '0 0 0.2rem 0', fontSize: '0.9rem', color: '#fff' }}>{ad.title}</h4>
+                        <p style={{ margin: 0, fontSize: '0.74rem', color: '#94a3b8' }}>CTA: {ad.cta_type} | Budget: Rs. {ad.budget}</p>
+                      </div>
+                      <span style={{ fontSize: '0.72rem', fontWeight: 'bold', padding: '0.25rem 0.6rem', borderRadius: '6px', backgroundColor: ad.status === 'approved' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(234, 179, 8, 0.2)', color: ad.status === 'approved' ? '#4ade80' : '#facc15' }}>
+                        {ad.status.toUpperCase()}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -250,9 +323,10 @@ export default function AdsManagerPage() {
 
               <button
                 type="submit"
-                style={{ backgroundColor: '#eab308', color: '#000', border: 'none', padding: '0.75rem', borderRadius: '10px', fontWeight: '900', fontSize: '0.85rem', cursor: 'pointer', marginTop: '0.5rem' }}
+                disabled={loading}
+                style={{ backgroundColor: '#eab308', color: '#000', border: 'none', padding: '0.75rem', borderRadius: '10px', fontWeight: '900', fontSize: '0.85rem', cursor: loading ? 'not-allowed' : 'pointer', marginTop: '0.5rem' }}
               >
-                Publish Ad Campaign 🚀
+                {loading ? 'Publishing Campaign...' : 'Publish Ad Campaign 🚀'}
               </button>
             </form>
           </div>
