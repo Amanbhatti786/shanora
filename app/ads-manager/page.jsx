@@ -22,7 +22,7 @@ export default function AdsManagerPage() {
   
   // Targeting & Budget
   const [targetCountry, setTargetCountry] = useState('Pakistan');
-  const [targetCity, setTargetCity] = useState('All Pakistan');
+  const [targetCity, setTargetCity] = useState('All Pakistan (Nationwide)');
   const [dailyBudget, setDailyBudget] = useState(500);
   const [durationDays, setDurationDays] = useState(3);
   
@@ -32,6 +32,113 @@ export default function AdsManagerPage() {
 
   const totalBudget = dailyBudget * durationDays;
   const LEMON_SQUEEZY_CHECKOUT_URL = 'https://yourstore.lemonsqueezy.com/buy/your-product-id';
+
+  // Comprehensive International Countries & Cities Mapping
+  const countryCitiesMap = {
+    'Pakistan': [
+      'All Pakistan (Nationwide)',
+      'Karachi',
+      'Lahore',
+      'Islamabad',
+      'Rawalpindi',
+      'Faisalabad',
+      'Multan',
+      'Peshawar',
+      'Quetta',
+      'Sukkur',
+      'Hyderabad',
+      'Sialkot',
+      'Gujranwala',
+      'Bahawalpur'
+    ],
+    'United Arab Emirates (UAE)': [
+      'All UAE (Nationwide)',
+      'Dubai',
+      'Abu Dhabi',
+      'Sharjah',
+      'Ajman',
+      'Ras Al Khaimah',
+      'Fujairah',
+      'Al Ain'
+    ],
+    'Saudi Arabia': [
+      'All Saudi Arabia (Nationwide)',
+      'Riyadh',
+      'Jeddah',
+      'Mecca',
+      'Medina',
+      'Dammam',
+      'Khobar',
+      'Tabuk'
+    ],
+    'United States': [
+      'All USA (Nationwide)',
+      'New York',
+      'Los Angeles',
+      'Chicago',
+      'Houston',
+      'Miami',
+      'San Francisco',
+      'Dallas',
+      'Washington D.C.',
+      'Boston'
+    ],
+    'United Kingdom': [
+      'All UK (Nationwide)',
+      'London',
+      'Manchester',
+      'Birmingham',
+      'Glasgow',
+      'Liverpool',
+      'Edinburgh',
+      'Leeds'
+    ],
+    'Canada': [
+      'All Canada (Nationwide)',
+      'Toronto',
+      'Vancouver',
+      'Montreal',
+      'Calgary',
+      'Ottawa',
+      'Edmonton'
+    ],
+    'Australia': [
+      'All Australia (Nationwide)',
+      'Sydney',
+      'Melbourne',
+      'Brisbane',
+      'Perth',
+      'Adelaide'
+    ],
+    'Qatar': [
+      'All Qatar (Nationwide)',
+      'Doha',
+      'Al Rayyan',
+      'Al Wakrah',
+      'Umm Salal'
+    ],
+    'Oman': [
+      'All Oman (Nationwide)',
+      'Muscat',
+      'Salalah',
+      'Sohar',
+      'Nizwa'
+    ],
+    'Bahrain': [
+      'All Bahrain (Nationwide)',
+      'Manama',
+      'Riffa',
+      'Muharraq',
+      'Hamad Town'
+    ]
+  };
+
+  const handleCountryChange = (e) => {
+    const selectedCountry = e.target.value;
+    setTargetCountry(selectedCountry);
+    const availableCities = countryCitiesMap[selectedCountry] || ['All Regions'];
+    setTargetCity(availableCities[0]);
+  };
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
@@ -148,20 +255,7 @@ export default function AdsManagerPage() {
     }
   };
 
-  const pakistaniCities = [
-    'All Pakistan (Nationwide)',
-    'Karachi',
-    'Lahore',
-    'Islamabad',
-    'Faisalabad',
-    'Rawalpindi',
-    'Multan',
-    'Peshawar',
-    'Quetta',
-    'Sukkur',
-    'Hyderabad',
-    'Sialkot'
-  ];
+  const currentCitiesList = countryCitiesMap[targetCountry] || ['All Regions'];
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#070b14', color: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif', paddingBottom: '80px' }}>
@@ -225,7 +319,7 @@ export default function AdsManagerPage() {
                   <div key={ad.id} style={{ backgroundColor: '#131b2e', border: '1px solid #1e293b', borderRadius: '10px', padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
                     <div>
                       <h4 style={{ margin: '0 0 0.2rem 0', fontSize: '0.95rem', color: '#fff' }}>{ad.title}</h4>
-                      <p style={{ margin: 0, fontSize: '0.76rem', color: '#94a3b8' }}>Target: {ad.target_city} | Budget: Rs. {ad.budget} | TID: {ad.transaction_id}</p>
+                      <p style={{ margin: 0, fontSize: '0.76rem', color: '#94a3b8' }}>Target: {ad.target_city}, {ad.target_country} | Budget: Rs. {ad.budget}</p>
                     </div>
                     <span style={{ fontSize: '0.72rem', fontWeight: 'bold', padding: '0.3rem 0.7rem', borderRadius: '6px', backgroundColor: ad.status === 'approved' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(234, 179, 8, 0.2)', color: ad.status === 'approved' ? '#4ade80' : '#facc15' }}>
                       {ad.status.toUpperCase()}
@@ -240,7 +334,7 @@ export default function AdsManagerPage() {
         {activeTab === 'create' && (
           <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.4rem' }}>
             <h3 style={{ margin: '0 0 0.3rem 0', fontSize: '1.1rem', color: '#fff', fontWeight: '800' }}>Create Professional Ad Campaign</h3>
-            <p style={{ margin: '0 0 1.2rem 0', fontSize: '0.76rem', color: '#94a3b8' }}>Set precise location targeting, budget, and local/international payment verification.</p>
+            <p style={{ margin: '0 0 1.2rem 0', fontSize: '0.76rem', color: '#94a3b8' }}>Target global countries and major business hubs with precise budget pacing.</p>
 
             <form onSubmit={handlePublishAd} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div>
@@ -279,20 +373,40 @@ export default function AdsManagerPage() {
                 {mediaUrl && <span style={{ fontSize: '0.72rem', color: '#4ade80', marginTop: '0.4rem', display: 'block' }}>Image uploaded successfully! ✓</span>}
               </div>
 
+              {/* GLOBAL CASCADING GEOGRAPHIC TARGETING */}
               <div style={{ backgroundColor: '#131b2e', padding: '1rem', borderRadius: '10px', border: '1px solid #1e293b', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                <span style={{ fontSize: '0.82rem', fontWeight: 'bold', color: '#eab308' }}>🌍 Geographic Targeting</span>
+                <span style={{ fontSize: '0.82rem', fontWeight: 'bold', color: '#eab308' }}>🌍 Global Geographic Targeting</span>
+                
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                  <select value={targetCountry} onChange={(e) => setTargetCountry(e.target.value)} style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem', color: '#fff', fontSize: '0.82rem', outline: 'none' }}>
-                    <option value="Pakistan">Pakistan</option>
-                    <option value="International">International</option>
-                  </select>
-                  <select value={targetCity} onChange={(e) => setTargetCity(e.target.value)} style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem', color: '#fff', fontSize: '0.82rem', outline: 'none' }}>
-                    {pakistaniCities.map(city => <option key={city} value={city}>{city}</option>)}
-                  </select>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.72rem', color: '#94a3b8', marginBottom: '0.3rem', fontWeight: 'bold' }}>Select Country</label>
+                    <select 
+                      value={targetCountry} 
+                      onChange={handleCountryChange} 
+                      style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem', color: '#fff', fontSize: '0.82rem', outline: 'none' }}
+                    >
+                      {Object.keys(countryCitiesMap).map(country => (
+                        <option key={country} value={country}>{country}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.72rem', color: '#94a3b8', marginBottom: '0.3rem', fontWeight: 'bold' }}>Select City / Region</label>
+                    <select 
+                      value={targetCity} 
+                      onChange={(e) => setTargetCity(e.target.value)} 
+                      style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem', color: '#fff', fontSize: '0.82rem', outline: 'none' }}
+                    >
+                      {currentCitiesList.map(city => (
+                        <option key={city} value={city}>{city}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
 
-              {/* FIXED BUDGET & DURATION SECTION WITH CLEAR LABELS */}
+              {/* BUDGET & DURATION */}
               <div style={{ backgroundColor: '#131b2e', padding: '1rem', borderRadius: '10px', border: '1px solid #1e293b', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
                 <span style={{ fontSize: '0.82rem', fontWeight: 'bold', color: '#4ade80' }}>💰 Budget & Duration Settings</span>
                 
@@ -336,10 +450,10 @@ export default function AdsManagerPage() {
                   <option value="WhatsApp">WhatsApp Message</option>
                   <option value="Apply Now">Apply Now</option>
                 </select>
-                <input type="url" placeholder="Destination URL (https://...)" value={destinationUrl} onChange={(e) => setDestinationUrl(e.target.value)} style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }} />
+                            <input type="url" placeholder="Destination URL (https://...)" value={destinationUrl} onChange={(e) => setDestinationUrl(e.target.value)} style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }} />
               </div>
 
-              {/* PROFESSIONAL PAYMENT SECTION WITH FOUNDER AMANULLAH & LEMON SQUEEZY */}
+              {/* PAYMENT SECTION */}
               <div style={{ backgroundColor: '#131b2e', padding: '1rem', borderRadius: '10px', border: '1px solid #38bdf8', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
                 <span style={{ fontSize: '0.82rem', fontWeight: 'bold', color: '#38bdf8' }}>💳 Payment Verification & International Cards</span>
                 <p style={{ margin: 0, fontSize: '0.74rem', color: '#cbd5e1', lineHeight: '1.4' }}>
@@ -372,7 +486,8 @@ export default function AdsManagerPage() {
                   />
                 </div>
               </div>
-button
+
+              <button
                 type="submit"
                 disabled={loading || uploadingImg}
                 style={{ backgroundColor: '#eab308', color: '#000', border: 'none', padding: '0.75rem', borderRadius: '10px', fontWeight: '900', fontSize: '0.85rem', cursor: 'pointer' }}
@@ -386,4 +501,3 @@ button
     </div>
   );
 }
- 
