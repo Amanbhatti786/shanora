@@ -42,7 +42,7 @@ export default function AdsManagerPage() {
     }
   }
 
-  // Handle Direct Image File Upload
+  // Handle Direct Image File Upload using PUBLIC bucket 'post-images'
   async function handleImageUpload(e) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -58,21 +58,16 @@ export default function AdsManagerPage() {
       const filePath = `ads/${Date.now()}.${fileExt}`;
 
       let { error: uploadError } = await supabase.storage
-        .from('documents')
+        .from('post-images')
         .upload(filePath, file);
 
-      if (uploadError) {
-        const { error: fallbackError } = await supabase.storage
-          .from('public')
-          .upload(filePath, file);
-        if (fallbackError) throw uploadError;
-        const { data: pubData } = supabase.storage.from('public').getPublicUrl(filePath);
-        setMediaUrl(pubData.publicUrl);
-      } else {
-        const { data: pubData } = supabase.storage.from('documents').getPublicUrl(filePath);
-        setMediaUrl(pubData.publicUrl);
-      }
+      if (uploadError) throw uploadError;
 
+      const { data: pubData } = supabase.storage
+        .from('post-images')
+        .getPublicUrl(filePath);
+
+      setMediaUrl(pubData.publicUrl);
       alert('Image uploaded successfully! ✓');
     } catch (err) {
       alert('Image upload failed: ' + err.message);
@@ -231,7 +226,7 @@ export default function AdsManagerPage() {
                 />
               </div>
 
-              {/* Direct Image Upload Field */}
+              {/* Direct Image Upload Field using public bucket 'post-images' */}
               <div>
                 <label style={{ display: 'block', fontSize: '0.74rem', color: '#94a3b8', marginBottom: '0.3rem', fontWeight: 'bold' }}>Upload Ad Image *</label>
                 <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center' }}>
