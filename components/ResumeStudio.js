@@ -49,6 +49,27 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
   const [isSaving, setIsSaving] = useState(false);
   const [statusMsg, setStatusMsg] = useState('');
 
+  // Professional Custom Notification Card Modal State (Replaces ugly browser alert())
+  const [modalNotice, setModalNotice] = useState(null);
+
+  const openNoticeCard = ({
+    title = 'SHANORA PRO Feature Locked',
+    badge = 'PRO EXCLUSIVE 🔒',
+    message = '',
+    subMessage = '',
+    showUpgrade = true,
+    showSwitchFree = false
+  }) => {
+    setModalNotice({
+      title,
+      badge,
+      message,
+      subMessage,
+      showUpgrade,
+      showSwitchFree
+    });
+  };
+
   // AI & Analysis Modals
   const [atsReport, setAtsReport] = useState(null);
   const [coverLetter, setCoverLetter] = useState('');
@@ -352,8 +373,14 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
 
   const handleRunAtsAnalysis = () => {
     if (!isUserPro) {
-      alert('🔒 ATS Compatibility & Missing Info Analysis is a SHANORA PRO feature. Upgrade to PRO to unlock!');
-      if (typeof navigateToTab === 'function') navigateToTab('pro');
+      openNoticeCard({
+        title: 'ATS Compatibility & Missing Info Analysis',
+        badge: 'SHANORA PRO AI 🔒',
+        message: 'Deep ATS Compatibility Scoring and missing keyword diagnostics are exclusive to SHANORA PRO members.',
+        subMessage: 'Upgrade to SHANORA PRO to unlock full ATS CV diagnostics, executive templates, and AI cover letters!',
+        showUpgrade: true,
+        showSwitchFree: false
+      });
       return;
     }
     const missing = [];
@@ -377,8 +404,14 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
 
   const handleGenerateCoverLetter = () => {
     if (!isUserPro) {
-      alert('🔒 AI Cover Letter Generator is an exclusive SHANORA PRO feature. Upgrade to PRO to unlock!');
-      if (typeof navigateToTab === 'function') navigateToTab('pro');
+      openNoticeCard({
+        title: 'AI Cover Letter Generator',
+        badge: 'SHANORA PRO AI 🔒',
+        message: 'Customized AI Cover Letter generation tailored to your target company and job title is reserved for SHANORA PRO subscribers.',
+        subMessage: 'Upgrade your account to generate unlimited executive cover letters and unlock all 12 CV templates!',
+        showUpgrade: true,
+        showSwitchFree: false
+      });
       return;
     }
     const role = targetRole || cvData.headline || 'the open position';
@@ -397,12 +430,25 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
   // --- SAVE & VERSION MANAGEMENT (WORKS ONLINE & OFFLINE) ---
   const handleSaveCvToDatabase = async (asNewVersion = false) => {
     if (activeTemplateObj.type === 'Pro' && !isUserPro) {
-      alert('🔒 You are currently previewing a PRO template on a Free account.\n\nPlease select one of the 4 Free templates (1–4) to save, or upgrade to SHANORA PRO!');
+      openNoticeCard({
+        title: `"${activeTemplateObj.name}" is a Paid PRO Template`,
+        badge: 'PRO TEMPLATE LOCK 🔒',
+        message: 'You are currently previewing an exclusive SHANORA PRO template on a Free Tier account.',
+        subMessage: 'Please switch to Free Templates (1–4) to save for free, or upgrade to SHANORA PRO to save and export this executive layout!',
+        showUpgrade: true,
+        showSwitchFree: true
+      });
       return;
     }
     if (!isUserPro && asNewVersion && savedResumes.length >= 1) {
-      alert('🔒 Saving multiple CV versions is a SHANORA PRO feature.\n\nFree users can save and update 1 primary CV. Upgrade to PRO for unlimited CV versions!');
-      if (typeof navigateToTab === 'function') navigateToTab('pro');
+      openNoticeCard({
+        title: 'Multiple CV Versions (PRO Feature)',
+        badge: 'VERSION LIMIT 🔒',
+        message: 'Free Tier members can save and update 1 primary CV on their account.',
+        subMessage: 'Upgrade to SHANORA PRO to create, rename, and manage unlimited tailored CV versions for different job applications!',
+        showUpgrade: true,
+        showSwitchFree: false
+      });
       return;
     }
 
@@ -466,8 +512,14 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
   // --- STRICT PDF DOWNLOAD (FREE = ALLOWED, PRO = ALLOWED FOR PRO ACCOUNTS, BLOCKED FOR FREE ACCOUNTS) ---
   const handleDownloadPDF = () => {
     if (activeTemplateObj.type === 'Pro' && !isUserPro) {
-      alert(`🔒 "${activeTemplateObj.name}" is a Paid SHANORA PRO Template!\n\nFree users can edit and preview PRO designs, but PDF downloading is strictly reserved for PRO subscribers.\n\n👉 Switch to Free Templates (1–4) to download PDF for free, or Upgrade to SHANORA PRO!`);
-      if (typeof navigateToTab === 'function') navigateToTab('pro');
+      openNoticeCard({
+        title: `"${activeTemplateObj.name}" is a Paid SHANORA PRO Template!`,
+        badge: 'PRO PDF EXPORT LOCKED 🔒',
+        message: 'Free users can edit and preview all PRO designs in real time, but official A4 PDF downloading is strictly reserved for SHANORA PRO subscribers.',
+        subMessage: 'Switch to Free Templates (1–4) to download your PDF for free right now, or Upgrade to SHANORA PRO to unlock all 12 executive layouts!',
+        showUpgrade: true,
+        showSwitchFree: true
+      });
       return;
     }
 
@@ -1244,6 +1296,191 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.4rem', padding: '0.8rem 0' }}>
       
+      {/* PROFESSIONAL EXECUTIVE NOTIFICATION CARD MODAL (Replaces Browser alert()) */}
+      {modalNotice && (
+        <div
+          onClick={() => setModalNotice(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(7, 11, 20, 0.82)',
+            backdropFilter: 'blur(8px)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1.2rem'
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '100%',
+              maxWidth: '460px',
+              backgroundColor: '#0f172a',
+              borderRadius: '20px',
+              border: '1px solid #38bdf8',
+              boxShadow: '0 25px 60px rgba(0, 0, 0, 0.75), 0 0 30px rgba(2, 132, 199, 0.25)',
+              overflow: 'hidden',
+              fontFamily: 'system-ui, sans-serif',
+              color: '#ffffff'
+            }}
+          >
+            {/* Top Gradient Accent Bar */}
+            <div style={{ height: '6px', background: 'linear-gradient(90deg, #0284c7, #7c3aed, #eab308)' }} />
+
+            <div style={{ padding: '1.6rem' }}>
+              {/* Header Row */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <span style={{
+                  backgroundColor: 'rgba(124, 58, 237, 0.2)',
+                  border: '1px solid #7c3aed',
+                  color: '#c084fc',
+                  fontSize: '0.68rem',
+                  fontWeight: '900',
+                  padding: '4px 10px',
+                  borderRadius: '999px',
+                  letterSpacing: '0.5px'
+                }}>
+                  {modalNotice.badge}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setModalNotice(null)}
+                  style={{
+                    background: '#1e293b',
+                    border: '1px solid #334155',
+                    color: '#94a3b8',
+                    width: '28px',
+                    height: '28px',
+                    borderRadius: '50%',
+                    cursor: 'pointer',
+                    fontWeight: '800',
+                    fontSize: '0.8rem'
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Icon + Title */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', marginBottom: '0.85rem' }}>
+                <div style={{
+                  width: '48px',
+                  height: '48px',
+                  borderRadius: '14px',
+                  background: 'linear-gradient(135deg, #7c3aed, #0284c7)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '1.4rem',
+                  flexShrink: 0,
+                  boxShadow: '0 8px 20px rgba(124, 58, 237, 0.35)'
+                }}>
+                  🔒
+                </div>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#ffffff', margin: 0, lineHeight: '1.3' }}>
+                  {modalNotice.title}
+                </h3>
+              </div>
+
+              {/* Main Message */}
+              <p style={{ fontSize: '0.86rem', color: '#cbd5e1', lineHeight: '1.6', margin: '0 0 0.85rem 0' }}>
+                {modalNotice.message}
+              </p>
+
+              {/* Highlight Sub-Box */}
+              {modalNotice.subMessage && (
+                <div style={{
+                  backgroundColor: '#070b14',
+                  border: '1px solid #1e293b',
+                  borderLeft: '4px solid #eab308',
+                  borderRadius: '10px',
+                  padding: '0.75rem 0.9rem',
+                  fontSize: '0.8rem',
+                  color: '#f8fafc',
+                  lineHeight: '1.5',
+                  marginBottom: '1.3rem'
+                }}>
+                  👉 {modalNotice.subMessage}
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
+                {modalNotice.showUpgrade && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setModalNotice(null);
+                      if (typeof navigateToTab === 'function') navigateToTab('pro');
+                    }}
+                    style={{
+                      width: '100%',
+                      background: 'linear-gradient(90deg, #eab308, #f59e0b)',
+                      color: '#000000',
+                      border: 'none',
+                      padding: '0.75rem 1rem',
+                      borderRadius: '10px',
+                      fontWeight: '900',
+                      fontSize: '0.85rem',
+                      cursor: 'pointer',
+                      boxShadow: '0 6px 18px rgba(234, 179, 8, 0.3)'
+                    }}
+                  >
+                    ⭐ Upgrade to SHANORA PRO
+                  </button>
+                )}
+
+                <div style={{ display: 'flex', gap: '0.55rem' }}>
+                  {modalNotice.showSwitchFree && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedTemplate('free-classic');
+                        setModalNotice(null);
+                        setStatusMsg('✅ Switched to "1. Basic Standard" (Free Template) — Ready to Download PDF!');
+                      }}
+                      style={{
+                        flex: 1,
+                        backgroundColor: '#0284c7',
+                        color: '#ffffff',
+                        border: 'none',
+                        padding: '0.65rem 0.9rem',
+                        borderRadius: '10px',
+                        fontWeight: '800',
+                        fontSize: '0.8rem',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      📄 Use Free Template (1–4)
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => setModalNotice(null)}
+                    style={{
+                      flex: 1,
+                      backgroundColor: '#1e293b',
+                      color: '#cbd5e1',
+                      border: '1px solid #334155',
+                      padding: '0.65rem 0.9rem',
+                      borderRadius: '10px',
+                      fontWeight: '800',
+                      fontSize: '0.8rem',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Continue Editing
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 1. EXECUTIVE DASHBOARD HEADER & SAVED CVS BAR */}
       <div style={{ backgroundColor: '#0f172a', padding: '1.25rem', borderRadius: '16px', border: '1px solid #1e293b', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.8rem' }}>
@@ -1264,8 +1501,14 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
                         : '⭐ Restored Your Database PRO Account (All 12 Templates Unlocked!)'
                     );
                   } else {
-                    alert('🔒 Your account is currently on the Free Tier. Upgrade to SHANORA PRO to unlock all 12 Executive Templates!');
-                    if (typeof navigateToTab === 'function') navigateToTab('pro');
+                    openNoticeCard({
+                      title: 'SHANORA PRO Executive Membership',
+                      badge: 'ACCOUNT TIER: FREE 🔒',
+                      message: 'Your account is currently on the Free Tier (Templates 1–4 are unlocked for free A4 PDF export).',
+                      subMessage: 'Upgrade to SHANORA PRO to unlock all 8 Executive PRO CV designs, unlimited CV versions, ATS diagnostics, and AI Cover Letters!',
+                      showUpgrade: true,
+                      showSwitchFree: false
+                    });
                   }
                 }}
                 style={{
