@@ -21,14 +21,20 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
     return supabaseRef.current;
   };
 
-  // --- STRICT PAID PRO SUBSCRIPTION CHECK ---
-  // Default is FREE TIER so PRO templates stay locked until actual subscription or explicit toggle
-  const hasVerifiedPaidSubscription = Boolean(
-    profile?.is_pro === true &&
-    (profile?.pro_status === 'active' || profile?.subscription_status === 'active' || profile?.plan === 'pro_paid')
+  // --- REAL SUPABASE DATABASE PRO SUBSCRIPTION CHECK ---
+  // Automatically unlocks all 12 templates if the user's ID has PRO active in Supabase
+  const hasDbPaidPro = Boolean(
+    profile?.is_pro === true ||
+    profile?.is_pro === 'true' ||
+    profile?.is_pro === 1 ||
+    profile?.plan === 'pro' ||
+    profile?.account_tier === 'pro' ||
+    profile?.subscription_status === 'active'
   );
-  const [testProUnlocked, setTestProUnlocked] = useState(false);
-  const isUserPro = hasVerifiedPaidSubscription || testProUnlocked;
+
+  // Optional toggle so the Founder can test Free User restrictions even while logged into a PRO account
+  const [testAsFreeUser, setTestAsFreeUser] = useState(false);
+  const isUserPro = hasDbPaidPro && !testAsFreeUser;
 
   // --- CORE STUDIO STATE ---
   const [selectedTemplate, setSelectedTemplate] = useState('free-classic');
@@ -175,7 +181,7 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
     { id: 'free-boxed', name: '3. Classic Boxed', type: 'Free', variant: 'free-box', accent: '#475569', subBg: '#f1f5f9' },
     { id: 'free-minimal', name: '4. Clean Entry', type: 'Free', variant: 'free-topbar', accent: '#0284c7', subBg: '#f0f9ff' },
 
-    // 8 PRO TEMPLATES (Editable for All, PDF Download Strictly Locked Unless PRO)
+    // 8 PRO TEMPLATES (Editable for All, PDF Download Strictly Locked Unless User Has PRO)
     { id: 'pro-crimson', name: '5. Executive Crimson', type: 'Pro', variant: 'pro-left-sidebar', accent: '#991b1b', subBg: '#fef2f2' },
     { id: 'pro-royal', name: '6. Royal Split Banner', type: 'Pro', variant: 'pro-top-banner', accent: '#4c1d95', subBg: '#f5f3ff' },
     { id: 'pro-emerald', name: '7. Tech Emerald Grid', type: 'Pro', variant: 'pro-tech-pills', accent: '#065f46', subBg: '#ecfdf5' },
@@ -232,7 +238,15 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
 
   const handleSelectTemplate = (tmpl) => {
     setSelectedTemplate(tmpl.id);
-    setStatusMsg(`✓ Active Template switched to "${tmpl.name}" (${tmpl.type === 'Pro' ? (isUserPro ? 'PRO Unlocked' : 'PRO Preview — Upgrade to Download PDF') : 'Free PDF Download Ready'})`);
+    setStatusMsg(
+      `✓ Active Template switched to "${tmpl.name}" (${
+        tmpl.type === 'Pro'
+          ? isUserPro
+            ? '⭐ PRO Unlocked — Ready to Download PDF'
+            : '🔒 PRO Preview — Upgrade to Download PDF'
+          : '✅ Free PDF Download Ready'
+      })`
+    );
     setTimeout(() => {
       previewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 120);
@@ -449,7 +463,7 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
     setStatusMsg(`📂 Loaded CV: "${item.title}"`);
   };
 
-  // --- STRICT PDF DOWNLOAD (FREE = ALLOWED, PRO = BLOCKED UNLESS PAID PRO) ---
+  // --- STRICT PDF DOWNLOAD (FREE = ALLOWED, PRO = ALLOWED FOR PRO ACCOUNTS, BLOCKED FOR FREE ACCOUNTS) ---
   const handleDownloadPDF = () => {
     if (activeTemplateObj.type === 'Pro' && !isUserPro) {
       alert(`🔒 "${activeTemplateObj.name}" is a Paid SHANORA PRO Template!\n\nFree users can edit and preview PRO designs, but PDF downloading is strictly reserved for PRO subscribers.\n\n👉 Switch to Free Templates (1–4) to download PDF for free, or Upgrade to SHANORA PRO!`);
@@ -1238,12 +1252,21 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
               <h2 style={{ fontSize: '1.25rem', fontWeight: '800', color: '#fff', margin: 0 }}>
                 SHANORA Professional CV Studio 📄
               </h2>
-              {/* Clickable Plan Mode Badge so Founder/User can test FREE vs PRO restrictions */}
+              {/* Automatic Database Status Badge (with optional click-to-test Free mode if user is PRO) */}
               <button
                 type="button"
                 onClick={() => {
-                  setTestProUnlocked(!testProUnlocked);
-                  setStatusMsg(!testProUnlocked ? '⭐ Switched to PRO PAID Mode (All 12 Templates Unlocked)' : '🔒 Switched to FREE TIER Mode (Templates 1–4 Free, 5–12 Locked for PDF Download)');
+                  if (hasDbPaidPro) {
+                    setTestAsFreeUser(!testAsFreeUser);
+                    setStatusMsg(
+                      !testAsFreeUser
+                        ? '🔒 Testing as Free User (Templates 5–12 Locked for PDF Download)'
+                        : '⭐ Restored Your Database PRO Account (All 12 Templates Unlocked!)'
+                    );
+                  } else {
+                    alert('🔒 Your account is currently on the Free Tier. Upgrade to SHANORA PRO to unlock all 12 Executive Templates!');
+                    if (typeof navigateToTab === 'function') navigateToTab('pro');
+                  }
                 }}
                 style={{
                   backgroundColor: isUserPro ? '#eab308' : '#0284c7',
@@ -1255,9 +1278,10 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
                   border: 'none',
                   cursor: 'pointer'
                 }}
-                title="Click to test Free Tier vs Paid PRO Tier restrictions"
               >
-                {isUserPro ? '⭐ PRO PAID MODE (Click to Test Free Tier)' : '🔒 FREE TIER ACTIVE (4 Free • 8 PRO Locked)'}
+                {isUserPro
+                  ? '⭐ PRO ACCOUNT ACTIVE (All 12 Templates Unlocked)'
+                  : '🔒 FREE TIER (4 Free • 8 PRO Locked)'}
               </button>
             </div>
             <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: '0.25rem 0 0 0' }}>
@@ -1288,7 +1312,7 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
               onClick={handleDownloadPDF}
               style={{ backgroundColor: isDownloadLocked ? '#7c3aed' : '#0284c7', color: '#fff', border: 'none', padding: '0.6rem 1.15rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer', boxShadow: '0 4px 14px rgba(2, 132, 199, 0.35)' }}
             >
-              {isDownloadLocked ? '🔒 Unlock PRO to Download PDF' : '🖨️ Download Free A4 PDF'}
+              {isDownloadLocked ? '🔒 Unlock PRO to Download PDF' : '🖨️ Download Official A4 PDF'}
             </button>
           </div>
         </div>
@@ -1369,8 +1393,8 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
           <h3 style={{ fontSize: '0.95rem', fontWeight: '800', color: '#fff', margin: 0 }}>
             Step 1: Select or Switch CV Template ({cvStandard.toUpperCase()} Mode Active ↔️)
           </h3>
-          <span style={{ fontSize: '0.75rem', color: isDownloadLocked ? '#c084fc' : '#38bdf8', fontWeight: '800' }}>
-            Selected: {activeTemplateObj.name} ({isDownloadLocked ? '🔒 PRO — Upgrade to Download PDF' : '✅ Free PDF Download'})
+          <span style={{ fontSize: '0.75rem', color: isDownloadLocked ? '#c084fc' : '#22c55e', fontWeight: '800' }}>
+            Selected: {activeTemplateObj.name} ({isDownloadLocked ? '🔒 PRO — Upgrade to Download PDF' : '✅ Unlocked for PDF Download'})
           </span>
         </div>
 
@@ -1405,14 +1429,14 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
                   top: '8px',
                   right: '8px',
                   zIndex: 10,
-                  backgroundColor: isPro ? '#7c3aed' : '#0284c7',
-                  color: '#fff',
+                  backgroundColor: isPro ? (isUserPro ? '#eab308' : '#7c3aed') : '#0284c7',
+                  color: isPro && isUserPro ? '#000' : '#fff',
                   fontSize: '0.6rem',
                   fontWeight: '800',
                   padding: '3px 8px',
                   borderRadius: '999px'
                 }}>
-                  {isPro ? 'PRO 🔒' : 'FREE'}
+                  {isPro ? (isUserPro ? 'PRO ⭐' : 'PRO 🔒') : 'FREE'}
                 </div>
 
                 {renderMiniCardDesign(tmpl)}
@@ -1445,7 +1469,7 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
                       width: '90%'
                     }}
                   >
-                    {isSelected ? '✓ Active Below' : (isPro ? 'Preview & Edit PRO' : 'Use Free Template')}
+                    {isSelected ? '✓ Active Below' : (isPro ? (isUserPro ? 'Use PRO Template' : 'Preview & Edit PRO') : 'Use Free Template')}
                   </button>
                 </div>
               </div>
@@ -1873,7 +1897,7 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
           <span style={{ fontSize: '0.8rem', fontWeight: '800' }}>
             {isDownloadLocked
               ? `🔒 Previewing "${activeTemplateObj.name}" (PRO Template) — Edit Allowed • Upgrade to PRO to Download PDF`
-              : `✅ Live A4 Preview: "${activeTemplateObj.name}" (${cvStandard.toUpperCase()} Format) — Free PDF Download Ready`}
+              : `✅ Live A4 Preview: "${activeTemplateObj.name}" (${cvStandard.toUpperCase()} Format) — PDF Download Unlocked`}
           </span>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <button
