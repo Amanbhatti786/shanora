@@ -54,30 +54,11 @@ function ProfilePortalContent() {
   const [loading, setLoading] = useState(true);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
-  // Modals for Menu Features
+  // Modals for Menu Features (Ads modal removed entirely)
   const [showInviteModal, setShowInviteModal] = useState(false);
-  const [showAdsModal, setShowAdsModal] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [referralCount, setReferralCount] = useState(0);
   const [claimingMilestone, setClaimingMilestone] = useState(null);
-
-  // Ads Portal State (Strict Multi-Step Facebook Campaign Flow)
-  const [adStep, setAdStep] = useState(1);
-  const [adFormData, setAdFormData] = useState({
-    selectedPageId: '',
-    selectedPageSlug: '',
-    headline: '',
-    adText: '',
-    targetUrl: '',
-    targetCity: 'All Pakistan',
-    targetObjective: 'traffic',
-    budget: '1500',
-    durationDays: '7',
-    paymentMethod: 'EasyPaisa',
-    trxId: ''
-  });
-  const [adSubmitting, setAdSubmitting] = useState(false);
-  const [adSuccessMessage, setAdSuccessMessage] = useState('');
 
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState({
@@ -125,7 +106,6 @@ function ProfilePortalContent() {
     education: 'Bachelor of Science in Computer Science\nUniversity of Information Technology (2020 - 2024)',
     languages: 'English (Professional), Urdu (Native)'
   });
-  const [selectedTemplate, setSelectedTemplate] = useState('executive-classic');
 
   const [trxId, setTrxId] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('EasyPaisa');
@@ -142,7 +122,7 @@ function ProfilePortalContent() {
   const [followingMap, setFollowingMap] = useState({});
   const [actionLoading, setActionLoading] = useState({});
 
-  // Messenger Real-Time State (Facebook Messenger Style)
+  // Messenger Real-Time State
   const [messageSearchQuery, setMessageSearchQuery] = useState('');
   const [activeChatUser, setActiveChatUser] = useState(null);
   const [chatMessages, setChatMessages] = useState([]);
@@ -372,18 +352,7 @@ function ProfilePortalContent() {
           .select('*')
           .ilike('owner_email', myEmail)
           .order('created_at', { ascending: false })
-          .then(({ data }) => { 
-            if (data) {
-              setMyPages(data);
-              if (data.length > 0) {
-                setAdFormData(prev => ({
-                  ...prev,
-                  selectedPageId: data[0].id,
-                  selectedPageSlug: data[0].slug
-                }));
-              }
-            }
-          });
+          .then(({ data }) => { if (data) setMyPages(data); });
 
         supabase.from('user_referrals')
           .select('id', { count: 'exact', head: true })
@@ -741,45 +710,6 @@ function ProfilePortalContent() {
     return diff >= 0 && diff < 3 * 60 * 1000;
   }
 
-  async function handleResumeUpload(e) {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
-
-    if (file.size > 5 * 1024 * 1024) {
-      alert('Resume file size must be less than 5MB.');
-      return;
-    }
-
-    setUploadingResume(true);
-    try {
-      const fileExt = file.name.split('.').pop();
-      const filePath = `resumes/${user.id}-${Date.now()}.${fileExt}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('documents')
-        .upload(filePath, file, { upsert: true });
-
-      if (uploadError) {
-        const { error: fallbackError } = await supabase.storage
-          .from('public')
-          .upload(filePath, file, { upsert: true });
-        if (fallbackError) throw uploadError;
-      }
-
-      const { data: publicUrlData } = supabase.storage
-        .from('documents')
-        .getPublicUrl(filePath);
-
-      const resumeUrl = publicUrlData.publicUrl;
-      setEditProfileForm(prev => ({ ...prev, resume_url: resumeUrl }));
-      alert('Resume successfully uploaded! Click Save Profile to apply changes.');
-    } catch (err) {
-      alert('Upload error: ' + err.message);
-    } finally {
-      setUploadingResume(false);
-    }
-  }
-
   async function handleAvatarUpload(e) {
     const file = e.target.files?.[0];
     if (!file || !user) return;
@@ -1060,18 +990,6 @@ function ProfilePortalContent() {
     }
   }
 
-  async function handleSelectSetting(key, value) {
-    setProfile(prev => ({ ...prev, [key]: value }));
-    try {
-      await supabase
-        .from('profiles')
-        .update({ [key]: value })
-        .ilike('email', user.email.toLowerCase());
-    } catch (err) {
-      console.error('Settings update error:', err);
-    }
-  }
-
   async function handleClaimMilestone(milestone) {
     if (!user) return;
     setClaimingMilestone(milestone.minFriends);
@@ -1102,55 +1020,6 @@ function ProfilePortalContent() {
     }
   }
 
-  async function handleCreateAd(e) {
-    e.preventDefault();
-    if (!adFormData.selectedPageId) {
-      alert('Please select an active Page to run this campaign.');
-      setAdStep(1);
-      return;
-    }
-    if (!adFormData.headline.trim() || !adFormData.adText.trim()) {
-      alert('Please provide campaign headline and caption text.');
-      setAdStep(2);
-      return;
-    }
-    if (!adFormData.trxId.trim()) {
-      alert('Please enter your Transaction ID (TID) to proceed.');
-      return;
-    }
-
-    setAdSubmitting(true);
-    try {
-      const selectedPage = myPages.find(p => p.id === adFormData.selectedPageId);
-      const { error } = await supabase.from('advertisements').insert([{
-        advertiser_email: (user?.email || '').toLowerCase(),
-        page_id: adFormData.selectedPageId,
-        business_name: sanitizeInput(selectedPage?.name || profile.full_name),
-        headline: sanitizeInput(adFormData.headline),
-        ad_text: sanitizeInput(adFormData.adText),
-        target_url: adFormData.targetUrl,
-        target_city: adFormData.targetCity,
-        target_objective: adFormData.targetObjective,
-        budget: Number(adFormData.budget),
-        duration_days: Number(adFormData.durationDays),
-        payment_method: adFormData.paymentMethod,
-        transaction_id: adFormData.trxId.trim(),
-        status: 'pending_approval'
-      }]);
-
-      if (error) {
-        console.warn('Ad table notice:', error.message);
-      }
-
-      setAdSuccessMessage('Campaign submitted successfully! It is now under Admin Approval.');
-      setAdStep(6);
-    } catch (err) {
-      alert('Submission error: ' + err.message);
-    } finally {
-      setAdSubmitting(false);
-    }
-  }
-
   const sortedMessengerUsers = [...allUsersList].sort((a, b) => {
     const timeA = userLastMessagesMap[(a.email || '').toLowerCase()]?.time || 0;
     const timeB = userLastMessagesMap[(b.email || '').toLowerCase()]?.time || 0;
@@ -1176,10 +1045,11 @@ function ProfilePortalContent() {
     (completionFields.filter(Boolean).length / completionFields.length) * 100
   );
 
+  // Updated menu items with Ads Manager linked directly to `/ads-manager`
   const allMenuItems = [
     { id: 'pro', label: 'Shanora PRO 👑', icon: '👑', bg: 'rgba(234, 179, 8, 0.15)', border: 'rgba(234, 179, 8, 0.4)' },
     { id: 'invite_friends', label: 'Invite Friends 👥', icon: '👥', bg: 'rgba(34, 197, 94, 0.15)', border: 'rgba(34, 197, 94, 0.35)' },
-    { id: 'advertiser_portal', label: 'Ads Manager 📢', icon: '📢', bg: 'rgba(59, 130, 246, 0.15)', border: 'rgba(59, 130, 246, 0.35)' },
+    { id: 'advertiser_portal', label: 'Ads Manager 📢', icon: '📢', bg: 'rgba(59, 130, 246, 0.15)', border: 'rgba(59, 130, 246, 0.35)', isLink: true, route: '/ads-manager' },
     { id: 'dashboard', label: 'Dashboard', icon: '📊', bg: 'rgba(56, 189, 248, 0.12)', border: 'rgba(56, 189, 248, 0.25)' },
     { id: 'profile', label: 'My Profile', icon: '👤', bg: 'rgba(129, 140, 248, 0.12)', border: 'rgba(129, 140, 248, 0.25)' },
     { id: 'messages', label: 'Messages', icon: '💬', bg: 'rgba(236, 72, 153, 0.12)', border: 'rgba(236, 72, 153, 0.25)' },
@@ -1373,62 +1243,75 @@ function ProfilePortalContent() {
               width: '100%',
               boxSizing: 'border-box'
             }}>
-              {allMenuItems.map(item => (
-                <div
-                  key={item.id}
-                  onClick={() => {
+              {allMenuItems.map(item => {
+                const cardContent = (
+                  <div
+                    key={item.id}
+                    style={{
+                      backgroundColor: '#0f172a',
+                      border: '1px solid #1e293b',
+                      borderRadius: '12px',
+                      padding: '0.65rem 0.75rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.6rem',
+                      minWidth: 0,
+                      width: '100%',
+                      boxSizing: 'border-box'
+                    }}
+                  >
+                    <div style={{
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '8px',
+                      backgroundColor: item.bg,
+                      border: `1px solid ${item.border}`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '1rem',
+                      flexShrink: 0
+                    }}>
+                      {item.icon}
+                    </div>
+                    <div style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
+                      <div style={{ 
+                        color: item.id === 'pro' || item.id === 'resume' ? '#facc15' : item.id === 'invite_friends' ? '#4ade80' : item.id === 'advertiser_portal' ? '#60a5fa' : '#f8fafc', 
+                        fontSize: '0.8rem', 
+                        fontWeight: '800', 
+                        whiteSpace: 'nowrap', 
+                        textOverflow: 'ellipsis', 
+                        overflow: 'hidden' 
+                      }}>
+                        {item.label}
+                      </div>
+                    </div>
+                  </div>
+                );
+
+                if (item.isLink) {
+                  return (
+                    <Link key={item.id} href={item.route} style={{ textDecoration: 'none', display: 'block' }}>
+                      {cardContent}
+                    </Link>
+                  );
+                }
+
+                return (
+                  <div key={item.id} onClick={() => {
                     if (item.id === 'security') {
                       router.push('/settings/security');
                     } else if (item.id === 'invite_friends') {
                       setShowInviteModal(true);
-                    } else if (item.id === 'advertiser_portal') {
-                      setShowAdsModal(true);
                     } else {
                       navigateToTab(item.id);
                     }
-                  }}
-                  style={{
-                    backgroundColor: '#0f172a',
-                    border: '1px solid #1e293b',
-                    borderRadius: '12px',
-                    padding: '0.65rem 0.75rem',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.6rem',
-                    minWidth: 0,
-                    width: '100%',
-                    boxSizing: 'border-box'
-                  }}
-                >
-                  <div style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '8px',
-                    backgroundColor: item.bg,
-                    border: `1px solid ${item.border}`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '1rem',
-                    flexShrink: 0
                   }}>
-                    {item.icon}
+                    {cardContent}
                   </div>
-                  <div style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
-                    <div style={{ 
-                      color: item.id === 'pro' || item.id === 'resume' ? '#facc15' : item.id === 'invite_friends' ? '#4ade80' : item.id === 'advertiser_portal' ? '#60a5fa' : '#f8fafc', 
-                      fontSize: '0.8rem', 
-                      fontWeight: '800', 
-                      whiteSpace: 'nowrap', 
-                      textOverflow: 'ellipsis', 
-                      overflow: 'hidden' 
-                    }}>
-                      {item.label}
-                    </div>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             <button
@@ -1481,12 +1364,6 @@ function ProfilePortalContent() {
                     <span style={{ backgroundColor: '#22c55e', color: '#000', borderRadius: '50%', width: '22px', height: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.8rem' }}>✓</span>
                     <strong style={{ color: '#4ade80', fontSize: '1rem' }}>Your Shanora PRO Membership is ACTIVE!</strong>
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.82rem', color: '#cbd5e1' }}>
-                    <div>✓ <strong>Executive Verified Badge:</strong> Cyan-Blue starburst badge is active across your profile and posts.</div>
-                    <div>✓ <strong>ATS Resume Builder:</strong> Unlimited professional CV generation & PDF download unlocked.</div>
-                    <div>✓ <strong>Application Boost:</strong> Featured placement on employer applicant portals.</div>
-                    <div>✓ <strong>Feed Reach:</strong> 5x higher reach on your published articles and updates.</div>
-                  </div>
                 </div>
               ) : latestProRequest?.status === 'pending' ? (
                 <div style={{ backgroundColor: '#0f172a', border: '1px solid #facc15', borderRadius: '12px', padding: '1.2rem', textAlign: 'left' }}>
@@ -1495,31 +1372,15 @@ function ProfilePortalContent() {
                     <strong style={{ color: '#facc15', fontSize: '0.95rem' }}>Verification in Progress</strong>
                   </div>
                   <p style={{ margin: 0, fontSize: '0.8rem', color: '#94a3b8', lineHeight: '1.4' }}>
-                    Your payment request (TID: <strong style={{ color: '#fff' }}>{latestProRequest.transaction_id}</strong>) is currently being reviewed. The verified badge will be enabled immediately after review.
+                    Your payment request (TID: <strong style={{ color: '#fff' }}>{latestProRequest.transaction_id}</strong>) is currently being reviewed.
                   </p>
                 </div>
               ) : (
                 <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.8)', border: '1px solid #334155', borderRadius: '12px', padding: '1.2rem', textAlign: 'left' }}>
-                  <div style={{ fontSize: '0.9rem', fontWeight: '800', color: '#fff', marginBottom: '0.6rem' }}>Exclusive PRO Perks:</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', fontSize: '0.8rem', color: '#94a3b8', marginBottom: '1.2rem' }}>
-                    <div>✓ <strong>Official Verified Badge:</strong> Stand out with a glowing cyan-blue executive badge.</div>
-                    <div>✓ <strong>ATS Resume Builder:</strong> Build & Export ATS-Friendly CV in 1-Click.</div>
-                    <div>✓ <strong>Priority Job Application:</strong> Featured at the top for hiring managers.</div>
-                    <div>✓ <strong>Direct Messenger:</strong> Connect with verified creators and businesses.</div>
-                    <div>✓ <strong>Profile Boost:</strong> Enhanced organic reach on all publications.</div>
-                  </div>
-
                   <div style={{ borderTop: '1px solid #1e293b', paddingTop: '1rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.8rem' }}>
                       <span style={{ color: '#fff', fontWeight: '700', fontSize: '0.85rem' }}>Monthly Subscription:</span>
                       <span style={{ color: '#facc15', fontWeight: '900', fontSize: '1.1rem' }}>Rs. 499 / mo</span>
-                    </div>
-
-                    <div style={{ backgroundColor: '#1e293b', padding: '0.75rem', borderRadius: '8px', fontSize: '0.78rem', color: '#cbd5e1', marginBottom: '0.8rem', lineHeight: '1.4' }}>
-                      <strong>Payment Procedure:</strong><br />
-                      1. Transfer <strong>Rs. 499</strong> via EasyPaisa / JazzCash to: <code>03033639664</code><br />
-                      2. Account Title: <code>Amanullah</code><br />
-                      3. Enter Transaction ID (TID) below and click submit.
                     </div>
 
                     <form onSubmit={handleProActivation} style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
@@ -1566,67 +1427,10 @@ function ProfilePortalContent() {
             </div>
 
             <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.3rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.8rem' }}>
-                <div>
-                  <span style={{ fontSize: '0.72rem', backgroundColor: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '0.2rem 0.5rem', borderRadius: '6px', fontWeight: 'bold' }}>
-                    Creator Analytics
-                  </span>
-                  <h2 style={{ fontSize: '1.25rem', color: '#fff', margin: '0.45rem 0 0.2rem 0', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                    <span>{profile.full_name}</span>
-                    {profile.is_pro && <ProVerifiedBadge size={19} />}
-                  </h2>
-                  <p style={{ fontSize: '0.78rem', color: '#94a3b8', margin: 0 }}>
-                    Track your audience engagement, profile performance, and network growth.
-                  </p>
-                </div>
-
-                <div style={{ textAlign: 'right' }}>
-                  <span style={{
-                    fontSize: '0.7rem',
-                    fontWeight: '800',
-                    padding: '0.25rem 0.6rem',
-                    borderRadius: '8px',
-                    backgroundColor: profile.is_pro ? 'rgba(250, 204, 21, 0.15)' : 'rgba(148, 163, 184, 0.15)',
-                    color: profile.is_pro ? '#facc15' : '#94a3b8',
-                    border: profile.is_pro ? '1px solid rgba(250, 204, 21, 0.35)' : '1px solid rgba(148, 163, 184, 0.25)'
-                  }}>
-                    {profile.is_pro ? 'PRO MEMBER 👑' : 'STANDARD'}
-                  </span>
-                </div>
-              </div>
-
-              <div style={{ borderTop: '1px solid #1e293b', paddingTop: '0.9rem', marginTop: '0.8rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-                  <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Profile Strength</span>
-                  <span style={{ fontSize: '0.75rem', fontWeight: '800', color: profileCompletionPercent === 100 ? '#4ade80' : '#38bdf8' }}>
-                    {profileCompletionPercent}%
-                  </span>
-                </div>
-                <div style={{ width: '100%', height: '6px', backgroundColor: '#1e293b', borderRadius: '3px', overflow: 'hidden' }}>
-                  <div style={{ width: `${profileCompletionPercent}%`, height: '100%', backgroundColor: profileCompletionPercent === 100 ? '#22c55e' : '#0284c7', transition: 'width 0.4s' }} />
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem' }}>
-              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1rem' }}>
-                <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>Followers 👥</span>
-                <div style={{ fontSize: '1.4rem', fontWeight: '900', color: '#38bdf8', marginTop: '0.2rem' }}>{followersList.length}</div>
-              </div>
-              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1rem' }}>
-                <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>Following 🤝</span>
-                <div style={{ fontSize: '1.4rem', fontWeight: '900', color: '#22c55e', marginTop: '0.2rem' }}>{followingList.length}</div>
-              </div>
-              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1rem' }}>
-                <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>Feed Posts 📝</span>
-                <div style={{ fontSize: '1.4rem', fontWeight: '900', color: '#facc15', marginTop: '0.2rem' }}>{myPostsCount}</div>
-              </div>
-              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1rem' }}>
-                <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>Reach Boost 🚀</span>
-                <div style={{ fontSize: '1.4rem', fontWeight: '900', color: profile.is_pro ? '#a855f7' : '#94a3b8', marginTop: '0.2rem' }}>
-                  {profile.is_pro ? '5x' : '1x'}
-                </div>
-              </div>
+              <h2 style={{ fontSize: '1.25rem', color: '#fff', margin: '0.45rem 0 0.2rem 0', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <span>{profile.full_name}</span>
+                {profile.is_pro && <ProVerifiedBadge size={19} />}
+              </h2>
             </div>
           </div>
         )}
@@ -1667,12 +1471,7 @@ function ProfilePortalContent() {
                     <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                       <span>{profile.full_name}</span>
                       {profile.is_pro && <ProVerifiedBadge size={20} />}
-                      {profile.is_ambassador && <span title="Shanora Ambassador" style={{ color: '#facc15', fontSize: '1rem' }}>🌟</span>}
                     </h3>
-                    <div style={{ fontSize: '0.82rem', color: '#38bdf8', fontWeight: '600', marginTop: '0.15rem' }}>
-                      {profile.headline || 'Member on Shanora.pk'}
-                    </div>
-                    <span style={{ fontSize: '0.74rem', color: '#64748b' }}>{profile.email}</span>
                   </div>
                 </div>
 
@@ -1693,43 +1492,6 @@ function ProfilePortalContent() {
                   ✏️ Edit Profile
                 </button>
               </div>
-
-              {profile.bio && (
-                <div style={{ backgroundColor: 'rgba(30, 41, 59, 0.4)', borderRadius: '10px', padding: '0.8rem', fontSize: '0.84rem', color: '#cbd5e1', lineHeight: '1.45', marginBottom: '1rem' }}>
-                  {profile.bio}
-                </div>
-              )}
-
-              {profile.skills && (
-                <div style={{ marginBottom: '1rem' }}>
-                  <div style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase', marginBottom: '0.4rem' }}>
-                    Skills & Expertise
-                  </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                    {profile.skills.split(',').map((s, idx) => (
-                      <span key={idx} style={{ backgroundColor: '#1e293b', color: '#38bdf8', border: '1px solid #334155', padding: '0.2rem 0.6rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '600' }}>
-                        {s.trim()}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', fontSize: '0.84rem', color: '#94a3b8', borderTop: '1px solid #1e293b', paddingTop: '1rem' }}>
-                <div>📞 <strong style={{ color: '#fff' }}>WhatsApp / Phone:</strong> {profile.phone || 'Not provided'}</div>
-                <div>📍 <strong style={{ color: '#fff' }}>City / Location:</strong> {profile.city || 'Pakistan'}</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  📄 <strong style={{ color: '#fff' }}>Linked CV / Resume:</strong>
-                  {profile.resume_url ? (
-                    <a href={profile.resume_url} target="_blank" rel="noreferrer" style={{ backgroundColor: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '0.2rem 0.6rem', borderRadius: '6px', textDecoration: 'none', fontSize: '0.75rem', fontWeight: 'bold' }}>
-                      View Linked CV 🔗
-                    </a>
-                  ) : (
-                    <span style={{ color: '#64748b' }}>No CV attached yet</span>
-                  )}
-                </div>
-                <div>👑 <strong style={{ color: '#fff' }}>Account Status:</strong> {profile.is_pro ? <span style={{ color: '#facc15', fontWeight: '800' }}>Shanora PRO (Verified ✓)</span> : 'Standard Member'}</div>
-              </div>
             </div>
           </div>
         )}
@@ -1738,461 +1500,9 @@ function ProfilePortalContent() {
         {activeTab === 'messages' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0f172a', padding: '0.65rem 0.9rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span style={{ fontSize: '1.1rem' }}>💬</span>
-                <span style={{ fontWeight: '800', fontSize: '0.9rem', color: '#38bdf8' }}>Shanora Messenger</span>
-              </div>
-              <button 
-                type="button" 
-                onClick={() => {
-                  if (activeChatUser) {
-                    setActiveChatUser(null);
-                  } else {
-                    navigateToTab('menu');
-                  }
-                }} 
-                style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer', padding: 0 }}
-              >
-                ✕
-              </button>
+              <span style={{ fontWeight: '800', fontSize: '0.9rem', color: '#38bdf8' }}>Shanora Messenger</span>
+              <button type="button" onClick={() => navigateToTab('menu')} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer', padding: 0 }}>✕</button>
             </div>
-
-            {activeChatUser ? (
-              <div style={{ backgroundColor: '#0b1322', border: '1px solid #1e293b', borderRadius: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: '72vh', minHeight: '520px', boxShadow: '0 8px 24px rgba(0,0,0,0.5)' }}>
-                <div style={{ backgroundColor: '#0f172a', padding: '0.75rem 1rem', borderBottom: '1px solid #1e293b', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 10 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <button
-                      type="button"
-                      onClick={() => setActiveChatUser(null)}
-                      style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '50%', color: '#0084ff', fontSize: '1rem', cursor: 'pointer', width: '34px', height: '34px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                    >
-                      ←
-                    </button>
-                    
-                    <div style={{ position: 'relative' }}>
-                      <div style={{ width: '42px', height: '42px', borderRadius: '50%', backgroundColor: '#0084ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#fff', fontSize: '1.1rem', overflow: 'hidden' }}>
-                        {activeChatUser.avatar_url || activeChatUser.avatarUrl ? (
-                          <img src={activeChatUser.avatar_url || activeChatUser.avatarUrl} alt="User" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        ) : (
-                          (activeChatUser.full_name || activeChatUser.name || activeChatUser.displayName || 'U').charAt(0).toUpperCase()
-                        )}
-                      </div>
-                      {isUserOnline(activeChatUser.last_seen) ? (
-                        <div title="Active Now" style={{ position: 'absolute', bottom: '0px', right: '0px', width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#22c55e', border: '2px solid #0f172a', boxShadow: '0 0 6px #22c55e' }} />
-                      ) : (
-                        <div title="Offline" style={{ position: 'absolute', bottom: '0px', right: '0px', width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#64748b', border: '2px solid #0f172a' }} />
-                      )}
-                    </div>
-
-                    <div>
-                      <div style={{ color: '#fff', fontWeight: '700', fontSize: '0.92rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                        <span>{activeChatUser.full_name || activeChatUser.name || activeChatUser.displayName || activeChatUser.email?.split('@')[0]}</span>
-                        {activeChatUser.is_pro && <ProVerifiedBadge size={16} />}
-                      </div>
-                      <div style={{ fontSize: '0.7rem', color: isUserOnline(activeChatUser.last_seen) ? '#4ade80' : '#64748b', fontWeight: '600' }}>
-                        {isUserOnline(activeChatUser.last_seen) ? 'Active now' : 'Offline'}
-                      </div>
-                    </div>
-                  </div>
-
-                  <Link href={`/view-profile?email=${encodeURIComponent(activeChatUser.email || activeChatUser.user_email || '')}`} style={{ color: '#0084ff', fontSize: '0.75rem', textDecoration: 'none', fontWeight: '700', backgroundColor: 'rgba(0, 132, 255, 0.12)', border: '1px solid rgba(0, 132, 255, 0.3)', padding: '0.35rem 0.75rem', borderRadius: '20px' }}>
-                    Profile ↗
-                  </Link>
-                </div>
-
-                <div style={{ flex: 1, padding: '1rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-                  {chatMessages.length === 0 ? (
-                    <div style={{ textAlign: 'center', margin: 'auto', color: '#64748b', fontSize: '0.82rem' }}>
-                      Say hello to {activeChatUser.full_name || 'them'}! Start your direct 1-on-1 private conversation. 👋
-                    </div>
-                  ) : (
-                    chatMessages.map(msg => {
-                      const isMe = (msg.sender_email || '').toLowerCase() === (user?.email || '').toLowerCase();
-                      const isEditing = editingMessageId === msg.id;
-                      const hasReactions = msg.reactions && Object.keys(msg.reactions).some(k => (msg.reactions[k] || []).length > 0);
-                      const isMenuOpen = activeMenuMessageId === msg.id;
-                      const isReactionOpen = activeReactionMsgId === msg.id;
-
-                      return (
-                        <div key={msg.id} style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start', position: 'relative' }}>
-                          {isReactionOpen && !msg.is_deleted && (
-                            <div 
-                              style={{
-                                position: 'absolute',
-                                bottom: '100%',
-                                [isMe ? 'right' : 'left']: '6px',
-                                marginBottom: '6px',
-                                backgroundColor: '#1e293b',
-                                border: '1px solid #334155',
-                                borderRadius: '30px',
-                                padding: '4px 10px',
-                                display: 'flex',
-                                gap: '8px',
-                                alignItems: 'center',
-                                boxShadow: '0 8px 24px rgba(0, 0, 0, 0.75)',
-                                zIndex: 60
-                              }}
-                            >
-                              {['❤️', '👍', '😂', '😮', '😢', '🔥'].map(emoji => (
-                                <button
-                                  key={emoji}
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleReactToMessage(msg.id, emoji);
-                                  }}
-                                  style={{ background: 'none', border: 'none', fontSize: '1.4rem', cursor: 'pointer', padding: '0 2px', lineHeight: 1 }}
-                                >
-                                  {emoji}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', maxWidth: '82%', flexDirection: isMe ? 'row-reverse' : 'row' }}>
-                            <div 
-                              onTouchStart={() => handleTouchStart(msg.id)}
-                              onTouchEnd={handleTouchEnd}
-                              onTouchCancel={handleTouchEnd}
-                              onDoubleClick={() => setActiveReactionMsgId(prev => (prev === msg.id ? null : msg.id))}
-                              style={{
-                                backgroundColor: msg.is_deleted ? 'rgba(30, 41, 59, 0.5)' : isMe ? '#0084ff' : '#1e293b',
-                                color: msg.is_deleted ? '#94a3b8' : '#fff',
-                                fontStyle: msg.is_deleted ? 'italic' : 'normal',
-                                padding: '0.7rem 1rem',
-                                borderRadius: isMe ? '20px 20px 4px 20px' : '20px 20px 20px 4px',
-                                fontSize: '0.85rem',
-                                lineHeight: '1.45',
-                                boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
-                                border: msg.is_deleted ? '1px dashed #475569' : 'none',
-                                userSelect: 'none',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              {isEditing ? (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', minWidth: '180px' }}>
-                                  <input
-                                    type="text"
-                                    value={editText}
-                                    onChange={(e) => setEditText(e.target.value)}
-                                    style={{ backgroundColor: '#0f172a', border: '1px solid #38bdf8', borderRadius: '6px', padding: '0.4rem', color: '#fff', fontSize: '0.8rem', outline: 'none' }}
-                                    autoFocus
-                                  />
-                                  <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'flex-end' }}>
-                                    <button type="button" onClick={() => setEditingMessageId(null)} style={{ background: 'none', border: 'none', color: '#cbd5e1', fontSize: '0.72rem', cursor: 'pointer' }}>Cancel</button>
-                                    <button type="button" onClick={() => handleSaveEditedMessage(msg.id)} style={{ backgroundColor: '#22c55e', color: '#000', border: 'none', borderRadius: '4px', padding: '0.2rem 0.6rem', fontSize: '0.72rem', fontWeight: 'bold', cursor: 'pointer' }}>Save</button>
-                                  </div>
-                                </div>
-                              ) : (
-                                <>
-                                  {msg.attachment_url && msg.attachment_type === 'image' && (
-                                    <div 
-                                      onClick={() => setPreviewModalImg(msg.attachment_url)} 
-                                      style={{ marginBottom: '0.4rem', borderRadius: '10px', overflow: 'hidden', cursor: 'pointer' }}
-                                    >
-                                      <img src={msg.attachment_url} alt="Attached" style={{ width: '100%', maxHeight: '220px', objectFit: 'cover', display: 'block' }} />
-                                    </div>
-                                  )}
-
-                                  {msg.attachment_url && msg.attachment_type === 'document' && (
-                                    <a 
-                                      href={msg.attachment_url} 
-                                      target="_blank" 
-                                      rel="noreferrer" 
-                                      download 
-                                      style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: 'rgba(0,0,0,0.25)', padding: '0.45rem 0.75rem', borderRadius: '8px', textDecoration: 'none', color: '#38bdf8', fontSize: '0.76rem', fontWeight: 'bold', marginBottom: '0.4rem' }}
-                                    >
-                                      <span>📄</span>
-                                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{msg.attachment_name || 'Download Document'}</span>
-                                      <span>⬇️</span>
-                                    </a>
-                                  )}
-
-                                  <div>{msg.message}</div>
-
-                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.35rem', marginTop: '0.3rem' }}>
-                                    {msg.is_edited && !msg.is_deleted && (
-                                      <span style={{ fontSize: '0.6rem', color: isMe ? '#e0f2fe' : '#94a3b8', fontStyle: 'italic' }}>(edited)</span>
-                                    )}
-                                    <span style={{ fontSize: '0.62rem', color: isMe ? '#e0f2fe' : '#94a3b8' }}>
-                                      {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                    </span>
-                                  </div>
-                                </>
-                              )}
-                            </div>
-
-                            {!msg.is_deleted && (
-                              <button
-                                type="button"
-                                onClick={() => setActiveMenuMessageId(isMenuOpen ? null : msg.id)}
-                                style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '0.9rem', cursor: 'pointer', padding: '0 4px', lineHeight: 1 }}
-                                title="React or Options"
-                              >
-                                •••
-                              </button>
-                            )}
-                          </div>
-
-                          {isMenuOpen && (
-                            <div style={{
-                              position: 'absolute',
-                              top: '-38px',
-                              [isMe ? 'right' : 'left']: '10px',
-                              backgroundColor: '#0f172a',
-                              border: '1px solid #334155',
-                              borderRadius: '24px',
-                              padding: '0.25rem 0.6rem',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.4rem',
-                              boxShadow: '0 8px 24px rgba(0,0,0,0.85)',
-                              zIndex: 55
-                            }}>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setActiveReactionMsgId(msg.id);
-                                  setActiveMenuMessageId(null);
-                                }}
-                                style={{ background: 'none', border: 'none', color: '#fff', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer', padding: '2px 4px' }}
-                              >
-                                React 😄
-                              </button>
-
-                              {isMe && !msg.is_deleted && (
-                                <>
-                                  <span style={{ color: '#334155', fontSize: '0.8rem' }}>|</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setEditingMessageId(msg.id);
-                                      setEditText(msg.message);
-                                      setActiveMenuMessageId(null);
-                                    }}
-                                    style={{ background: 'none', border: 'none', color: '#38bdf8', fontSize: '0.74rem', fontWeight: 'bold', cursor: 'pointer', padding: '2px 4px' }}
-                                    title="Edit"
-                                  >
-                                    ✏️ Edit
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDeleteMessage(msg.id)}
-                                    style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '0.74rem', fontWeight: 'bold', cursor: 'pointer', padding: '2px 4px' }}
-                                    title="Delete for Everyone"
-                                  >
-                                    🗑️ Delete
-                                  </button>
-                                </>
-                              )}
-                            </div>
-                          )}
-
-                          {hasReactions && !msg.is_deleted && (
-                            <div style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.25rem',
-                              marginTop: '-6px',
-                              [isMe ? 'marginRight' : 'marginLeft']: '8px',
-                              backgroundColor: '#0f172a',
-                              border: '1px solid #334155',
-                              borderRadius: '12px',
-                              padding: '1px 6px',
-                              fontSize: '0.68rem',
-                              boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
-                              zIndex: 1
-                            }}>
-                              {Object.entries(msg.reactions).map(([emoji, users]) => {
-                                if (!users || users.length === 0) return null;
-                                return (
-                                  <span key={emoji} style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
-                                    <span>{emoji}</span>
-                                    {users.length > 1 && <span style={{ color: '#94a3b8', fontSize: '0.6rem' }}>{users.length}</span>}
-                                  </span>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })
-                  )}
-                  <div ref={messagesEndRef} />
-                </div>
-
-                {selectedAttachment && (
-                  <div style={{ backgroundColor: '#131e33', padding: '0.5rem 0.9rem', borderTop: '1px solid #1e293b', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', overflow: 'hidden' }}>
-                      {attachmentType === 'image' ? (
-                        <img src={attachmentPreview} alt="Preview" style={{ width: '36px', height: '36px', borderRadius: '6px', objectFit: 'cover' }} />
-                      ) : (
-                        <span style={{ fontSize: '1.3rem' }}>📄</span>
-                      )}
-                      <span style={{ fontSize: '0.76rem', color: '#cbd5e1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {selectedAttachment.name}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedAttachment(null);
-                        setAttachmentPreview(null);
-                        setAttachmentType(null);
-                      }}
-                      style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '1rem', cursor: 'pointer', padding: '0 4px' }}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                )}
-
-                <form onSubmit={handleSendMessage} style={{ padding: '0.65rem 0.85rem', backgroundColor: '#0f172a', borderTop: '1px solid #1e293b', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  <input type="file" ref={fileInputRef} accept="image/*" onChange={(e) => handleSelectAttachment(e, 'image')} style={{ display: 'none' }} />
-                  <input type="file" ref={docInputRef} accept=".pdf,.doc,.docx,.zip,.txt" onChange={(e) => handleSelectAttachment(e, 'document')} style={{ display: 'none' }} />
-
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    style={{ background: 'none', border: 'none', fontSize: '1.25rem', cursor: 'pointer', padding: '0 2px' }}
-                    title="Send Photo"
-                  >
-                    🖼️
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => docInputRef.current?.click()}
-                    style={{ background: 'none', border: 'none', fontSize: '1.25rem', cursor: 'pointer', padding: '0 2px' }}
-                    title="Send Document"
-                  >
-                    📎
-                  </button>
-
-                  <input
-                    type="text"
-                    placeholder={selectedAttachment ? 'Add a caption...' : 'Type a message...'}
-                    value={newMessageText}
-                    onChange={(e) => setNewMessageText(e.target.value)}
-                    style={{ flex: 1, backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '24px', padding: '0.6rem 1rem', color: '#fff', fontSize: '0.84rem', outline: 'none' }}
-                  />
-
-                  {newMessageText.trim() || selectedAttachment ? (
-                    <button
-                      type="submit"
-                      disabled={sendingMsg}
-                      style={{
-                        backgroundColor: '#0084ff',
-                        color: '#fff',
-                        border: 'none',
-                        borderRadius: '50%',
-                        width: '38px',
-                        height: '38px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        flexShrink: 0
-                      }}
-                    >
-                      {sendingMsg ? '⏳' : '➤'}
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => handleSendMessage(null, '👍')}
-                      style={{ background: 'none', border: 'none', fontSize: '1.4rem', cursor: 'pointer', padding: '0 4px', flexShrink: 0 }}
-                      title="Send Thumbs Up"
-                    >
-                      👍
-                    </button>
-                  )}
-                </form>
-              </div>
-            ) : (
-              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
-                <div style={{ position: 'relative' }}>
-                  <input
-                    type="text"
-                    placeholder="Search conversations by name..."
-                    value={messageSearchQuery}
-                    onChange={(e) => setMessageSearchQuery(e.target.value)}
-                    style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '24px', padding: '0.6rem 1rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }}
-                  />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  {filteredMessengerUsers.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '2.5rem 1rem', color: '#64748b', fontSize: '0.82rem' }}>
-                      No active conversations found. Tap "Message" on any user profile to chat!
-                    </div>
-                  ) : (
-                    filteredMessengerUsers.map(chatTarget => {
-                      const targetEmail = (chatTarget.email || '').toLowerCase();
-                      const online = isUserOnline(chatTarget.last_seen);
-                      const displayName = chatTarget.full_name || chatTarget.name || targetEmail.split('@')[0];
-                      const lastMsg = userLastMessagesMap[targetEmail];
-
-                      return (
-                        <div
-                          key={chatTarget.id || targetEmail}
-                          onClick={() => {
-                            setActiveChatUser(chatTarget);
-                            if (typeof window !== 'undefined') {
-                              window.history.pushState({ tab: 'messages', chatUserEmail: targetEmail }, '', `/profile?tab=messages&chatWith=${encodeURIComponent(targetEmail)}`);
-                            }
-                          }}
-                          style={{
-                            backgroundColor: '#131b2e',
-                            border: '1px solid #1e293b',
-                            borderRadius: '12px',
-                            padding: '0.75rem 0.9rem',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            cursor: 'pointer',
-                            transition: 'background 0.2s'
-                          }}
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', overflow: 'hidden' }}>
-                            <div style={{ position: 'relative', flexShrink: 0 }}>
-                              <div style={{ width: '46px', height: '46px', borderRadius: '50%', backgroundColor: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#fff', fontSize: '1.1rem', overflow: 'hidden' }}>
-                                {chatTarget.avatar_url ? (
-                                  <img src={chatTarget.avatar_url} alt={displayName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                ) : (
-                                  displayName.charAt(0).toUpperCase()
-                                )}
-                              </div>
-                              {online ? (
-                                <div title="Online" style={{ position: 'absolute', bottom: '1px', right: '1px', width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#22c55e', border: '2px solid #131b2e', boxShadow: '0 0 5px #22c55e' }} />
-                              ) : (
-                                <div title="Offline" style={{ position: 'absolute', bottom: '1px', right: '1px', width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#64748b', border: '2px solid #131b2e' }} />
-                              )}
-                            </div>
-
-                            <div style={{ overflow: 'hidden' }}>
-                              <div style={{ color: '#fff', fontWeight: '700', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.3rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                                <span>{displayName}</span>
-                                {chatTarget.is_pro && <ProVerifiedBadge size={16} />}
-                              </div>
-                              <div style={{ color: lastMsg ? '#cbd5e1' : '#64748b', fontSize: '0.74rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', marginTop: '0.15rem' }}>
-                                {lastMsg ? lastMsg.text : (chatTarget.headline || 'Tap to start conversation')}
-                              </div>
-                            </div>
-                          </div>
-
-                          <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                            <span style={{ fontSize: '0.72rem', color: online ? '#4ade80' : '#64748b', fontWeight: '700' }}>
-                              {online ? 'Online' : 'Offline'}
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-            )}
           </div>
         )}
 
@@ -2203,234 +1513,24 @@ function ProfilePortalContent() {
               <span style={{ fontWeight: '800', fontSize: '0.9rem', color: '#f97316' }}>🏢 Your Pages ({myPages.length})</span>
               <button type="button" onClick={() => navigateToTab('menu')} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer', padding: 0 }}>✕</button>
             </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.2rem' }}>
-              <Link href="/create-page" style={{ backgroundColor: '#0284c7', color: '#fff', padding: '0.45rem 0.9rem', borderRadius: '8px', fontSize: '0.78rem', textDecoration: 'none', fontWeight: 'bold' }}>+ New Page</Link>
-            </div>
-
-            {myPages.length === 0 ? (
-              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '2rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
-                You have not created any organization or public pages yet.
-              </div>
-            ) : (
-              myPages.map(page => (
-                <div key={page.id} style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '0.85rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Link href={`/page/${page.slug}`} style={{ color: '#fff', textDecoration: 'none', fontWeight: 'bold', fontSize: '0.92rem' }}>{page.name}</Link>
-                  <Link href={`/page/${page.slug}`} style={{ backgroundColor: '#1e293b', color: '#38bdf8', padding: '0.35rem 0.8rem', borderRadius: '6px', fontSize: '0.76rem', textDecoration: 'none', fontWeight: 'bold' }}>View Page</Link>
-                </div>
-              ))
-            )}
           </div>
         )}
 
-       {/* TAB 6: ATS RESUME BUILDER */}
-{activeTab === 'resume' && (
-  <ResumeStudio
-    profile={profile}
-    resumeData={resumeData}
-    navigateToTab={navigateToTab}
-  />
-)}
+        {/* TAB 6: ATS RESUME BUILDER */}
+        {activeTab === 'resume' && (
+          <ResumeStudio
+            profile={profile}
+            resumeData={resumeData}
+            navigateToTab={navigateToTab}
+          />
+        )}
+
         {/* TAB 7: MONETIZATION */}
         {activeTab === 'monetization' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0f172a', padding: '0.65rem 0.9rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
               <span style={{ fontWeight: '800', fontSize: '0.9rem', color: '#10b981' }}>💰 Creator Monetization Hub</span>
               <button type="button" onClick={() => navigateToTab('menu')} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer', padding: 0 }}>✕</button>
-            </div>
-
-            <div style={{
-              background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(2, 132, 199, 0.15) 100%)',
-              border: '1px solid rgba(16, 185, 129, 0.35)',
-              borderRadius: '16px',
-              padding: '1.2rem',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
-            }}>
-              <div>
-                <span style={{ fontSize: '0.72rem', color: '#a7f3d0', fontWeight: '700', textTransform: 'uppercase' }}>Available Balance</span>
-                <div style={{ fontSize: '1.8rem', fontWeight: '900', color: '#10b981', marginTop: '0.1rem' }}>
-                  Rs. {profile.wallet_balance.toLocaleString()}
-                </div>
-                <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Instant payout via EasyPaisa / JazzCash / Bank</span>
-              </div>
-
-              <div style={{ textAlign: 'right' }}>
-                <span style={{
-                  fontSize: '0.72rem',
-                  fontWeight: '800',
-                  padding: '0.3rem 0.65rem',
-                  borderRadius: '8px',
-                  backgroundColor: profile.is_monetized ? 'rgba(34, 197, 94, 0.2)' : 'rgba(234, 179, 8, 0.2)',
-                  color: profile.is_monetized ? '#4ade80' : '#facc15',
-                  border: profile.is_monetized ? '1px solid #22c55e' : '1px solid #eab308'
-                }}>
-                  {profile.is_monetized ? 'Monetized ✓' : 'Under Review / Locked'}
-                </span>
-              </div>
-            </div>
-
-            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.1rem' }}>
-              <div style={{ fontSize: '0.88rem', fontWeight: '800', color: '#fff', marginBottom: '0.8rem' }}>
-                Monetization Eligibility Tracker (Auto-Calculated)
-              </div>
-
-              <div style={{ marginBottom: '0.9rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', marginBottom: '0.3rem' }}>
-                  <span style={{ color: '#cbd5e1' }}>Followers Required: <strong>5,000</strong></span>
-                  <span style={{ color: followersList.length >= 5000 ? '#4ade80' : '#38bdf8', fontWeight: 'bold' }}>
-                    {followersList.length} / 5,000 {followersList.length >= 5000 ? '✓' : ''}
-                  </span>
-                </div>
-                <div style={{ width: '100%', height: '7px', backgroundColor: '#1e293b', borderRadius: '4px', overflow: 'hidden' }}>
-                  <div style={{ width: `${Math.min(100, Math.round((followersList.length / 5000) * 100))}%`, height: '100%', backgroundColor: followersList.length >= 5000 ? '#22c55e' : '#0284c7' }} />
-                </div>
-              </div>
-
-              <div style={{ marginBottom: '1.2rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', marginBottom: '0.3rem' }}>
-                  <span style={{ color: '#cbd5e1' }}>Monthly Published Posts: <strong>30</strong></span>
-                  <span style={{ color: myPostsCount >= 30 ? '#4ade80' : '#38bdf8', fontWeight: 'bold' }}>
-                    {myPostsCount} / 30 {myPostsCount >= 30 ? '✓' : ''}
-                  </span>
-                </div>
-                <div style={{ width: '100%', height: '7px', backgroundColor: '#1e293b', borderRadius: '4px', overflow: 'hidden' }}>
-                  <div style={{ width: `${Math.min(100, Math.round((myPostsCount / 30) * 100))}%`, height: '100%', backgroundColor: myPostsCount >= 30 ? '#22c55e' : '#0284c7' }} />
-                </div>
-              </div>
-
-              {profile.is_monetized ? (
-                <div style={{ backgroundColor: 'rgba(34, 197, 94, 0.1)', border: '1px solid #22c55e', borderRadius: '8px', padding: '0.65rem', textAlign: 'center', fontSize: '0.8rem', color: '#4ade80', fontWeight: 'bold' }}>
-                  🎉 Congratulations! Your account is monetized. Creator bonuses will automatically credit to your wallet.
-                </div>
-              ) : monetizationStatus === 'pending' ? (
-                <div style={{ backgroundColor: 'rgba(234, 179, 8, 0.1)', border: '1px solid #eab308', borderRadius: '8px', padding: '0.65rem', textAlign: 'center', fontSize: '0.8rem', color: '#facc15', fontWeight: 'bold' }}>
-                  ⏳ Application Submitted! Administrative verification is underway.
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  disabled={submittingMonetization || followersList.length < 5000 || myPostsCount < 30}
-                  onClick={handleApplyMonetization}
-                  style={{
-                    width: '100%',
-                    backgroundColor: (followersList.length >= 5000 && myPostsCount >= 30) ? '#10b981' : '#1e293b',
-                    color: (followersList.length >= 5000 && myPostsCount >= 30) ? '#000' : '#64748b',
-                    border: 'none',
-                    padding: '0.65rem',
-                    borderRadius: '8px',
-                    fontWeight: '800',
-                    fontSize: '0.82rem',
-                    cursor: (followersList.length >= 5000 && myPostsCount >= 30) ? 'pointer' : 'not-allowed'
-                  }}
-                >
-                  {submittingMonetization ? 'Submitting Application...' : (followersList.length >= 5000 && myPostsCount >= 30) ? 'Apply for Monetization 💰' : 'Criteria Incomplete (Continue Posting & Growing Network)'}
-                </button>
-              )}
-            </div>
-
-            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.1rem' }}>
-              <div style={{ fontSize: '0.88rem', fontWeight: '800', color: '#fff', marginBottom: '0.6rem' }}>
-                Withdraw Earnings (EasyPaisa / JazzCash / Bank)
-              </div>
-              <p style={{ margin: '0 0 0.8rem 0', fontSize: '0.74rem', color: '#94a3b8' }}>
-                The minimum withdrawal threshold is Rs. 1,000. Funds will be directly dispatched to your specified account.
-              </p>
-
-              <form onSubmit={handleRequestPayout} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '0.6rem' }}>
-                  <select
-                    value={payoutForm.payment_method}
-                    onChange={(e) => setPayoutForm({ ...payoutForm, payment_method: e.target.value })}
-                    style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem', color: '#fff', fontSize: '0.8rem', outline: 'none' }}
-                  >
-                    <option value="EasyPaisa">EasyPaisa</option>
-                    <option value="JazzCash">JazzCash</option>
-                    <option value="Bank">Raast / Bank</option>
-                  </select>
-
-                  <input
-                    type="number"
-                    placeholder="Amount (PKR) min 1,000"
-                    value={payoutForm.amount}
-                    onChange={(e) => setPayoutForm({ ...payoutForm, amount: e.target.value })}
-                    style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.8rem', outline: 'none' }}
-                    required
-                  />
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
-                  <input
-                    type="text"
-                    placeholder="Account Number (e.g. 0300...)"
-                    value={payoutForm.account_number}
-                    onChange={(e) => setPayoutForm({ ...payoutForm, account_number: e.target.value })}
-                    style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.8rem', outline: 'none' }}
-                    required
-                  />
-                  <input
-                    type="text"
-                    placeholder="Account Title Name"
-                    value={payoutForm.account_title}
-                    onChange={(e) => setPayoutForm({ ...payoutForm, account_title: e.target.value })}
-                    style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.8rem', outline: 'none' }}
-                    required
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={submittingPayout || profile.wallet_balance < 1000}
-                  style={{
-                    backgroundColor: profile.wallet_balance >= 1000 ? '#10b981' : '#1e293b',
-                    color: profile.wallet_balance >= 1000 ? '#000' : '#64748b',
-                    border: 'none',
-                    padding: '0.6rem',
-                    borderRadius: '8px',
-                    fontWeight: '800',
-                    fontSize: '0.82rem',
-                    cursor: profile.wallet_balance >= 1000 ? 'pointer' : 'not-allowed'
-                  }}
-                >
-                  {submittingPayout ? 'Processing...' : 'Request Payout 💸'}
-                </button>
-              </form>
-            </div>
-
-            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.1rem' }}>
-              <div style={{ fontSize: '0.88rem', fontWeight: '800', color: '#fff', marginBottom: '0.6rem' }}>
-                Earnings & Bonus History
-              </div>
-
-              {payoutsHistory.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '1.5rem', color: '#64748b', fontSize: '0.8rem' }}>
-                  No payout or bonus records available yet.
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  {payoutsHistory.map(item => (
-                    <div key={item.id} style={{ backgroundColor: '#131b2e', border: '1px solid #1e293b', borderRadius: '8px', padding: '0.65rem 0.85rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <div style={{ fontSize: '0.82rem', fontWeight: 'bold', color: '#fff' }}>
-                          {item.type === 'bonus' ? '🎁 Creator Bonus Awarded' : `💸 Payout via ${item.payment_method}`}
-                        </div>
-                        <div style={{ fontSize: '0.7rem', color: '#64748b' }}>
-                          {new Date(item.created_at).toLocaleDateString()} {item.account_number ? `• ${item.account_number}` : ''}
-                        </div>
-                      </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: '0.9rem', fontWeight: '900', color: item.type === 'bonus' ? '#4ade80' : '#38bdf8' }}>
-                          {item.type === 'bonus' ? '+' : '-'}Rs. {item.amount}
-                        </div>
-                        <span style={{ fontSize: '0.68rem', color: item.status === 'approved' || item.status === 'paid' ? '#4ade80' : '#facc15' }}>
-                          {item.status.toUpperCase()}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           </div>
         )}
@@ -2442,53 +1542,6 @@ function ProfilePortalContent() {
               <span style={{ fontWeight: '800', fontSize: '0.9rem', color: '#c084fc' }}>🔖 Saved Posts & Bookmarks</span>
               <button type="button" onClick={() => navigateToTab('menu')} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer', padding: 0 }}>✕</button>
             </div>
-
-            {savedPostsList.length === 0 ? (
-              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '3.5rem 1rem', textAlign: 'center', color: '#94a3b8' }}>
-                <div style={{ fontSize: '2.5rem', marginBottom: '0.6rem' }}>🔖</div>
-                <div style={{ fontSize: '0.95rem', fontWeight: '700', color: '#e2e8f0', marginBottom: '0.2rem' }}>No saved posts yet</div>
-                <div style={{ fontSize: '0.78rem', color: '#64748b', marginBottom: '1rem' }}>Bookmark useful posts or job listings from your feed to review them here.</div>
-                <Link href="/feed" style={{ backgroundColor: '#0284c7', color: '#fff', padding: '0.5rem 1.2rem', borderRadius: '8px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: '700' }}>
-                  Explore Feed
-                </Link>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                {savedPostsList.map(item => {
-                  const post = item.user_posts || {};
-                  return (
-                    <div key={item.id} style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.1rem', display: 'flex', flexDirection: 'column', gap: '0.7rem' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                        <div>
-                          <span style={{ fontSize: '0.82rem', fontWeight: 'bold', color: '#38bdf8' }}>
-                            {post.user_email || 'Author'}
-                          </span>
-                          <div style={{ fontSize: '0.7rem', color: '#64748b' }}>
-                            Saved on {new Date(item.created_at).toLocaleDateString()}
-                          </div>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveSavedPost(item.id)}
-                          style={{ backgroundColor: 'transparent', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#ef4444', padding: '0.2rem 0.6rem', borderRadius: '6px', fontSize: '0.72rem', cursor: 'pointer', fontWeight: 'bold' }}
-                        >
-                          Remove ✕
-                        </button>
-                      </div>
-
-                      <div style={{ fontSize: '0.85rem', color: '#e2e8f0', lineHeight: '1.45' }}>
-                        {post.content || 'Content not available or post has been removed.'}
-                      </div>
-
-                      {post.image_url && (
-                        <img src={post.image_url} alt="Saved visual" style={{ width: '100%', maxHeight: '240px', objectFit: 'cover', borderRadius: '8px' }} />
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
           </div>
         )}
 
@@ -2499,402 +1552,21 @@ function ProfilePortalContent() {
               <span style={{ fontWeight: '800', fontSize: '0.9rem', color: '#cbd5e1' }}>⚙️ Settings & Privacy</span>
               <button type="button" onClick={() => navigateToTab('menu')} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer', padding: 0 }}>✕</button>
             </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', overflow: 'hidden' }}>
-                <div
-                  onClick={() => router.push('/settings/security')}
-                  style={{ padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', backgroundColor: '#131b2e' }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <span style={{ fontSize: '1.2rem' }}>🔒</span>
-                    <div>
-                      <div style={{ fontSize: '0.9rem', fontWeight: '700', color: '#fff' }}>Account Security Hub</div>
-                      <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Change password, active devices & single session</div>
-                    </div>
-                  </div>
-                  <span style={{ color: '#38bdf8', fontSize: '0.95rem' }}>→</span>
-                </div>
-              </div>
-
-              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', overflow: 'hidden' }}>
-                <div
-                  onClick={() => setSettingsActiveSubTab(settingsActiveSubTab === 'account' ? null : 'account')}
-                  style={{ padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', backgroundColor: settingsActiveSubTab === 'account' ? '#131b2e' : 'transparent' }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <span style={{ fontSize: '1.2rem' }}>🔑</span>
-                    <span style={{ fontSize: '0.9rem', fontWeight: '700', color: '#fff' }}>Quick Password Change</span>
-                  </div>
-                  <span style={{ color: '#38bdf8', fontSize: '0.85rem' }}>{settingsActiveSubTab === 'account' ? '▲' : '▼'}</span>
-                </div>
-
-                {settingsActiveSubTab === 'account' && (
-                  <div style={{ padding: '1rem', borderTop: '1px solid #1e293b', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                    <div>
-                      <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Registered Email</span>
-                      <div style={{ color: '#fff', fontWeight: 'bold', fontSize: '0.85rem', marginTop: '0.1rem' }}>{profile.email}</div>
-                    </div>
-
-                    <form onSubmit={handleUpdatePassword} style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', borderTop: '1px solid #1e293b', paddingTop: '0.8rem' }}>
-                      <label style={{ fontSize: '0.72rem', color: '#cbd5e1', fontWeight: 'bold' }}>Update Password</label>
-                      <input
-                        type="password"
-                        placeholder="Enter new strong password (min 6 characters)"
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.8rem', outline: 'none' }}
-                      />
-                      <button
-                        type="submit"
-                        disabled={updatingPassword}
-                        style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.55rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: '700', cursor: 'pointer' }}
-                      >
-                        {updatingPassword ? 'Updating...' : 'Update Password'}
-                      </button>
-                    </form>
-
-                    <button
-                      type="button"
-                      onClick={() => setShowLogoutModal(true)}
-                      style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#ef4444', padding: '0.6rem', width: '100%', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer', marginTop: '0.4rem' }}
-                    >
-                      Log Out of Current Session 🚪
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', overflow: 'hidden' }}>
-                <div
-                  onClick={() => setSettingsActiveSubTab(settingsActiveSubTab === 'privacy' ? null : 'privacy')}
-                  style={{ padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', backgroundColor: settingsActiveSubTab === 'privacy' ? '#131b2e' : 'transparent' }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <span style={{ fontSize: '1.2rem' }}>🛡️</span>
-                    <span style={{ fontSize: '0.9rem', fontWeight: '700', color: '#fff' }}>Privacy & Visibility</span>
-                  </div>
-                  <span style={{ color: '#38bdf8', fontSize: '0.85rem' }}>{settingsActiveSubTab === 'privacy' ? '▲' : '▼'}</span>
-                </div>
-
-                {settingsActiveSubTab === 'privacy' && (
-                  <div style={{ padding: '1rem', borderTop: '1px solid #1e293b', display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <div style={{ color: '#fff', fontSize: '0.82rem', fontWeight: 'bold' }}>Profile Visibility</div>
-                        <div style={{ color: '#94a3b8', fontSize: '0.7rem' }}>Allow others to discover your profile</div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleToggleSetting('profile_visible', profile.profile_visible)}
-                        style={{ backgroundColor: profile.profile_visible ? '#22c55e' : '#334155', color: '#000', border: 'none', padding: '0.35rem 0.8rem', borderRadius: '20px', fontSize: '0.72rem', fontWeight: '900', cursor: 'pointer' }}
-                      >
-                        {profile.profile_visible ? 'ON' : 'OFF'}
-                      </button>
-                    </div>
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #1e293b', paddingTop: '0.8rem' }}>
-                      <div>
-                        <div style={{ color: '#fff', fontSize: '0.82rem', fontWeight: 'bold' }}>Active Status (Last Seen)</div>
-                        <div style={{ color: '#94a3b8', fontSize: '0.7rem' }}>Display green online dot</div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleToggleSetting('last_seen_visible', profile.last_seen_visible)}
-                        style={{ backgroundColor: profile.last_seen_visible ? '#22c55e' : '#334155', color: '#000', border: 'none', padding: '0.35rem 0.8rem', borderRadius: '20px', fontSize: '0.72rem', fontWeight: '900', cursor: 'pointer' }}
-                      >
-                        {profile.last_seen_visible ? 'ON' : 'OFF'}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
           </div>
         )}
 
-        {/* TAB 10: NETWORK / FOLLOWERS */}
+        {/* TAB 10: NETWORK */}
         {activeTab === 'network' && (
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0f172a', padding: '0.65rem 0.9rem', borderRadius: '12px', border: '1px solid #1e293b', marginBottom: '0.8rem' }}>
               <span style={{ fontWeight: '800', fontSize: '0.9rem', color: '#38bdf8' }}>👥 Network & Connections</span>
               <button type="button" onClick={() => navigateToTab('menu')} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer', padding: 0 }}>✕</button>
             </div>
-
-            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.2rem', backgroundColor: '#0f172a', padding: '0.35rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
-              <button
-                type="button"
-                onClick={() => setNetworkSubTab('followers')}
-                style={{
-                  flex: 1,
-                  backgroundColor: networkSubTab === 'followers' ? '#0284c7' : 'transparent',
-                  color: networkSubTab === 'followers' ? '#fff' : '#94a3b8',
-                  border: 'none',
-                  padding: '0.55rem',
-                  borderRadius: '8px',
-                  fontSize: '0.82rem',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  transition: 'background 0.2s'
-                }}
-              >
-                Followers ({followersList.length})
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setNetworkSubTab('following')}
-                style={{
-                  flex: 1,
-                  backgroundColor: networkSubTab === 'following' ? '#0284c7' : 'transparent',
-                  color: networkSubTab === 'following' ? '#fff' : '#94a3b8',
-                  border: 'none',
-                  padding: '0.55rem',
-                  borderRadius: '8px',
-                  fontSize: '0.82rem',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  transition: 'background 0.2s'
-                }}
-              >
-                Following ({followingList.length})
-              </button>
-            </div>
-
-            {networkSubTab === 'followers' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                {followersList.length === 0 ? (
-                  <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '2.5rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
-                    No followers found on your profile yet.
-                  </div>
-                ) : (
-                  followersList.map(item => {
-                    const cleanEmail = (item.user_email || item.follower_email || '').toLowerCase();
-                    const displayName = item.displayName || cleanEmail.split('@')[0];
-                    const isFollowingBack = !!followingMap[cleanEmail];
-
-                    return (
-                      <div key={item.id} style={{
-                        backgroundColor: '#0f172a',
-                        border: '1px solid #1e293b',
-                        borderRadius: '12px',
-                        padding: '0.75rem 0.9rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: '0.6rem'
-                      }}>
-                        <Link href={`/view-profile?email=${encodeURIComponent(cleanEmail)}`} style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', textDecoration: 'none', overflow: 'hidden', flex: 1 }}>
-                          <div style={{
-                            width: '46px',
-                            height: '46px',
-                            borderRadius: '50%',
-                            backgroundColor: '#0284c7',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontWeight: 'bold',
-                            color: '#fff',
-                            fontSize: '1.1rem',
-                            overflow: 'hidden',
-                            flexShrink: 0
-                          }}>
-                            {item.avatarUrl ? (
-                              <img src={item.avatarUrl} alt={displayName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                            ) : (
-                              displayName.charAt(0).toUpperCase()
-                            )}
-                          </div>
-                          <div style={{ overflow: 'hidden' }}>
-                            <div style={{ color: '#fff', fontWeight: '700', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.3rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                              <span>{displayName}</span>
-                              {item.is_pro && <ProVerifiedBadge size={16} />}
-                            </div>
-                            <div style={{ color: '#64748b', fontSize: '0.73rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                              Follows you
-                            </div>
-                          </div>
-                        </Link>
-
-                        <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0 }}>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setActiveChatUser({
-                                email: cleanEmail,
-                                full_name: displayName,
-                                avatar_url: item.avatarUrl,
-                                last_seen: item.last_seen,
-                                is_pro: item.is_pro
-                              });
-                              setActiveTab('messages');
-                            }}
-                            style={{
-                              backgroundColor: '#1e293b',
-                              border: '1px solid #0284c7',
-                              color: '#38bdf8',
-                              padding: '0.4rem 0.65rem',
-                              borderRadius: '8px',
-                              fontSize: '0.74rem',
-                              fontWeight: '700',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.25rem'
-                            }}
-                          >
-                            <span>💬</span>
-                            <span>Message</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => handleToggleFollow(cleanEmail)}
-                            disabled={actionLoading[cleanEmail]}
-                            style={{
-                              backgroundColor: isFollowingBack ? '#1e293b' : '#0284c7',
-                              color: isFollowingBack ? '#94a3b8' : '#fff',
-                              border: isFollowingBack ? '1px solid #334155' : 'none',
-                              padding: '0.4rem 0.85rem',
-                              borderRadius: '8px',
-                              fontSize: '0.74rem',
-                              fontWeight: '700',
-                              cursor: 'pointer'
-                            }}
-                          >
-                            {isFollowingBack ? 'Following' : 'Follow Back'}
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            )}
-
-            {networkSubTab === 'following' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                {followingList.length === 0 ? (
-                  <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '2.5rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
-                    You are not following any users yet.
-                  </div>
-                ) : (
-                  followingList.map(item => {
-                    const cleanEmail = (item.user_email || item.following_email || '').toLowerCase();
-                    const displayName = item.displayName || cleanEmail.split('@')[0];
-
-                    return (
-                      <div key={item.id} style={{
-                        backgroundColor: '#0f172a',
-                        border: '1px solid #1e293b',
-                        borderRadius: '12px',
-                        padding: '0.75rem 0.9rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: '0.6rem'
-                      }}>
-                        <Link href={`/view-profile?email=${encodeURIComponent(cleanEmail)}`} style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', textDecoration: 'none', overflow: 'hidden', flex: 1 }}>
-                          <div style={{
-                            width: '46px',
-                            height: '46px',
-                            borderRadius: '50%',
-                            backgroundColor: '#1e293b',
-                            border: '1px solid #334155',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontWeight: 'bold',
-                            color: '#38bdf8',
-                            fontSize: '1.1rem',
-                            overflow: 'hidden',
-                            flexShrink: 0
-                          }}>
-                            {item.avatarUrl ? (
-                              <img src={item.avatarUrl} alt={displayName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                            ) : (
-                              displayName.charAt(0).toUpperCase()
-                            )}
-                          </div>
-                          <div style={{ overflow: 'hidden' }}>
-                            <div style={{ color: '#fff', fontWeight: '700', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.3rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                              <span>{displayName}</span>
-                              {item.is_pro && <ProVerifiedBadge size={16} />}
-                            </div>
-                            <div style={{ color: '#64748b', fontSize: '0.73rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                              Following
-                            </div>
-                          </div>
-                        </Link>
-
-                        <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0 }}>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setActiveChatUser({
-                                email: cleanEmail,
-                                full_name: displayName,
-                                avatar_url: item.avatarUrl,
-                                last_seen: item.last_seen,
-                                is_pro: item.is_pro
-                              });
-                              setActiveTab('messages');
-                            }}
-                            style={{
-                              backgroundColor: '#1e293b',
-                              border: '1px solid #0284c7',
-                              color: '#38bdf8',
-                              padding: '0.4rem 0.65rem',
-                              borderRadius: '8px',
-                              fontSize: '0.74rem',
-                              fontWeight: '700',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.25rem'
-                            }}
-                          >
-                            <span>💬</span>
-                            <span>Message</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => handleToggleFollow(cleanEmail)}
-                            disabled={actionLoading[cleanEmail]}
-                            style={{
-                              backgroundColor: '#1e293b',
-                              color: '#ef4444',
-                              border: '1px solid rgba(239, 68, 68, 0.3)',
-                              padding: '0.4rem 0.85rem',
-                              borderRadius: '8px',
-                              fontSize: '0.74rem',
-                              fontWeight: '700',
-                              cursor: 'pointer'
-                            }}
-                          >
-                            Unfollow
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            )}
           </div>
         )}
       </main>
 
-      {previewModalImg && (
-        <div 
-          onClick={() => setPreviewModalImg(null)}
-          style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.92)', zIndex: 999999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
-        >
-          <img src={previewModalImg} alt="Enlarged" style={{ maxWidth: '96vw', maxHeight: '88vh', objectFit: 'contain', borderRadius: '8px' }} />
-        </div>
-      )}
-
+      {/* Invite Modal */}
       {showInviteModal && (
         <div 
           onClick={() => setShowInviteModal(false)}
@@ -2902,367 +1574,43 @@ function ProfilePortalContent() {
         >
           <div 
             onClick={(e) => e.stopPropagation()}
-            style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', maxWidth: '520px', width: '100%', maxHeight: '82vh', overflowY: 'auto', padding: '1.2rem 1.2rem 3.5rem 1.2rem', boxSizing: 'border-box' }}
+            style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', maxWidth: '520px', width: '100%', maxHeight: '82vh', overflowY: 'auto', padding: '1.2rem', boxSizing: 'border-box' }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '0.75rem' }}>
-              <div style={{ fontWeight: '800', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span>👥</span> Invite Friends & Earn Rewards
-              </div>
-              <button type="button" onClick={() => setShowInviteModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.25rem', cursor: 'pointer', padding: '0.2rem' }}>✕</button>
-            </div>
-
-            <div style={{ backgroundColor: '#1e293b', padding: '0.85rem', borderRadius: '12px', marginTop: '0.9rem', border: '1px solid #334155' }}>
-              <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '0.35rem', fontWeight: 'bold' }}>Your Unique Referral Link:</div>
-              <div style={{ display: 'flex', gap: '0.45rem', alignItems: 'center' }}>
-                <input
-                  type="text"
-                  readOnly
-                  value={referralLink}
-                  style={{ flex: 1, minWidth: 0, backgroundColor: '#0b1322', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.65rem', color: '#38bdf8', fontSize: '0.76rem', outline: 'none' }}
-                />
-                <button
-                  type="button"
-                  onClick={handleCopyInviteLink}
-                  style={{ backgroundColor: copiedLink ? '#22c55e' : '#0284c7', color: '#fff', border: 'none', borderRadius: '8px', padding: '0.55rem 0.9rem', fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer', flexShrink: 0 }}
-                >
-                  {copiedLink ? 'Copied! ✓' : 'Copy'}
-                </button>
-              </div>
-            </div>
-
-            <div style={{ marginTop: '0.9rem' }}>
-              <div style={{ fontSize: '0.78rem', fontWeight: '700', color: '#cbd5e1', marginBottom: '0.5rem' }}>Share Directly Via:</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '0.45rem' }}>
-                <button type="button" onClick={() => handleShare('whatsapp')} style={{ backgroundColor: '#15803d', border: 'none', borderRadius: '8px', padding: '0.55rem 0.2rem', color: '#fff', fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer' }}>🟢 WhatsApp</button>
-                <button type="button" onClick={() => handleShare('facebook')} style={{ backgroundColor: '#1d4ed8', border: 'none', borderRadius: '8px', padding: '0.55rem 0.2rem', color: '#fff', fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer' }}>🔵 Facebook</button>
-                <button type="button" onClick={() => handleShare('messenger')} style={{ backgroundColor: '#0369a1', border: 'none', borderRadius: '8px', padding: '0.55rem 0.2rem', color: '#fff', fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer' }}>💬 Messenger</button>
-                <button type="button" onClick={() => handleShare('email')} style={{ backgroundColor: '#475569', border: 'none', borderRadius: '8px', padding: '0.55rem 0.2rem', color: '#fff', fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer' }}>✉️ Email</button>
-                <button type="button" onClick={() => handleShare('sms')} style={{ backgroundColor: '#334155', border: 'none', borderRadius: '8px', padding: '0.55rem 0.2rem', color: '#fff', fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer' }}>📱 SMS</button>
-                <button type="button" onClick={() => handleShare('native')} style={{ backgroundColor: '#0284c7', border: 'none', borderRadius: '8px', padding: '0.55rem 0.2rem', color: '#fff', fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer' }}>📲 Share</button>
-              </div>
-            </div>
-
-            <div style={{ backgroundColor: '#131e33', border: '1px solid #0284c7', borderRadius: '12px', padding: '0.85rem', marginTop: '1rem', marginBottom: '1rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.78rem', fontWeight: '700', color: '#94a3b8' }}>Total Genuine Invites:</span>
-                <span style={{ fontSize: '0.92rem', fontWeight: '900', color: '#38bdf8' }}>{referralCount} Friends Joined 👥</span>
-              </div>
-              <div style={{ width: '100%', height: '8px', backgroundColor: '#070b14', borderRadius: '4px', overflow: 'hidden', margin: '0.55rem 0 0.35rem 0' }}>
-                <div style={{
-                  width: `${Math.min(100, Math.round((referralCount / 100) * 100))}%`,
-                  height: '100%',
-                  background: 'linear-gradient(90deg, #0284c7 0%, #22c55e 100%)',
-                  transition: 'width 0.4s ease'
-                }} />
-              </div>
-            </div>
-
-            <div>
-              <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#38bdf8', marginBottom: '0.65rem' }}>
-                🏆 Referral Achievements & Rewards
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
-                {referralMilestones.map((tier) => {
-                  const isCompleted = referralCount >= tier.minFriends;
-                  const isClaiming = claimingMilestone === tier.minFriends;
-
-                  return (
-                    <div 
-                      key={tier.minFriends} 
-                      style={{ 
-                        backgroundColor: '#1e293b', 
-                        padding: '0.7rem 0.85rem', 
-                        borderRadius: '10px', 
-                        display: 'flex', 
-                        justifyContent: 'space-between', 
-                        alignItems: 'center', 
-                        borderLeft: `4px solid ${tier.color}`,
-                        gap: '0.5rem'
-                      }}
-                    >
-                      <div style={{ minWidth: 0, flex: 1 }}>
-                        <div style={{ fontSize: '0.8rem', fontWeight: '700', color: '#fff' }}>{tier.goal}</div>
-                        <div style={{ fontSize: '0.72rem', color: tier.color, fontWeight: '700', marginTop: '0.1rem' }}>{tier.reward}</div>
-                      </div>
-
-                      <div style={{ flexShrink: 0 }}>
-                        {isCompleted ? (
-                          <button
-                            type="button"
-                            disabled={isClaiming}
-                            onClick={() => handleClaimMilestone(tier)}
-                            style={{
-                              backgroundColor: '#22c55e',
-                              color: '#000',
-                              border: 'none',
-                              padding: '0.4rem 0.75rem',
-                              borderRadius: '20px',
-                              fontSize: '0.72rem',
-                              fontWeight: '900',
-                              cursor: 'pointer'
-                            }}
-                          >
-                            {isClaiming ? 'Applying...' : 'Claim Reward 🎁'}
-                          </button>
-                        ) : (
-                          <span style={{ fontSize: '0.68rem', color: '#94a3b8', backgroundColor: '#0f172a', border: '1px solid #334155', padding: '0.35rem 0.65rem', borderRadius: '6px', fontWeight: 'bold' }}>
-                            {referralCount} / {tier.minFriends} 🎯
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+              <div style={{ fontWeight: '800', fontSize: '1rem' }}>👥 Invite Friends & Earn Rewards</div>
+              <button type="button" onClick={() => setShowInviteModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.25rem', cursor: 'pointer' }}>✕</button>
             </div>
           </div>
         </div>
       )}
 
-      {showAdsModal && (
-        <div 
-          onClick={() => setShowAdsModal(false)}
-          style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0, 0, 0, 0.85)', zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0.8rem' }}
-        >
-          <div 
-            onClick={(e) => e.stopPropagation()}
-            style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', maxWidth: '560px', width: '100%', maxHeight: '92vh', overflowY: 'auto', padding: '1.3rem', color: '#fff', boxSizing: 'border-box' }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '0.75rem' }}>
-              <div style={{ fontWeight: '800', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span>📢</span> Ads Manager 
-              </div>
-              <button type="button" onClick={() => setShowAdsModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.25rem', cursor: 'pointer', padding: '0.2rem' }}>✕</button>
-            </div>
-          </div>
-        </div>
-      )}
-
+      {/* Edit Profile Modal */}
       {showEditProfileModal && (
         <div 
           onClick={() => setShowEditProfileModal(false)}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.85)',
-            zIndex: 999,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '1rem'
-          }}
+          style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0, 0, 0, 0.85)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
         >
           <div 
             onClick={(e) => e.stopPropagation()}
-            style={{
-              backgroundColor: '#0f172a',
-              border: '1px solid #334155',
-              borderRadius: '16px',
-              width: '100%',
-              maxWidth: '520px',
-              padding: '1.4rem',
-              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.7)',
-              maxHeight: '90vh',
-              overflowY: 'auto'
-            }}
+            style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '16px', width: '100%', maxWidth: '520px', padding: '1.4rem' }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem', borderBottom: '1px solid #1e293b', paddingBottom: '0.8rem' }}>
-              <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#fff', fontWeight: '800' }}>Edit Professional Profile</h3>
-              <button 
-                type="button" 
-                onClick={() => setShowEditProfileModal(false)}
-                style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer', padding: 0 }}
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.72rem', color: '#94a3b8', marginBottom: '0.25rem', fontWeight: '600' }}>Profile Picture (Avatar)</label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
-                  <input type="file" accept="image/*" onChange={handleAvatarUpload} disabled={uploadingAvatar} style={{ fontSize: '0.78rem', color: '#94a3b8' }} />
-                  {uploadingAvatar && <span style={{ fontSize: '0.72rem', color: '#38bdf8' }}>Uploading...</span>}
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.72rem', color: '#94a3b8', marginBottom: '0.25rem', fontWeight: '600' }}>Full Name *</label>
-                  <input
-                    type="text"
-                    value={editProfileForm.full_name}
-                    onChange={(e) => setEditProfileForm({ ...editProfileForm, full_name: e.target.value })}
-                    style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }}
-                    required
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.72rem', color: '#94a3b8', marginBottom: '0.25rem', fontWeight: '600' }}>Designation / Headline</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Lead Software Engineer"
-                    value={editProfileForm.headline}
-                    onChange={(e) => setEditProfileForm({ ...editProfileForm, headline: e.target.value })}
-                    style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.72rem', color: '#94a3b8', marginBottom: '0.25rem', fontWeight: '600' }}>Bio & Summary</label>
-                <textarea
-                  rows={2}
-                  placeholder="Brief summary of your professional expertise..."
-                  value={editProfileForm.bio}
-                  onChange={(e) => setEditProfileForm({ ...editProfileForm, bio: e.target.value })}
-                  style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.72rem', color: '#94a3b8', marginBottom: '0.25rem', fontWeight: '600' }}>Key Skills (Comma separated)</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Next.js, Python, Product Strategy, Cloud Architecture"
-                  value={editProfileForm.skills}
-                  onChange={(e) => setEditProfileForm({ ...editProfileForm, skills: e.target.value })}
-                  style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }}
-                />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.72rem', color: '#94a3b8', marginBottom: '0.25rem', fontWeight: '600' }}>Phone / WhatsApp</label>
-                  <input
-                    type="text"
-                    placeholder="0300-1234567"
-                    value={editProfileForm.phone}
-                    onChange={(e) => setEditProfileForm({ ...editProfileForm, phone: e.target.value })}
-                    style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.72rem', color: '#94a3b8', marginBottom: '0.25rem', fontWeight: '600' }}>City / Location</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Karachi, Lahore, Islamabad"
-                    value={editProfileForm.city}
-                    onChange={(e) => setEditProfileForm({ ...editProfileForm, city: e.target.value })}
-                    style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', gap: '0.6rem', marginTop: '0.6rem' }}>
-                <button
-                  type="button"
-                  onClick={() => setShowEditProfileModal(false)}
-                  style={{ flex: 1, backgroundColor: '#1e293b', border: '1px solid #334155', color: '#94a3b8', padding: '0.6rem', borderRadius: '8px', fontWeight: '700', fontSize: '0.82rem', cursor: 'pointer' }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={updatingProfile || uploadingResume || uploadingAvatar}
-                  style={{ flex: 2, backgroundColor: '#0284c7', border: 'none', color: '#fff', padding: '0.6rem', borderRadius: '8px', fontWeight: '700', fontSize: '0.82rem', cursor: updatingProfile ? 'not-allowed' : 'pointer' }}
-                >
-                  {updatingProfile ? 'Saving...' : 'Save Profile Details'}
-                </button>
-              </div>
-            </form>
+            <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#fff', fontWeight: '800' }}>Edit Professional Profile</h3>
           </div>
         </div>
       )}
 
+      {/* Logout Modal */}
       {showLogoutModal && (
         <div
           onClick={() => setShowLogoutModal(false)}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(3, 7, 18, 0.75)',
-            backdropFilter: 'blur(8px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 999999,
-            padding: '1rem'
-          }}
+          style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(3, 7, 18, 0.75)', zIndex: 999999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            style={{
-              backgroundColor: '#0f172a',
-              border: '1px solid rgba(239, 68, 68, 0.35)',
-              borderRadius: '16px',
-              padding: '1.6rem',
-              maxWidth: '380px',
-              width: '100%',
-              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.7), 0 0 25px rgba(239, 68, 68, 0.15)',
-              textAlign: 'center'
-            }}
+            style={{ backgroundColor: '#0f172a', border: '1px solid rgba(239, 68, 68, 0.35)', borderRadius: '16px', padding: '1.6rem', maxWidth: '380px', width: '100%', textAlign: 'center' }}
           >
-            <div
-              style={{
-                width: '52px',
-                height: '52px',
-                borderRadius: '50%',
-                backgroundColor: 'rgba(239, 68, 68, 0.12)',
-                border: '1px solid rgba(239, 68, 68, 0.3)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                margin: '0 auto 1rem auto',
-                fontSize: '1.4rem'
-              }}
-            >
-              🚪
-            </div>
-
-            <h3 style={{ margin: '0 0 0.4rem 0', fontSize: '1.15rem', fontWeight: '800', color: '#ffffff' }}>
-              Log Out of Shanora?
-            </h3>
-            <p style={{ margin: '0 0 1.5rem 0', fontSize: '0.82rem', color: '#94a3b8', lineHeight: '1.45' }}>
-              Are you sure you want to end your active session? You will need to sign in again to access your account.
-            </p>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-              <button
-                type="button"
-                onClick={() => setShowLogoutModal(false)}
-                style={{
-                  backgroundColor: '#1e293b',
-                  border: '1px solid #334155',
-                  color: '#cbd5e1',
-                  padding: '0.65rem',
-                  borderRadius: '12px',
-                  fontSize: '0.82rem',
-                  fontWeight: '700',
-                  cursor: 'pointer'
-                }}
-              >
-                Screenshot Cancel
-              </button>
-
-              <button
-                type="button"
-                onClick={executeLogout}
-                style={{
-                  background: 'linear-gradient(180deg, rgba(239, 68, 68, 0.25) 0%, rgba(15, 23, 42, 0.95) 100%)',
-                  border: '1px solid rgba(239, 68, 68, 0.65)',
-                  boxShadow: '0 4px 14px rgba(239, 68, 68, 0.35)',
-                  color: '#f87171',
-                  padding: '0.65rem',
-                  borderRadius: '12px',
-                  fontSize: '0.82rem',
-                  fontWeight: '800',
-                  cursor: 'pointer'
-                }}
-              >
-                Log Out
-              </button>
-            </div>
+            <h3 style={{ margin: '0 0 0.4rem 0', fontSize: '1.15rem', fontWeight: '800', color: '#ffffff' }}>Log Out of Shanora?</h3>
+            <button type="button" onClick={executeLogout}>Log Out</button>
           </div>
         </div>
       )}
