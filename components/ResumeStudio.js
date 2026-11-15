@@ -1,62 +1,184 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
 export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
-  const [selectedTemplate, setSelectedTemplate] = useState('free-classic');
-  const [isEditing, setIsEditing] = useState(false);
-  const previewRef = useRef(null);
+  // Safe Supabase Client Initialization (Compatible with standard SHANORA setup)
+  const supabaseRef = useRef(null);
+  const getSupabase = () => {
+    if (!supabaseRef.current) {
+      try {
+        supabaseRef.current = createClientComponentClient();
+      } catch (e) {
+        supabaseRef.current = null;
+      }
+    }
+    return supabaseRef.current;
+  };
 
-  // Auto-Put Data from Profile State + Editable State
+  // --- CORE STUDIO STATE ---
+  const [selectedTemplate, setSelectedTemplate] = useState('free-classic');
+  const [cvStandard, setCvStandard] = useState('international'); // 'international' | 'european' | 'ats'
+  const [activeStep, setActiveStep] = useState(1);
+  const [showWizard, setShowWizard] = useState(false);
+
+  // Saved CVs Management (Supabase)
+  const [savedResumes, setSavedResumes] = useState([]);
+  const [currentResumeId, setCurrentResumeId] = useState(null);
+  const [cvTitle, setCvTitle] = useState('My Official CV');
+  const [isSaving, setIsSaving] = useState(false);
+  const [statusMsg, setStatusMsg] = useState('');
+
+  // AI & Analysis Modals
+  const [atsReport, setAtsReport] = useState(null);
+  const [coverLetter, setCoverLetter] = useState('');
+  const [targetCompany, setTargetCompany] = useState('');
+  const [targetRole, setTargetRole] = useState('');
+
+  const previewRef = useRef(null);
+  const a4SheetRef = useRef(null);
+
+  // Reorderable Section Keys
+  const [sectionOrder, setSectionOrder] = useState([
+    'summary',
+    'experience',
+    'education',
+    'skills',
+    'projects',
+    'certifications',
+    'languages',
+    'achievements',
+    'references',
+    'additional'
+  ]);
+
+  // --- 12 INTERNATIONAL CV SECTIONS STATE ---
   const [cvData, setCvData] = useState({
+    // 1. Personal Information
     fullName: '',
     headline: '',
     email: '',
     phone: '',
+    whatsapp: '',
     location: '',
+    linkedin: '',
+    portfolio: '',
+    photoUrl: '',
+    showPhoto: false,
+
+    // 2. Professional Summary
     summary: '',
-    experience: '',
-    education: '',
-    skills: '',
-    languages: 'English (Fluent), Urdu (Native)'
+    careerObjective: '',
+
+    // 3. Work Experience (Multiple Structured Items)
+    experiences: [
+      {
+        id: 'exp-1',
+        jobTitle: 'Office Assistant & IT Technical Support',
+        company: 'Organization Name',
+        location: 'Karachi, Pakistan',
+        startDate: '2019',
+        endDate: 'Present',
+        responsibilities: 'Managed daily operations, computer systems, and administrative workflows.',
+        achievements: 'Streamlined digital documentation and technical support response time.'
+      }
+    ],
+
+    // 4. Education (Multiple Structured Items)
+    educations: [
+      {
+        id: 'edu-1',
+        degree: 'Bachelor of Science (B.Sc.)',
+        institution: 'University Name',
+        location: 'Sindh, Pakistan',
+        startYear: '2017',
+        gradYear: '2019'
+      }
+    ],
+
+    // 5. Technical Skills & 6. Soft Skills
+    technicalSkills: 'IT Technical Support, MS Office Suite, System Troubleshooting, Basic Networking, Full-Stack Web Tools',
+    softSkills: 'Problem Solving, Team Collaboration, Time Management, Professional Communication',
+
+    // 7. Certifications & Training
+    certifications: 'Diploma in Information Technology (DIT) • Google Introduction to AI Certification',
+
+    // 8. Languages (Structured with Proficiency Levels)
+    languagesList: [
+      { id: 'lang-1', name: 'English', level: 'Fluent' },
+      { id: 'lang-2', name: 'Urdu', level: 'Native' }
+    ],
+
+    // 9. Projects
+    projects: [
+      {
+        id: 'proj-1',
+        name: 'Digital Platform Architecture',
+        description: 'Developed a modern web portal utilizing cloud database and responsive design.',
+        url: 'https://shanora-pk.vercel.app'
+      }
+    ],
+
+    // 10. Achievements & Awards
+    achievements: 'Recognized for outstanding technical support and digital productivity implementation.',
+
+    // 11. Professional References
+    references: 'Available upon professional request.',
+
+    // 12. Additional Information
+    drivingLicence: '',
+    availability: 'Immediate / 2 Weeks Notice',
+    relocate: 'Yes — Open to National & International Relocation',
+    otherInfo: ''
   });
 
-  // Automatically sync whenever profile or resumeData loads from Supabase
+  // Sync with SHANORA user profile on initial load without overwriting user edits
   useEffect(() => {
-    setCvData({
-      fullName: profile?.full_name || profile?.first_name || 'Your Full Name',
-      headline: profile?.headline || profile?.account_type || 'Professional Specialist',
-      email: profile?.email || 'email@example.com',
-      phone: profile?.phone || '+92 300 0000000',
-      location: profile?.country || 'Karachi, Pakistan',
-      summary: profile?.bio || 'Results-driven professional with strong expertise in operations, technical support, and digital workflows. Committed to delivering organizational excellence.',
-      experience: resumeData?.experience || profile?.experience || '• Senior Specialist — Managed core daily operations, technical systems, and team workflows.\n• Project Coordinator — Delivered key digital and administrative milestones on schedule.',
-      education: resumeData?.education || profile?.education || 'Bachelor of Science (B.Sc.) | Certified IT & Digital Professional',
-      skills: profile?.skills || 'Operations Management, IT Technical Support, MS Office, Networking, Digital Productivity',
-      languages: 'English, Urdu, Sindhi'
-    });
+    setCvData((prev) => ({
+      ...prev,
+      fullName: profile?.full_name || profile?.first_name || prev.fullName || 'Your Full Name',
+      headline: profile?.headline || profile?.account_type || prev.headline || 'Professional Specialist',
+      email: profile?.email || prev.email || 'email@example.com',
+      phone: profile?.phone || prev.phone || '+92 300 0000000',
+      whatsapp: profile?.phone || prev.whatsapp || '+92 300 0000000',
+      location: profile?.country || prev.location || 'Karachi, Pakistan',
+      photoUrl: profile?.avatar_url || prev.photoUrl || '',
+      summary:
+        profile?.bio ||
+        prev.summary ||
+        'Results-driven professional with verified expertise in operations, technical support, and digital workflows.',
+      technicalSkills: profile?.skills || prev.technicalSkills
+    }));
   }, [profile, resumeData]);
 
-  const initials = (cvData.fullName || 'SP')
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
+  // Load saved CVs from Supabase if table exists
+  useEffect(() => {
+    const fetchSavedResumes = async () => {
+      if (!profile?.id) return;
+      const supabase = getSupabase();
+      if (!supabase) return;
+      const { data, error } = await supabase
+        .from('user_resumes')
+        .select('*')
+        .eq('user_id', profile.id)
+        .order('updated_at', { ascending: false });
+      if (!error && data) {
+        setSavedResumes(data);
+      }
+    };
+    fetchSavedResumes();
+  }, [profile?.id]);
 
-  const skillList = cvData.skills
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
-
+  // --- PRESERVED 12 TEMPLATES (4 FREE + 8 PRO) ---
   const templates = [
-    // --- 4 FREE TEMPLATES (Fully Editable & Downloadable for Everyone) ---
+    // 4 FREE TEMPLATES
     { id: 'free-classic', name: '1. Basic Standard', type: 'Free', variant: 'free-left', accent: '#334155', subBg: '#f8fafc' },
     { id: 'free-centered', name: '2. Academic Centered', type: 'Free', variant: 'free-center', accent: '#0f172a', subBg: '#f8fafc' },
     { id: 'free-boxed', name: '3. Classic Boxed', type: 'Free', variant: 'free-box', accent: '#475569', subBg: '#f1f5f9' },
     { id: 'free-minimal', name: '4. Clean Entry', type: 'Free', variant: 'free-topbar', accent: '#0284c7', subBg: '#f0f9ff' },
 
-    // --- 8 PRO TEMPLATES (Click to Open Live Preview, PRO Required to Edit/Download) ---
+    // 8 PRO TEMPLATES
     { id: 'pro-crimson', name: '5. Executive Crimson', type: 'Pro', variant: 'pro-left-sidebar', accent: '#991b1b', subBg: '#fef2f2' },
     { id: 'pro-royal', name: '6. Royal Split Banner', type: 'Pro', variant: 'pro-top-banner', accent: '#4c1d95', subBg: '#f5f3ff' },
     { id: 'pro-emerald', name: '7. Tech Emerald Grid', type: 'Pro', variant: 'pro-tech-pills', accent: '#065f46', subBg: '#ecfdf5' },
@@ -67,23 +189,492 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
     { id: 'pro-titan', name: '12. Titan Ultimate Pro', type: 'Pro', variant: 'pro-titan-dark', accent: '#111827', subBg: '#f3f4f6' }
   ];
 
+  const isUserPro = Boolean(profile?.is_pro);
   const activeTemplateObj = templates.find((t) => t.id === selectedTemplate) || templates[0];
-  const isCurrentLocked = activeTemplateObj.type === 'Pro' && !profile?.is_pro;
+  const isDownloadLocked = activeTemplateObj.type === 'Pro' && !isUserPro;
 
-  const handleSelectTemplate = (tmpl) => {
-    setSelectedTemplate(tmpl.id);
-    if (tmpl.type === 'Pro' && !profile?.is_pro) {
-      setIsEditing(false); // Close editor if locked pro template is selected
-    }
-    // Smooth scroll down to the full A4 CV preview so user sees it open immediately
-    setTimeout(() => {
-      if (previewRef.current) {
-        previewRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    }, 100);
+  const initials = (cvData.fullName || 'SP')
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+
+  const techSkillList = (cvData.technicalSkills || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const softSkillList = (cvData.softSkills || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const allSkillsCombined = [...techSkillList, ...softSkillList];
+
+  // --- WORKFLOW STEPS ---
+  const steps = [
+    { num: 1, label: '1. Template' },
+    { num: 2, label: '2. Personal' },
+    { num: 3, label: '3. Summary' },
+    { num: 4, label: '4. Experience' },
+    { num: 5, label: '5. Education' },
+    { num: 6, label: '6. Skills & More' },
+    { num: 7, label: '7. Preview & Order' },
+    { num: 8, label: '8. Save & PDF' }
+  ];
+
+  // --- PHOTO UPLOAD HANDLER (Base64 / Local Preview + Supabase Compatible) ---
+  const handlePhotoUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setCvData((prev) => ({ ...prev, photoUrl: reader.result, showPhoto: true }));
+    };
+    reader.readAsDataURL(file);
   };
 
-  // Miniature Card Preview Renderer
+  // --- REORDER SECTIONS ---
+  const moveSection = (index, direction) => {
+    const updated = [...sectionOrder];
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= updated.length) return;
+    const temp = updated[index];
+    updated[index] = updated[targetIndex];
+    updated[targetIndex] = temp;
+    setSectionOrder(updated);
+  };
+
+  // --- STRICT FACT-BASED AI ASSISTANTS (Never fabricates history/degrees) ---
+  const handleAiGenerateSummary = () => {
+    const role = cvData.headline || 'Professional';
+    const topSkills = techSkillList.slice(0, 4).join(', ');
+    const expTitles = cvData.experiences.map((e) => e.jobTitle).filter(Boolean).join(' and ');
+    const eduDegrees = cvData.educations.map((e) => e.degree).filter(Boolean).join(', ');
+
+    const generated = `Dedicated and detail-oriented ${role}${expTitles ? ` with practical experience as ${expTitles}` : ''}.${eduDegrees ? ` Holds qualifications in ${eduDegrees}.` : ''}${topSkills ? ` Skilled in ${topSkills}, with a proven commitment to operational excellence, problem-solving, and high-standard execution.` : ''}`;
+
+    setCvData((prev) => ({ ...prev, summary: generated }));
+    setStatusMsg('✨ AI Summary generated strictly from your entered profile facts.');
+  };
+
+  const handleAiPolishExperience = (expIndex) => {
+    const exp = cvData.experiences[expIndex];
+    if (!exp) return;
+
+    const polishText = (raw) => {
+      if (!raw.trim()) return raw;
+      return raw
+        .split('\n')
+        .map((line) => {
+          let cl = line.replace(/^[•\-*]\s*/, '').trim();
+          if (!cl) return '';
+          cl = cl.charAt(0).toUpperCase() + cl.slice(1);
+          if (!/[.!?]$/.test(cl)) cl += '.';
+          if (!/^(Managed|Led|Developed|Executed|Coordinated|Maintained|Delivered|Implemented|Spearheaded|Supported)/i.test(cl)) {
+            cl = `Executed and managed ${cl.charAt(0).toLowerCase() + cl.slice(1)}`;
+          }
+          return `• ${cl}`;
+        })
+        .filter(Boolean)
+        .join('\n');
+    };
+
+    const updated = [...cvData.experiences];
+    updated[expIndex] = {
+      ...exp,
+      responsibilities: polishText(exp.responsibilities),
+      achievements: polishText(exp.achievements)
+    };
+    setCvData((prev) => ({ ...prev, experiences: updated }));
+    setStatusMsg('✨ Bullet points formatted into professional action-verb statements.');
+  };
+
+  const handleAiSuggestSkills = () => {
+    const role = (cvData.headline || '').toLowerCase();
+    let suggested = ['Project Coordination', 'Digital Documentation', 'Process Optimization'];
+    if (role.includes('it') || role.includes('tech') || role.includes('support') || role.includes('developer')) {
+      suggested = ['System Administration', 'Hardware & Software Troubleshooting', 'Network Configuration', 'Cloud Productivity', 'Technical Documentation'];
+    } else if (role.includes('manager') || role.includes('director') || role.includes('admin') || role.includes('office')) {
+      suggested = ['Office Administration', 'Stakeholder Communication', 'Resource Planning', 'Record Management', 'Operational Reporting'];
+    }
+    const existingSet = new Set(techSkillList.map((s) => s.toLowerCase()));
+    const newOnes = suggested.filter((s) => !existingSet.has(s.toLowerCase()));
+    if (newOnes.length > 0) {
+      setCvData((prev) => ({
+        ...prev,
+        technicalSkills: prev.technicalSkills ? `${prev.technicalSkills}, ${newOnes.join(', ')}` : newOnes.join(', ')
+      }));
+      setStatusMsg(`✨ Added relevant skills for "${cvData.headline}": ${newOnes.join(', ')}`);
+    } else {
+      setStatusMsg('✓ Your skills list already covers the top recommendations for your title.');
+    }
+  };
+
+  const handleRunAtsAnalysis = () => {
+    if (!isUserPro) {
+      alert('🔒 Deep ATS Compatibility Analysis is a SHANORA PRO feature. Upgrade to PRO to unlock full ATS scoring!');
+      if (typeof navigateToTab === 'function') navigateToTab('pro');
+      return;
+    }
+    const missing = [];
+    let score = 100;
+    if (!cvData.email || !cvData.phone) { missing.push('Complete Contact Information (Email & Phone)'); score -= 15; }
+    if (!cvData.linkedin) { missing.push('LinkedIn Profile URL (Highly recommended for international recruiters)'); score -= 8; }
+    if (!cvData.summary || cvData.summary.length < 60) { missing.push('Expand Professional Summary (Aim for 150–300 characters)'); score -= 15; }
+    if (cvData.experiences.length === 0) { missing.push('At least 1 Work Experience entry'); score -= 25; }
+    if (cvData.educations.length === 0) { missing.push('At least 1 Education qualification'); score -= 15; }
+    if (techSkillList.length < 5) { missing.push('Add at least 5 Technical Skills for keyword matching'); score -= 12; }
+
+    setAtsReport({
+      score: Math.max(score, 20),
+      missing,
+      standardNote:
+        cvStandard === 'ats'
+          ? 'ATS Standard active: Single-column clean parsing enabled.'
+          : 'Tip: Switch CV Standard to "ATS-Friendly Resume" when applying via automated portals.'
+    });
+  };
+
+  const handleGenerateCoverLetter = () => {
+    if (!isUserPro) {
+      alert('🔒 AI Cover Letter Generator is an exclusive SHANORA PRO feature. Upgrade to PRO to generate customized cover letters!');
+      if (typeof navigateToTab === 'function') navigateToTab('pro');
+      return;
+    }
+    const role = targetRole || cvData.headline || 'the open position';
+    const company = targetCompany || 'your esteemed organization';
+    const expSummary = cvData.experiences
+      .map((e) => `${e.jobTitle} at ${e.company} (${e.startDate} – ${e.endDate})`)
+      .join('; ');
+    const eduSummary = cvData.educations.map((e) => `${e.degree} from ${e.institution}`).join(', ');
+
+    const letter = `Dear Hiring Manager at ${company},\n\nI am writing to express my strong interest in applying for the ${role} position. With my background as a ${cvData.headline}${expSummary ? `, including experience as ${expSummary}` : ''}, I have developed a solid foundation in ${techSkillList.slice(0, 5).join(', ')}.\n\n${cvData.summary}\n\n${eduSummary ? `My academic credentials include ${eduSummary}. ` : ''}Throughout my work, I have consistently focused on reliability, accuracy, and collaborative execution (${softSkillList.slice(0, 3).join(', ')}).\n\nI would welcome the opportunity to discuss how my existing skills and experience align with the goals of ${company}. Thank you for your time and consideration.\n\nSincerely,\n${cvData.fullName}\n${cvData.email} | ${cvData.phone}\n${cvData.location}`;
+
+    setCoverLetter(letter);
+  };
+
+  // --- SUPABASE SAVE, LOAD, RENAME, DELETE ---
+  const handleSaveCvToDatabase = async (asNewVersion = false) => {
+    if (activeTemplateObj.type === 'Pro' && !isUserPro) {
+      alert('🔒 Cannot save a PRO template on a Free account. Please select a Free template (1–4) or upgrade to SHANORA PRO.');
+      return;
+    }
+    if (!isUserPro && asNewVersion && savedResumes.length >= 1) {
+      alert('🔒 Multiple CV version management is a SHANORA PRO feature. Free users can save and update 1 primary CV.');
+      if (typeof navigateToTab === 'function') navigateToTab('pro');
+      return;
+    }
+
+    setIsSaving(true);
+    setStatusMsg('');
+
+    try {
+      // Always keep a local backup in localStorage so user never loses work
+      localStorage.setItem('shanora_latest_cv_backup', JSON.stringify({ cvTitle, selectedTemplate, cvStandard, cvData, sectionOrder }));
+
+      const supabase = getSupabase();
+      if (!supabase || !profile?.id) {
+        setStatusMsg('✓ CV saved to local browser storage!');
+        setIsSaving(false);
+        return;
+      }
+
+      const payload = {
+        user_id: profile.id,
+        title: cvTitle || 'My Professional CV',
+        template_id: selectedTemplate,
+        cv_standard: cvStandard,
+        cv_data: cvData,
+        section_order: sectionOrder,
+        updated_at: new Date().toISOString()
+      };
+
+      let result;
+      if (currentResumeId && !asNewVersion) {
+        result = await supabase.from('user_resumes').update(payload).eq('id', currentResumeId).eq('user_id', profile.id).select().single();
+      } else {
+        result = await supabase.from('user_resumes').insert(payload).select().single();
+      }
+
+      if (result.error) {
+        setStatusMsg(`✓ Saved locally (${result.error.message})`);
+      } else if (result.data) {
+        setCurrentResumeId(result.data.id);
+        const { data: list } = await supabase.from('user_resumes').select('*').eq('user_id', profile.id).order('updated_at', { ascending: false });
+        if (list) setSavedResumes(list);
+        setStatusMsg('✓ CV securely saved to your SHANORA account!');
+      }
+    } catch (err) {
+      setStatusMsg('✓ Saved to local browser backup.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleLoadSavedCv = (item) => {
+    setCurrentResumeId(item.id);
+    setCvTitle(item.title);
+    setSelectedTemplate(item.template_id || 'free-classic');
+    setCvStandard(item.cv_standard || 'international');
+    if (item.cv_data) setCvData((prev) => ({ ...prev, ...item.cv_data }));
+    if (Array.isArray(item.section_order)) setSectionOrder(item.section_order);
+    setStatusMsg(`✓ Loaded "${item.title}"`);
+  };
+
+  const handleDeleteSavedCv = async (id) => {
+    const supabase = getSupabase();
+    if (!supabase || !profile?.id) return;
+    const { error } = await supabase.from('user_resumes').delete().eq('id', id).eq('user_id', profile.id);
+    if (!error) {
+      setSavedResumes((prev) => prev.filter((r) => r.id !== id));
+      if (currentResumeId === id) setCurrentResumeId(null);
+      setStatusMsg('🗑️ CV version deleted.');
+    }
+  };
+
+  // --- HIGH-PRECISION A4 PDF DOWNLOAD (Supports Multi-Page & Clickable Links) ---
+  const handleDownloadPDF = () => {
+    if (isDownloadLocked) {
+      alert(`🔒 "${activeTemplateObj.name}" is an exclusive SHANORA PRO template!\n\nYou can preview and edit all fields, but downloading this PRO template requires SHANORA PRO. Switch to a Free template (1-4) to download for free, or upgrade to PRO!`);
+      if (typeof navigateToTab === 'function') navigateToTab('pro');
+      return;
+    }
+
+    if (!a4SheetRef.current) return;
+    const cvHtml = a4SheetRef.current.innerHTML;
+    const printWindow = window.open('', '_blank', 'width=950,height=1150');
+
+    if (!printWindow) {
+      window.print();
+      return;
+    }
+
+    printWindow.document.open();
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>${cvData.fullName} - ${cvTitle}</title>
+          <style>
+            @page { size: A4 portrait; margin: 10mm; }
+            * {
+              box-sizing: border-box;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            html, body {
+              margin: 0;
+              padding: 0;
+              background: #ffffff;
+              font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+              color: #0f172a;
+              line-height: 1.45;
+            }
+            a { color: inherit; text-decoration: underline; }
+            .cv-sec-block { page-break-inside: avoid; break-inside: avoid; }
+          </style>
+        </head>
+        <body>
+          <div>${cvHtml}</div>
+          <script>
+            window.onload = function() {
+              setTimeout(function() {
+                window.focus();
+                window.print();
+                window.close();
+              }, 400);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
+  // --- HELPER: RENDER ORDERED CV SECTIONS IN MAIN BODY ---
+  const renderOrderedMainSections = (accent) => {
+    return sectionOrder.map((secKey) => {
+      switch (secKey) {
+        case 'summary':
+          if (!cvData.summary && !cvData.careerObjective) return null;
+          return (
+            <div key="summary" className="cv-sec-block" style={{ marginBottom: '1.35rem' }}>
+              <h3 style={{ fontSize: '0.88rem', fontWeight: '800', color: accent, textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `2px solid ${accent}22`, paddingBottom: '0.3rem', marginBottom: '0.5rem' }}>
+                {cvStandard === 'european' ? 'Personal Profile & Career Objective' : 'Executive Summary'}
+              </h3>
+              {cvData.summary && <p style={{ fontSize: '0.84rem', color: '#334155', lineHeight: '1.6', margin: '0 0 0.4rem 0', wordBreak: 'break-word' }}>{cvData.summary}</p>}
+              {cvData.careerObjective && <p style={{ fontSize: '0.82rem', color: '#475569', lineHeight: '1.55', margin: 0, fontStyle: 'italic' }}><b>Objective:</b> {cvData.careerObjective}</p>}
+            </div>
+          );
+
+        case 'experience':
+          if (!cvData.experiences || cvData.experiences.length === 0) return null;
+          return (
+            <div key="experience" style={{ marginBottom: '1.35rem' }}>
+              <h3 style={{ fontSize: '0.88rem', fontWeight: '800', color: accent, textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `2px solid ${accent}22`, paddingBottom: '0.3rem', marginBottom: '0.6rem' }}>
+                Work Experience
+              </h3>
+              {cvData.experiences.map((exp) => (
+                <div key={exp.id} className="cv-sec-block" style={{ marginBottom: '0.9rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: '0.4rem' }}>
+                    <span style={{ fontSize: '0.88rem', fontWeight: '800', color: '#0f172a' }}>{exp.jobTitle}</span>
+                    <span style={{ fontSize: '0.76rem', fontWeight: '700', color: accent }}>{exp.startDate} – {exp.endDate || 'Present'}</span>
+                  </div>
+                  <div style={{ fontSize: '0.8rem', fontWeight: '600', color: '#475569', marginBottom: '0.3rem' }}>
+                    {exp.company}{exp.location ? ` • ${exp.location}` : ''}
+                  </div>
+                  {exp.responsibilities && (
+                    <div style={{ fontSize: '0.82rem', color: '#334155', lineHeight: '1.55', whiteSpace: 'pre-line', marginBottom: '0.2rem' }}>
+                      {exp.responsibilities}
+                    </div>
+                  )}
+                  {exp.achievements && (
+                    <div style={{ fontSize: '0.8rem', color: '#1e293b', lineHeight: '1.5', whiteSpace: 'pre-line' }}>
+                      <b>Key Achievements:</b> {exp.achievements}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          );
+
+        case 'education':
+          if (!cvData.educations || cvData.educations.length === 0) return null;
+          return (
+            <div key="education" style={{ marginBottom: '1.35rem' }}>
+              <h3 style={{ fontSize: '0.88rem', fontWeight: '800', color: accent, textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `2px solid ${accent}22`, paddingBottom: '0.3rem', marginBottom: '0.6rem' }}>
+                Education & Academic Qualifications
+              </h3>
+              {cvData.educations.map((edu) => (
+                <div key={edu.id} className="cv-sec-block" style={{ marginBottom: '0.65rem', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap' }}>
+                  <div>
+                    <div style={{ fontSize: '0.86rem', fontWeight: '800', color: '#0f172a' }}>{edu.degree}</div>
+                    <div style={{ fontSize: '0.8rem', color: '#475569' }}>{edu.institution}{edu.location ? `, ${edu.location}` : ''}</div>
+                  </div>
+                  <div style={{ fontSize: '0.76rem', fontWeight: '700', color: accent }}>
+                    {edu.startYear ? `${edu.startYear} – ` : ''}{edu.gradYear}
+                  </div>
+                </div>
+              ))}
+            </div>
+          );
+
+        case 'skills':
+          if (!cvData.technicalSkills && !cvData.softSkills) return null;
+          return (
+            <div key="skills" className="cv-sec-block" style={{ marginBottom: '1.35rem' }}>
+              <h3 style={{ fontSize: '0.88rem', fontWeight: '800', color: accent, textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `2px solid ${accent}22`, paddingBottom: '0.3rem', marginBottom: '0.5rem' }}>
+                Technical & Soft Skills
+              </h3>
+              {cvData.technicalSkills && (
+                <p style={{ fontSize: '0.82rem', color: '#334155', margin: '0 0 0.35rem 0', lineHeight: '1.55' }}>
+                  <b>Technical Skills:</b> {cvData.technicalSkills}
+                </p>
+              )}
+              {cvData.softSkills && (
+                <p style={{ fontSize: '0.82rem', color: '#334155', margin: 0, lineHeight: '1.55' }}>
+                  <b>Soft Skills:</b> {cvData.softSkills}
+                </p>
+              )}
+            </div>
+          );
+
+        case 'projects':
+          if (!cvData.projects || cvData.projects.length === 0 || !cvData.projects[0]?.name) return null;
+          return (
+            <div key="projects" className="cv-sec-block" style={{ marginBottom: '1.35rem' }}>
+              <h3 style={{ fontSize: '0.88rem', fontWeight: '800', color: accent, textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `2px solid ${accent}22`, paddingBottom: '0.3rem', marginBottom: '0.5rem' }}>
+                Key Projects
+              </h3>
+              {cvData.projects.map((proj) => (
+                <div key={proj.id} style={{ marginBottom: '0.55rem' }}>
+                  <div style={{ fontSize: '0.84rem', fontWeight: '800', color: '#0f172a' }}>
+                    {proj.name}{' '}
+                    {proj.url && (
+                      <a href={proj.url} target="_blank" rel="noreferrer" style={{ fontSize: '0.76rem', color: accent, fontWeight: '600' }}>
+                        ({proj.url})
+                      </a>
+                    )}
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: '#334155', lineHeight: '1.5' }}>{proj.description}</div>
+                </div>
+              ))}
+            </div>
+          );
+
+        case 'certifications':
+          if (!cvData.certifications) return null;
+          return (
+            <div key="certifications" className="cv-sec-block" style={{ marginBottom: '1.35rem' }}>
+              <h3 style={{ fontSize: '0.88rem', fontWeight: '800', color: accent, textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `2px solid ${accent}22`, paddingBottom: '0.3rem', marginBottom: '0.5rem' }}>
+                Certifications & Professional Training
+              </h3>
+              <p style={{ fontSize: '0.82rem', color: '#334155', margin: 0, lineHeight: '1.55', whiteSpace: 'pre-line' }}>{cvData.certifications}</p>
+            </div>
+          );
+
+        case 'languages':
+          if (!cvData.languagesList || cvData.languagesList.length === 0) return null;
+          return (
+            <div key="languages" className="cv-sec-block" style={{ marginBottom: '1.35rem' }}>
+              <h3 style={{ fontSize: '0.88rem', fontWeight: '800', color: accent, textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `2px solid ${accent}22`, paddingBottom: '0.3rem', marginBottom: '0.5rem' }}>
+                Languages
+              </h3>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', fontSize: '0.82rem', color: '#334155' }}>
+                {cvData.languagesList.map((l) => (
+                  <span key={l.id}><b>{l.name}:</b> {l.level}</span>
+                ))}
+              </div>
+            </div>
+          );
+
+        case 'achievements':
+          if (!cvData.achievements) return null;
+          return (
+            <div key="achievements" className="cv-sec-block" style={{ marginBottom: '1.35rem' }}>
+              <h3 style={{ fontSize: '0.88rem', fontWeight: '800', color: accent, textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `2px solid ${accent}22`, paddingBottom: '0.3rem', marginBottom: '0.5rem' }}>
+                Achievements & Awards
+              </h3>
+              <p style={{ fontSize: '0.82rem', color: '#334155', margin: 0, lineHeight: '1.55', whiteSpace: 'pre-line' }}>{cvData.achievements}</p>
+            </div>
+          );
+
+        case 'references':
+          if (!cvData.references) return null;
+          return (
+            <div key="references" className="cv-sec-block" style={{ marginBottom: '1.35rem' }}>
+              <h3 style={{ fontSize: '0.88rem', fontWeight: '800', color: accent, textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `2px solid ${accent}22`, paddingBottom: '0.3rem', marginBottom: '0.5rem' }}>
+                Professional References
+              </h3>
+              <p style={{ fontSize: '0.82rem', color: '#334155', margin: 0, lineHeight: '1.55', whiteSpace: 'pre-line' }}>{cvData.references}</p>
+            </div>
+          );
+
+        case 'additional':
+          if (!cvData.drivingLicence && !cvData.availability && !cvData.relocate && !cvData.otherInfo) return null;
+          return (
+            <div key="additional" className="cv-sec-block" style={{ marginBottom: '1rem' }}>
+              <h3 style={{ fontSize: '0.88rem', fontWeight: '800', color: accent, textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `2px solid ${accent}22`, paddingBottom: '0.3rem', marginBottom: '0.5rem' }}>
+                Additional Information
+              </h3>
+              <div style={{ fontSize: '0.8rem', color: '#334155', lineHeight: '1.6' }}>
+                {cvData.availability && <div><b>Availability:</b> {cvData.availability}</div>}
+                {cvData.relocate && <div><b>Willingness to Relocate:</b> {cvData.relocate}</div>}
+                {cvData.drivingLicence && <div><b>Driving Licence:</b> {cvData.drivingLicence}</div>}
+                {cvData.otherInfo && <div><b>Notes:</b> {cvData.otherInfo}</div>}
+              </div>
+            </div>
+          );
+
+        default:
+          return null;
+      }
+    });
+  };
+
+  // --- MINIATURE CARD PREVIEW RENDERER (PRESERVING ALL 12 DESIGNS) ---
   const renderMiniCardDesign = (tmpl) => {
     const isRight = tmpl.variant === 'pro-right-sidebar';
     if (tmpl.type === 'Free') {
@@ -116,13 +707,12 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
           <div style={{ padding: '8px', display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '6px', fontSize: '0.38rem' }}>
             <div>
               <div style={{ fontWeight: '800', color: tmpl.accent, marginBottom: '2px' }}>EXPERIENCE</div>
-              <div style={{ color: '#334155' }}>• Senior Role & Operations</div>
-              <div style={{ color: '#64748b' }}>• Project Execution</div>
+              <div style={{ color: '#334155' }}>• {cvData.experiences[0]?.jobTitle || 'Senior Specialist'}</div>
+              <div style={{ color: '#64748b' }}>• {cvData.educations[0]?.degree || 'Qualification'}</div>
             </div>
             <div style={{ backgroundColor: tmpl.subBg, padding: '4px', borderRadius: '4px' }}>
               <div style={{ fontWeight: '800', color: tmpl.accent, marginBottom: '2px' }}>SKILLS</div>
-              <div>■ Strategy</div>
-              <div>■ Systems</div>
+              {techSkillList.slice(0, 2).map((s, i) => <div key={i}>■ {s}</div>)}
             </div>
           </div>
         </div>
@@ -135,372 +725,336 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
           <div style={{ fontWeight: '800', color: isRight ? '#fff' : tmpl.accent, marginBottom: '3px' }}>DETAILS</div>
           <div style={{ marginBottom: '2px' }}>📍 {cvData.location}</div>
           <div style={{ fontWeight: '800', color: isRight ? '#fff' : tmpl.accent, marginTop: '5px', marginBottom: '2px' }}>LANGUAGES</div>
-          <div>English ●●●●●</div>
-          <div>Urdu ●●●●○</div>
+          {cvData.languagesList.slice(0, 2).map((l) => <div key={l.id}>{l.name} ●●●●</div>)}
           <div style={{ fontWeight: '800', color: isRight ? '#fff' : tmpl.accent, marginTop: '5px', marginBottom: '2px' }}>SKILLS</div>
-          {skillList.slice(0, 3).map((s, i) => <div key={i}>■ {s}</div>)}
+          {techSkillList.slice(0, 3).map((s, i) => <div key={i}>■ {s}</div>)}
         </div>
         <div style={{ width: '62%', padding: '8px 6px', backgroundColor: '#fff' }}>
           <div style={{ fontSize: '0.62rem', fontWeight: '900', color: tmpl.accent }}>{cvData.fullName}</div>
           <div style={{ fontSize: '0.4rem', color: '#64748b', marginBottom: '5px' }}>{cvData.headline}</div>
           <div style={{ fontSize: '0.42rem', fontWeight: '800', color: tmpl.accent, borderBottom: '1px solid #e2e8f0', marginBottom: '3px' }}>EMPLOYMENT</div>
-          <div style={{ fontSize: '0.38rem', color: '#334155', marginBottom: '4px' }}>• {cvData.experience.split('\n')[0]?.replace('•', '')}</div>
+          <div style={{ fontSize: '0.38rem', color: '#334155', marginBottom: '4px' }}>• {cvData.experiences[0]?.jobTitle || 'Role'}</div>
           <div style={{ fontSize: '0.42rem', fontWeight: '800', color: tmpl.accent, borderBottom: '1px solid #e2e8f0', marginBottom: '3px' }}>EDUCATION</div>
-          <div style={{ fontSize: '0.38rem', color: '#334155' }}>{cvData.education}</div>
+          <div style={{ fontSize: '0.38rem', color: '#334155' }}>{cvData.educations[0]?.degree || 'Degree'}</div>
         </div>
       </div>
     );
   };
 
-  // FULL-SIZE A4 DYNAMIC TEMPLATE RENDERER (Changes completely based on selected template!)
+  // --- FULL-SIZE A4 LIVE CV RENDERER (PRESERVES ALL 12 TEMPLATES + CLICKABLE LINKS) ---
   const renderFullA4Template = () => {
     const v = activeTemplateObj.variant;
     const accent = activeTemplateObj.accent;
     const subBg = activeTemplateObj.subBg;
 
-    // 1. Jobseeker Two-Column Sidebar Layouts (Left or Right Sidebar)
-    if (v === 'pro-left-sidebar' || v === 'pro-right-sidebar') {
+    const renderAvatarOrCrest = (darkBg = false) => {
+      if (cvData.showPhoto && cvData.photoUrl && cvStandard !== 'ats') {
+        return (
+          <img
+            src={cvData.photoUrl}
+            alt={cvData.fullName}
+            style={{ width: '68px', height: '68px', borderRadius: '50%', objectFit: 'cover', border: `2px solid ${darkBg ? '#fff' : accent}`, flexShrink: 0 }}
+          />
+        );
+      }
+      return (
+        <div style={{ width: '54px', height: '54px', borderRadius: '50%', backgroundColor: darkBg ? 'rgba(255,255,255,0.2)' : accent, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', fontSize: '1.15rem', flexShrink: 0 }}>
+          {initials}
+        </div>
+      );
+    };
+
+    const renderClickableContactBlock = (alignRight = false, lightText = false) => (
+      <div style={{ textAlign: alignRight ? 'right' : 'left', fontSize: '0.8rem', color: lightText ? '#f1f5f9' : '#475569', lineHeight: '1.55' }}>
+        {cvData.email && (
+          <div>
+            ✉️ <a href={`mailto:${cvData.email}`} style={{ color: 'inherit' }}>{cvData.email}</a>
+          </div>
+        )}
+        {cvData.phone && <div>📞 {cvData.phone}{cvData.whatsapp && cvData.whatsapp !== cvData.phone ? ` | WhatsApp: ${cvData.whatsapp}` : ''}</div>}
+        {cvData.location && <div>📍 {cvData.location}</div>}
+        {cvData.linkedin && (
+          <div>
+            🔗 <a href={cvData.linkedin.startsWith('http') ? cvData.linkedin : `https://${cvData.linkedin}`} target="_blank" rel="noreferrer" style={{ color: 'inherit' }}>LinkedIn Profile</a>
+          </div>
+        )}
+        {cvData.portfolio && (
+          <div>
+            🌐 <a href={cvData.portfolio.startsWith('http') ? cvData.portfolio : `https://${cvData.portfolio}`} target="_blank" rel="noreferrer" style={{ color: 'inherit' }}>Portfolio / Website</a>
+          </div>
+        )}
+      </div>
+    );
+
+    // 1. Two-Column Sidebar Templates (pro-crimson, pro-navy)
+    if ((v === 'pro-left-sidebar' || v === 'pro-right-sidebar') && cvStandard !== 'ats') {
       const isRight = v === 'pro-right-sidebar';
       return (
-        <div style={{ display: 'flex', flexDirection: isRight ? 'row-reverse' : 'row', minHeight: '680px', backgroundColor: '#ffffff', color: '#0f172a' }}>
-          {/* Sidebar Column */}
+        <div style={{ display: 'flex', flexDirection: isRight ? 'row-reverse' : 'row', minHeight: '842px', backgroundColor: '#ffffff', color: '#0f172a' }}>
           <div style={{
-            width: '34%',
+            width: '33%',
             backgroundColor: isRight ? accent : subBg,
             color: isRight ? '#ffffff' : '#1e293b',
             borderLeft: isRight ? 'none' : `10px solid ${accent}`,
-            padding: '2.2rem 1.5rem',
+            padding: '2rem 1.4rem',
             display: 'flex',
             flexDirection: 'column',
-            gap: '1.4rem'
+            gap: '1.25rem'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
-              <div style={{ width: '48px', height: '48px', borderRadius: '50%', backgroundColor: isRight ? 'rgba(255,255,255,0.2)' : accent, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', fontSize: '1.1rem' }}>
-                {initials}
-              </div>
+              {renderAvatarOrCrest(isRight)}
               <div>
-                <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px', opacity: 0.8 }}>Verified Profile</div>
-                <div style={{ fontSize: '0.9rem', fontWeight: '800' }}>SHANORA CV</div>
+                <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', opacity: 0.85 }}>{cvStandard.toUpperCase()} STANDARD</div>
+                <div style={{ fontSize: '0.88rem', fontWeight: '800' }}>SHANORA CV</div>
               </div>
             </div>
 
             <div>
-              <h4 style={{ fontSize: '0.85rem', fontWeight: '800', color: isRight ? '#93c5fd' : accent, textTransform: 'uppercase', marginBottom: '0.6rem', borderBottom: `1px solid ${isRight ? 'rgba(255,255,255,0.2)' : '#cbd5e1'}`, paddingBottom: '0.3rem' }}>
-                Personal Details
+              <h4 style={{ fontSize: '0.82rem', fontWeight: '800', color: isRight ? '#93c5fd' : accent, textTransform: 'uppercase', marginBottom: '0.5rem', borderBottom: `1px solid ${isRight ? 'rgba(255,255,255,0.2)' : '#cbd5e1'}`, paddingBottom: '0.25rem' }}>
+                Contact Details
               </h4>
-              <p style={{ fontSize: '0.8rem', margin: '0.35rem 0' }}>👤 {cvData.fullName}</p>
-              <p style={{ fontSize: '0.8rem', margin: '0.35rem 0', wordBreak: 'break-all' }}>✉️ {cvData.email}</p>
-              <p style={{ fontSize: '0.8rem', margin: '0.35rem 0' }}>📞 {cvData.phone}</p>
-              <p style={{ fontSize: '0.8rem', margin: '0.35rem 0' }}>📍 {cvData.location}</p>
+              {renderClickableContactBlock(false, isRight)}
             </div>
 
             <div>
-              <h4 style={{ fontSize: '0.85rem', fontWeight: '800', color: isRight ? '#93c5fd' : accent, textTransform: 'uppercase', marginBottom: '0.6rem', borderBottom: `1px solid ${isRight ? 'rgba(255,255,255,0.2)' : '#cbd5e1'}`, paddingBottom: '0.3rem' }}>
+              <h4 style={{ fontSize: '0.82rem', fontWeight: '800', color: isRight ? '#93c5fd' : accent, textTransform: 'uppercase', marginBottom: '0.5rem', borderBottom: `1px solid ${isRight ? 'rgba(255,255,255,0.2)' : '#cbd5e1'}`, paddingBottom: '0.25rem' }}>
                 Languages
               </h4>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '0.4rem' }}>
-                <span>English</span><span style={{ color: isRight ? '#fff' : accent, letterSpacing: '2px' }}>●●●●●</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '0.4rem' }}>
-                <span>Urdu</span><span style={{ color: isRight ? '#fff' : accent, letterSpacing: '2px' }}>●●●●●</span>
-              </div>
-              <div style={{ fontSize: '0.75rem', opacity: 0.85, marginTop: '0.3rem' }}>{cvData.languages}</div>
+              {cvData.languagesList.map((lang) => (
+                <div key={lang.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', marginBottom: '0.35rem' }}>
+                  <span>{lang.name}</span>
+                  <span style={{ fontWeight: '700', color: isRight ? '#bfdbfe' : accent }}>{lang.level}</span>
+                </div>
+              ))}
             </div>
 
             <div>
-              <h4 style={{ fontSize: '0.85rem', fontWeight: '800', color: isRight ? '#93c5fd' : accent, textTransform: 'uppercase', marginBottom: '0.6rem', borderBottom: `1px solid ${isRight ? 'rgba(255,255,255,0.2)' : '#cbd5e1'}`, paddingBottom: '0.3rem' }}>
+              <h4 style={{ fontSize: '0.82rem', fontWeight: '800', color: isRight ? '#93c5fd' : accent, textTransform: 'uppercase', marginBottom: '0.5rem', borderBottom: `1px solid ${isRight ? 'rgba(255,255,255,0.2)' : '#cbd5e1'}`, paddingBottom: '0.25rem' }}>
                 Core Skills
               </h4>
-              {skillList.map((skill, idx) => (
-                <div key={idx} style={{ fontSize: '0.8rem', marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              {allSkillsCombined.map((skill, idx) => (
+                <div key={idx} style={{ fontSize: '0.78rem', marginBottom: '0.3rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span style={{ color: isRight ? '#93c5fd' : accent }}>■</span> {skill}
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Main Content Column */}
-          <div style={{ width: '66%', padding: '2.5rem 2.2rem', backgroundColor: '#ffffff' }}>
-            <div style={{ marginBottom: '1.8rem' }}>
-              <h1 style={{ fontSize: '2rem', fontWeight: '900', color: accent, margin: '0 0 0.3rem 0' }}>{cvData.fullName}</h1>
-              <p style={{ fontSize: '1.05rem', fontWeight: '700', color: '#475569', margin: 0 }}>{cvData.headline}</p>
+          <div style={{ width: '67%', padding: '2.2rem 2rem', backgroundColor: '#ffffff' }}>
+            <div style={{ marginBottom: '1.5rem', borderBottom: `2px solid ${accent}`, paddingBottom: '0.9rem' }}>
+              <h1 style={{ fontSize: '1.95rem', fontWeight: '900', color: accent, margin: '0 0 0.25rem 0' }}>{cvData.fullName}</h1>
+              <p style={{ fontSize: '1.02rem', fontWeight: '700', color: '#475569', margin: 0 }}>{cvData.headline}</p>
             </div>
-
-            <div style={{ marginBottom: '1.6rem' }}>
-              <h3 style={{ fontSize: '0.95rem', fontWeight: '800', color: accent, textTransform: 'uppercase', borderBottom: '2px solid #f1f5f9', paddingBottom: '0.35rem', marginBottom: '0.6rem' }}>
-                Executive Profile
-              </h3>
-              <p style={{ fontSize: '0.88rem', color: '#334155', lineHeight: '1.65', margin: 0 }}>{cvData.summary}</p>
-            </div>
-
-            <div style={{ marginBottom: '1.6rem' }}>
-              <h3 style={{ fontSize: '0.95rem', fontWeight: '800', color: accent, textTransform: 'uppercase', borderBottom: '2px solid #f1f5f9', paddingBottom: '0.35rem', marginBottom: '0.6rem' }}>
-                Employment & Experience
-              </h3>
-              <div style={{ fontSize: '0.88rem', color: '#334155', lineHeight: '1.7', whiteSpace: 'pre-line' }}>{cvData.experience}</div>
-            </div>
-
-            <div>
-              <h3 style={{ fontSize: '0.95rem', fontWeight: '800', color: accent, textTransform: 'uppercase', borderBottom: '2px solid #f1f5f9', paddingBottom: '0.35rem', marginBottom: '0.6rem' }}>
-                Education & Qualifications
-              </h3>
-              <div style={{ fontSize: '0.88rem', color: '#334155', lineHeight: '1.6', whiteSpace: 'pre-line' }}>{cvData.education}</div>
-            </div>
+            {renderOrderedMainSections(accent)}
           </div>
         </div>
       );
     }
 
-    // 2. Top Colored Banner / Dark Titan Executive Layouts
-    if (v === 'pro-top-banner' || v === 'pro-titan-dark') {
+    // 2. Top Banner & Dark Titan PRO Templates (pro-royal, pro-titan)
+    if ((v === 'pro-top-banner' || v === 'pro-titan-dark') && cvStandard !== 'ats') {
       return (
-        <div style={{ minHeight: '650px', backgroundColor: '#ffffff', color: '#0f172a' }}>
-          <div style={{ backgroundColor: accent, color: '#ffffff', padding: '2.2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', borderBottom: v === 'pro-titan-dark' ? '4px solid #38bdf8' : 'none' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1.2rem' }}>
-              <div style={{ width: '64px', height: '64px', borderRadius: '50%', backgroundColor: '#ffffff', color: accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', fontWeight: '900' }}>
-                {initials}
-              </div>
+        <div style={{ minHeight: '842px', backgroundColor: '#ffffff', color: '#0f172a' }}>
+          <div style={{ backgroundColor: accent, color: '#ffffff', padding: '2rem 2.2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', borderBottom: v === 'pro-titan-dark' ? '4px solid #38bdf8' : 'none' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1.1rem' }}>
+              {renderAvatarOrCrest(true)}
               <div>
-                <h1 style={{ fontSize: '1.9rem', fontWeight: '900', margin: '0 0 0.2rem 0', letterSpacing: '0.5px' }}>{cvData.fullName.toUpperCase()}</h1>
-                <p style={{ fontSize: '1rem', color: v === 'pro-titan-dark' ? '#38bdf8' : '#e2e8f0', fontWeight: '700', margin: 0 }}>{cvData.headline}</p>
+                <h1 style={{ fontSize: '1.85rem', fontWeight: '900', margin: '0 0 0.2rem 0' }}>{cvData.fullName.toUpperCase()}</h1>
+                <p style={{ fontSize: '0.98rem', color: v === 'pro-titan-dark' ? '#38bdf8' : '#e2e8f0', fontWeight: '700', margin: 0 }}>{cvData.headline}</p>
               </div>
             </div>
-            <div style={{ textAlign: 'right', fontSize: '0.82rem', lineHeight: '1.5', opacity: 0.95 }}>
-              <div>✉️ {cvData.email}</div>
-              <div>📞 {cvData.phone}</div>
-              <div>📍 {cvData.location}</div>
-            </div>
+            {renderClickableContactBlock(true, true)}
           </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: '2rem', padding: '2.2rem' }}>
-            <div>
-              <h3 style={{ fontSize: '0.92rem', fontWeight: '800', color: accent, textTransform: 'uppercase', borderBottom: `2px solid ${accent}`, paddingBottom: '0.3rem', marginBottom: '0.7rem' }}>
-                Professional Summary
-              </h3>
-              <p style={{ fontSize: '0.88rem', color: '#334155', lineHeight: '1.65', marginBottom: '1.6rem' }}>{cvData.summary}</p>
-
-              <h3 style={{ fontSize: '0.92rem', fontWeight: '800', color: accent, textTransform: 'uppercase', borderBottom: `2px solid ${accent}`, paddingBottom: '0.3rem', marginBottom: '0.7rem' }}>
-                Career Experience
-              </h3>
-              <div style={{ fontSize: '0.88rem', color: '#334155', lineHeight: '1.7', whiteSpace: 'pre-line' }}>{cvData.experience}</div>
-            </div>
-
-            <div style={{ backgroundColor: subBg, padding: '1.5rem', borderRadius: '12px' }}>
-              <h3 style={{ fontSize: '0.9rem', fontWeight: '800', color: accent, textTransform: 'uppercase', marginBottom: '0.8rem' }}>
-                Core Competencies
-              </h3>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.45rem', marginBottom: '1.5rem' }}>
-                {skillList.map((s, i) => (
-                  <span key={i} style={{ backgroundColor: accent, color: '#fff', fontSize: '0.75rem', fontWeight: '700', padding: '4px 10px', borderRadius: '6px' }}>{s}</span>
-                ))}
-              </div>
-
-              <h3 style={{ fontSize: '0.9rem', fontWeight: '800', color: accent, textTransform: 'uppercase', marginBottom: '0.6rem' }}>
-                Education
-              </h3>
-              <p style={{ fontSize: '0.85rem', color: '#334155', lineHeight: '1.5', marginBottom: '1.5rem', whiteSpace: 'pre-line' }}>{cvData.education}</p>
-
-              <h3 style={{ fontSize: '0.9rem', fontWeight: '800', color: accent, textTransform: 'uppercase', marginBottom: '0.5rem' }}>
-                Languages
-              </h3>
-              <p style={{ fontSize: '0.85rem', color: '#334155', margin: 0 }}>{cvData.languages}</p>
-            </div>
+          <div style={{ padding: '2rem 2.2rem' }}>
+            {renderOrderedMainSections(accent)}
           </div>
         </div>
       );
     }
 
-    // 3. Luxury Crest / Skill Bars / Tech Pills / Creative Card PRO Layouts
-    if (activeTemplateObj.type === 'Pro') {
-      return (
-        <div style={{ minHeight: '650px', backgroundColor: v === 'pro-luxury-crest' ? '#fffbeb' : '#ffffff', padding: '2rem', color: '#0f172a' }}>
-          <div style={{ border: v === 'pro-luxury-crest' ? `3px double ${accent}` : `2px solid ${subBg}`, backgroundColor: '#ffffff', padding: '2rem', borderRadius: '12px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `3px solid ${accent}`, paddingBottom: '1.2rem', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-              <div>
-                <span style={{ backgroundColor: accent, color: '#fff', fontSize: '0.7rem', fontWeight: '800', padding: '3px 8px', borderRadius: '4px', textTransform: 'uppercase' }}>
-                  {activeTemplateObj.name}
-                </span>
-                <h1 style={{ fontSize: '1.9rem', fontWeight: '900', color: accent, margin: '0.4rem 0 0.2rem 0' }}>{cvData.fullName}</h1>
-                <p style={{ fontSize: '1rem', fontWeight: '700', color: '#475569', margin: 0 }}>{cvData.headline}</p>
-              </div>
-              <div style={{ textAlign: 'right', fontSize: '0.82rem', color: '#475569', lineHeight: '1.5' }}>
-                <div>{cvData.email}</div>
-                <div>{cvData.phone}</div>
-                <div>{cvData.location}</div>
-              </div>
-            </div>
-
-            <div style={{ marginBottom: '1.5rem' }}>
-              <h3 style={{ fontSize: '0.9rem', fontWeight: '800', color: accent, textTransform: 'uppercase', marginBottom: '0.5rem' }}>Executive Summary</h3>
-              <p style={{ fontSize: '0.88rem', color: '#334155', lineHeight: '1.6', margin: 0 }}>{cvData.summary}</p>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '1.8rem' }}>
-              <div>
-                <h3 style={{ fontSize: '0.9rem', fontWeight: '800', color: accent, textTransform: 'uppercase', marginBottom: '0.6rem' }}>Work Experience</h3>
-                <div style={{ borderLeft: `3px solid ${accent}`, paddingLeft: '1rem', fontSize: '0.88rem', color: '#334155', lineHeight: '1.7', whiteSpace: 'pre-line' }}>
-                  {cvData.experience}
-                </div>
-              </div>
-              <div>
-                <h3 style={{ fontSize: '0.9rem', fontWeight: '800', color: accent, textTransform: 'uppercase', marginBottom: '0.6rem' }}>Skills & Metrics</h3>
-                {skillList.map((s, idx) => (
-                  <div key={idx} style={{ marginBottom: '0.55rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', fontWeight: '700', marginBottom: '2px' }}>
-                      <span>{s}</span><span style={{ color: accent }}>{95 - idx * 3}%</span>
-                    </div>
-                    <div style={{ height: '6px', backgroundColor: '#e2e8f0', borderRadius: '3px' }}>
-                      <div style={{ height: '100%', width: `${95 - idx * 3}%`, backgroundColor: accent, borderRadius: '3px' }} />
-                    </div>
-                  </div>
-                ))}
-
-                <h3 style={{ fontSize: '0.9rem', fontWeight: '800', color: accent, textTransform: 'uppercase', marginTop: '1.2rem', marginBottom: '0.4rem' }}>Education</h3>
-                <p style={{ fontSize: '0.85rem', color: '#334155', margin: 0, whiteSpace: 'pre-line' }}>{cvData.education}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    // 4. Default Free Single-Column Templates (Left, Centered, Boxed, Topbar)
+    // 3. Remaining Free & Pro Templates (Includes Framed Luxury, Tech Grid, and Standard Single-Column)
     return (
-      <div style={{ backgroundColor: '#ffffff', color: '#0f172a', textAlign: v === 'free-center' ? 'center' : 'left' }}>
-        {v === 'free-topbar' && <div style={{ height: '12px', backgroundColor: accent }} />}
-        <div style={{
-          padding: '2.2rem',
-          borderBottom: `3px solid ${accent}`,
-          backgroundColor: v === 'free-box' ? '#f8fafc' : '#ffffff',
-          display: 'flex',
-          flexDirection: v === 'free-center' ? 'column' : 'row',
-          justifyContent: 'space-between',
-          alignItems: v === 'free-center' ? 'center' : 'flex-start',
-          gap: '1rem'
-        }}>
-          <div>
-            <h1 style={{ fontSize: '1.85rem', fontWeight: '900', color: accent, margin: '0 0 0.25rem 0', textTransform: 'uppercase' }}>{cvData.fullName}</h1>
-            <p style={{ fontSize: '0.98rem', fontWeight: '700', color: '#0284c7', margin: 0 }}>{cvData.headline}</p>
-          </div>
-          <div style={{ textAlign: v === 'free-center' ? 'center' : 'right', fontSize: '0.82rem', color: '#475569', lineHeight: '1.5' }}>
-            <p style={{ margin: 0 }}>{cvData.email}</p>
-            <p style={{ margin: 0 }}>{cvData.phone}</p>
-            <p style={{ margin: 0 }}>{cvData.location}</p>
-          </div>
-        </div>
-
-        <div style={{ padding: '2rem 2.2rem' }}>
-          <div style={{ marginBottom: '1.5rem' }}>
-            <h3 style={{ fontSize: '0.9rem', fontWeight: '800', color: accent, textTransform: 'uppercase', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.35rem', marginBottom: '0.6rem' }}>
-              Executive Summary
-            </h3>
-            <p style={{ fontSize: '0.88rem', color: '#334155', lineHeight: '1.65', margin: 0 }}>{cvData.summary}</p>
+      <div style={{ minHeight: '842px', backgroundColor: v === 'pro-luxury-crest' ? '#fffbeb' : '#ffffff', padding: v === 'pro-luxury-crest' ? '1.5rem' : '0', color: '#0f172a', textAlign: v === 'free-center' ? 'center' : 'left' }}>
+        {v === 'free-topbar' && <div style={{ height: '10px', backgroundColor: accent }} />}
+        <div style={{ border: v === 'pro-luxury-crest' ? `3px double ${accent}` : 'none', backgroundColor: '#ffffff', minHeight: '810px' }}>
+          <div style={{
+            padding: '2rem 2.2rem',
+            borderBottom: `3px solid ${accent}`,
+            backgroundColor: v === 'free-box' ? '#f8fafc' : '#ffffff',
+            display: 'flex',
+            flexDirection: v === 'free-center' ? 'column' : 'row',
+            justifyContent: 'space-between',
+            alignItems: v === 'free-center' ? 'center' : 'flex-start',
+            gap: '1rem'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexDirection: v === 'free-center' ? 'column' : 'row' }}>
+              {cvData.showPhoto && cvData.photoUrl && cvStandard !== 'ats' && (
+                <img src={cvData.photoUrl} alt={cvData.fullName} style={{ width: '64px', height: '64px', borderRadius: '50%', objectFit: 'cover', border: `2px solid ${accent}` }} />
+              )}
+              <div>
+                <h1 style={{ fontSize: '1.85rem', fontWeight: '900', color: accent, margin: '0 0 0.25rem 0', textTransform: 'uppercase' }}>{cvData.fullName}</h1>
+                <p style={{ fontSize: '0.98rem', fontWeight: '700', color: '#0284c7', margin: 0 }}>{cvData.headline}</p>
+              </div>
+            </div>
+            {renderClickableContactBlock(v !== 'free-center', false)}
           </div>
 
-          <div style={{ marginBottom: '1.5rem' }}>
-            <h3 style={{ fontSize: '0.9rem', fontWeight: '800', color: accent, textTransform: 'uppercase', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.35rem', marginBottom: '0.6rem' }}>
-              Experience & Career History
-            </h3>
-            <p style={{ fontSize: '0.88rem', color: '#334155', lineHeight: '1.7', margin: 0, whiteSpace: 'pre-line' }}>{cvData.experience}</p>
-          </div>
-
-          <div style={{ marginBottom: '1.5rem' }}>
-            <h3 style={{ fontSize: '0.9rem', fontWeight: '800', color: accent, textTransform: 'uppercase', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.35rem', marginBottom: '0.6rem' }}>
-              Education & Qualifications
-            </h3>
-            <p style={{ fontSize: '0.88rem', color: '#334155', lineHeight: '1.6', margin: 0, whiteSpace: 'pre-line' }}>{cvData.education}</p>
-          </div>
-
-          <div>
-            <h3 style={{ fontSize: '0.9rem', fontWeight: '800', color: accent, textTransform: 'uppercase', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.35rem', marginBottom: '0.6rem' }}>
-              Skills & Languages
-            </h3>
-            <p style={{ fontSize: '0.88rem', color: '#334155', margin: '0 0 0.4rem 0' }}><b>Skills:</b> {cvData.skills}</p>
-            <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0 }}><b>Languages:</b> {cvData.languages}</p>
+          <div style={{ padding: '1.8rem 2.2rem', textAlign: 'left' }}>
+            {renderOrderedMainSections(accent)}
           </div>
         </div>
       </div>
     );
   };
 
+  const inputStyle = {
+    width: '100%',
+    padding: '0.55rem 0.7rem',
+    borderRadius: '8px',
+    border: '1px solid #334155',
+    backgroundColor: '#070b14',
+    color: '#fff',
+    fontSize: '0.82rem',
+    boxSizing: 'border-box'
+  };
+
+  const labelStyle = {
+    fontSize: '0.73rem',
+    color: '#94a3b8',
+     fontWeight: '700',
+    display: 'block',
+    marginBottom: '4px'
+  };
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', padding: '1rem 0' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.4rem', padding: '0.8rem 0' }}>
       
-      {/* Top Studio Bar with Edit & Download Controls */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.8rem', backgroundColor: '#0f172a', padding: '1.2rem', borderRadius: '16px', border: '1px solid #1e293b' }}>
-        <div>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: '800', color: '#fff', margin: 0 }}>
-            ATS Resume Studio 📄
-          </h2>
-          <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: '0.25rem 0 0 0' }}>
-            Click any template to open it below. Profile data is auto-filled & ready to edit!
-          </p>
+      {/* 1. EXECUTIVE DASHBOARD HEADER & SAVED CVS BAR */}
+      <div style={{ backgroundColor: '#0f172a', padding: '1.25rem', borderRadius: '16px', border: '1px solid #1e293b', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.8rem' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: '800', color: '#fff', margin: 0 }}>
+                SHANORA Professional CV Studio 📄
+              </h2>
+              <span style={{ backgroundColor: isUserPro ? '#eab308' : '#0284c7', color: isUserPro ? '#000' : '#fff', fontSize: '0.68rem', fontWeight: '900', padding: '3px 8px', borderRadius: '999px' }}>
+                {isUserPro ? 'PRO UNLOCKED ⭐' : 'FREE TIER'}
+              </span>
+            </div>
+            <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: '0.25rem 0 0 0' }}>
+              International, European & ATS-Compliant Resume System • 4 Free & 8 PRO Executive Templates
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={() => setShowWizard(!showWizard)}
+              style={{ backgroundColor: showWizard ? '#22c55e' : '#1e293b', color: '#fff', border: '1px solid #38bdf8', padding: '0.6rem 1rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.8rem', cursor: 'pointer' }}
+            >
+              {showWizard ? '✓ Hide Step-by-Step Builder' : '✏️ Open 8-Step CV Builder'}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleSaveCvToDatabase(false)}
+              disabled={isSaving}
+              style={{ backgroundColor: '#0f766e', color: '#fff', border: 'none', padding: '0.6rem 1rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.8rem', cursor: 'pointer' }}
+            >
+              {isSaving ? 'Saving...' : '💾 Save CV'}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleDownloadPDF}
+              style={{ backgroundColor: isDownloadLocked ? '#7c3aed' : '#0284c7', color: '#fff', border: 'none', padding: '0.6rem 1.15rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer', boxShadow: '0 4px 14px rgba(2, 132, 199, 0.35)' }}
+            >
+              {isDownloadLocked ? '🔒 Unlock PRO to Download PDF' : '🖨️ Download A4 PDF'}
+            </button>
+          </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            onClick={() => {
-              if (isCurrentLocked) {
-                alert('🔒 Editing on PRO Executive Templates is only available for SHANORA PRO members. Switch to a Free template to edit, or Upgrade to PRO!');
-                if (typeof navigateToTab === 'function') navigateToTab('pro');
-              } else {
-                setIsEditing(!isEditing);
-              }
-            }}
-            style={{
-              backgroundColor: isEditing ? '#22c55e' : '#1e293b',
-              color: '#fff',
-              border: '1px solid #38bdf8',
-              padding: '0.65rem 1.1rem',
-              borderRadius: '10px',
-              fontWeight: '800',
-              fontSize: '0.82rem',
-              cursor: 'pointer'
-            }}
-          >
-            {isCurrentLocked ? '🔒 Edit CV (PRO)' : (isEditing ? '✓ Done Editing' : '✏️ Edit CV Details')}
-          </button>
+        {/* CV Version Management & International Standards Selector */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', paddingTop: '0.8rem', borderTop: '1px solid #1e293b' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700' }}>CV Name:</span>
+            <input
+              value={cvTitle}
+              onChange={(e) => setCvTitle(e.target.value)}
+              style={{ ...inputStyle, width: '180px', padding: '0.38rem 0.6rem' }}
+              placeholder="e.g. IT Support CV"
+            />
+            {savedResumes.length > 0 && (
+              <select
+                onChange={(e) => {
+                  const found = savedResumes.find((r) => r.id === e.target.value);
+                  if (found) handleLoadSavedCv(found);
+                }}
+                value={currentResumeId || ''}
+                style={{ ...inputStyle, width: '175px', padding: '0.38rem 0.6rem' }}
+              >
+                <option value="">📂 Saved CVs ({savedResumes.length})</option>
+                {savedResumes.map((r) => (
+                  <option key={r.id} value={r.id}>{r.title}</option>
+                ))}
+              </select>
+            )}
+            <button
+              type="button"
+              onClick={() => handleSaveCvToDatabase(true)}
+              style={{ backgroundColor: '#1e293b', color: '#38bdf8', border: '1px solid #334155', padding: '0.38rem 0.7rem', borderRadius: '8px', fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer' }}
+            >
+              + Save as New Version {isUserPro ? '' : '(PRO)'}
+            </button>
+          </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              if (isCurrentLocked) {
-                alert('🔒 Upgrade to SHANORA PRO to download this exclusive PRO Executive template as a PDF!');
-                if (typeof navigateToTab === 'function') navigateToTab('pro');
-              } else {
-                window.print();
-              }
-            }}
-            style={{
-              backgroundColor: isCurrentLocked ? '#7c3aed' : '#0284c7',
-              color: '#fff',
-              border: 'none',
-              padding: '0.65rem 1.25rem',
-              borderRadius: '10px',
-              fontWeight: '800',
-              fontSize: '0.85rem',
-              cursor: 'pointer',
-              boxShadow: '0 4px 14px rgba(2, 132, 199, 0.4)'
-            }}
-          >
-            {isCurrentLocked ? '🔒 Unlock PRO to Download' : '🖨️ Download Official PDF'}
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700' }}>Standard:</span>
+            {[
+              { id: 'international', label: '🌐 International CV' },
+              { id: 'european', label: '🇪🇺 European CV' },
+              { id: 'ats', label: '🤖 ATS-Friendly' }
+            ].map((std) => (
+              <button
+                key={std.id}
+                type="button"
+                onClick={() => setCvStandard(std.id)}
+                style={{
+                  backgroundColor: cvStandard === std.id ? '#0284c7' : '#070b14',
+                  color: '#fff',
+                  border: '1px solid #334155',
+                  padding: '0.35rem 0.7rem',
+                  borderRadius: '8px',
+                  fontSize: '0.73rem',
+                  fontWeight: '700',
+                  cursor: 'pointer'
+                }}
+              >
+                {std.label}
+              </button>
+            ))}
+          </div>
         </div>
+
+        {statusMsg && (
+          <div style={{ backgroundColor: '#070b14', border: '1px solid #0284c7', color: '#38bdf8', padding: '0.5rem 0.85rem', borderRadius: '8px', fontSize: '0.78rem', fontWeight: '700' }}>
+            {statusMsg}
+          </div>
+        )}
       </div>
 
-      {/* Horizontal Visual Template Slider */}
+      {/* 2. PRESERVED 12 TEMPLATES HORIZONTAL CAROUSEL */}
       <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.9rem', flexWrap: 'wrap', gap: '0.5rem' }}>
           <h3 style={{ fontSize: '0.95rem', fontWeight: '800', color: '#fff', margin: 0 }}>
-            Click Any CV Template to Open It Below (Swipe ↔️)
+            Step 1: Select or Switch CV Template (Preserves All Entered Data ↔️)
           </h3>
           <span style={{ fontSize: '0.75rem', color: '#38bdf8', fontWeight: '700' }}>
             Active: {activeTemplateObj.name} ({activeTemplateObj.type})
           </span>
         </div>
 
-        <div style={{ display: 'flex', gap: '1.1rem', overflowX: 'auto', paddingBottom: '1rem', scrollSnapType: 'x mandatory' }}>
+        <div style={{ display: 'flex', gap: '1.1rem', overflowX: 'auto', paddingBottom: '0.9rem', scrollSnapType: 'x mandatory' }}>
           {templates.map((tmpl) => {
             const isPro = tmpl.type === 'Pro';
             const isSelected = selectedTemplate === tmpl.id;
@@ -508,11 +1062,11 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
             return (
               <div
                 key={tmpl.id}
-                onClick={() => handleSelectTemplate(tmpl)}
+                onClick={() => setSelectedTemplate(tmpl.id)}
                 style={{
-                  minWidth: '235px',
-                  maxWidth: '235px',
-                  height: '325px',
+                  minWidth: '230px',
+                  maxWidth: '230px',
+                  height: '315px',
                   backgroundColor: '#ffffff',
                   borderRadius: '12px',
                   border: isSelected ? '3px solid #38bdf8' : '1px solid #cbd5e1',
@@ -523,9 +1077,7 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
                   color: '#0f172a',
                   fontFamily: 'system-ui, sans-serif',
                   flexShrink: 0,
-                  cursor: 'pointer',
-                  transform: isSelected ? 'translateY(-3px)' : 'none',
-                  transition: 'all 0.2s ease'
+                  cursor: 'pointer'
                 }}
               >
                 <div style={{
@@ -567,13 +1119,13 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
                       border: 'none',
                       borderRadius: '8px',
                       padding: '6px 12px',
-                      fontSize: '0.73rem',
+                      fontSize: '0.72rem',
                       fontWeight: '800',
                       cursor: 'pointer',
                       width: '90%'
                     }}
                   >
-                    {isSelected ? '✓ Opened Below' : (isPro ? '👁️ Preview PRO Design' : 'Use template')}
+                    {isSelected ? '✓ Selected' : (isPro ? 'Preview PRO CV' : 'Use Free Template')}
                   </button>
                 </div>
               </div>
@@ -582,88 +1134,463 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
         </div>
       </div>
 
-      {/* LIVE INTERACTIVE EDITOR PANEL (Opens when user clicks "Edit CV Details") */}
-      {isEditing && !isCurrentLocked && (
-        <div style={{ backgroundColor: '#0f172a', border: '2px solid #0284c7', borderRadius: '16px', padding: '1.5rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <h3 style={{ fontSize: '1rem', fontWeight: '800', color: '#38bdf8', margin: 0 }}>
-              ✏️ Edit Your Resume Content (Live Auto-Update)
-            </h3>
-            <button
-              type="button"
-              onClick={() => setIsEditing(false)}
-              style={{ backgroundColor: '#22c55e', color: '#fff', border: 'none', padding: '5px 12px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '800', cursor: 'pointer' }}
-            >
-              ✓ Save & Close Editor
-            </button>
+      {/* 3. STEP-BY-STEP CV CREATION WIZARD (ALL 12 INTERNATIONAL SECTIONS + AI) */}
+      {showWizard && (
+        <div style={{ backgroundColor: '#0f172a', border: '2px solid #0284c7', borderRadius: '16px', padding: '1.35rem' }}>
+          
+          {/* Progress Indicator Bar */}
+          <div style={{ display: 'flex', gap: '0.4rem', overflowX: 'auto', paddingBottom: '0.8rem', marginBottom: '1.1rem', borderBottom: '1px solid #1e293b' }}>
+            {steps.map((st) => (
+              <button
+                key={st.num}
+                type="button"
+                onClick={() => setActiveStep(st.num)}
+                style={{
+                  backgroundColor: activeStep === st.num ? '#0284c7' : '#070b14',
+                  color: activeStep === st.num ? '#fff' : '#94a3b8',
+                  border: '1px solid #334155',
+                  padding: '0.45rem 0.8rem',
+                  borderRadius: '8px',
+                  fontSize: '0.74rem',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                {st.label}
+              </button>
+            ))}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.85rem' }}>
+          {/* STEP 1: TEMPLATE & STANDARD */}
+          {activeStep === 1 && (
             <div>
-              <label style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Full Name</label>
-              <input value={cvData.fullName} onChange={(e) => setCvData({ ...cvData, fullName: e.target.value })} style={{ width: '100%', padding: '0.55rem', borderRadius: '8px', border: '1px solid #334155', backgroundColor: '#070b14', color: '#fff', fontSize: '0.82rem' }} />
+              <h4 style={{ color: '#38bdf8', margin: '0 0 0.6rem 0', fontSize: '0.92rem' }}>Step 1: Template & International Formatting Standard</h4>
+              <p style={{ fontSize: '0.8rem', color: '#cbd5e1', margin: '0 0 0.8rem 0' }}>
+                Following international privacy and anti-discrimination standards, fields like CNIC, Father&apos;s Name, Religion, Marital Status, and Passport Number are excluded.
+              </p>
+              <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+                <button type="button" onClick={() => setActiveStep(2)} style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.55rem 1.1rem', borderRadius: '8px', fontWeight: '800', fontSize: '0.8rem', cursor: 'pointer' }}>
+                  Continue to Step 2: Personal Info →
+                </button>
+              </div>
             </div>
-            <div>
-              <label style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Professional Headline</label>
-              <input value={cvData.headline} onChange={(e) => setCvData({ ...cvData, headline: e.target.value })} style={{ width: '100%', padding: '0.55rem', borderRadius: '8px', border: '1px solid #334155', backgroundColor: '#070b14', color: '#fff', fontSize: '0.82rem' }} />
-            </div>
-            <div>
-              <label style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Email</label>
-              <input value={cvData.email} onChange={(e) => setCvData({ ...cvData, email: e.target.value })} style={{ width: '100%', padding: '0.55rem', borderRadius: '8px', border: '1px solid #334155', backgroundColor: '#070b14', color: '#fff', fontSize: '0.82rem' }} />
-            </div>
-            <div>
-              <label style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Phone</label>
-              <input value={cvData.phone} onChange={(e) => setCvData({ ...cvData, phone: e.target.value })} style={{ width: '100%', padding: '0.55rem', borderRadius: '8px', border: '1px solid #334155', backgroundColor: '#070b14', color: '#fff', fontSize: '0.82rem' }} />
-            </div>
-            <div>
-              <label style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Location</label>
-              <input value={cvData.location} onChange={(e) => setCvData({ ...cvData, location: e.target.value })} style={{ width: '100%', padding: '0.55rem', borderRadius: '8px', border: '1px solid #334155', backgroundColor: '#070b14', color: '#fff', fontSize: '0.82rem' }} />
-            </div>
-            <div>
-              <label style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Skills (Comma separated)</label>
-              <input value={cvData.skills} onChange={(e) => setCvData({ ...cvData, skills: e.target.value })} style={{ width: '100%', padding: '0.55rem', borderRadius: '8px', border: '1px solid #334155', backgroundColor: '#070b14', color: '#fff', fontSize: '0.82rem' }} />
-            </div>
-          </div>
+          )}
 
-          <div style={{ marginTop: '0.85rem' }}>
-            <label style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Executive Summary</label>
-            <textarea rows={2} value={cvData.summary} onChange={(e) => setCvData({ ...cvData, summary: e.target.value })} style={{ width: '100%', padding: '0.55rem', borderRadius: '8px', border: '1px solid #334155', backgroundColor: '#070b14', color: '#fff', fontSize: '0.82rem' }} />
-          </div>
+          {/* STEP 2: PERSONAL INFORMATION */}
+          {activeStep === 2 && (
+            <div>
+              <h4 style={{ color: '#38bdf8', margin: '0 0 0.8rem 0', fontSize: '0.92rem' }}>Step 2: Personal & Contact Information</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '0.8rem' }}>
+                <div>
+                  <label style={labelStyle}>Full Name *</label>
+                  <input style={inputStyle} value={cvData.fullName} onChange={(e) => setCvData({ ...cvData, fullName: e.target.value })} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Professional Job Title *</label>
+                  <input style={inputStyle} value={cvData.headline} onChange={(e) => setCvData({ ...cvData, headline: e.target.value })} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Email Address *</label>
+                  <input style={inputStyle} value={cvData.email} onChange={(e) => setCvData({ ...cvData, email: e.target.value })} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Phone Number *</label>
+                  <input style={inputStyle} value={cvData.phone} onChange={(e) => setCvData({ ...cvData, phone: e.target.value })} />
+                </div>
+                <div>
+                  <label style={labelStyle}>WhatsApp Number</label>
+                  <input style={inputStyle} value={cvData.whatsapp} onChange={(e) => setCvData({ ...cvData, whatsapp: e.target.value })} />
+                </div>
+                <div>
+                  <label style={labelStyle}>City and Country *</label>
+                  <input style={inputStyle} value={cvData.location} onChange={(e) => setCvData({ ...cvData, location: e.target.value })} />
+                </div>
+                <div>
+                  <label style={labelStyle}>LinkedIn Profile URL</label>
+                  <input style={inputStyle} placeholder="linkedin.com/in/username" value={cvData.linkedin} onChange={(e) => setCvData({ ...cvData, linkedin: e.target.value })} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Portfolio / Website URL</label>
+                  <input style={inputStyle} placeholder="https://yourportfolio.com" value={cvData.portfolio} onChange={(e) => setCvData({ ...cvData, portfolio: e.target.value })} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Optional Photograph</label>
+                  <input type="file" accept="image/*" onChange={handlePhotoUpload} style={{ fontSize: '0.75rem', color: '#94a3b8' }} />
+                  <label style={{ fontSize: '0.72rem', color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: '5px', marginTop: '4px' }}>
+                    <input type="checkbox" checked={cvData.showPhoto} onChange={(e) => setCvData({ ...cvData, showPhoto: e.target.checked })} />
+                    Display photo on CV (Hidden in ATS mode)
+                  </label>
+                </div>
+              </div>
+            </div>
+          )}
 
-          <div style={{ marginTop: '0.85rem' }}>
-            <label style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Work Experience</label>
-            <textarea rows={3} value={cvData.experience} onChange={(e) => setCvData({ ...cvData, experience: e.target.value })} style={{ width: '100%', padding: '0.55rem', borderRadius: '8px', border: '1px solid #334155', backgroundColor: '#070b14', color: '#fff', fontSize: '0.82rem' }} />
-          </div>
+          {/* STEP 3: PROFESSIONAL SUMMARY + AI GENERATOR */}
+          {activeStep === 3 && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.8rem' }}>
+                <h4 style={{ color: '#38bdf8', margin: 0, fontSize: '0.92rem' }}>Step 3: Professional Summary & Career Objective</h4>
+                <button
+                  type="button"
+                  onClick={handleAiGenerateSummary}
+                  style={{ backgroundColor: '#7c3aed', color: '#fff', border: 'none', padding: '0.45rem 0.9rem', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '800', cursor: 'pointer' }}
+                >
+                  🤖 AI Generate Summary (From Your Facts)
+                </button>
+              </div>
+              <div style={{ marginBottom: '0.8rem' }}>
+                <label style={labelStyle}>Professional Introduction / Executive Summary</label>
+                <textarea rows={3} style={inputStyle} value={cvData.summary} onChange={(e) => setCvData({ ...cvData, summary: e.target.value })} />
+              </div>
+              <div>
+                <label style={labelStyle}>Career Objective (Optional)</label>
+                <textarea rows={2} style={inputStyle} placeholder="Optional targeted career objective..." value={cvData.careerObjective} onChange={(e) => setCvData({ ...cvData, careerObjective: e.target.value })} />
+              </div>
+            </div>
+          )}
 
-          <div style={{ marginTop: '0.85rem' }}>
-            <label style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Education & Certifications</label>
-            <textarea rows={2} value={cvData.education} onChange={(e) => setCvData({ ...cvData, education: e.target.value })} style={{ width: '100%', padding: '0.55rem', borderRadius: '8px', border: '1px solid #334155', backgroundColor: '#070b14', color: '#fff', fontSize: '0.82rem' }} />
-          </div>
+          {/* STEP 4: WORK EXPERIENCE (DYNAMIC MULTIPLE ITEMS + AI BULLET POLISHER) */}
+          {activeStep === 4 && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.8rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <h4 style={{ color: '#38bdf8', margin: 0, fontSize: '0.92rem' }}>Step 4: Work Experience</h4>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCvData((prev) => ({
+                      ...prev,
+                      experiences: [
+                        ...prev.experiences,
+                        { id: `exp-${Date.now()}`, jobTitle: '', company: '', location: '', startDate: '', endDate: 'Present', responsibilities: '', achievements: '' }
+                      ]
+                    }))
+                  }
+                  style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.45rem 0.9rem', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '800', cursor: 'pointer' }}
+                >
+                  + Add Another Experience
+                </button>
+              </div>
+
+              {cvData.experiences.map((exp, idx) => (
+                <div key={exp.id} style={{ backgroundColor: '#070b14', border: '1px solid #1e293b', borderRadius: '12px', padding: '1rem', marginBottom: '0.9rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    <span style={{ fontSize: '0.8rem', fontWeight: '800', color: '#fff' }}>Position #{idx + 1}</span>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button
+                        type="button"
+                        onClick={() => handleAiPolishExperience(idx)}
+                        style={{ backgroundColor: '#7c3aed', color: '#fff', border: 'none', padding: '4px 9px', borderRadius: '6px', fontSize: '0.7rem', fontWeight: '800', cursor: 'pointer' }}
+                      >
+                        ✨ AI Polish Bullet Points
+                      </button>
+                      {cvData.experiences.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setCvData((prev) => ({ ...prev, experiences: prev.experiences.filter((_, i) => i !== idx) }))}
+                          style={{ backgroundColor: '#dc2626', color: '#fff', border: 'none', padding: '4px 9px', borderRadius: '6px', fontSize: '0.7rem', fontWeight: '800', cursor: 'pointer' }}
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.65rem', marginBottom: '0.65rem' }}>
+                    <input style={inputStyle} placeholder="Job Title" value={exp.jobTitle} onChange={(e) => { const list = [...cvData.experiences]; list[idx].jobTitle = e.target.value; setCvData({ ...cvData, experiences: list }); }} />
+                    <input style={inputStyle} placeholder="Company Name" value={exp.company} onChange={(e) => { const list = [...cvData.experiences]; list[idx].company = e.target.value; setCvData({ ...cvData, experiences: list }); }} />
+                    <input style={inputStyle} placeholder="Location" value={exp.location} onChange={(e) => { const list = [...cvData.experiences]; list[idx].location = e.target.value; setCvData({ ...cvData, experiences: list }); }} />
+                    <input style={inputStyle} placeholder="Start Date (e.g. 2021)" value={exp.startDate} onChange={(e) => { const list = [...cvData.experiences]; list[idx].startDate = e.target.value; setCvData({ ...cvData, experiences: list }); }} />
+                    <input style={inputStyle} placeholder="End Date (or Present)" value={exp.endDate} onChange={(e) => { const list = [...cvData.experiences]; list[idx].endDate = e.target.value; setCvData({ ...cvData, experiences: list }); }} />
+                  </div>
+                  <div style={{ marginBottom: '0.5rem' }}>
+                    <label style={labelStyle}>Job Responsibilities</label>
+                    <textarea rows={2} style={inputStyle} value={exp.responsibilities} onChange={(e) => { const list = [...cvData.experiences]; list[idx].responsibilities = e.target.value; setCvData({ ...cvData, experiences: list }); }} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Key Achievements</label>
+                    <textarea rows={2} style={inputStyle} value={exp.achievements} onChange={(e) => { const list = [...cvData.experiences]; list[idx].achievements = e.target.value; setCvData({ ...cvData, experiences: list }); }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* STEP 5: EDUCATION (DYNAMIC MULTIPLE QUALIFICATIONS) */}
+          {activeStep === 5 && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.8rem' }}>
+                <h4 style={{ color: '#38bdf8', margin: 0, fontSize: '0.92rem' }}>Step 5: Education & Qualifications</h4>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCvData((prev) => ({
+                      ...prev,
+                      educations: [...prev.educations, { id: `edu-${Date.now()}`, degree: '', institution: '', location: '', startYear: '', gradYear: '' }]
+                    }))
+                  }
+                  style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.45rem 0.9rem', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '800', cursor: 'pointer' }}
+                >
+                  + Add Qualification
+                </button>
+              </div>
+
+              {cvData.educations.map((edu, idx) => (
+                <div key={edu.id} style={{ backgroundColor: '#070b14', border: '1px solid #1e293b', borderRadius: '12px', padding: '0.9rem', marginBottom: '0.75rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '0.65rem' }}>
+                    <input style={inputStyle} placeholder="Degree / Qualification" value={edu.degree} onChange={(e) => { const list = [...cvData.educations]; list[idx].degree = e.target.value; setCvData({ ...cvData, educations: list }); }} />
+                    <input style={inputStyle} placeholder="Institution Name" value={edu.institution} onChange={(e) => { const list = [...cvData.educations]; list[idx].institution = e.target.value; setCvData({ ...cvData, educations: list }); }} />
+                    <input style={inputStyle} placeholder="Location" value={edu.location} onChange={(e) => { const list = [...cvData.educations]; list[idx].location = e.target.value; setCvData({ ...cvData, educations: list }); }} />
+                    <input style={inputStyle} placeholder="Start Year" value={edu.startYear} onChange={(e) => { const list = [...cvData.educations]; list[idx].startYear = e.target.value; setCvData({ ...cvData, educations: list }); }} />
+                    <input style={inputStyle} placeholder="Graduation Year" value={edu.gradYear} onChange={(e) => { const list = [...cvData.educations]; list[idx].gradYear = e.target.value; setCvData({ ...cvData, educations: list }); }} />
+                  </div>
+                  {cvData.educations.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setCvData((prev) => ({ ...prev, educations: prev.educations.filter((_, i) => i !== idx) }))}
+                      style={{ marginTop: '0.5rem', backgroundColor: '#dc2626', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: '6px', fontSize: '0.7rem', cursor: 'pointer' }}
+                    >
+                      Remove Qualification
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* STEP 6: SKILLS, CERTIFICATIONS, LANGUAGES, PROJECTS, REFERENCES & ADDITIONAL */}
+          {activeStep === 6 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <h4 style={{ color: '#38bdf8', margin: 0, fontSize: '0.92rem' }}>Step 6: Skills, Certifications, Languages, Projects & More</h4>
+                <button
+                  type="button"
+                  onClick={handleAiSuggestSkills}
+                  style={{ backgroundColor: '#7c3aed', color: '#fff', border: 'none', padding: '0.4rem 0.85rem', borderRadius: '8px', fontSize: '0.74rem', fontWeight: '800', cursor: 'pointer' }}
+                >
+                  🤖 Suggest Skills for My Title
+                </button>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.8rem' }}>
+                <div>
+                  <label style={labelStyle}>5. Technical Skills (Comma separated)</label>
+                  <textarea rows={2} style={inputStyle} value={cvData.technicalSkills} onChange={(e) => setCvData({ ...cvData, technicalSkills: e.target.value })} />
+                </div>
+                <div>
+                  <label style={labelStyle}>6. Soft Skills (Comma separated)</label>
+                  <textarea rows={2} style={inputStyle} value={cvData.softSkills} onChange={(e) => setCvData({ ...cvData, softSkills: e.target.value })} />
+                </div>
+              </div>
+
+              <div>
+                <label style={labelStyle}>7. Certifications & Professional Training</label>
+                <textarea rows={2} style={inputStyle} value={cvData.certifications} onChange={(e) => setCvData({ ...cvData, certifications: e.target.value })} />
+              </div>
+
+              {/* 8. Languages with Proficiency Level */}
+              <div style={{ backgroundColor: '#070b14', padding: '0.85rem', borderRadius: '10px', border: '1px solid #1e293b' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                  <label style={labelStyle}>8. Languages & Proficiency Levels</label>
+                  <button
+                    type="button"
+                    onClick={() => setCvData((prev) => ({ ...prev, languagesList: [...prev.languagesList, { id: `lang-${Date.now()}`, name: '', level: 'Fluent' }] }))}
+                    style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '3px 8px', borderRadius: '6px', fontSize: '0.7rem', fontWeight: '700', cursor: 'pointer' }}
+                  >
+                    + Add Language
+                  </button>
+                </div>
+                {cvData.languagesList.map((lang, idx) => (
+                  <div key={lang.id} style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.45rem' }}>
+                    <input style={inputStyle} placeholder="Language (e.g. English)" value={lang.name} onChange={(e) => { const list = [...cvData.languagesList]; list[idx].name = e.target.value; setCvData({ ...cvData, languagesList: list }); }} />
+                    <select style={inputStyle} value={lang.level} onChange={(e) => { const list = [...cvData.languagesList]; list[idx].level = e.target.value; setCvData({ ...cvData, languagesList: list }); }}>
+                      {['Basic', 'Intermediate', 'Advanced', 'Fluent', 'Native'].map((lvl) => <option key={lvl} value={lvl}>{lvl}</option>)}
+                    </select>
+                    {cvData.languagesList.length > 1 && (
+                      <button type="button" onClick={() => setCvData((prev) => ({ ...prev, languagesList: prev.languagesList.filter((_, i) => i !== idx) }))} style={{ backgroundColor: '#dc2626', color: '#fff', border: 'none', padding: '0 10px', borderRadius: '6px', cursor: 'pointer' }}>✕</button>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* 9. Projects */}
+              <div style={{ backgroundColor: '#070b14', padding: '0.85rem', borderRadius: '10px', border: '1px solid #1e293b' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                  <label style={labelStyle}>9. Key Projects (Name, Description & URL)</label>
+                  <button
+                    type="button"
+                    onClick={() => setCvData((prev) => ({ ...prev, projects: [...prev.projects, { id: `proj-${Date.now()}`, name: '', description: '', url: '' }] }))}
+                    style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '3px 8px', borderRadius: '6px', fontSize: '0.7rem', fontWeight: '700', cursor: 'pointer' }}
+                  >
+                    + Add Project
+                  </button>
+                </div>
+                {cvData.projects.map((proj, idx) => (
+                  <div key={proj.id} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.5fr auto', gap: '0.5rem', marginBottom: '0.45rem' }}>
+                    <input style={inputStyle} placeholder="Project Name" value={proj.name} onChange={(e) => { const list = [...cvData.projects]; list[idx].name = e.target.value; setCvData({ ...cvData, projects: list }); }} />
+                    <input style={inputStyle} placeholder="Project URL" value={proj.url} onChange={(e) => { const list = [...cvData.projects]; list[idx].url = e.target.value; setCvData({ ...cvData, projects: list }); }} />
+                    <input style={inputStyle} placeholder="Short Description" value={proj.description} onChange={(e) => { const list = [...cvData.projects]; list[idx].description = e.target.value; setCvData({ ...cvData, projects: list }); }} />
+                    <button type="button" onClick={() => setCvData((prev) => ({ ...prev, projects: prev.projects.filter((_, i) => i !== idx) }))} style={{ backgroundColor: '#dc2626', color: '#fff', border: 'none', padding: '0 10px', borderRadius: '6px', cursor: 'pointer' }}>✕</button>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.8rem' }}>
+                <div>
+                  <label style={labelStyle}>10. Achievements & Awards</label>
+                  <textarea rows={2} style={inputStyle} value={cvData.achievements} onChange={(e) => setCvData({ ...cvData, achievements: e.target.value })} />
+                </div>
+                <div>
+                  <label style={labelStyle}>11. Professional References</label>
+                  <textarea rows={2} style={inputStyle} value={cvData.references} onChange={(e) => setCvData({ ...cvData, references: e.target.value })} />
+                </div>
+              </div>
+
+              {/* 12. Additional Information */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.65rem' }}>
+                <div>
+                  <label style={labelStyle}>Availability</label>
+                  <input style={inputStyle} value={cvData.availability} onChange={(e) => setCvData({ ...cvData, availability: e.target.value })} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Willingness to Relocate</label>
+                  <input style={inputStyle} value={cvData.relocate} onChange={(e) => setCvData({ ...cvData, relocate: e.target.value })} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Driving Licence (Optional)</label>
+                  <input style={inputStyle} value={cvData.drivingLicence} onChange={(e) => setCvData({ ...cvData, drivingLicence: e.target.value })} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Other Relevant Notes</label>
+                  <input style={inputStyle} value={cvData.otherInfo} onChange={(e) => setCvData({ ...cvData, otherInfo: e.target.value })} />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 7: REORDER SECTIONS & ATS CV ANALYSIS */}
+          {activeStep === 7 && (
+            <div>
+              <h4 style={{ color: '#38bdf8', margin: '0 0 0.6rem 0', fontSize: '0.92rem' }}>Step 7: Reorder CV Sections & Run ATS Check</h4>
+              <p style={{ fontSize: '0.78rem', color: '#94a3b8', marginBottom: '0.8rem' }}>
+                Use the ↑ and ↓ arrows below to customize the exact order of sections on your live CV:
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.5rem', marginBottom: '1rem' }}>
+                {sectionOrder.map((sec, idx) => (
+                  <div key={sec} style={{ backgroundColor: '#070b14', border: '1px solid #334155', borderRadius: '8px', padding: '0.45rem 0.7rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.78rem', fontWeight: '700', color: '#fff', textTransform: 'capitalize' }}>
+                      {idx + 1}. {sec}
+                    </span>
+                    <div style={{ display: 'flex', gap: '4px' }}>
+                      <button type="button" onClick={() => moveSection(idx, -1)} style={{ backgroundColor: '#1e293b', color: '#fff', border: 'none', borderRadius: '4px', padding: '2px 6px', cursor: 'pointer' }}>↑</button>
+                      <button type="button" onClick={() => moveSection(idx, 1)} style={{ backgroundColor: '#1e293b', color: '#fff', border: 'none', borderRadius: '4px', padding: '2px 6px', cursor: 'pointer' }}>↓</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                onClick={handleRunAtsAnalysis}
+                style={{ backgroundColor: '#7c3aed', color: '#fff', border: 'none', padding: '0.55rem 1.1rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: '800', cursor: 'pointer' }}
+              >
+                🔍 Run ATS Compatibility & Missing Info Analysis {isUserPro ? '' : '(PRO 🔒)'}
+              </button>
+
+              {atsReport && (
+                <div style={{ marginTop: '0.9rem', backgroundColor: '#070b14', border: '1px solid #7c3aed', borderRadius: '10px', padding: '1rem' }}>
+                  <div style={{ fontSize: '1rem', fontWeight: '900', color: '#22c55e', marginBottom: '0.4rem' }}>
+                    ATS Compatibility Score: {atsReport.score} / 100
+                  </div>
+                  <p style={{ fontSize: '0.78rem', color: '#38bdf8', margin: '0 0 0.5rem 0' }}>{atsReport.standardNote}</p>
+                  {atsReport.missing.length > 0 ? (
+                    <ul style={{ fontSize: '0.78rem', color: '#fca5a5', margin: 0, paddingLeft: '1.2rem' }}>
+                      {atsReport.missing.map((m, i) => <li key={i}>{m}</li>)}
+                    </ul>
+                  ) : (
+                    <div style={{ fontSize: '0.8rem', color: '#22c55e' }}>✓ All core international & ATS sections are complete!</div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* STEP 8: SAVE CV, DOWNLOAD PDF & AI COVER LETTER */}
+          {activeStep === 8 && (
+            <div>
+              <h4 style={{ color: '#38bdf8', margin: '0 0 0.8rem 0', fontSize: '0.92rem' }}>Step 8: Download Official PDF, Save CV & Generate Cover Letter</h4>
+              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1.2rem' }}>
+                <button type="button" onClick={() => handleSaveCvToDatabase(false)} style={{ backgroundColor: '#0f766e', color: '#fff', border: 'none', padding: '0.65rem 1.2rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}>
+                  💾 Save CV to Account
+                </button>
+                <button type="button" onClick={handleDownloadPDF} style={{ backgroundColor: isDownloadLocked ? '#7c3aed' : '#0284c7', color: '#fff', border: 'none', padding: '0.65rem 1.25rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}>
+                  {isDownloadLocked ? '🔒 Unlock PRO to Download PDF' : '🖨️ Download A4 PDF Now'}
+                </button>
+              </div>
+
+              {/* AI Cover Letter Generator (PRO) */}
+              <div style={{ backgroundColor: '#070b14', border: '1px solid #334155', borderRadius: '12px', padding: '1rem' }}>
+                <h5 style={{ color: '#fff', margin: '0 0 0.6rem 0', fontSize: '0.86rem' }}>
+                  ✉️ AI Customized Cover Letter Generator {isUserPro ? '(PRO Active)' : '(PRO 🔒)'}
+                </h5>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.6rem', marginBottom: '0.6rem' }}>
+                  <input style={inputStyle} placeholder="Target Job Title (e.g. IT Specialist)" value={targetRole} onChange={(e) => setTargetRole(e.target.value)} />
+                  <input style={inputStyle} placeholder="Target Company Name" value={targetCompany} onChange={(e) => setTargetCompany(e.target.value)} />
+                  <button type="button" onClick={handleGenerateCoverLetter} style={{ backgroundColor: '#7c3aed', color: '#fff', border: 'none', borderRadius: '8px', padding: '0.55rem 1rem', fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer' }}>
+                    🤖 Generate Cover Letter
+                  </button>
+                </div>
+                {coverLetter && (
+                  <textarea rows={7} style={{ ...inputStyle, marginTop: '0.5rem' }} value={coverLetter} onChange={(e) => setCoverLetter(e.target.value)} />
+                )}
+              </div>
+            </div>
+          )}
+
         </div>
       )}
 
-      {/* FULL-SIZE OPENED TEMPLATE A4 PREVIEW */}
+      {/* 4. FULL-SIZE REAL-TIME A4 CV PREVIEW */}
       <div ref={previewRef} style={{ position: 'relative', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 15px 40px rgba(0,0,0,0.5)' }}>
-        
-        {/* PRO Watermark Bar if user is previewing a locked PRO template */}
-        {isCurrentLocked && (
-          <div style={{ backgroundColor: '#7c3aed', color: '#fff', padding: '0.75rem 1.2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-            <span style={{ fontSize: '0.82rem', fontWeight: '800' }}>
-              🔒 Previewing "{activeTemplateObj.name}" (SHANORA PRO Exclusive Layout) — Editing & PDF Export Locked
-            </span>
+        <div style={{
+          backgroundColor: isDownloadLocked ? '#7c3aed' : '#0284c7',
+          color: '#fff',
+          padding: '0.7rem 1.2rem',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '0.5rem'
+        }}>
+          <span style={{ fontSize: '0.8rem', fontWeight: '800' }}>
+            {isDownloadLocked
+              ? `✨ Live Preview: "${activeTemplateObj.name}" (PRO) — Upgrade to Download PDF`
+              : `✅ Live Preview: "${activeTemplateObj.name}" (${cvStandard.toUpperCase()} Standard)`}
+          </span>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
             <button
               type="button"
-              onClick={() => {
-                if (typeof navigateToTab === 'function') navigateToTab('pro');
-              }}
-              style={{ backgroundColor: '#eab308', color: '#000', border: 'none', padding: '5px 12px', borderRadius: '6px', fontSize: '0.76rem', fontWeight: '900', cursor: 'pointer' }}
+              onClick={() => setShowWizard(!showWizard)}
+              style={{ backgroundColor: '#ffffff', color: '#0f172a', border: 'none', padding: '5px 12px', borderRadius: '6px', fontSize: '0.74rem', fontWeight: '900', cursor: 'pointer' }}
             >
-              ⭐ Upgrade to Unlock
+              {showWizard ? 'Hide Editor' : '✏️ Edit All 12 Sections'}
+            </button>
+            <button
+              type="button"
+              onClick={handleDownloadPDF}
+              style={{ backgroundColor: isDownloadLocked ? '#eab308' : '#22c55e', color: isDownloadLocked ? '#000' : '#fff', border: 'none', padding: '5px 12px', borderRadius: '6px', fontSize: '0.74rem', fontWeight: '900', cursor: 'pointer' }}
+            >
+              {isDownloadLocked ? '🔒 Unlock PRO PDF' : '🖨️ Download PDF'}
             </button>
           </div>
-        )}
+        </div>
 
-        {renderFullA4Template()}
+        {/* Responsive Horizontal Scroll Wrapper on Mobile so A4 Layout Never Breaks */}
+        <div style={{ overflowX: 'auto', backgroundColor: '#cbd5e1' }}>
+          <div ref={a4SheetRef} style={{ minWidth: '720px', maxWidth: '920px', margin: '0 auto', backgroundColor: '#ffffff' }}>
+            {renderFullA4Template()}
+          </div>
+        </div>
       </div>
 
     </div>
