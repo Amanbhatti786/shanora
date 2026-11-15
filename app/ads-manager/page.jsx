@@ -240,7 +240,7 @@ export default function AdsManagerPage() {
         {activeTab === 'create' && (
           <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.4rem' }}>
             <h3 style={{ margin: '0 0 0.3rem 0', fontSize: '1.1rem', color: '#fff', fontWeight: '800' }}>Create Professional Ad Campaign</h3>
-            <p style={{ margin: '0 0 1.2rem 0', fontSize: '0.76rem', color: '#94a3b8' }}>Set precise location targeting, budget, and local wallet payment with TID verification.</p>
+            <p style={{ margin: '0 0 1.2rem 0', fontSize: '0.76rem', color: '#94a3b8' }}>Set precise location targeting, budget, and local/international payment verification.</p>
 
             <form onSubmit={handlePublishAd} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div>
@@ -292,15 +292,40 @@ export default function AdsManagerPage() {
                 </div>
               </div>
 
+              {/* FIXED BUDGET & DURATION SECTION WITH CLEAR LABELS */}
               <div style={{ backgroundColor: '#131b2e', padding: '1rem', borderRadius: '10px', border: '1px solid #1e293b', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                <span style={{ fontSize: '0.82rem', fontWeight: 'bold', color: '#4ade80' }}>💰 Budget & Duration</span>
+                <span style={{ fontSize: '0.82rem', fontWeight: 'bold', color: '#4ade80' }}>💰 Budget & Duration Settings</span>
+                
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                  <input type="number" min="200" value={dailyBudget} onChange={(e) => setDailyBudget(Number(e.target.value))} placeholder="Daily Budget" style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }} />
-                  <input type="number" min="1" max="30" value={durationDays} onChange={(e) => setDurationDays(Number(e.target.value))} placeholder="Days" style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }} />
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.74rem', color: '#38bdf8', marginBottom: '0.3rem', fontWeight: 'bold' }}>Daily Budget (Rs.)</label>
+                    <input 
+                      type="number" 
+                      min="200" 
+                      value={dailyBudget} 
+                      onChange={(e) => setDailyBudget(Number(e.target.value))} 
+                      placeholder="e.g. 500" 
+                      style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }} 
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.74rem', color: '#38bdf8', marginBottom: '0.3rem', fontWeight: 'bold' }}>Duration (Days)</label>
+                    <input 
+                      type="number" 
+                      min="1" 
+                      max="30" 
+                      value={durationDays} 
+                      onChange={(e) => setDurationDays(Number(e.target.value))} 
+                      placeholder="e.g. 3" 
+                      style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }} 
+                    />
+                  </div>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#070b14', padding: '0.6rem 0.8rem', borderRadius: '8px', fontSize: '0.85rem' }}>
                   <span style={{ color: '#94a3b8' }}>Total Campaign Cost:</span>
-                  <strong style={{ color: '#4ade80' }}>Rs. {totalBudget}</strong>
+                  <strong style={{ color: '#4ade80', fontSize: '0.95rem' }}>Rs. {totalBudget}</strong>
                 </div>
               </div>
 
@@ -314,16 +339,27 @@ export default function AdsManagerPage() {
                 <input type="url" placeholder="Destination URL (https://...)" value={destinationUrl} onChange={(e) => setDestinationUrl(e.target.value)} style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }} />
               </div>
 
+              {/* PROFESSIONAL PAYMENT SECTION WITH FOUNDER AMANULLAH & LEMON SQUEEZY */}
               <div style={{ backgroundColor: '#131b2e', padding: '1rem', borderRadius: '10px', border: '1px solid #38bdf8', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                <span style={{ fontSize: '0.82rem', fontWeight: 'bold', color: '#38bdf8' }}>💳 Payment Verification (JazzCash / Easypaisa / Card)</span>
-                <p style={{ margin: 0, fontSize: '0.74rem', color: '#94a3b8' }}>
-                  Send Rs. {totalBudget} via JazzCash/Easypaisa (A/C: 0300-1234567) or Lemon Squeezy, and enter your Transaction ID (TID) / Order ID below.
+                <span style={{ fontSize: '0.82rem', fontWeight: 'bold', color: '#38bdf8' }}>💳 Payment Verification & International Cards</span>
+                <p style={{ margin: 0, fontSize: '0.74rem', color: '#cbd5e1', lineHeight: '1.4' }}>
+                  Send Rs. {totalBudget} via JazzCash / Easypaisa to Founder <strong style={{ color: '#38bdf8' }}>Amanullah</strong> at <strong style={{ color: '#4ade80' }}>03033639664</strong>.<br />
+                  For International / Card payments, use Lemon Squeezy below.
                 </p>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+
+                <a 
+                  href={LEMON_SQUEEZY_CHECKOUT_URL} 
+                  target="_blank" 
+                  rel="noreferrer" 
+                  style={{ backgroundColor: '#0284c7', color: '#fff', textAlign: 'center', textDecoration: 'none', padding: '0.65rem', borderRadius: '8px', fontSize: '0.82rem', fontWeight: '800' }}
+                >
+                  Pay with Card via Lemon Squeezy ↗
+                </a>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginTop: '0.3rem' }}>
                   <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem', color: '#fff', fontSize: '0.82rem', outline: 'none' }}>
-                    <option value="EasyPaisa">EasyPaisa</option>
-                    <option value="JazzCash">JazzCash</option>
-                    <option value="Bank Transfer">Bank Transfer</option>
+                    <option value="EasyPaisa">EasyPaisa (Amanullah)</option>
+                    <option value="JazzCash">JazzCash (Amanullah)</option>
                     <option value="LemonSqueezy">Lemon Squeezy (Card)</option>
                   </select>
                   <input
@@ -336,8 +372,7 @@ export default function AdsManagerPage() {
                   />
                 </div>
               </div>
-
-              <button
+button
                 type="submit"
                 disabled={loading || uploadingImg}
                 style={{ backgroundColor: '#eab308', color: '#000', border: 'none', padding: '0.75rem', borderRadius: '10px', fontWeight: '900', fontSize: '0.85rem', cursor: 'pointer' }}
@@ -350,5 +385,5 @@ export default function AdsManagerPage() {
       </main>
     </div>
   );
-                  }
-                                           
+}
+ 
