@@ -1,877 +1,263 @@
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
-import { useRouter } from 'next/navigation';
-import { createClient } from '@supabase/supabase-js';
+import React, { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
+import { supabase } from '../lib/supabaseClient';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://izdtmpowrcimaittuffv.supabase.co';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml6ZHRtcG93cmNpbWFpdHR1ZmZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzAwMDAwMDAsImV4cCI6MjA0NTU3NjAwMH0.dummy';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Executive High-End Verified PRO Badge Component
+function ProVerifiedBadge({ size = 18 }) {
+  return (
+    <span 
+      title="Verified PRO Member" 
+      style={{ 
+        display: 'inline-flex', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        verticalAlign: 'middle',
+        marginLeft: '4px',
+        flexShrink: 0
+      }}
+    >
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="12" cy="12" r="10.5" fill="url(#proBadgeGrad)" stroke="#38bdf8" strokeWidth="1.2" />
+        <path d="M7.5 12.2L10.3 15L16.5 9" stroke="#ffffff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+        <defs>
+          <linearGradient id="proBadgeGrad" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#0284c7" />
+            <stop offset="1" stopColor="#0369a1" />
+          </linearGradient>
+        </defs>
+      </svg>
+    </span>
+  );
+}
 
-export default function MessagesPage() {
-  const router = useRouter();
-  const [currentUser, setCurrentUser] = useState(null);
-  const [availableUsers, setAvailableUsers] = useState([]);
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [activeConversationId, setActiveConversationId] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [onlineUsers, setOnlineUsers] = useState(new Set());
-  const [lastMessages, setLastMessages] = useState({});
-  const [isMobileChatOpen, setIsMobileChatOpen] = useState(false);
-  const [isSending, setIsSending] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-
+export default function MessengerTab({ user, navigateToTab }) {
+  const [messageSearchQuery, setMessageSearchQuery] = useState('');
+  const [activeChatUser, setActiveChatUser] = useState(null);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [newMessageText, setNewMessageText] = useState('');
+  const [sendingMsg, setSendingMsg] = useState(false);
+  const [allUsersList, setAllUsersList] = useState([]);
+  const [userLastMessagesMap, setUserLastMessagesMap] = useState({});
   const messagesEndRef = useRef(null);
-  const imageInputRef = useRef(null);
-  const docInputRef = useRef(null);
 
-  // 1. Session check & Identity Resolution
   useEffect(() => {
-    async function loadIdentity() {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        setCurrentUser(session.user);
-      } else {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          setCurrentUser(user);
-        } else {
-          let localId = localStorage.getItem('shanora_device_uid');
-          if (!localId) {
-            localId = 'anon-' + Math.random().toString(36).substring(2, 9);
-            localStorage.setItem('shanora_device_uid', localId);
-          }
-          setCurrentUser({ id: localId, email: 'guest@shanora.pk' });
-        }
+    if (!user?.email) return;
+    const myEmail = user.email.toLowerCase();
+
+    supabase.from('profiles').select('email, full_name, name, headline, avatar_url, last_seen, is_pro').limit(100).then(({ data: profiles }) => {
+      if (profiles) {
+        const filtered = profiles.filter(p => (p.email || '').toLowerCase() !== myEmail);
+        setAllUsersList(filtered);
       }
-    }
-
-    loadIdentity();
-
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) setCurrentUser(session.user);
     });
 
-    return () => {
-      authListener?.subscription?.unsubscribe();
-    };
-  }, []);
-
-  // 2. Realtime Presence Tracking
-  useEffect(() => {
-    if (!currentUser) return;
-
-    const channel = supabase.channel('shanora-live-presence', {
-      config: { presence: { key: currentUser.id } },
-    });
-
-    channel
-      .on('presence', { event: 'sync' }, () => {
-        const state = channel.presenceState();
-        const activeIds = new Set();
-        for (const id in state) {
-          activeIds.add(id);
-        }
-        setOnlineUsers(activeIds);
-      })
-      .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          await channel.track({ online_at: new Date().toISOString() });
+    supabase.from('direct_messages')
+      .select('sender_email, receiver_email, message, created_at')
+      .or(`sender_email.ilike.${myEmail},receiver_email.ilike.${myEmail}`)
+      .order('created_at', { ascending: true })
+      .then(({ data: msgs }) => {
+        if (msgs) {
+          const lastMsgs = {};
+          msgs.forEach(m => {
+            const other = (m.sender_email.toLowerCase() === myEmail ? m.receiver_email : m.sender_email).toLowerCase();
+            lastMsgs[other] = { text: m.message, time: new Date(m.created_at).getTime() };
+          });
+          setUserLastMessagesMap(lastMsgs);
         }
       });
+  }, [user]);
 
-    return () => {
-      channel.unsubscribe();
-    };
-  }, [currentUser]);
-
-  // 3. Fetch Shanora Profiles
   useEffect(() => {
-    async function getProfiles() {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, full_name, email, city')
-        .limit(50);
+    if (!activeChatUser || !user) return;
+    let channel;
+    const myEmail = user.email.toLowerCase();
+    const otherEmail = activeChatUser.email.toLowerCase();
 
-      if (data && !error) {
-        setAvailableUsers(data);
-      }
-    }
-    getProfiles();
-  }, []);
-
-  // 4. Fetch All Recent Messages to populate Last Message snippets
-  const refreshLastMessages = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('messages')
+    async function loadThread() {
+      const { data } = await supabase
+        .from('direct_messages')
         .select('*')
-        .order('created_at', { ascending: false });
-
-      if (data && !error) {
-        const map = {};
-        const myId = currentUser?.id || localStorage.getItem('shanora_device_uid') || 'anon-user';
-
-        data.forEach((msg) => {
-          if (msg.conversation_id) {
-            const parts = msg.conversation_id.split('_');
-            const otherId = parts[0] === myId ? parts[1] : parts[0];
-
-            if (otherId && !map[otherId]) {
-              let snippet = msg.content || '';
-              if (snippet.startsWith('[IMAGE:')) snippet = '📷 Photo';
-              else if (snippet.startsWith('[DOC:')) snippet = '📄 Document';
-
-              const timeStr = msg.created_at ? new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
-              map[otherId] = {
-                text: snippet,
-                time: timeStr,
-                isMe: msg.sender_id === myId,
-              };
-            }
-          }
-        });
-        setLastMessages(map);
-      }
-    } catch (err) {
-      console.error('Error fetching last messages:', err);
-    }
-  };
-
-  useEffect(() => {
-    refreshLastMessages();
-  }, [currentUser, availableUsers]);
-
-  // 5. Select Contact & Form Standardized Room Key
-  const handleSelectContact = (contact) => {
-    setSelectedUser(contact);
-    setIsMobileChatOpen(true);
-
-    const myId = currentUser?.id || localStorage.getItem('shanora_device_uid') || 'anon-user';
-    const roomKey = [String(myId), String(contact.id)].sort().join('_');
-    setActiveConversationId(roomKey);
-  };
-
-  // 6. Realtime Messages Loader
-  useEffect(() => {
-    if (!activeConversationId) return;
-
-    async function loadChatMessages() {
-      const { data, error } = await supabase
-        .from('messages')
-        .select('*')
-        .eq('conversation_id', activeConversationId)
+        .or(`and(sender_email.ilike.${myEmail},receiver_email.ilike.${otherEmail}),and(sender_email.ilike.${otherEmail},receiver_email.ilike.${myEmail})`)
         .order('created_at', { ascending: true });
 
-      if (data && !error) {
-        setMessages(data);
-      } else if (error) {
-        console.error('Failed to load messages:', error);
-      }
+      setChatMessages(data || []);
+      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
     }
 
-    loadChatMessages();
+    loadThread();
 
-    const channel = supabase
-      .channel(`live-room-${activeConversationId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-          filter: `conversation_id=eq.${activeConversationId}`,
-        },
-        (payload) => {
-          setMessages((prev) => {
-            if (prev.some((m) => m.id === payload.new.id)) return prev;
-            return [...prev, payload.new];
+    const channelId = `chat_${[myEmail, otherEmail].sort().join('_')}`;
+    channel = supabase
+      .channel(channelId)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'direct_messages' }, payload => {
+        const msg = payload.new;
+        const msgSender = (msg.sender_email || '').toLowerCase();
+        const msgReceiver = (msg.receiver_email || '').toLowerCase();
+
+        if (
+          (msgSender === myEmail && msgReceiver === otherEmail) ||
+          (msgSender === otherEmail && msgReceiver === myEmail)
+        ) {
+          setChatMessages(prev => {
+            if (prev.some(m => m.id === msg.id)) return prev;
+            return [...prev, msg];
           });
-          refreshLastMessages();
+          setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
         }
-      )
+      })
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) supabase.removeChannel(channel);
     };
-  }, [activeConversationId]);
+  }, [activeChatUser, user]);
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  // 7. Send Text Message (Guaranteed Database Insert & Alert on Failure)
-  const handleSendMessage = async (e) => {
+  async function handleSendMessage(e) {
     e.preventDefault();
-    if (!newMessage.trim() || !activeConversationId || isSending) return;
+    if (!newMessageText.trim() || !activeChatUser || !user || sendingMsg) return;
 
-    const content = newMessage.trim();
-    setNewMessage('');
-    setIsSending(true);
-
-    const senderId = currentUser?.id || localStorage.getItem('shanora_device_uid') || 'guest-user';
-    const tempId = 'temp-' + Date.now();
-    const optimisticMessage = {
-      id: tempId,
-      conversation_id: activeConversationId,
-      sender_id: senderId,
-      content,
-      created_at: new Date().toISOString(),
-    };
-
-    setMessages((prev) => [...prev, optimisticMessage]);
+    const myEmail = user.email.toLowerCase();
+    const otherEmail = activeChatUser.email.toLowerCase();
+    setSendingMsg(true);
 
     try {
       const { data, error } = await supabase
-        .from('messages')
-        .insert([
-          {
-            conversation_id: String(activeConversationId),
-            sender_id: String(senderId),
-            content: content,
-          }
-        ])
-        .select();
+        .from('direct_messages')
+        .insert([{
+          sender_email: myEmail,
+          receiver_email: otherEmail,
+          message: newMessageText.trim()
+        }])
+        .select()
+        .single();
 
-      if (error) {
-        console.error('Database Save Error:', error);
-        alert('Database save failed: ' + error.message);
-        setMessages((prev) => prev.filter((m) => m.id !== tempId));
-      } else if (data && data.length > 0) {
-        const savedRecord = data[0];
-        setMessages((prev) => prev.map((m) => (m.id === tempId ? savedRecord : m)));
-        refreshLastMessages();
-      }
+      if (error) throw error;
+      setChatMessages(prev => [...prev, data]);
+      setNewMessageText('');
+      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
     } catch (err) {
-      console.error('Transmission error:', err);
-      alert('Network transmission failed: ' + err.message);
-      setMessages((prev) => prev.filter((m) => m.id !== tempId));
+      alert('Message send failed: ' + err.message);
     } finally {
-      setIsSending(false);
+      setSendingMsg(false);
     }
-  };
+  }
 
-  // 8. Photo & Document Upload Handler
-  const handleFileUpload = async (event, fileType) => {
-    const file = event.target.files?.[0];
-    if (!file || !activeConversationId) return;
-
-    setIsUploading(true);
-    const fileExt = file.name.split('.').pop();
-    const cleanFileName = `${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
-    const filePath = `chat/${cleanFileName}`;
-
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const base64LocalUrl = e.target.result;
-      const tempId = 'temp-' + Date.now();
-      const localContent = fileType === 'image'
-        ? `[IMAGE:${base64LocalUrl}]`
-        : `[DOC:${base64LocalUrl}|${file.name}]`;
-
-      const senderId = currentUser?.id || localStorage.getItem('shanora_device_uid') || 'guest-user';
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: tempId,
-          conversation_id: activeConversationId,
-          sender_id: senderId,
-          content: localContent,
-          created_at: new Date().toISOString(),
-        }
-      ]);
-
-      try {
-        const { error: uploadError } = await supabase.storage
-          .from('chat-attachments')
-          .upload(filePath, file, { cacheControl: '3600', upsert: true });
-
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('chat-attachments')
-          .getPublicUrl(filePath);
-
-        const realContent = fileType === 'image'
-          ? `[IMAGE:${publicUrl}]`
-          : `[DOC:${publicUrl}|${file.name}]`;
-
-        const { data, error: insertError } = await supabase
-          .from('messages')
-          .insert([
-            {
-              conversation_id: String(activeConversationId),
-              sender_id: String(senderId),
-              content: realContent,
-            }
-          ])
-          .select();
-
-        if (insertError) throw insertError;
-
-        if (data && data.length > 0) {
-          setMessages((prev) => prev.map((m) => (m.id === tempId ? data[0] : m)));
-          refreshLastMessages();
-        }
-      } catch (error) {
-        console.error('Media upload/insert error:', error);
-        alert('Upload/Save Error: ' + error.message);
-        setMessages((prev) => prev.filter((m) => m.id !== tempId));
-      } finally {
-        setIsUploading(false);
-        event.target.value = '';
-      }
-    };
-
-    reader.readAsDataURL(file);
-  };
-
-  const displayedUsers = availableUsers.filter((u) =>
-    (u.full_name || u.email || '').toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const renderMessageContent = (content) => {
-    if (content?.startsWith('[IMAGE:')) {
-      const imgUrl = content.substring(7, content.length - 1);
-      return (
-        <a href={imgUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'block' }}>
-          <img
-            src={imgUrl}
-            alt="chat-photo"
-            style={{
-              maxWidth: '100%',
-              width: '260px',
-              maxHeight: '320px',
-              borderRadius: '12px',
-              objectFit: 'cover',
-              display: 'block',
-              backgroundColor: '#1e293b'
-            }}
-          />
-        </a>
-      );
-    }
-
-    if (content?.startsWith('[DOC:')) {
-      const raw = content.substring(5, content.length - 1);
-      const [docUrl, docName] = raw.split('|');
-      return (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-          <div style={{ padding: '8px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.15)', display: 'flex' }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-              <polyline points="14 2 14 8 20 8"></polyline>
-              <line x1="16" y1="13" x2="8" y2="13"></line>
-              <line x1="16" y1="17" x2="8" y2="17"></line>
-            </svg>
-          </div>
-          <div style={{ flex: 1, overflow: 'hidden' }}>
-            <p style={{ margin: 0, fontSize: '0.86rem', fontWeight: 600, color: '#ffffff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '180px' }}>
-              {docName || 'Document File'}
-            </p>
-            <a
-              href={docUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              download
-              style={{ fontSize: '0.74rem', color: '#93c5fd', textDecoration: 'underline', marginTop: '2px', display: 'inline-block' }}
-            >
-              Download File
-            </a>
-          </div>
-        </div>
-      );
-    }
-
-    return content;
-  };
-
-  const isSelectedUserOnline = selectedUser ? onlineUsers.has(selectedUser.id) : false;
+  const filteredUsers = allUsersList.filter(u => {
+    const q = messageSearchQuery.toLowerCase();
+    const name = (u.full_name || u.name || '').toLowerCase();
+    const email = (u.email || '').toLowerCase();
+    return name.includes(q) || email.includes(q);
+  });
 
   return (
-    <div style={{ padding: '0.5rem', maxWidth: '1280px', margin: '0 auto', color: '#e4e6eb', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
-      <div
-        style={{
-          display: 'flex',
-          height: 'calc(100vh - 105px)',
-          minHeight: '600px',
-          backgroundColor: '#18191a',
-          borderRadius: '16px',
-          border: '1px solid #2f3031',
-          overflow: 'hidden',
-          boxShadow: '0 12px 35px rgba(0, 0, 0, 0.45)',
-        }}
-      >
-        {/* Left Sidebar */}
-        <div
-          style={{
-            width: '100%',
-            maxWidth: isMobileChatOpen ? '0px' : '100%',
-            display: isMobileChatOpen ? 'none' : 'flex',
-            flexDirection: 'column',
-            borderRight: '1px solid #2f3031',
-            backgroundColor: '#242526',
-          }}
-          className="sidebar-container"
-        >
-          {/* Header */}
-          <div style={{ padding: '1rem', borderBottom: '1px solid #2f3031' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                <button
-                  type="button"
-                  onClick={() => router.push('/feed')}
-                  title="Back to Feed"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: '34px',
-                    height: '34px',
-                    borderRadius: '50%',
-                    backgroundColor: '#3a3b3c',
-                    border: '1px solid #4e4f50',
-                    color: '#e4e6eb',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="19" y1="12" x2="5" y2="12"></line>
-                    <polyline points="12 19 5 12 12 5"></polyline>
-                  </svg>
-                </button>
-
-                <div style={{ width: '32px', height: '32px', borderRadius: '10px', background: 'linear-gradient(135deg, #0084ff, #00c6ff)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
-                  </svg>
-                </div>
-                <h1 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0, color: '#f5f6f7' }}>Shanora Chats</h1>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => router.push('/feed')}
-                title="Exit to Feed"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '50%',
-                  backgroundColor: 'transparent',
-                  border: 'none',
-                  color: '#b0b3b8',
-                  cursor: 'pointer',
-                  fontSize: '1.1rem',
-                  fontWeight: 700
-                }}
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Search Box */}
-            <div style={{ position: 'relative' }}>
-              <input
-                type="text"
-                placeholder="Search Shanora talent..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '0.6rem 0.8rem 0.6rem 2.3rem',
-                  backgroundColor: '#3a3b3c',
-                  border: 'none',
-                  borderRadius: '20px',
-                  color: '#e4e6eb',
-                  fontSize: '0.88rem',
-                  outline: 'none',
-                }}
-              />
-              <svg style={{ position: 'absolute', left: '0.8rem', top: '0.75rem' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#b0b3b8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="11" cy="11" r="8"></circle>
-                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-              </svg>
-            </div>
-          </div>
-
-          {/* Directory with Last Message & Active Indicator */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '0.4rem' }}>
-            {displayedUsers.map((contact) => {
-              const isOnline = onlineUsers.has(contact.id);
-              const isSelected = selectedUser?.id === contact.id;
-              const lastMsg = lastMessages[contact.id];
-
-              return (
-                <div
-                  key={contact.id}
-                  onClick={() => handleSelectContact(contact)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.85rem',
-                    padding: '0.7rem 0.85rem',
-                    borderRadius: '12px',
-                    cursor: 'pointer',
-                    backgroundColor: isSelected ? '#3a3b3c' : 'transparent',
-                    marginBottom: '2px',
-                    transition: 'background-color 0.15s ease',
-                  }}
-                >
-                  <div style={{ position: 'relative' }}>
-                    <div
-                      style={{
-                        width: '48px',
-                        height: '48px',
-                        borderRadius: '50%',
-                        backgroundColor: '#3a3b3c',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontWeight: 700,
-                        fontSize: '1.05rem',
-                        color: '#0084ff',
-                        border: '1px solid rgba(255,255,255,0.06)'
-                      }}
-                    >
-                      {(contact.full_name || contact.email || 'U')[0].toUpperCase()}
-                    </div>
-
-                    {isOnline && (
-                      <span
-                        title="Online"
-                        style={{
-                          position: 'absolute',
-                          bottom: '1px',
-                          right: '1px',
-                          width: '13px',
-                          height: '13px',
-                          borderRadius: '50%',
-                          backgroundColor: '#31a24c',
-                          border: '2.5px solid #242526',
-                          boxShadow: '0 0 6px #31a24c',
-                        }}
-                      />
-                    )}
-                  </div>
-
-                  <div style={{ flex: 1, overflow: 'hidden' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <p style={{ fontSize: '0.94rem', fontWeight: 600, margin: 0, color: '#f5f6f7', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {contact.full_name || contact.email}
-                      </p>
-                      {lastMsg?.time && (
-                        <span style={{ fontSize: '0.7rem', color: '#8a8d91', marginLeft: '4px' }}>
-                          {lastMsg.time}
-                        </span>
-                      )}
-                    </div>
-
-                    <p style={{ fontSize: '0.8rem', color: isSelected ? '#e4e6eb' : '#b0b3b8', margin: '3px 0 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {lastMsg ? (
-                        <>
-                          <span style={{ color: lastMsg.isMe ? '#93c5fd' : '#b0b3b8' }}>
-                            {lastMsg.isMe ? 'You: ' : ''}
-                          </span>
-                          {lastMsg.text}
-                        </>
-                      ) : (
-                        <span style={{ color: isOnline ? '#31a24c' : '#707478', fontSize: '0.75rem' }}>
-                          {isOnline ? '● Active now' : (contact.city || 'Available on Shanora')}
-                        </span>
-                      )}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0f172a', padding: '0.65rem 0.9rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <span style={{ fontSize: '1.1rem' }}>💬</span>
+          <span style={{ fontWeight: '800', fontSize: '0.9rem', color: '#38bdf8' }}>Shanora Messenger</span>
         </div>
-
-        {/* Right Chat Arena */}
-        <div
-          style={{
-            flex: 1,
-            display: !isMobileChatOpen && typeof window !== 'undefined' && window.innerWidth < 768 ? 'none' : 'flex',
-            flexDirection: 'column',
-            backgroundColor: '#18191a',
-            height: '100%',
-          }}
-          className="chat-arena-container"
+        <button 
+          type="button" 
+          onClick={() => {
+            if (activeChatUser) setActiveChatUser(null);
+            else navigateToTab('menu');
+          }} 
+          style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer', padding: 0 }}
         >
-          {selectedUser ? (
-            <>
-              {/* Inbox Header */}
-              <div
-                style={{
-                  padding: '0.75rem 1rem',
-                  borderBottom: '1px solid #2f3031',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  backgroundColor: '#242526',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <button
-                    type="button"
-                    onClick={() => setIsMobileChatOpen(false)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      background: 'none',
-                      border: 'none',
-                      color: '#0084ff',
-                      cursor: 'pointer',
-                      padding: '0 4px',
-                    }}
-                    className="mobile-back-btn"
-                  >
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="19" y1="12" x2="5" y2="12"></line>
-                      <polyline points="12 19 5 12 12 5"></polyline>
-                    </svg>
-                  </button>
-
-                  <div style={{ position: 'relative' }}>
-                    <div
-                      style={{
-                        width: '42px',
-                        height: '42px',
-                        borderRadius: '50%',
-                        background: 'linear-gradient(135deg, #0084ff, #00c6ff)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontWeight: 700,
-                        color: '#ffffff',
-                      }}
-                    >
-                      {(selectedUser.full_name || selectedUser.email || 'U')[0].toUpperCase()}
-                    </div>
-                    {isSelectedUserOnline && (
-                      <span
-                        style={{
-                          position: 'absolute',
-                          bottom: '0px',
-                          right: '0px',
-                          width: '11px',
-                          height: '11px',
-                          borderRadius: '50%',
-                          backgroundColor: '#31a24c',
-                          border: '2px solid #242526',
-                        }}
-                      />
-                    )}
-                  </div>
-
-                  <div>
-                    <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#f5f6f7' }}>
-                      {selectedUser.full_name || selectedUser.email}
-                    </h2>
-                    <span style={{ fontSize: '0.74rem', color: isSelectedUserOnline ? '#31a24c' : '#8a8d91', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: isSelectedUserOnline ? '#31a24c' : '#65676b', display: 'inline-block' }}></span>
-                      {isSelectedUserOnline ? 'Active now' : 'Offline'}
-                    </span>
-                  </div>
-                </div>
-
-                <span style={{ fontSize: '0.72rem', color: '#94a3b8', background: 'rgba(255,255,255,0.05)', padding: '4px 8px', borderRadius: '8px' }}>
-                  Encrypted
-                </span>
-              </div>
-
-              {/* Message Feed */}
-              <div
-                style={{
-                  flex: 1,
-                  padding: '1.25rem',
-                  overflowY: 'auto',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '0.65rem',
-                }}
-              >
-                {messages.length === 0 ? (
-                  <div style={{ margin: 'auto', textAlign: 'center', color: '#b0b3b8' }}>
-                    <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'linear-gradient(135deg, #0084ff, #00c6ff)', margin: '0 auto 0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', fontWeight: 700, color: '#ffffff' }}>
-                      {(selectedUser.full_name || 'U')[0].toUpperCase()}
-                    </div>
-                    <h3 style={{ margin: '0 0 0.25rem', color: '#f5f6f7', fontSize: '1.1rem' }}>{selectedUser.full_name}</h3>
-                    <p style={{ margin: 0, fontSize: '0.85rem' }}>Direct private channel on Shanora</p>
-                    <p style={{ margin: '0.35rem 0 0', fontSize: '0.78rem', color: '#0084ff' }}>Send a message or photo to start conversation</p>
-                  </div>
-                ) : (
-                  messages.map((msg) => {
-                    const myId = currentUser?.id || (typeof window !== 'undefined' ? localStorage.getItem('shanora_device_uid') : null);
-                    const isOwnMessage = msg.sender_id === myId;
-                    const isMedia = msg.content?.startsWith('[IMAGE:');
-                    return (
-                      <div
-                        key={msg.id}
-                        style={{
-                          alignSelf: isOwnMessage ? 'flex-end' : 'flex-start',
-                          maxWidth: '72%',
-                          padding: isMedia ? '4px' : '0.65rem 0.95rem',
-                          borderRadius: '18px',
-                          borderBottomRightRadius: isOwnMessage ? '4px' : '18px',
-                          borderBottomLeftRadius: isOwnMessage ? '18px' : '4px',
-                          backgroundColor: isOwnMessage ? '#0084ff' : '#3e4042',
-                          color: '#ffffff',
-                          fontSize: '0.92rem',
-                          lineHeight: '1.38',
-                          wordBreak: 'break-word',
-                          boxShadow: '0 1px 2px rgba(0,0,0,0.2)',
-                          overflow: 'hidden'
-                        }}
-                      >
-                        {renderMessageContent(msg.content)}
-                      </div>
-                    );
-                  })
-                )}
-                {isUploading && (
-                  <div style={{ alignSelf: 'flex-end', fontSize: '0.8rem', color: '#93c5fd', fontStyle: 'italic' }}>
-                    Uploading attachment...
-                  </div>
-                )}
-                <div ref={messagesEndRef} />
-              </div>
-
-              {/* Bottom Input Dock */}
-              <div style={{ padding: '0.75rem 1rem', backgroundColor: '#242526', borderTop: '1px solid #2f3031' }}>
-                <form onSubmit={handleSendMessage} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    ref={imageInputRef}
-                    style={{ display: 'none' }}
-                    onChange={(e) => handleFileUpload(e, 'image')}
-                  />
-                  <input
-                    type="file"
-                    accept=".pdf,.doc,.docx,.xls,.xlsx,.txt"
-                    ref={docInputRef}
-                    style={{ display: 'none' }}
-                    onChange={(e) => handleFileUpload(e, 'doc')}
-                  />
-
-                  <button
-                    type="button"
-                    onClick={() => imageInputRef.current?.click()}
-                    title="Send Picture"
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: '#0084ff',
-                      cursor: 'pointer',
-                      padding: '4px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                      <circle cx="8.5" cy="8.5" r="1.5"/>
-                      <polyline points="21 15 16 10 5 21"/>
-                    </svg>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => docInputRef.current?.click()}
-                    title="Send Document"
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: '#0084ff',
-                      cursor: 'pointer',
-                      padding: '4px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
-                    </svg>
-                  </button>
-
-                  <div style={{ flex: 1, backgroundColor: '#3a3b3c', borderRadius: '24px', padding: '0.2rem 0.85rem' }}>
-                    <input
-                      type="text"
-                      placeholder="Write a message..."
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      style={{
-                        width: '100%',
-                        backgroundColor: 'transparent',
-                        border: 'none',
-                        color: '#f5f6f7',
-                        fontSize: '0.92rem',
-                        padding: '0.45rem 0',
-                        outline: 'none',
-                      }}
-                    />
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={!newMessage.trim()}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: newMessage.trim() ? '#0084ff' : '#707478',
-                      cursor: newMessage.trim() ? 'pointer' : 'default',
-                      padding: '4px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-                    </svg>
-                  </button>
-                </form>
-              </div>
-            </>
-          ) : (
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#b0b3b8', gap: '0.5rem' }}>
-              <div style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: '#242526', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0084ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
-                </svg>
-              </div>
-              <h3 style={{ margin: 0, color: '#f5f6f7', fontSize: '1.05rem' }}>Select a conversation</h3>
-              <p style={{ margin: 0, fontSize: '0.85rem' }}>Choose from the candidate list on the left to start messaging</p>
-            </div>
-          )}
-        </div>
+          ✕
+        </button>
       </div>
 
-      <style jsx global>{`
-        @media (min-width: 768px) {
-          .sidebar-container {
-            max-width: 360px !important;
-            display: flex !important;
-          }
-          .chat-arena-container {
-            display: flex !important;
-          }
-          .mobile-back-btn {
-            display: none !important;
-          }
-        }
-      `}</style>
+      {activeChatUser ? (
+        <div style={{ backgroundColor: '#0b1322', border: '1px solid #1e293b', borderRadius: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: '72vh', minHeight: '520px' }}>
+          <div style={{ backgroundColor: '#0f172a', padding: '0.75rem 1rem', borderBottom: '1px solid #1e293b', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <button
+                type="button"
+                onClick={() => setActiveChatUser(null)}
+                style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '50%', color: '#0084ff', fontSize: '1rem', cursor: 'pointer', width: '34px', height: '34px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                ←
+              </button>
+              <div style={{ color: '#fff', fontWeight: '700', fontSize: '0.92rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                <span>{activeChatUser.full_name || activeChatUser.name || activeChatUser.email?.split('@')[0]}</span>
+                {activeChatUser.is_pro && <ProVerifiedBadge size={16} />}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ flex: 1, padding: '1rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+            {chatMessages.length === 0 ? (
+              <div style={{ textAlign: 'center', margin: 'auto', color: '#64748b', fontSize: '0.82rem' }}>
+                Say hello! Start your private conversation. 👋
+              </div>
+            ) : (
+              chatMessages.map(msg => {
+                const isMe = (msg.sender_email || '').toLowerCase() === (user?.email || '').toLowerCase();
+                return (
+                  <div key={msg.id} style={{ display: 'flex', justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
+                    <div style={{ backgroundColor: isMe ? '#0084ff' : '#1e293b', color: '#fff', padding: '0.7rem 1rem', borderRadius: isMe ? '20px 20px 4px 20px' : '20px 20px 20px 4px', fontSize: '0.85rem', maxWidth: '75%' }}>
+                      {msg.message}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          <form onSubmit={handleSendMessage} style={{ padding: '0.65rem 0.85rem', backgroundColor: '#0f172a', borderTop: '1px solid #1e293b', display: 'flex', gap: '0.5rem' }}>
+            <input
+              type="text"
+              placeholder="Type a message..."
+              value={newMessageText}
+              onChange={(e) => setNewMessageText(e.target.value)}
+              style={{ flex: 1, backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '24px', padding: '0.6rem 1rem', color: '#fff', fontSize: '0.84rem', outline: 'none' }}
+            />
+            <button type="submit" style={{ backgroundColor: '#0084ff', color: '#fff', border: 'none', borderRadius: '50%', width: '38px', height: '38px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>➤</button>
+          </form>
+        </div>
+      ) : (
+        <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <input
+            type="text"
+            placeholder="Search conversations..."
+            value={messageSearchQuery}
+            onChange={(e) => setMessageSearchQuery(e.target.value)}
+            style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '24px', padding: '0.6rem 1rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }}
+          />
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+            {filteredUsers.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b', fontSize: '0.8rem' }}>No users found.</div>
+            ) : (
+              filteredUsers.map(chatTarget => (
+                <div
+                  key={chatTarget.email}
+                  onClick={() => setActiveChatUser(chatTarget)}
+                  style={{ backgroundColor: '#131b2e', border: '1px solid #1e293b', borderRadius: '10px', padding: '0.7rem 0.85rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.7rem' }}>
+                    <div style={{ width: '38px', height: '38px', borderRadius: '50%', backgroundColor: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#fff', overflow: 'hidden' }}>
+                      {chatTarget.avatar_url ? <img src={chatTarget.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (chatTarget.full_name || 'U').charAt(0)}
+                    </div>
+                    <div>
+                      <div style={{ color: '#fff', fontWeight: '700', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                        <span>{chatTarget.full_name || chatTarget.name || chatTarget.email.split('@')[0]}</span>
+                        {chatTarget.is_pro && <ProVerifiedBadge size={15} />}
+                      </div>
+                      <div style={{ color: '#94a3b8', fontSize: '0.72rem' }}>{userLastMessagesMap[chatTarget.email.toLowerCase()]?.text || chatTarget.headline || 'Tap to chat'}</div>
+                    </div>
+                  </div>
+                  <span style={{ color: '#38bdf8', fontSize: '0.78rem', fontWeight: 'bold' }}>Chat →</span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
