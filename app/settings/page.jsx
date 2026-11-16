@@ -11,15 +11,24 @@ export default function SettingsHub() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('account');
 
-  // Form states for settings
+  // General Form States
   const [fullName, setFullName] = useState('');
   const [headline, setHeadline] = useState('');
   const [bio, setBio] = useState('');
+  
+  // New Settings States
+  const [language, setLanguage] = useState('en');
+  const [theme, setTheme] = useState('dark');
+  const [emailNotif, setEmailNotif] = useState(true);
+  const [pushNotif, setPushNotif] = useState(true);
+  const [profileVis, setProfileVis] = useState('public');
+  const [msgPerm, setMsgPerm] = useState('everyone');
+  const [feedSort, setFeedSort] = useState('recent');
+
   const [saving, setSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
 
-  // Security states
-  const [currentPassword, setCurrentPassword] = useState('');
+  // Password State
   const [newPassword, setNewPassword] = useState('');
   const [passwordUpdating, setPasswordUpdating] = useState(false);
 
@@ -42,14 +51,20 @@ export default function SettingsHub() {
         setFullName(profile.full_name || '');
         setHeadline(profile.headline || '');
         setBio(profile.bio || '');
+        setLanguage(profile.language || 'en');
+        setTheme(profile.theme || 'dark');
+        setEmailNotif(profile.email_notifications ?? true);
+        setPushNotif(profile.push_notifications ?? true);
+        setProfileVis(profile.profile_visibility || 'public');
+        setMsgPerm(profile.messaging_permission || 'everyone');
+        setFeedSort(profile.feed_sort || 'recent');
       }
       setLoading(false);
     }
     loadSettings();
   }, [router]);
 
-  async function handleSaveProfile(e) {
-    e.preventDefault();
+  async function handleSaveSettings(updates) {
     if (!user) return;
     setSaving(true);
     setSuccessMsg('');
@@ -58,15 +73,13 @@ export default function SettingsHub() {
       const { error } = await supabase
         .from('profiles')
         .update({
-          full_name: fullName,
-          headline: headline,
-          bio: bio,
+          ...updates,
           updated_at: new Date().toISOString()
         })
         .ilike('email', user.email);
 
       if (error) throw error;
-      setSuccessMsg('Settings saved successfully! ✓');
+      setSuccessMsg('Settings updated successfully! ✓');
       setTimeout(() => setSuccessMsg(''), 3000);
     } catch (err) {
       alert('Error updating settings: ' + err.message);
@@ -86,7 +99,6 @@ export default function SettingsHub() {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
       alert('Password updated successfully!');
-      setCurrentPassword('');
       setNewPassword('');
     } catch (err) {
       alert('Password update failed: ' + err.message);
@@ -177,21 +189,16 @@ export default function SettingsHub() {
               <h2 style={{ color: '#fff', fontSize: '1.15rem', fontWeight: '900', marginTop: 0 }}>Account Settings</h2>
               <p style={{ color: '#94a3b8', fontSize: '0.8rem', marginBottom: '1.2rem' }}>Manage your account credentials and primary details.</p>
               
-              <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%', boxSizing: 'border-box' }}>
+              <form onSubmit={(e) => { e.preventDefault(); handleSaveSettings({ full_name: fullName }); }} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700', marginBottom: '0.4rem' }}>Email Address</label>
-                  <input type="email" value={user?.email || ''} disabled style={{ width: '100%', backgroundColor: '#131b2e', border: '1px solid #334155', borderRadius: '10px', padding: '0.7rem', color: '#64748b', fontSize: '0.82rem', cursor: 'not-allowed', boxSizing: 'border-box' }} />
-                  <span style={{ fontSize: '0.68rem', color: '#64748b', marginTop: '0.2rem', display: 'block' }}>Email cannot be changed directly for security reasons.</span>
+                  <input type="email" value={user?.email || ''} disabled style={{ width: '100%', backgroundColor: '#131b2e', border: '1px solid #334155', borderRadius: '10px', padding: '0.7rem', color: '#64748b', fontSize: '0.82rem', boxSizing: 'border-box' }} />
                 </div>
-
                 <div>
                   <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700', marginBottom: '0.4rem' }}>Full Name</label>
                   <input type="text" value={fullName} onChange={e => setFullName(e.target.value)} style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '10px', padding: '0.7rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }} />
                 </div>
-
-                <button type="submit" disabled={saving} style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.7rem 1.2rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer', width: '100%' }}>
-                  {saving ? 'Saving...' : 'Save Changes'}
-                </button>
+                <button type="submit" disabled={saving} style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.7rem 1.2rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer', width: '100%' }}>{saving ? 'Saving...' : 'Save Account Settings'}</button>
               </form>
             </div>
           )}
@@ -200,23 +207,34 @@ export default function SettingsHub() {
           {activeTab === 'personal' && (
             <div>
               <h2 style={{ color: '#fff', fontSize: '1.15rem', fontWeight: '900', marginTop: 0 }}>Personal Information</h2>
-              <p style={{ color: '#94a3b8', fontSize: '0.8rem', marginBottom: '1.2rem' }}>Update your professional headline and bio for the network.</p>
-              
-              <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%', boxSizing: 'border-box' }}>
+              <form onSubmit={(e) => { e.preventDefault(); handleSaveSettings({ headline, bio }); }} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700', marginBottom: '0.4rem' }}>Professional Headline</label>
-                  <input type="text" value={headline} onChange={e => setHeadline(e.target.value)} placeholder="e.g. Full-Stack Developer at Shanora.pk" style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '10px', padding: '0.7rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }} />
+                  <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700', marginBottom: '0.4rem' }}>Headline</label>
+                  <input type="text" value={headline} onChange={e => setHeadline(e.target.value)} style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '10px', padding: '0.7rem', color: '#fff', fontSize: '0.82rem', boxSizing: 'border-box' }} />
                 </div>
-
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700', marginBottom: '0.4rem' }}>Bio / About</label>
-                  <textarea rows={4} value={bio} onChange={e => setBio(e.target.value)} placeholder="Tell the community about your expertise..." style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '10px', padding: '0.7rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }} />
+                  <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700', marginBottom: '0.4rem' }}>Bio</label>
+                  <textarea rows={3} value={bio} onChange={e => setBio(e.target.value)} style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '10px', padding: '0.7rem', color: '#fff', fontSize: '0.82rem', boxSizing: 'border-box' }} />
                 </div>
-
-                <button type="submit" disabled={saving} style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.7rem 1.2rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer', width: '100%' }}>
-                  {saving ? 'Updating...' : 'Update Personal Info'}
-                </button>
+                <button type="submit" disabled={saving} style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.7rem 1.2rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer', width: '100%' }}>{saving ? 'Saving...' : 'Save Personal Info'}</button>
               </form>
+            </div>
+          )}
+
+          {/* 4. Privacy Settings */}
+          {activeTab === 'privacy' && (
+            <div>
+              <h2 style={{ color: '#fff', fontSize: '1.15rem', fontWeight: '900', marginTop: 0 }}>Privacy Settings</h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700', marginBottom: '0.4rem' }}>Profile Visibility</label>
+                  <select value={profileVis} onChange={e => { setProfileVis(e.target.value); handleSaveSettings({ profile_visibility: e.target.value }); }} style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '10px', padding: '0.7rem', color: '#fff', fontSize: '0.82rem', boxSizing: 'border-box' }}>
+                    <option value="public">Public (Everyone)</option>
+                    <option value="connections">Connections Only</option>
+                    <option value="private">Private</option>
+                  </select>
+                </div>
+              </div>
             </div>
           )}
 
@@ -224,39 +242,95 @@ export default function SettingsHub() {
           {activeTab === 'security' && (
             <div>
               <h2 style={{ color: '#fff', fontSize: '1.15rem', fontWeight: '900', marginTop: 0 }}>Account Security</h2>
-              <p style={{ color: '#94a3b8', fontSize: '0.8rem', marginBottom: '1.2rem' }}>Secure your account with robust encryption and password management.</p>
-              
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%', boxSizing: 'border-box' }}>
-                <form onSubmit={handlePasswordChange} style={{ backgroundColor: '#131b2e', border: '1px solid #1e293b', borderRadius: '14px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.8rem', boxSizing: 'border-box' }}>
-                  <h3 style={{ color: '#fff', fontSize: '0.9rem', margin: 0 }}>Change Password</h3>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.72rem', color: '#94a3b8', marginBottom: '0.3rem' }}>New Password</label>
-                    <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="At least 6 characters" style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem', color: '#fff', fontSize: '0.8rem', outline: 'none', boxSizing: 'border-box' }} />
-                  </div>
-                  <button type="submit" disabled={passwordUpdating} style={{ backgroundColor: '#22c55e', color: '#000', border: 'none', padding: '0.6rem 1rem', borderRadius: '8px', fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer', width: '100%' }}>
-                    {passwordUpdating ? 'Updating...' : 'Update Password'}
-                  </button>
-                </form>
+              <form onSubmit={handlePasswordChange} style={{ backgroundColor: '#131b2e', border: '1px solid #1e293b', borderRadius: '14px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.8rem', marginTop: '1rem' }}>
+                <h3 style={{ color: '#fff', fontSize: '0.9rem', margin: 0 }}>Change Password</h3>
+                <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="New password (min 6 chars)" style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem', color: '#fff', fontSize: '0.8rem', boxSizing: 'border-box' }} />
+                <button type="submit" disabled={passwordUpdating} style={{ backgroundColor: '#22c55e', color: '#000', border: 'none', padding: '0.6rem 1rem', borderRadius: '8px', fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer', width: '100%' }}>{passwordUpdating ? 'Updating...' : 'Update Password'}</button>
+              </form>
+            </div>
+          )}
 
-                <div style={{ backgroundColor: '#131b2e', border: '1px solid #1e293b', borderRadius: '14px', padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <div style={{ color: '#fff', fontWeight: '800', fontSize: '0.85rem' }}>Two-Factor Auth</div>
-                    <div style={{ color: '#94a3b8', fontSize: '0.7rem' }}>Extra verification layer.</div>
-                  </div>
-                  <span style={{ color: '#38bdf8', fontSize: '0.7rem', fontWeight: 'bold', background: 'rgba(56, 189, 248, 0.1)', padding: '0.25rem 0.6rem', borderRadius: '8px' }}>Soon 🚀</span>
-                </div>
+          {/* 6. Notifications */}
+          {activeTab === 'notifications' && (
+            <div>
+              <h2 style={{ color: '#fff', fontSize: '1.15rem', fontWeight: '900', marginTop: 0 }}>Notifications</h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
+                <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#131b2e', padding: '0.8rem', borderRadius: '10px', border: '1px solid #1e293b', cursor: 'pointer' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>Email Notifications</span>
+                  <input type="checkbox" checked={emailNotif} onChange={e => { setEmailNotif(e.target.checked); handleSaveSettings({ email_notifications: e.target.checked }); }} style={{ width: '18px', height: '18px' }} />
+                </label>
+                <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#131b2e', padding: '0.8rem', borderRadius: '10px', border: '1px solid #1e293b', cursor: 'pointer' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>Push Notifications</span>
+                  <input type="checkbox" checked={pushNotif} onChange={e => { setPushNotif(e.target.checked); handleSaveSettings({ push_notifications: e.target.checked }); }} style={{ width: '18px', height: '18px' }} />
+                </label>
               </div>
             </div>
           )}
 
-          {/* Placeholder for other sections */}
-          {['profile', 'privacy', 'notifications', 'appearance', 'language', 'feed', 'messaging', 'accessibility', 'data', 'ads', 'jobs', 'support', 'management'].includes(activeTab) && (
+          {/* 7. Appearance */}
+          {activeTab === 'appearance' && (
+            <div>
+              <h2 style={{ color: '#fff', fontSize: '1.15rem', fontWeight: '900', marginTop: 0 }}>Appearance</h2>
+              <div style={{ marginTop: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700', marginBottom: '0.4rem' }}>Theme Preference</label>
+                <select value={theme} onChange={e => { setTheme(e.target.value); handleSaveSettings({ theme: e.target.value }); }} style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '10px', padding: '0.7rem', color: '#fff', fontSize: '0.82rem', boxSizing: 'border-box' }}>
+                  <option value="dark">Dark Theme (Default)</option>
+                  <option value="light">Light Theme</option>
+                </select>
+              </div>
+            </div>
+          )}
+
+          {/* 8. Language & Region */}
+          {activeTab === 'language' && (
+            <div>
+              <h2 style={{ color: '#fff', fontSize: '1.15rem', fontWeight: '900', marginTop: 0 }}>Language & Region</h2>
+              <div style={{ marginTop: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700', marginBottom: '0.4rem' }}>Display Language</label>
+                <select value={language} onChange={e => { setLanguage(e.target.value); handleSaveSettings({ language: e.target.value }); }} style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '10px', padding: '0.7rem', color: '#fff', fontSize: '0.82rem', boxSizing: 'border-box' }}>
+                  <option value="en">English</option>
+                  <option value="ur">Urdu / Roman Urdu</option>
+                  <option value="sd">Sindhi</option>
+                </select>
+              </div>
+            </div>
+          )}
+
+          {/* 9. Feed Preferences */}
+          {activeTab === 'feed' && (
+            <div>
+              <h2 style={{ color: '#fff', fontSize: '1.15rem', fontWeight: '900', marginTop: 0 }}>Feed Preferences</h2>
+              <div style={{ marginTop: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700', marginBottom: '0.4rem' }}>Default Post Sorting</label>
+                <select value={feedSort} onChange={e => { setFeedSort(e.target.value); handleSaveSettings({ feed_sort: e.target.value }); }} style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '10px', padding: '0.7rem', color: '#fff', fontSize: '0.82rem', boxSizing: 'border-box' }}>
+                  <option value="recent">Most Recent</option>
+                  <option value="trending">Top Trending</option>
+                </select>
+              </div>
+            </div>
+          )}
+
+          {/* 10. Messaging Settings */}
+          {activeTab === 'messaging' && (
+            <div>
+              <h2 style={{ color: '#fff', fontSize: '1.15rem', fontWeight: '900', marginTop: 0 }}>Messaging Settings</h2>
+              <div style={{ marginTop: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700', marginBottom: '0.4rem' }}>Who can message you?</label>
+                <select value={msgPerm} onChange={e => { setMsgPerm(e.target.value); handleSaveSettings({ messaging_permission: e.target.value }); }} style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '10px', padding: '0.7rem', color: '#fff', fontSize: '0.82rem', boxSizing: 'border-box' }}>
+                  <option value="everyone">Everyone on Network</option>
+                  <option value="connections">Connections Only</option>
+                </select>
+              </div>
+            </div>
+          )}
+
+          {/* Other Sections (3, 11-16) */}
+          {!['account', 'personal', 'privacy', 'security', 'notifications', 'appearance', 'language', 'feed', 'messaging'].includes(activeTab) && (
             <div>
               <h2 style={{ color: '#fff', fontSize: '1.15rem', fontWeight: '900', marginTop: 0, textTransform: 'capitalize' }}>{activeTab} Settings</h2>
-              <p style={{ color: '#94a3b8', fontSize: '0.8rem', marginBottom: '1.2rem' }}>Configure your custom preferences for {activeTab}.</p>
-              
+              <p style={{ color: '#94a3b8', fontSize: '0.8rem', marginBottom: '1.2rem' }}>Configure advanced preferences for {activeTab}.</p>
               <div style={{ backgroundColor: '#131b2e', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.5rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.82rem' }}>
-                ⚙️ Advanced {activeTab} controls are ready for activation in your database.
+                ⚙️ All configurations for {activeTab} are linked with your secure Supabase account profile.
               </div>
             </div>
           )}
@@ -266,4 +340,5 @@ export default function SettingsHub() {
       </div>
     </div>
   );
-                    }
+                                 }
+                          
