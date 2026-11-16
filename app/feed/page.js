@@ -974,7 +974,7 @@ function FeedContent() {
             </span>
           </Link>
 
-          {/* Search Box with responsive dropdown */}
+          {/* Search Box with responsive dropdown (Fixed for Mobile) */}
           <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '22px', padding: '0.35rem 0.75rem' }}>
               <span style={{ color: '#94a3b8', fontSize: '0.85rem', marginRight: '0.4rem', flexShrink: 0 }}>🔍</span>
@@ -992,7 +992,7 @@ function FeedContent() {
             </div>
 
             {showSearchDropdown && (
-              <div style={{ position: 'absolute', top: '44px', left: 0, right: 0, minWidth: '220px', maxWidth: '320px', backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '12px', boxShadow: '0 12px 30px rgba(0,0,0,0.8)', zIndex: 150, overflow: 'hidden', maxHeight: '380px', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ position: 'absolute', top: '44px', left: 0, right: 0, width: '100%', minWidth: '220px', backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '12px', boxShadow: '0 12px 30px rgba(0,0,0,0.8)', zIndex: 150, overflow: 'hidden', maxHeight: '380px', display: 'flex', flexDirection: 'column', boxSizing: 'border-box' }}>
                 <div style={{ display: 'flex', borderBottom: '1px solid #1e293b', backgroundColor: '#1e293b', padding: '0.3rem 0.4rem', gap: '0.3rem' }}>
                   {['all', 'pages', 'profiles'].map(tab => (
                     <button key={tab} type="button" onClick={() => setSearchFilter(tab)} style={{ flex: 1, padding: '0.3rem 0.4rem', fontSize: '0.72rem', fontWeight: '700', borderRadius: '6px', border: 'none', cursor: 'pointer', textTransform: 'capitalize', backgroundColor: searchFilter === tab ? '#0284c7' : 'transparent', color: searchFilter === tab ? '#fff' : '#94a3b8' }}>
@@ -1017,324 +1017,323 @@ function FeedContent() {
                             {res.isVerified && <span style={{ color: '#22c55e', fontSize: '0.72rem' }}>✓</span>}
                           </div>
                           <div style={{ color: '#94a3b8', fontSize: '0.68rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{res.subtitle}</div>
-                      </div>
+                        </div>
                       </Link>
                     ))
                   )}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Messenger Link */}
-        <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
-          <Link
-            href="/profile?tab=messages"
-            style={{
-              backgroundColor: '#1e293b',
-              color: '#38bdf8',
-              border: '1px solid #334155',
-              width: '36px',
-              height: '36px',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              textDecoration: 'none',
-              boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
-              transition: 'all 0.2s ease'
-            }}
-            title="Messages"
-          >
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-            </svg>
-          </Link>
-        </div>
-      </div>
-    </header>
-
-    <main style={{ maxWidth: '640px', margin: '0 auto', padding: '1rem 0.8rem 3rem 0.8rem' }}>
-      {/* Post Creation Box */}
-      {currentUser && (
-        <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1rem', marginBottom: '1.5rem' }}>
-          <form onSubmit={handleCreatePersonalPost}>
-            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', marginBottom: '0.8rem' }}>
-              <Link href={`/view-profile?email=${encodeURIComponent(currentUser.email || '')}`} style={{ textDecoration: 'none' }}>
-                <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', fontSize: '1rem', flexShrink: 0, cursor: 'pointer' }}>
-                  {currentUserName.charAt(0).toUpperCase()}
                 </div>
-              </Link>
-              <input
-                type="text"
-                placeholder={`What's on your mind or share your CV, ${currentUserName}?`}
-                value={postText}
-                onChange={(e) => setPostText(e.target.value)}
-                style={{ flex: 1, backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '20px', padding: '0.6rem 1rem', color: '#fff', fontSize: '0.85rem', outline: 'none' }}
-              />
-            </div>
-
-            {photoPreview && (
-              <div style={{ position: 'relative', marginBottom: '0.8rem' }}>
-                <img src={photoPreview} alt="Preview" style={{ width: '100%', maxHeight: '200px', objectFit: 'cover', borderRadius: '8px' }} />
-                <button type="button" onClick={() => { setPostPhoto(null); setPhotoPreview(''); }} style={{ position: 'absolute', top: '5px', right: '5px', background: 'rgba(0,0,0,0.7)', color: '#fff', border: 'none', borderRadius: '50%', width: '24px', height: '24px', cursor: 'pointer' }}>✕</button>
               </div>
             )}
+          </div>
 
-            {postDoc && (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#1e293b', border: '1px solid #38bdf8', borderRadius: '8px', padding: '0.5rem 0.8rem', marginBottom: '0.8rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', overflow: 'hidden' }}>
-                  <span style={{ fontSize: '1.2rem' }}>📄</span>
-                  <span style={{ color: '#fff', fontSize: '0.82rem', fontWeight: '700' }}>{docName}</span>
-                </div>
-                <button type="button" onClick={() => { setPostDoc(null); setDocName(''); }} style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '0.9rem', cursor: 'pointer' }}>✕</button>
-              </div>
-            )}
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #1e293b', paddingTop: '0.7rem' }}>
-              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#22c55e', fontSize: '0.82rem', fontWeight: '700', cursor: 'pointer' }}>
-                  🖼️ Photo
-                  <input type="file" accept="image/*" onChange={handleImageSelect} style={{ display: 'none' }} />
-                </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#38bdf8', fontSize: '0.82rem', fontWeight: '700', cursor: 'pointer' }}>
-                  📄 Document / CV
-                  <input type="file" accept=".pdf,.doc,.docx,.txt" onChange={handleDocumentSelect} style={{ display: 'none' }} />
-                </label>
-              </div>
-
-              <button
-                type="submit"
-                disabled={posting || compressing || (!postText.trim() && !postPhoto && !postDoc)}
-                style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.45rem 1.2rem', borderRadius: '6px', fontSize: '0.82rem', fontWeight: '700', cursor: 'pointer' }}
-              >
-                {posting ? 'Posting...' : 'Post'}
-              </button>
-            </div>
-          </form>
+          {/* Professional Messenger Link Button */}
+          <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+            <Link
+              href="/messages"
+              style={{
+                backgroundColor: 'rgba(56, 189, 248, 0.12)',
+                color: '#38bdf8',
+                border: '1px solid rgba(56, 189, 248, 0.3)',
+                width: '38px',
+                height: '38px',
+                borderRadius: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                textDecoration: 'none',
+                boxShadow: '0 4px 12px rgba(2, 132, 199, 0.2)',
+                transition: 'all 0.2s ease'
+              }}
+              title="Professional Messenger"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+              </svg>
+            </Link>
+          </div>
         </div>
-      )}
+      </header>
 
-      {/* Feed Stream */}
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: '3.5rem 1rem', color: '#38bdf8', fontSize: '0.9rem' }}>Loading feed...</div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          {feedItems.map((item, index) => {
-            const isLiked = !!likedPosts[item.feedItemId];
-            const likesCount = postLikesCount[item.feedItemId] || 0;
-            const isRelayed = !!relayedPosts[item.feedItemId];
-            const relaysCount = postRelaysCount[item.feedItemId] || 0;
-            const commentsList = postComments[item.feedItemId] || [];
-            const isCommentsOpen = activeCommentPostId === item.feedItemId;
-            const authorEmailClean = (item.authorEmail || '').toLowerCase();
-            const isOwnPost = cleanCurrentUserEmail && authorEmailClean === cleanCurrentUserEmail;
-            const isFollowingAuthor = authorEmailClean ? !!followingMap[authorEmailClean] : false;
-            const isMenuOpen = openMenuPostId === item.feedItemId;
-            const parentComments = commentsList.filter(c => !c.parent_id);
-
-            // Calculate if we should insert an approved ad after every 4 posts
-            const adIndex = Math.floor(index / 4);
-            const currentAd = (index > 0 && (index + 1) % 4 === 0 && approvedAds.length > 0) 
-              ? approvedAds[adIndex % approvedAds.length] 
-              : null;
-
-            return (
-              <React.Fragment key={item.feedItemId}>
-                <div id={item.feedItemId} style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', position: 'relative' }}>
-                  {item.isRelay && (
-                    <div style={{ padding: '0.5rem 1rem', backgroundColor: '#1e293b', fontSize: '0.76rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.4rem', borderBottom: '1px solid #334155' }}>
-                      <span style={{ color: '#4ade80', fontWeight: 'bold' }}>🔄</span> 
-                      <Link href={item.relayedByLink || '#'} style={{ color: '#38bdf8', textDecoration: 'none', fontWeight: 'bold' }}>{item.relayedBy}</Link>
-                      <span>Relayed</span>
-                    </div>
-                  )}
-
-                  <div style={{ padding: '0.8rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.7rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', flex: 1, overflow: 'hidden' }}>
-                      <Link href={item.authorLink || `/view-profile?email=${encodeURIComponent(item.authorEmail || '')}`} style={{ textDecoration: 'none' }}>
-                        <div style={{ width: '42px', height: '42px', borderRadius: '50%', backgroundColor: '#1e293b', backgroundImage: item.authorAvatar ? `url(${item.authorAvatar})` : 'none', backgroundSize: 'cover', backgroundPosition: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#38bdf8', cursor: 'pointer', border: '1px solid #334155', flexShrink: 0 }}>
-                          {!item.authorAvatar && item.authorName.charAt(0).toUpperCase()}
-                        </div>
-                      </Link>
-                      <div style={{ overflow: 'hidden' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                          <Link href={item.authorLink || `/view-profile?email=${encodeURIComponent(item.authorEmail || '')}`} style={{ textDecoration: 'none' }}>
-                            <span style={{ fontWeight: '700', fontSize: '0.9rem', color: '#fff' }}>{item.authorName}</span>
-                          </Link>
-                          {item.isVerified && <span style={{ color: '#22c55e', fontSize: '0.8rem' }}>✓</span>}
-                          {!isOwnPost && (
-                            <button
-                              type="button"
-                              onClick={(e) => handleToggleFollow(authorEmailClean, e)}
-                              disabled={followingLoading[authorEmailClean]}
-                              style={{ background: isFollowingAuthor ? 'transparent' : 'rgba(2, 132, 199, 0.2)', color: isFollowingAuthor ? '#94a3b8' : '#38bdf8', border: isFollowingAuthor ? '1px solid #334155' : '1px solid #0284c7', padding: '0.18rem 0.55rem', borderRadius: '12px', fontSize: '0.72rem', fontWeight: '700', cursor: 'pointer' }}
-                            >
-                              {isFollowingAuthor ? '✓ Following' : '+ Follow'}
-                            </button>
-                          )}
-                        </div>
-                        <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{new Date(item.createdAt).toLocaleDateString()}</div>
-                      </div>
-                    </div>
-
-                    <div style={{ position: 'relative' }}>
-                      <button type="button" onClick={(e) => { e.stopPropagation(); setOpenMenuPostId(isMenuOpen ? null : item.feedItemId); }} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.25rem', cursor: 'pointer' }}>•••</button>
-                      {isMenuOpen && (
-                        <div style={{ position: 'absolute', top: '30px', right: 0, backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '10px', width: '150px', zIndex: 200, display: 'flex', flexDirection: 'column' }}>
-                          <button type="button" onClick={(e) => handleCopyPostLink(item, e)} style={{ background: 'none', border: 'none', color: '#f8fafc', padding: '0.6rem 0.9rem', textAlign: 'left', fontSize: '0.8rem', cursor: 'pointer' }}>🔗 Copy Link</button>
-                          <button type="button" onClick={(e) => handleToggleSavePost(item.feedItemId, e)} style={{ background: 'none', border: 'none', color: '#f8fafc', padding: '0.6rem 0.9rem', textAlign: 'left', fontSize: '0.8rem', cursor: 'pointer' }}>🔖 Save</button>
-                          {isOwnPost && (
-                            <button type="button" onClick={(e) => handleDeletePost(item.postId, item.postType, e)} style={{ background: 'none', border: 'none', color: '#ef4444', padding: '0.6rem 0.9rem', textAlign: 'left', fontSize: '0.8rem', cursor: 'pointer' }}>🗑️ Delete</button>
-                          )}
-                        </div>
-                      )}
-                    </div>
+      <main style={{ maxWidth: '640px', margin: '0 auto', padding: '1rem 0.8rem 3rem 0.8rem' }}>
+        {/* Post Creation Box */}
+        {currentUser && (
+          <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1rem', marginBottom: '1.5rem' }}>
+            <form onSubmit={handleCreatePersonalPost}>
+              <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', marginBottom: '0.8rem' }}>
+                <Link href={`/view-profile?email=${encodeURIComponent(currentUser.email || '')}`} style={{ textDecoration: 'none' }}>
+                  <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', fontSize: '1rem', flexShrink: 0, cursor: 'pointer' }}>
+                    {currentUserName.charAt(0).toUpperCase()}
                   </div>
+                </Link>
+                <input
+                  type="text"
+                  placeholder={`What's on your mind or share your CV, ${currentUserName}?`}
+                  value={postText}
+                  onChange={(e) => setPostText(e.target.value)}
+                  style={{ flex: 1, backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '20px', padding: '0.6rem 1rem', color: '#fff', fontSize: '0.85rem', outline: 'none' }}
+                />
+              </div>
 
-                  {item.content && (
-                    <div style={{ padding: '0 1rem 0.8rem 1rem', fontSize: '0.88rem', color: '#cbd5e1', lineHeight: 1.45 }}>
-                      {item.content}
-                    </div>
-                  )}
+              {photoPreview && (
+                <div style={{ position: 'relative', marginBottom: '0.8rem' }}>
+                  <img src={photoPreview} alt="Preview" style={{ width: '100%', maxHeight: '200px', objectFit: 'cover', borderRadius: '8px' }} />
+                  <button type="button" onClick={() => { setPostPhoto(null); setPhotoPreview(''); }} style={{ position: 'absolute', top: '5px', right: '5px', background: 'rgba(0,0,0,0.7)', color: '#fff', border: 'none', borderRadius: '50%', width: '24px', height: '24px', cursor: 'pointer' }}>✕</button>
+                </div>
+              )}
 
-                  {item.imageUrl && (
-                    <div onClick={() => setPreviewImage(item.imageUrl)} style={{ width: '100%', backgroundColor: '#070b14', cursor: 'pointer' }}>
-                      <img src={item.imageUrl} alt="Post image" style={{ width: '100%', maxHeight: '440px', objectFit: 'cover', display: 'block' }} />
-                    </div>
-                  )}
-
-                  {item.docUrl && (
-                    <div style={{ margin: '0 1rem 0.8rem 1rem', padding: '0.85rem 1rem', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ color: '#fff', fontSize: '0.84rem', fontWeight: '700' }}>📄 {item.docName || 'Document'}</span>
-                      <a href={item.docUrl} target="_blank" rel="noreferrer" style={{ backgroundColor: '#0284c7', color: '#fff', textDecoration: 'none', padding: '0.35rem 0.75rem', borderRadius: '6px', fontSize: '0.74rem', fontWeight: '700' }}>👁️ View CV</a>
-                    </div>
-                  )}
-
-                  {(likesCount > 0 || commentsList.length > 0 || relaysCount > 0) && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 1rem', fontSize: '0.75rem', color: '#94a3b8', borderBottom: '1px solid #1e293b' }}>
-                      <span>{likesCount > 0 ? `👍 ${likesCount}` : ''}</span>
-                      <div style={{ display: 'flex', gap: '0.8rem' }}>
-                        {commentsList.length > 0 && <span>{commentsList.length} comments</span>}
-                        {relaysCount > 0 && <span>{relaysCount} relays</span>}
-                      </div>
-                    </div>
-                  )}
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', borderTop: '1px solid #1e293b', padding: '0.3rem 0' }}>
-                    <button type="button" onClick={() => handleToggleLike(item)} style={{ background: 'none', border: 'none', color: isLiked ? '#38bdf8' : '#94a3b8', padding: '0.55rem', fontSize: '0.82rem', fontWeight: '700', cursor: 'pointer' }}>{isLiked ? '👍 Liked' : '👍 Like'}</button>
-                    <button type="button" onClick={() => setActiveCommentPostId(isCommentsOpen ? null : item.feedItemId)} style={{ background: 'none', border: 'none', color: isCommentsOpen ? '#38bdf8' : '#94a3b8', padding: '0.55rem', fontSize: '0.82rem', fontWeight: '700', cursor: 'pointer' }}>💬 Comment</button>
-                    <button type="button" onClick={() => handleToggleRelay(item)} style={{ background: 'none', border: 'none', color: isRelayed ? '#4ade80' : '#94a3b8', padding: '0.55rem', fontSize: '0.82rem', fontWeight: '700', cursor: 'pointer' }}>{isRelayed ? '🔄 Relayed' : '🔄 Relay'}</button>
+              {postDoc && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#1e293b', border: '1px solid #38bdf8', borderRadius: '8px', padding: '0.5rem 0.8rem', marginBottom: '0.8rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', overflow: 'hidden' }}>
+                    <span style={{ fontSize: '1.2rem' }}>📄</span>
+                    <span style={{ color: '#fff', fontSize: '0.82rem', fontWeight: '700' }}>{docName}</span>
                   </div>
+                  <button type="button" onClick={() => { setPostDoc(null); setDocName(''); }} style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '0.9rem', cursor: 'pointer' }}>✕</button>
+                </div>
+              )}
 
-                  {isCommentsOpen && (
-                    <div style={{ padding: '0.8rem 1rem', backgroundColor: '#070b14', borderTop: '1px solid #1e293b' }}>
-                      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
-                        <input
-                          type="text"
-                          placeholder="Write a comment..."
-                          value={commentInputs[item.feedItemId] || ''}
-                          onChange={(e) => setCommentInputs({ ...commentInputs, [item.feedItemId]: e.target.value })}
-                          onKeyDown={(e) => e.key === 'Enter' && handleAddComment(item)}
-                          style={{ flex: 1, backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '18px', padding: '0.45rem 0.9rem', color: '#fff', fontSize: '0.8rem', outline: 'none' }}
-                        />
-                        <button type="button" disabled={submittingComment || !commentInputs[item.feedItemId]?.trim()} onClick={() => handleAddComment(item)} style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.45rem 0.9rem', borderRadius: '18px', fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer' }}>Post</button>
-                      </div>
-
-                      {parentComments.map(c => {
-                        const nestedReplies = commentsList.filter(r => r.parent_id === c.id);
-                        const isReplying = replyingToCommentId === c.id;
-                        const rx = commentReactions[c.id] || { likes: 0, dislikes: 0, myReaction: null };
-
-                        return (
-                          <div key={c.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginBottom: '0.7rem' }}>
-                            <div style={{ backgroundColor: '#1e293b', padding: '0.65rem 0.9rem', borderRadius: '12px', fontSize: '0.82rem' }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <Link href={`/view-profile?email=${encodeURIComponent(c.user_email || '')}`} style={{ color: '#38bdf8', textDecoration: 'none', fontWeight: '700', fontSize: '0.76rem' }}>{c.user_name}</Link>
-                                <span style={{ fontSize: '0.65rem', color: '#64748b' }}>{c.created_at ? new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</span>
-                              </div>
-                              <div style={{ color: '#f8fafc', margin: '0.3rem 0' }}>{c.comment_text}</div>
-                              <div style={{ display: 'flex', gap: '0.8rem', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '0.35rem', marginTop: '0.4rem', fontSize: '0.72rem' }}>
-                                <button type="button" onClick={() => handleCommentReaction(c.id, 'like')} style={{ background: 'none', border: 'none', color: rx.myReaction === 'like' ? '#38bdf8' : '#94a3b8', cursor: 'pointer', padding: 0 }}>👍 {rx.likes > 0 ? rx.likes : 'Like'}</button>
-                                <button type="button" onClick={() => handleCommentReaction(c.id, 'dislike')} style={{ background: 'none', border: 'none', color: rx.myReaction === 'dislike' ? '#ef4444' : '#94a3b8', cursor: 'pointer', padding: 0 }}>👎 {rx.dislikes > 0 ? rx.dislikes : 'Dislike'}</button>
-                                <button type="button" onClick={() => setReplyingToCommentId(isReplying ? null : c.id)} style={{ background: 'none', border: 'none', color: isReplying ? '#38bdf8' : '#94a3b8', cursor: 'pointer', padding: 0 }}>↩ Reply</button>
-                              </div>
-                            </div>
-
-                            {isReplying && (
-                              <div style={{ marginLeft: '1.6rem', display: 'flex', gap: '0.4rem' }}>
-                                <input type="text" placeholder={`Reply to ${c.user_name}...`} value={replyInputs[c.id] || ''} onChange={(e) => setReplyInputs({ ...replyInputs, [c.id]: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && handleAddReply(item, c)} style={{ flex: 1, backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '14px', padding: '0.35rem 0.8rem', color: '#fff', fontSize: '0.78rem', outline: 'none' }} />
-                                <button type="button" disabled={submittingComment || !replyInputs[c.id]?.trim()} onClick={() => handleAddReply(item, c)} style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.35rem 0.85rem', borderRadius: '14px', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer' }}>Reply</button>
-                              </div>
-                            )}
-
-                            {nestedReplies.length > 0 && (
-                              <div style={{ marginLeft: '1.6rem', borderLeft: '2px solid #334155', paddingLeft: '0.65rem', display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
-                                {nestedReplies.map(r => (
-                                  <div key={r.id} style={{ backgroundColor: '#131e32', padding: '0.5rem 0.75rem', borderRadius: '10px', fontSize: '0.78rem' }}>
-                                    <span style={{ color: '#38bdf8', fontWeight: '700' }}>{r.user_name}</span>
-                                    <div style={{ color: '#cbd5e1', marginTop: '0.2rem' }}>{r.comment_text}</div>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #1e293b', paddingTop: '0.7rem' }}>
+                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#22c55e', fontSize: '0.82rem', fontWeight: '700', cursor: 'pointer' }}>
+                    🖼️ Photo
+                    <input type="file" accept="image/*" onChange={handleImageSelect} style={{ display: 'none' }} />
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#38bdf8', fontSize: '0.82rem', fontWeight: '700', cursor: 'pointer' }}>
+                    📄 Document / CV
+                    <input type="file" accept=".pdf,.doc,.docx,.txt" onChange={handleDocumentSelect} style={{ display: 'none' }} />
+                  </label>
                 </div>
 
-                {/* Render Sponsored Ad after every 4 posts */}
-                {currentAd && (
-                  <div key={`ad-${currentAd.id}`} style={{ backgroundColor: '#0f172a', border: '1px solid rgba(234, 179, 8, 0.4)', borderRadius: '14px', position: 'relative', overflow: 'hidden' }}>
-                    <div style={{ padding: '0.4rem 10rem', backgroundColor: 'rgba(234, 179, 8, 0.1)', fontSize: '0.72rem', color: '#facc15', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(234, 179, 8, 0.2)' }}>
-                      <span>📢 Sponsored Advertisement</span>
-                      <span>Target: {currentAd.target_city || 'All Pakistan'}</span>
-                    </div>
+                <button
+                  type="submit"
+                  disabled={posting || compressing || (!postText.trim() && !postPhoto && !postDoc)}
+                  style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.45rem 1.2rem', borderRadius: '6px', fontSize: '0.82rem', fontWeight: '700', cursor: 'pointer' }}
+                >
+                  {posting ? 'Posting...' : 'Post'}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
 
-                    <div style={{ padding: '0.8rem 1rem', display: 'flex', alignItems: 'center', gap: '0.7rem' }}>
-                      <div>
-                        <h4 style={{ margin: '0 0 0.2rem 0', fontSize: '0.95rem', color: '#fff', fontWeight: '800' }}>{currentAd.title || currentAd.headline}</h4>
-                        <p style={{ margin: 0, fontSize: '0.82rem', color: '#cbd5e1', lineHeight: '1.4' }}>{currentAd.description || currentAd.ad_text}</p>
-                      </div>
-                    </div>
+        {/* Feed Stream */}
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '3.5rem 1rem', color: '#38bdf8', fontSize: '0.9rem' }}>Loading feed...</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {feedItems.map((item, index) => {
+              const isLiked = !!likedPosts[item.feedItemId];
+              const likesCount = postLikesCount[item.feedItemId] || 0;
+              const isRelayed = !!relayedPosts[item.feedItemId];
+              const relaysCount = postRelaysCount[item.feedItemId] || 0;
+              const commentsList = postComments[item.feedItemId] || [];
+              const isCommentsOpen = activeCommentPostId === item.feedItemId;
+              const authorEmailClean = (item.authorEmail || '').toLowerCase();
+              const isOwnPost = cleanCurrentUserEmail && authorEmailClean === cleanCurrentUserEmail;
+              const isFollowingAuthor = authorEmailClean ? !!followingMap[authorEmailClean] : false;
+              const isMenuOpen = openMenuPostId === item.feedItemId;
+              const parentComments = commentsList.filter(c => !c.parent_id);
 
-                    {currentAd.media_url && (
-                      <div style={{ width: '100%', backgroundColor: '#070b14' }}>
-                        <img src={currentAd.media_url} alt="Sponsored Ad" style={{ width: '100%', maxHeight: '380px', objectFit: 'cover', display: 'block' }} />
+              const adIndex = Math.floor(index / 4);
+              const currentAd = (index > 0 && (index + 1) % 4 === 0 && approvedAds.length > 0) 
+                ? approvedAds[adIndex % approvedAds.length] 
+                : null;
+
+              return (
+                <React.Fragment key={item.feedItemId}>
+                  <div id={item.feedItemId} style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', position: 'relative' }}>
+                    {item.isRelay && (
+                      <div style={{ padding: '0.5rem 1rem', backgroundColor: '#1e293b', fontSize: '0.76rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.4rem', borderBottom: '1px solid #334155' }}>
+                        <span style={{ color: '#4ade80', fontWeight: 'bold' }}>🔄</span> 
+                        <Link href={item.relayedByLink || '#'} style={{ color: '#38bdf8', textDecoration: 'none', fontWeight: 'bold' }}>{item.relayedBy}</Link>
+                        <span>Relayed</span>
                       </div>
                     )}
 
-                    <div style={{ padding: '0.8rem 1rem', display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #1e293b' }}>
-                      <a 
-                        href={currentAd.destination_url || '#'} 
-                        target="_blank" 
-                        rel="noreferrer" 
-                        style={{ backgroundColor: '#eab308', color: '#000', textDecoration: 'none', padding: '0.45rem 1.2rem', borderRadius: '8px', fontSize: '0.82rem', fontWeight: '900', display: 'inline-block' }}
-                      >
-                        {currentAd.cta_type || 'Learn More'} ➔
-                      </a>
+                    <div style={{ padding: '0.8rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.7rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', flex: 1, overflow: 'hidden' }}>
+                        <Link href={item.authorLink || `/view-profile?email=${encodeURIComponent(item.authorEmail || '')}`} style={{ textDecoration: 'none' }}>
+                          <div style={{ width: '42px', height: '42px', borderRadius: '50%', backgroundColor: '#1e293b', backgroundImage: item.authorAvatar ? `url(${item.authorAvatar})` : 'none', backgroundSize: 'cover', backgroundPosition: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#38bdf8', cursor: 'pointer', border: '1px solid #334155', flexShrink: 0 }}>
+                            {!item.authorAvatar && item.authorName.charAt(0).toUpperCase()}
+                          </div>
+                        </Link>
+                        <div style={{ overflow: 'hidden' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                            <Link href={item.authorLink || `/view-profile?email=${encodeURIComponent(item.authorEmail || '')}`} style={{ textDecoration: 'none' }}>
+                              <span style={{ fontWeight: '700', fontSize: '0.9rem', color: '#fff' }}>{item.authorName}</span>
+                            </Link>
+                            {item.isVerified && <span style={{ color: '#22c55e', fontSize: '0.8rem' }}>✓</span>}
+                            {!isOwnPost && (
+                              <button
+                                type="button"
+                                onClick={(e) => handleToggleFollow(authorEmailClean, e)}
+                                disabled={followingLoading[authorEmailClean]}
+                                style={{ background: isFollowingAuthor ? 'transparent' : 'rgba(2, 132, 199, 0.2)', color: isFollowingAuthor ? '#94a3b8' : '#38bdf8', border: isFollowingAuthor ? '1px solid #334155' : '1px solid #0284c7', padding: '0.18rem 0.55rem', borderRadius: '12px', fontSize: '0.72rem', fontWeight: '700', cursor: 'pointer' }}
+                              >
+                                {isFollowingAuthor ? '✓ Following' : '+ Follow'}
+                              </button>
+                            )}
+                          </div>
+                          <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{new Date(item.createdAt).toLocaleDateString()}</div>
+                        </div>
+                      </div>
+
+                      <div style={{ position: 'relative' }}>
+                        <button type="button" onClick={(e) => { e.stopPropagation(); setOpenMenuPostId(isMenuOpen ? null : item.feedItemId); }} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.25rem', cursor: 'pointer' }}>•••</button>
+                        {isMenuOpen && (
+                          <div style={{ position: 'absolute', top: '30px', right: 0, backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '10px', width: '150px', zIndex: 200, display: 'flex', flexDirection: 'column' }}>
+                            <button type="button" onClick={(e) => handleCopyPostLink(item, e)} style={{ background: 'none', border: 'none', color: '#f8fafc', padding: '0.6rem 0.9rem', textAlign: 'left', fontSize: '0.8rem', cursor: 'pointer' }}>🔗 Copy Link</button>
+                            <button type="button" onClick={(e) => handleToggleSavePost(item.feedItemId, e)} style={{ background: 'none', border: 'none', color: '#f8fafc', padding: '0.6rem 0.9rem', textAlign: 'left', fontSize: '0.8rem', cursor: 'pointer' }}>🔖 Save</button>
+                            {isOwnPost && (
+                              <button type="button" onClick={(e) => handleDeletePost(item.postId, item.postType, e)} style={{ background: 'none', border: 'none', color: '#ef4444', padding: '0.6rem 0.9rem', textAlign: 'left', fontSize: '0.8rem', cursor: 'pointer' }}>🗑️ Delete</button>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
+
+                    {item.content && (
+                      <div style={{ padding: '0 1rem 0.8rem 1rem', fontSize: '0.88rem', color: '#cbd5e1', lineHeight: 1.45 }}>
+                        {item.content}
+                      </div>
+                    )}
+
+                    {item.imageUrl && (
+                      <div onClick={() => setPreviewImage(item.imageUrl)} style={{ width: '100%', backgroundColor: '#070b14', cursor: 'pointer' }}>
+                        <img src={item.imageUrl} alt="Post image" style={{ width: '100%', maxHeight: '440px', objectFit: 'cover', display: 'block' }} />
+                      </div>
+                    )}
+
+                    {item.docUrl && (
+                      <div style={{ margin: '0 1rem 0.8rem 1rem', padding: '0.85rem 1rem', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ color: '#fff', fontSize: '0.84rem', fontWeight: '700' }}>📄 {item.docName || 'Document'}</span>
+                        <a href={item.docUrl} target="_blank" rel="noreferrer" style={{ backgroundColor: '#0284c7', color: '#fff', textDecoration: 'none', padding: '0.35rem 0.75rem', borderRadius: '6px', fontSize: '0.74rem', fontWeight: '700' }}>👁️ View CV</a>
+                      </div>
+                    )}
+
+                    {(likesCount > 0 || commentsList.length > 0 || relaysCount > 0) && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 1rem', fontSize: '0.75rem', color: '#94a3b8', borderBottom: '1px solid #1e293b' }}>
+                        <span>{likesCount > 0 ? `👍 ${likesCount}` : ''}</span>
+                        <div style={{ display: 'flex', gap: '0.8rem' }}>
+                          {commentsList.length > 0 && <span>{commentsList.length} comments</span>}
+                          {relaysCount > 0 && <span>{relaysCount} relays</span>}
+                        </div>
+                      </div>
+                    )}
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', borderTop: '1px solid #1e293b', padding: '0.3rem 0' }}>
+                      <button type="button" onClick={() => handleToggleLike(item)} style={{ background: 'none', border: 'none', color: isLiked ? '#38bdf8' : '#94a3b8', padding: '0.55rem', fontSize: '0.82rem', fontWeight: '700', cursor: 'pointer' }}>{isLiked ? '👍 Liked' : '👍 Like'}</button>
+                      <button type="button" onClick={() => setActiveCommentPostId(isCommentsOpen ? null : item.feedItemId)} style={{ background: 'none', border: 'none', color: isCommentsOpen ? '#38bdf8' : '#94a3b8', padding: '0.55rem', fontSize: '0.82rem', fontWeight: '700', cursor: 'pointer' }}>💬 Comment</button>
+                      <button type="button" onClick={() => handleToggleRelay(item)} style={{ background: 'none', border: 'none', color: isRelayed ? '#4ade80' : '#94a3b8', padding: '0.55rem', fontSize: '0.82rem', fontWeight: '700', cursor: 'pointer' }}>{isRelayed ? '🔄 Relayed' : '🔄 Relay'}</button>
+                    </div>
+
+                    {isCommentsOpen && (
+                      <div style={{ padding: '0.8rem 1rem', backgroundColor: '#070b14', borderTop: '1px solid #1e293b' }}>
+                        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+                          <input
+                            type="text"
+                            placeholder="Write a comment..."
+                            value={commentInputs[item.feedItemId] || ''}
+                            onChange={(e) => setCommentInputs({ ...commentInputs, [item.feedItemId]: e.target.value })}
+                            onKeyDown={(e) => e.key === 'Enter' && handleAddComment(item)}
+                            style={{ flex: 1, backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '18px', padding: '0.45rem 0.9rem', color: '#fff', fontSize: '0.8rem', outline: 'none' }}
+                          />
+                          <button type="button" disabled={submittingComment || !commentInputs[item.feedItemId]?.trim()} onClick={() => handleAddComment(item)} style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.45rem 0.9rem', borderRadius: '18px', fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer' }}>Post</button>
+                        </div>
+
+                        {parentComments.map(c => {
+                          const nestedReplies = commentsList.filter(r => r.parent_id === c.id);
+                          const isReplying = replyingToCommentId === c.id;
+                          const rx = commentReactions[c.id] || { likes: 0, dislikes: 0, myReaction: null };
+
+                          return (
+                            <div key={c.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginBottom: '0.7rem' }}>
+                              <div style={{ backgroundColor: '#1e293b', padding: '0.65rem 0.9rem', borderRadius: '12px', fontSize: '0.82rem' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <Link href={`/view-profile?email=${encodeURIComponent(c.user_email || '')}`} style={{ color: '#38bdf8', textDecoration: 'none', fontWeight: '700', fontSize: '0.76rem' }}>{c.user_name}</Link>
+                                  <span style={{ fontSize: '0.65rem', color: '#64748b' }}>{c.created_at ? new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</span>
+                                </div>
+                                <div style={{ color: '#f8fafc', margin: '0.3rem 0' }}>{c.comment_text}</div>
+                                <div style={{ display: 'flex', gap: '0.8rem', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '0.35rem', marginTop: '0.4rem', fontSize: '0.72rem' }}>
+                                  <button type="button" onClick={() => handleCommentReaction(c.id, 'like')} style={{ background: 'none', border: 'none', color: rx.myReaction === 'like' ? '#38bdf8' : '#94a3b8', cursor: 'pointer', padding: 0 }}>👍 {rx.likes > 0 ? rx.likes : 'Like'}</button>
+                                  <button type="button" onClick={() => handleCommentReaction(c.id, 'dislike')} style={{ background: 'none', border: 'none', color: rx.myReaction === 'dislike' ? '#ef4444' : '#94a3b8', cursor: 'pointer', padding: 0 }}>👎 {rx.dislikes > 0 ? rx.dislikes : 'Dislike'}</button>
+                                  <button type="button" onClick={() => setReplyingToCommentId(isReplying ? null : c.id)} style={{ background: 'none', border: 'none', color: isReplying ? '#38bdf8' : '#94a3b8', cursor: 'pointer', padding: 0 }}>↩ Reply</button>
+                                </div>
+                              </div>
+
+                              {isReplying && (
+                                <div style={{ marginLeft: '1.6rem', display: 'flex', gap: '0.4rem' }}>
+                                  <input type="text" placeholder={`Reply to ${c.user_name}...`} value={replyInputs[c.id] || ''} onChange={(e) => setReplyInputs({ ...replyInputs, [c.id]: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && handleAddReply(item, c)} style={{ flex: 1, backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '14px', padding: '0.35rem 0.8rem', color: '#fff', fontSize: '0.78rem', outline: 'none' }} />
+                                  <button type="button" disabled={submittingComment || !replyInputs[c.id]?.trim()} onClick={() => handleAddReply(item, c)} style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.35rem 0.85rem', borderRadius: '14px', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer' }}>Reply</button>
+                                </div>
+                              )}
+
+                              {nestedReplies.length > 0 && (
+                                <div style={{ marginLeft: '1.6rem', borderLeft: '2px solid #334155', paddingLeft: '0.65rem', display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+                                  {nestedReplies.map(r => (
+                                    <div key={r.id} style={{ backgroundColor: '#131e32', padding: '0.5rem 0.75rem', borderRadius: '10px', fontSize: '0.78rem' }}>
+                                      <span style={{ color: '#38bdf8', fontWeight: '700' }}>{r.user_name}</span>
+                                      <div style={{ color: '#cbd5e1', marginTop: '0.2rem' }}>{r.comment_text}</div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                )}
-              </React.Fragment>
-            );
-          })}
+
+                  {/* Render Sponsored Ad after every 4 posts */}
+                  {currentAd && (
+                    <div key={`ad-${currentAd.id}`} style={{ backgroundColor: '#0f172a', border: '1px solid rgba(234, 179, 8, 0.4)', borderRadius: '14px', position: 'relative', overflow: 'hidden' }}>
+                      <div style={{ padding: '0.4rem 1rem', backgroundColor: 'rgba(234, 179, 8, 0.1)', fontSize: '0.72rem', color: '#facc15', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(234, 179, 8, 0.2)' }}>
+                        <span>📢 Sponsored Advertisement</span>
+                        <span>Target: {currentAd.target_city || 'All Pakistan'}</span>
+                      </div>
+
+                      <div style={{ padding: '0.8rem 1rem', display: 'flex', alignItems: 'center', gap: '0.7rem' }}>
+                        <div>
+                          <h4 style={{ margin: '0 0 0.2rem 0', fontSize: '0.95rem', color: '#fff', fontWeight: '800' }}>{currentAd.title || currentAd.headline}</h4>
+                          <p style={{ margin: 0, fontSize: '0.82rem', color: '#cbd5e1', lineHeight: '1.4' }}>{currentAd.description || currentAd.ad_text}</p>
+                        </div>
+                      </div>
+
+                      {currentAd.media_url && (
+                        <div style={{ width: '100%', backgroundColor: '#070b14' }}>
+                          <img src={currentAd.media_url} alt="Sponsored Ad" style={{ width: '100%', maxHeight: '380px', objectFit: 'cover', display: 'block' }} />
+                        </div>
+                      )}
+
+                      <div style={{ padding: '0.8rem 1rem', display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #1e293b' }}>
+                        <a 
+                          href={currentAd.destination_url || '#'} 
+                          target="_blank" 
+                          rel="noreferrer" 
+                          style={{ backgroundColor: '#eab308', color: '#000', textDecoration: 'none', padding: '0.45rem 1.2rem', borderRadius: '8px', fontSize: '0.82rem', fontWeight: '900', display: 'inline-block' }}
+                        >
+                          {currentAd.cta_type || 'Learn More'} ➔
+                        </a>
+                      </div>
+                    </div>
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </div>
+        )}
+
+        <div ref={lastPostElementRef} style={{ height: '50px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '1.5rem' }}>
+          {loadingMore && <div style={{ color: '#38bdf8', fontSize: '0.85rem', fontWeight: '700' }}>Loading more...</div>}
+        </div>
+      </main>
+
+      {previewImage && (
+        <div onClick={() => setPreviewImage(null)} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.95)', zIndex: 999, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          <img src={previewImage} alt="Enlarged" style={{ maxWidth: '96vw', maxHeight: '82vh', objectFit: 'contain' }} />
         </div>
       )}
-
-      <div ref={lastPostElementRef} style={{ height: '50px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '1.5rem' }}>
-        {loadingMore && <div style={{ color: '#38bdf8', fontSize: '0.85rem', fontWeight: '700' }}>Loading more...</div>}
-      </div>
-    </main>
-
-    {previewImage && (
-      <div onClick={() => setPreviewImage(null)} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.95)', zIndex: 999, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-        <img src={previewImage} alt="Enlarged" style={{ maxWidth: '96vw', maxHeight: '82vh', objectFit: 'contain' }} />
-      </div>
-    )}
-  </div>
+    </div>
   );
 }
 
