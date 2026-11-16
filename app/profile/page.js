@@ -361,7 +361,7 @@ function ProfilePortalContent() {
     { id: 'resume', label: 'My Resume 📄', icon: '📄', bg: 'rgba(245, 158, 11, 0.12)', border: 'rgba(245, 158, 11, 0.25)' },
     { id: 'monetization', label: 'Monetization 💰', icon: '💰', bg: 'rgba(16, 185, 129, 0.12)', border: 'rgba(16, 185, 129, 0.25)', isLink: true, route: '/monetization' },
     { id: 'saved', label: `Saved Posts (${savedPostsList.length})`, icon: '🔖', bg: 'rgba(168, 85, 247, 0.12)', border: 'rgba(168, 85, 247, 0.25)' },
-    { id: 'settings', label: 'Settings ⚙️', icon: '⚙️', bg: 'rgba(148, 163, 184, 0.12)', border: 'rgba(148, 163, 184, 0.25)' },
+   { id: 'settings', label: 'Settings ⚙️', icon: '⚙️', bg: 'rgba(148, 163, 184, 0.12)', border: 'rgba(148, 163, 184, 0.25)', isLink: true, route: '/settings' },
     { id: 'security', label: 'Account Security 🔒', icon: '🔒', bg: 'rgba(56, 189, 248, 0.15)', border: 'rgba(56, 189, 248, 0.35)', isLink: true, route: '/settings/security' }
   ];
 
