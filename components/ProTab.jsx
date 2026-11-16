@@ -31,6 +31,10 @@ function ProVerifiedBadge({ size = 18 }) {
 }
 
 export default function ProTab({ profile, latestProRequest, paymentMethod, setPaymentMethod, trxId, setTrxId, submittingPro, handleProActivation, navigateToTab }) {
+  
+  // Lemon Squeezy Card Checkout URL provided by user
+  const LEMON_SQUEEZY_PRO_URL = 'https://shanora-online.lemonsqueezy.com/checkout/buy/8244b035-c39a-41a1-8b05-5db9f457ba47';
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0f172a', padding: '0.65rem 0.9rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
@@ -69,7 +73,7 @@ export default function ProTab({ profile, latestProRequest, paymentMethod, setPa
               <strong style={{ color: '#facc15', fontSize: '0.95rem' }}>Verification in Progress</strong>
             </div>
             <p style={{ margin: 0, fontSize: '0.8rem', color: '#94a3b8', lineHeight: '1.4' }}>
-              Your payment request (TID: <strong style={{ color: '#fff' }}>{latestProRequest.transaction_id}</strong>) is currently being reviewed. The verified badge will be enabled immediately after review.
+              Your payment request (TID/Order ID: <strong style={{ color: '#fff' }}>{latestProRequest.transaction_id}</strong>) is currently being reviewed. The verified badge will be enabled immediately after review.
             </p>
           </div>
         ) : (
@@ -86,14 +90,41 @@ export default function ProTab({ profile, latestProRequest, paymentMethod, setPa
             <div style={{ borderTop: '1px solid #1e293b', paddingTop: '1rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.8rem' }}>
                 <span style={{ color: '#fff', fontWeight: '700', fontSize: '0.85rem' }}>Monthly Subscription:</span>
-                <span style={{ color: '#facc15', fontWeight: '900', fontSize: '1.1rem' }}>Rs. 499 / mo</span>
+                <span style={{ color: '#facc15', fontWeight: '900', fontSize: '1.1rem' }}>Rs. 199 / mo</span>
+              </div>
+
+              {/* CARD PAYMENT BUTTON VIA LEMON SQUEEZY */}
+              <div style={{ marginBottom: '1rem' }}>
+                <div style={{ fontSize: '0.78rem', color: '#cbd5e1', marginBottom: '0.4rem', fontWeight: '700' }}>Option 1: Pay Securely with Card (Visa / Mastercard)</div>
+                <a
+                  href={LEMON_SQUEEZY_PRO_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    backgroundColor: '#0284c7',
+                    color: '#fff',
+                    textAlign: 'center',
+                    textDecoration: 'none',
+                    padding: '0.65rem',
+                    borderRadius: '8px',
+                    fontSize: '0.82rem',
+                    fontWeight: '800',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem',
+                    boxShadow: '0 4px 12px rgba(2, 132, 199, 0.3)'
+                  }}
+                >
+                  <span>Pay Rs. 199 with Card via Lemon Squeezy ↗</span>
+                </a>
               </div>
 
               <div style={{ backgroundColor: '#1e293b', padding: '0.75rem', borderRadius: '8px', fontSize: '0.78rem', color: '#cbd5e1', marginBottom: '0.8rem', lineHeight: '1.4' }}>
-                <strong>Payment Procedure:</strong><br />
-                1. Transfer <strong>Rs. 499</strong> via EasyPaisa / JazzCash to: <code>03033639664</code><br />
+                <strong>Option 2: Local Payment Procedure (JazzCash / EasyPaisa):</strong><br />
+                1. Transfer <strong>Rs. 199</strong> via EasyPaisa / JazzCash to: <code>03033639664</code><br />
                 2. Account Title: <code>Amanullah</code><br />
-                3. Enter Transaction ID (TID) below and click submit.
+                3. Enter Transaction ID (TID) or Card Order ID below and click submit.
               </div>
 
               <form onSubmit={handleProActivation} style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
@@ -105,11 +136,12 @@ export default function ProTab({ profile, latestProRequest, paymentMethod, setPa
                   >
                     <option value="EasyPaisa">EasyPaisa</option>
                     <option value="JazzCash">JazzCash</option>
+                    <option value="LemonSqueezy">Lemon Squeezy (Card)</option>
                     <option value="Raast">Raast / Bank</option>
                   </select>
                   <input
                     type="text"
-                    placeholder="Enter Transaction ID (TID)"
+                    placeholder="Enter TID / Order ID"
                     value={trxId}
                     onChange={(e) => setTrxId(e.target.value)}
                     style={{ width: '100%', backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }}
@@ -121,7 +153,7 @@ export default function ProTab({ profile, latestProRequest, paymentMethod, setPa
                   disabled={submittingPro}
                   style={{ backgroundColor: '#eab308', color: '#000', border: 'none', padding: '0.65rem', borderRadius: '8px', fontWeight: '800', fontSize: '0.85rem', cursor: submittingPro ? 'not-allowed' : 'pointer' }}
                 >
-                  {submittingPro ? 'Submitting Request...' : 'Upgrade Now & Submit TID 👑'}
+                  {submittingPro ? 'Submitting Request...' : 'Upgrade Now & Submit Payment Proof 👑'}
                 </button>
               </form>
             </div>
@@ -130,4 +162,4 @@ export default function ProTab({ profile, latestProRequest, paymentMethod, setPa
       </div>
     </div>
   );
-}
+                            }
