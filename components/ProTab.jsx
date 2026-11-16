@@ -90,7 +90,7 @@ export default function ProTab({ profile, latestProRequest, paymentMethod, setPa
             <div style={{ borderTop: '1px solid #1e293b', paddingTop: '1rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.8rem' }}>
                 <span style={{ color: '#fff', fontWeight: '700', fontSize: '0.85rem' }}>Monthly Subscription:</span>
-                <span style={{ color: '#facc15', fontWeight: '900', fontSize: '1.1rem' }}>Rs. 199 / mo</span>
+                <span style={{ color: '#facc15', fontWeight: '900', fontSize: '1.1rem' }}>Rs. 250 / mo</span>
               </div>
 
               {/* CARD PAYMENT BUTTON VIA LEMON SQUEEZY */}
