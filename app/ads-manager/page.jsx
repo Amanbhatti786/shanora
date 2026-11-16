@@ -453,10 +453,10 @@ export default function AdsManagerPage() {
                 <input type="url" placeholder="Destination URL (https://...)" value={destinationUrl} onChange={(e) => setDestinationUrl(e.target.value)} style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }} />
               </div>
 
-              {/* PAYMENT SECTION WITH CARD ICONS */}
+              {/* PAYMENT SECTION WITH STEP-BY-STEP INSTRUCTIONS */}
               <div style={{ backgroundColor: '#131b2e', padding: '1rem', borderRadius: '10px', border: '1px solid #38bdf8', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-                  <span style={{ fontSize: '0.82rem', fontWeight: 'bold', color: '#38bdf8' }}>💳 Payment Verification & International Cards</span>
+                  <span style={{ fontSize: '0.82rem', fontWeight: 'bold', color: '#38bdf8' }}>💳 Payment Verification & Instructions</span>
                   <div style={{ display: 'flex', gap: '0.3rem', fontSize: '0.7rem', backgroundColor: '#070b14', padding: '0.2rem 0.5rem', borderRadius: '6px', border: '1px solid #334155', color: '#94a3b8' }}>
                     <span style={{ color: '#38bdf8', fontWeight: 'bold' }}>💳 Visa</span>
                     <span>•</span>
@@ -466,9 +466,16 @@ export default function AdsManagerPage() {
                   </div>
                 </div>
 
-                <p style={{ margin: 0, fontSize: '0.74rem', color: '#cbd5e1', lineHeight: '1.4' }}>
-                  Send Rs. {totalBudget} via JazzCash / Easypaisa to Founder <strong style={{ color: '#38bdf8' }}>Amanullah</strong> at <strong style={{ color: '#4ade80' }}>03033639664</strong>.<br />
-                  For International / Card payments, use Lemon Squeezy below.
+                {/* STEP-BY-STEP GUIDE FOR USERS */}
+                <div style={{ backgroundColor: '#070b14', padding: '0.8rem', borderRadius: '8px', border: '1px solid #1e293b', fontSize: '0.75rem', color: '#cbd5e1', lineHeight: '1.5' }}>
+                  <strong style={{ color: '#38bdf8', display: 'block', marginBottom: '0.3rem' }}>📋 How to Pay & Publish Your Ad:</strong>
+                  <div>1️⃣ **Card Payment:** Click the blue button below, enter your calculated total budget (Rs. {totalBudget}) on Lemon Squeezy, and complete your secure card payment.</div>
+                  <div>2️⃣ **Get Order ID:** After successful payment, copy your Lemon Squeezy <strong>Order ID / Receipt number</strong>.</div>
+                  <div>3️⃣ **Submit:** Select payment method below, paste your Order ID / TID, and click <strong>"Publish Pro Ad Campaign"</strong> to submit for instant review!</div>
+                </div>
+
+                <p style={{ margin: 0, fontSize: '0.74rem', color: '#94a3b8', lineHeight: '1.4' }}>
+                  Local Payment: Send Rs. {totalBudget} via JazzCash / Easypaisa to Founder <strong style={{ color: '#38bdf8' }}>Amanullah</strong> at <strong style={{ color: '#4ade80' }}>03033639664</strong>.
                 </p>
 
                 <a 
@@ -477,7 +484,7 @@ export default function AdsManagerPage() {
                   rel="noreferrer" 
                   style={{ backgroundColor: '#0284c7', color: '#fff', textAlign: 'center', textDecoration: 'none', padding: '0.65rem', borderRadius: '8px', fontSize: '0.82rem', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
                 >
-                  <span>Pay Securely with Card (Visa / Master) ↗</span>
+                  <span>Pay Securely with Card via Lemon Squeezy ↗</span>
                 </a>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginTop: '0.3rem' }}>
