@@ -31,7 +31,7 @@ export default function AdsManagerPage() {
   const [transactionId, setTransactionId] = useState('');
 
   const totalBudget = dailyBudget * durationDays;
-  const LEMON_SQUEEZY_CHECKOUT_URL = 'https://yourstore.lemonsqueezy.com/buy/your-product-id';
+  const LEMON_SQUEEZY_CHECKOUT_URL = 'https://shanora-online.lemonsqueezy.com/checkout/buy/387d8c1b-ede1-46e0-96e4-d30fb0c49dde';
 
   // Comprehensive International Countries & Cities Mapping
   const countryCitiesMap = {
@@ -284,7 +284,7 @@ export default function AdsManagerPage() {
           </button>
           <Link href="/feed" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.65rem', backgroundColor: '#0b1322', border: '1px solid #1e293b', borderRadius: '10px', padding: '0.28rem 0.65rem 0.28rem 0.35rem' }}>
             <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: '900' }}>S</div>
-            <span style={{ fontSize: '1.05rem', fontWeight: '900', color: '#ffffff' }}>SHANORA<span style={{ fontSize: '0.55rem', color: '#38bdf8', verticalAlign: 'super' }}>.PK</span></span>
+            <span style={{ fontSize: '1.05rem', fontWeight: '900', color: '#ffffff' }}>SHANORA<span style={{ fontSize: '0.55rem', color: '#38bdf8', verticalAlign: 'super' }}>.ONLINE</span></span>
           </Link>
         </div>
         <div style={{ fontSize: '0.9rem', fontWeight: '800', color: '#38bdf8' }}>📢 Professional Ads Manager</div>
@@ -450,24 +450,34 @@ export default function AdsManagerPage() {
                   <option value="WhatsApp">WhatsApp Message</option>
                   <option value="Apply Now">Apply Now</option>
                 </select>
-                            <input type="url" placeholder="Destination URL (https://...)" value={destinationUrl} onChange={(e) => setDestinationUrl(e.target.value)} style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }} />
+                <input type="url" placeholder="Destination URL (https://...)" value={destinationUrl} onChange={(e) => setDestinationUrl(e.target.value)} style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem 0.8rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }} />
               </div>
 
-              {/* PAYMENT SECTION */}
+              {/* PAYMENT SECTION WITH CARD ICONS */}
               <div style={{ backgroundColor: '#131b2e', padding: '1rem', borderRadius: '10px', border: '1px solid #38bdf8', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                <span style={{ fontSize: '0.82rem', fontWeight: 'bold', color: '#38bdf8' }}>💳 Payment Verification & International Cards</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <span style={{ fontSize: '0.82rem', fontWeight: 'bold', color: '#38bdf8' }}>💳 Payment Verification & International Cards</span>
+                  <div style={{ display: 'flex', gap: '0.3rem', fontSize: '0.7rem', backgroundColor: '#070b14', padding: '0.2rem 0.5rem', borderRadius: '6px', border: '1px solid #334155', color: '#94a3b8' }}>
+                    <span style={{ color: '#38bdf8', fontWeight: 'bold' }}>💳 Visa</span>
+                    <span>•</span>
+                    <span style={{ color: '#f97316', fontWeight: 'bold' }}>MasterCard</span>
+                    <span>•</span>
+                    <span style={{ color: '#4ade80', fontWeight: 'bold' }}>Amex</span>
+                  </div>
+                </div>
+
                 <p style={{ margin: 0, fontSize: '0.74rem', color: '#cbd5e1', lineHeight: '1.4' }}>
                   Send Rs. {totalBudget} via JazzCash / Easypaisa to Founder <strong style={{ color: '#38bdf8' }}>Amanullah</strong> at <strong style={{ color: '#4ade80' }}>03033639664</strong>.<br />
                   For International / Card payments, use Lemon Squeezy below.
                 </p>
 
                 <a 
-  href="https://shanora-online.lemonsqueezy.com/checkout/buy/387d8c1b-ede1-46e0-96e4-d30fb0c49dde" 
-  target="_blank" 
-  rel="noreferrer" 
-  style={{ ... }}
->
-                  Pay with Card via Lemon Squeezy ↗
+                  href={LEMON_SQUEEZY_CHECKOUT_URL} 
+                  target="_blank" 
+                  rel="noreferrer" 
+                  style={{ backgroundColor: '#0284c7', color: '#fff', textAlign: 'center', textDecoration: 'none', padding: '0.65rem', borderRadius: '8px', fontSize: '0.82rem', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+                >
+                  <span>Pay Securely with Card (Visa / Master) ↗</span>
                 </a>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginTop: '0.3rem' }}>
