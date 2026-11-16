@@ -462,11 +462,11 @@ export default function AdsManagerPage() {
                 </p>
 
                 <a 
-                  href={LEMON_SQUEEZY_CHECKOUT_URL} 
-                  target="_blank" 
-                  rel="noreferrer" 
-                  style={{ backgroundColor: '#0284c7', color: '#fff', textAlign: 'center', textDecoration: 'none', padding: '0.65rem', borderRadius: '8px', fontSize: '0.82rem', fontWeight: '800' }}
-                >
+  href="https://shanora-online.lemonsqueezy.com/checkout/buy/387d8c1b-ede1-46e0-96e4-d30fb0c49dde" 
+  target="_blank" 
+  rel="noreferrer" 
+  style={{ ... }}
+>
                   Pay with Card via Lemon Squeezy ↗
                 </a>
 
