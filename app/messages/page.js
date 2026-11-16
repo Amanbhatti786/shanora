@@ -1,23 +1,14 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { supabase } from '../lib/supabaseClient';
+import { useRouter } from 'next/navigation';
+import { supabase } from '../../lib/supabaseClient';
+import BottomNav from '../../components/BottomNav';
 
-// Executive High-End Verified PRO Badge Component
-function ProVerifiedBadge({ size = 18 }) {
+function ProVerifiedBadge({ size = 16 }) {
   return (
-    <span 
-      title="Verified PRO Member" 
-      style={{ 
-        display: 'inline-flex', 
-        alignItems: 'center', 
-        justifyContent: 'center',
-        verticalAlign: 'middle',
-        marginLeft: '4px',
-        flexShrink: 0
-      }}
-    >
+    <span title="Verified PRO Member" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', verticalAlign: 'middle', marginLeft: '4px', flexShrink: 0 }}>
       <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <circle cx="12" cy="12" r="10.5" fill="url(#proBadgeGrad)" stroke="#38bdf8" strokeWidth="1.2" />
         <path d="M7.5 12.2L10.3 15L16.5 9" stroke="#ffffff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
@@ -32,79 +23,115 @@ function ProVerifiedBadge({ size = 18 }) {
   );
 }
 
-export default function MessengerTab({ user, navigateToTab }) {
-  const [messageSearchQuery, setMessageSearchQuery] = useState('');
+export default function MessagesPage() {
+  const router = useRouter();
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  
+  const [allUsers, setAllUsers] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [activeChatUser, setActiveChatUser] = useState(null);
-  const [chatMessages, setChatMessages] = useState([]);
-  const [newMessageText, setNewMessageText] = useState('');
-  const [sendingMsg, setSendingMsg] = useState(false);
-  const [allUsersList, setAllUsersList] = useState([]);
-  const [userLastMessagesMap, setUserLastMessagesMap] = useState({});
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [sending, setSending] = useState(false);
+  const [lastMessagesMap, setLastMessagesMap] = useState({});
+
   const messagesEndRef = useRef(null);
 
+  const scrollToBottom = () => {
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
+  };
+
   useEffect(() => {
-    if (!user?.email) return;
-    const myEmail = user.email.toLowerCase();
+    async function initMessenger() {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user) {
+          router.push('/auth');
+          return;
+        }
+        const currentUser = session.user;
+        setUser(currentUser);
+        const myEmail = currentUser.email.toLowerCase();
 
-    supabase.from('profiles').select('email, full_name, name, headline, avatar_url, last_seen, is_pro').limit(100).then(({ data: profiles }) => {
-      if (profiles) {
-        const filtered = profiles.filter(p => (p.email || '').toLowerCase() !== myEmail);
-        setAllUsersList(filtered);
-      }
-    });
+        // Fetch all profiles except current user
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('email, full_name, name, headline, avatar_url, last_seen, is_pro')
+          .limit(100);
 
-    supabase.from('direct_messages')
-      .select('sender_email, receiver_email, message, created_at')
-      .or(`sender_email.ilike.${myEmail},receiver_email.ilike.${myEmail}`)
-      .order('created_at', { ascending: true })
-      .then(({ data: msgs }) => {
+        if (profiles) {
+          setAllUsers(profiles.filter(p => (p.email || '').toLowerCase() !== myEmail));
+        }
+
+        // Fetch direct messages for last message previews
+        const { data: msgs } = await supabase
+          .from('direct_messages')
+          .select('sender_email, receiver_email, message, created_at')
+          .or(`sender_email.ilike.${myEmail},receiver_email.ilike.${myEmail}`)
+          .order('created_at', { ascending: true });
+
         if (msgs) {
-          const lastMsgs = {};
+          const map = {};
           msgs.forEach(m => {
             const other = (m.sender_email.toLowerCase() === myEmail ? m.receiver_email : m.sender_email).toLowerCase();
-            lastMsgs[other] = { text: m.message, time: new Date(m.created_at).getTime() };
+            map[other] = { text: m.message, time: new Date(m.created_at).getTime() };
           });
-          setUserLastMessagesMap(lastMsgs);
+          setLastMessagesMap(map);
         }
-      });
-  }, [user]);
+      } catch (err) {
+        console.error('Messenger init error:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
 
+    initMessenger();
+  }, [router]);
+
+  // Real-time chat sync for active conversation
   useEffect(() => {
     if (!activeChatUser || !user) return;
     let channel;
     const myEmail = user.email.toLowerCase();
     const otherEmail = activeChatUser.email.toLowerCase();
 
-    async function loadThread() {
+    async function fetchThread() {
       const { data } = await supabase
         .from('direct_messages')
         .select('*')
         .or(`and(sender_email.ilike.${myEmail},receiver_email.ilike.${otherEmail}),and(sender_email.ilike.${otherEmail},receiver_email.ilike.${myEmail})`)
         .order('created_at', { ascending: true });
 
-      setChatMessages(data || []);
-      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+      setMessages(data || []);
+      scrollToBottom();
     }
 
-    loadThread();
+    fetchThread();
 
     const channelId = `chat_${[myEmail, otherEmail].sort().join('_')}`;
     channel = supabase
       .channel(channelId)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'direct_messages' }, payload => {
         const msg = payload.new;
-        const msgSender = (msg.sender_email || '').toLowerCase();
-        const msgReceiver = (msg.receiver_email || '').toLowerCase();
+        const sEmail = (msg.sender_email || '').toLowerCase();
+        const rEmail = (msg.receiver_email || '').toLowerCase();
 
         if (
-          (msgSender === myEmail && msgReceiver === otherEmail) ||
-          (msgSender === otherEmail && msgReceiver === myEmail)
+          (sEmail === myEmail && rEmail === otherEmail) ||
+          (sEmail === otherEmail && rEmail === myEmail)
         ) {
-          setChatMessages(prev => {
+          setMessages(prev => {
             if (prev.some(m => m.id === msg.id)) return prev;
             return [...prev, msg];
           });
-          setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+          scrollToBottom();
+          setLastMessagesMap(prev => ({
+            ...prev,
+            [otherEmail]: { text: msg.message, time: new Date(msg.created_at).getTime() }
+          }));
         }
       })
       .subscribe();
@@ -114,13 +141,16 @@ export default function MessengerTab({ user, navigateToTab }) {
     };
   }, [activeChatUser, user]);
 
-  async function handleSendMessage(e) {
-    e.preventDefault();
-    if (!newMessageText.trim() || !activeChatUser || !user || sendingMsg) return;
+  async function handleSend(e) {
+    if (e) e.preventDefault();
+    if (!newMessage.trim() || !activeChatUser || !user || sending) return;
 
     const myEmail = user.email.toLowerCase();
     const otherEmail = activeChatUser.email.toLowerCase();
-    setSendingMsg(true);
+    const text = newMessage.trim();
+
+    setSending(true);
+    setNewMessage('');
 
     try {
       const { data, error } = await supabase
@@ -128,136 +158,273 @@ export default function MessengerTab({ user, navigateToTab }) {
         .insert([{
           sender_email: myEmail,
           receiver_email: otherEmail,
-          message: newMessageText.trim()
+          message: text
         }])
         .select()
         .single();
 
       if (error) throw error;
-      setChatMessages(prev => [...prev, data]);
-      setNewMessageText('');
-      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+
+      setMessages(prev => [...prev, data]);
+      scrollToBottom();
+      setLastMessagesMap(prev => ({
+        ...prev,
+        [otherEmail]: { text: text, time: Date.now() }
+      }));
     } catch (err) {
-      alert('Message send failed: ' + err.message);
+      alert('Failed to send message: ' + err.message);
     } finally {
-      setSendingMsg(false);
+      setSending(false);
     }
   }
 
-  const filteredUsers = allUsersList.filter(u => {
-    const q = messageSearchQuery.toLowerCase();
+  const isUserOnline = (lastSeen) => {
+    if (!lastSeen) return false;
+    return Date.now() - new Date(lastSeen).getTime() < 3 * 60 * 1000;
+  };
+
+  const filteredUsers = allUsers.filter(u => {
+    const q = searchQuery.toLowerCase();
     const name = (u.full_name || u.name || '').toLowerCase();
     const email = (u.email || '').toLowerCase();
     return name.includes(q) || email.includes(q);
+  }).sort((a, b) => {
+    const timeA = lastMessagesMap[(a.email || '').toLowerCase()]?.time || 0;
+    const timeB = lastMessagesMap[(b.email || '').toLowerCase()]?.time || 0;
+    return timeB - timeA;
   });
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0f172a', padding: '0.65rem 0.9rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span style={{ fontSize: '1.1rem' }}>💬</span>
-          <span style={{ fontWeight: '800', fontSize: '0.9rem', color: '#38bdf8' }}>Shanora Messenger</span>
-        </div>
-        <button 
-          type="button" 
-          onClick={() => {
-            if (activeChatUser) setActiveChatUser(null);
-            else navigateToTab('menu');
-          }} 
-          style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer', padding: 0 }}
-        >
-          ✕
-        </button>
+  if (loading) {
+    return (
+      <div style={{ minHeight: '100vh', backgroundColor: '#070b14', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#38bdf8', fontSize: '1rem', fontWeight: 'bold' }}>
+        Loading Messenger...
       </div>
+    );
+  }
 
-      {activeChatUser ? (
-        <div style={{ backgroundColor: '#0b1322', border: '1px solid #1e293b', borderRadius: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: '72vh', minHeight: '520px' }}>
-          <div style={{ backgroundColor: '#0f172a', padding: '0.75rem 1rem', borderBottom: '1px solid #1e293b', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <button
-                type="button"
-                onClick={() => setActiveChatUser(null)}
-                style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '50%', color: '#0084ff', fontSize: '1rem', cursor: 'pointer', width: '34px', height: '34px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              >
-                ←
-              </button>
-              <div style={{ color: '#fff', fontWeight: '700', fontSize: '0.92rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                <span>{activeChatUser.full_name || activeChatUser.name || activeChatUser.email?.split('@')[0]}</span>
-                {activeChatUser.is_pro && <ProVerifiedBadge size={16} />}
-              </div>
-            </div>
-          </div>
-
-          <div style={{ flex: 1, padding: '1rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-            {chatMessages.length === 0 ? (
-              <div style={{ textAlign: 'center', margin: 'auto', color: '#64748b', fontSize: '0.82rem' }}>
-                Say hello! Start your private conversation. 👋
-              </div>
-            ) : (
-              chatMessages.map(msg => {
-                const isMe = (msg.sender_email || '').toLowerCase() === (user?.email || '').toLowerCase();
-                return (
-                  <div key={msg.id} style={{ display: 'flex', justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
-                    <div style={{ backgroundColor: isMe ? '#0084ff' : '#1e293b', color: '#fff', padding: '0.7rem 1rem', borderRadius: isMe ? '20px 20px 4px 20px' : '20px 20px 20px 4px', fontSize: '0.85rem', maxWidth: '75%' }}>
-                      {msg.message}
-                    </div>
-                  </div>
-                );
-              })
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-
-          <form onSubmit={handleSendMessage} style={{ padding: '0.65rem 0.85rem', backgroundColor: '#0f172a', borderTop: '1px solid #1e293b', display: 'flex', gap: '0.5rem' }}>
-            <input
-              type="text"
-              placeholder="Type a message..."
-              value={newMessageText}
-              onChange={(e) => setNewMessageText(e.target.value)}
-              style={{ flex: 1, backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '24px', padding: '0.6rem 1rem', color: '#fff', fontSize: '0.84rem', outline: 'none' }}
-            />
-            <button type="submit" style={{ backgroundColor: '#0084ff', color: '#fff', border: 'none', borderRadius: '50%', width: '38px', height: '38px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>➤</button>
-          </form>
+  return (
+    <div style={{ minHeight: '100vh', backgroundColor: '#070b14', color: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif', paddingBottom: '90px' }}>
+      
+      {/* Top Header */}
+      <header style={{ backgroundColor: '#0f172a', borderBottom: '1px solid #1e293b', padding: '0.85rem 1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100, backdropFilter: 'blur(10px)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+          <button
+            type="button"
+            onClick={() => {
+              if (activeChatUser) setActiveChatUser(null);
+              else router.push('/profile?tab=menu');
+            }}
+            style={{ width: '34px', height: '34px', borderRadius: '10px', backgroundColor: '#070b14', border: '1px solid #1e293b', color: '#38bdf8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.1rem' }}
+          >
+            {activeChatUser ? '←' : '✕'}
+          </button>
+          
+          <Link href="/feed" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.65rem', backgroundColor: '#0b1322', border: '1px solid #1e293b', borderRadius: '10px', padding: '0.28rem 0.65rem 0.28rem 0.35rem' }}>
+            <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: '900' }}>S</div>
+            <span style={{ fontSize: '1.05rem', fontWeight: '900', color: '#ffffff' }}>SHANORA<span style={{ fontSize: '0.55rem', color: '#38bdf8', verticalAlign: 'super' }}>.PK</span></span>
+          </Link>
         </div>
-      ) : (
-        <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          <input
-            type="text"
-            placeholder="Search conversations..."
-            value={messageSearchQuery}
-            onChange={(e) => setMessageSearchQuery(e.target.value)}
-            style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '24px', padding: '0.6rem 1rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }}
-          />
+        <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#38bdf8', background: 'rgba(56, 189, 248, 0.1)', padding: '0.3rem 0.8rem', borderRadius: '20px', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
+          💬 Messenger Hub
+        </div>
+      </header>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-            {filteredUsers.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b', fontSize: '0.8rem' }}>No users found.</div>
-            ) : (
-              filteredUsers.map(chatTarget => (
-                <div
-                  key={chatTarget.email}
-                  onClick={() => setActiveChatUser(chatTarget)}
-                  style={{ backgroundColor: '#131b2e', border: '1px solid #1e293b', borderRadius: '10px', padding: '0.7rem 0.85rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.7rem' }}>
-                    <div style={{ width: '38px', height: '38px', borderRadius: '50%', backgroundColor: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#fff', overflow: 'hidden' }}>
-                      {chatTarget.avatar_url ? <img src={chatTarget.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (chatTarget.full_name || 'U').charAt(0)}
-                    </div>
-                    <div>
-                      <div style={{ color: '#fff', fontWeight: '700', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                        <span>{chatTarget.full_name || chatTarget.name || chatTarget.email.split('@')[0]}</span>
-                        {chatTarget.is_pro && <ProVerifiedBadge size={15} />}
-                      </div>
-                      <div style={{ color: '#94a3b8', fontSize: '0.72rem' }}>{userLastMessagesMap[chatTarget.email.toLowerCase()]?.text || chatTarget.headline || 'Tap to chat'}</div>
-                    </div>
+      {/* Main Container */}
+      <main style={{ maxWidth: '640px', margin: '0 auto', padding: '1rem 0.9rem' }}>
+        
+        {activeChatUser ? (
+          /* ACTIVE CHAT INTERFACE (LinkedIn / FB Style) */
+          <div style={{ backgroundColor: '#0b1322', border: '1px solid #1e293b', borderRadius: '20px', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: '78vh', minHeight: '540px', boxShadow: '0 12px 30px rgba(0,0,0,0.6)' }}>
+            
+            {/* Chat Header */}
+            <div style={{ backgroundColor: '#0f172a', padding: '0.85rem 1.1rem', borderBottom: '1px solid #1e293b', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                <div style={{ position: 'relative' }}>
+                  <div style={{ width: '42px', height: '42px', borderRadius: '50%', backgroundColor: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#fff', fontSize: '1.1rem', overflow: 'hidden', border: '2px solid #38bdf8' }}>
+                    {activeChatUser.avatar_url ? (
+                      <img src={activeChatUser.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      (activeChatUser.full_name || activeChatUser.name || 'U').charAt(0).toUpperCase()
+                    )}
                   </div>
-                  <span style={{ color: '#38bdf8', fontSize: '0.78rem', fontWeight: 'bold' }}>Chat →</span>
+                  {isUserOnline(activeChatUser.last_seen) && (
+                    <div style={{ position: 'absolute', bottom: '0px', right: '0px', width: '11px', height: '11px', borderRadius: '50%', backgroundColor: '#22c55e', border: '2px solid #0f172a', boxShadow: '0 0 6px #22c55e' }} />
+                  )}
                 </div>
-              ))
-            )}
+
+                <div>
+                  <div style={{ color: '#fff', fontWeight: '800', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                    <span>{activeChatUser.full_name || activeChatUser.name || activeChatUser.email?.split('@')[0]}</span>
+                    {activeChatUser.is_pro && <ProVerifiedBadge size={16} />}
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: isUserOnline(activeChatUser.last_seen) ? '#4ade80' : '#94a3b8', fontWeight: '600' }}>
+                    {isUserOnline(activeChatUser.last_seen) ? 'Active now' : 'Offline'}
+                  </div>
+                </div>
+              </div>
+
+              <Link href={`/view-profile?email=${encodeURIComponent(activeChatUser.email)}`} style={{ color: '#38bdf8', fontSize: '0.75rem', textDecoration: 'none', fontWeight: '700', backgroundColor: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '0.35rem 0.8rem', borderRadius: '20px' }}>
+                View Profile ↗
+              </Link>
+            </div>
+
+            {/* Chat Messages Body */}
+            <div style={{ flex: 1, padding: '1.2rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.9rem', background: 'radial-gradient(circle at center, #0b1322 0%, #070b14 100%)' }}>
+              {messages.length === 0 ? (
+                <div style={{ textAlign: 'center', margin: 'auto', color: '#64748b', fontSize: '0.85rem', padding: '2rem' }}>
+                  👋 Say hello to <strong style={{ color: '#fff' }}>{activeChatUser.full_name || 'your connection'}</strong>! Start your professional conversation.
+                </div>
+              ) : (
+                messages.map(msg => {
+                  const isMe = (msg.sender_email || '').toLowerCase() === (user?.email || '').toLowerCase();
+                  return (
+                    <div key={msg.id} style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
+                      <div style={{
+                        backgroundColor: isMe ? '#0284c7' : '#1e293b',
+                        color: '#fff',
+                        padding: '0.75rem 1.05rem',
+                        borderRadius: isMe ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
+                        fontSize: '0.88rem',
+                        lineHeight: '1.45',
+                        maxWidth: '78%',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                        border: isMe ? '1px solid rgba(56, 189, 248, 0.3)' : '1px solid #334155'
+                      }}>
+                        {msg.message}
+                      </div>
+                      <span style={{ fontSize: '0.62rem', color: '#64748b', marginTop: '0.25rem', padding: '0 0.2rem' }}>
+                        {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                  );
+                })
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Chat Input Bar */}
+            <form onSubmit={handleSend} style={{ padding: '0.8rem 1rem', backgroundColor: '#0f172a', borderTop: '1px solid #1e293b', display: 'flex', gap: '0.6rem', alignItems: 'center' }}>
+              <input
+                type="text"
+                placeholder="Write a professional message..."
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                style={{ flex: 1, backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '24px', padding: '0.7rem 1.1rem', color: '#fff', fontSize: '0.86rem', outline: 'none', transition: 'border-color 0.2s' }}
+                autoFocus
+              />
+              <button
+                type="submit"
+                disabled={sending || !newMessage.trim()}
+                style={{
+                  backgroundColor: newMessage.trim() ? '#0284c7' : '#1e293b',
+                  color: newMessage.trim() ? '#fff' : '#64748b',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '42px',
+                  height: '42px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: newMessage.trim() ? 'pointer' : 'not-allowed',
+                  fontSize: '1.1rem',
+                  fontWeight: 'bold',
+                  boxShadow: newMessage.trim() ? '0 0 15px rgba(2, 132, 199, 0.4)' : 'none',
+                  transition: 'all 0.2s'
+                }}
+              >
+                ➤
+              </button>
+            </form>
+
           </div>
-        </div>
-      )}
+        ) : (
+          /* CONVERSATIONS LIST INTERFACE */
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            
+            {/* Search Bar */}
+            <div style={{ position: 'relative' }}>
+              <input
+                type="text"
+                placeholder="Search professional conversations..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{ width: '100%', backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '24px', padding: '0.75rem 1.1rem 0.75rem 2.6rem', color: '#fff', fontSize: '0.86rem', outline: 'none', boxSizing: 'border-box', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}
+              />
+              <span style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#64748b', fontSize: '1rem' }}>🔍</span>
+            </div>
+
+            {/* Users List */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+              {filteredUsers.length === 0 ? (
+                <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '3rem 1rem', textAlign: 'center', color: '#64748b', fontSize: '0.88rem' }}>
+                  No professional contacts found. Connect with members in your network!
+                </div>
+              ) : (
+                filteredUsers.map(chatTarget => {
+                  const targetEmail = (chatTarget.email || '').toLowerCase();
+                  const online = isUserOnline(chatTarget.last_seen);
+                  const displayName = chatTarget.full_name || chatTarget.name || targetEmail.split('@')[0];
+                  const lastMsg = lastMessagesMap[targetEmail];
+
+                  return (
+                    <div
+                      key={targetEmail}
+                      onClick={() => setActiveChatUser(chatTarget)}
+                      style={{
+                        backgroundColor: '#0f172a',
+                        border: '1px solid #1e293b',
+                        borderRadius: '16px',
+                        padding: '0.85rem 1rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.9rem', overflow: 'hidden', flex: 1 }}>
+                        <div style={{ position: 'relative', flexShrink: 0 }}>
+                          <div style={{ width: '48px', height: '48px', borderRadius: '50%', backgroundColor: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#fff', fontSize: '1.2rem', overflow: 'hidden' }}>
+                            {chatTarget.avatar_url ? (
+                              <img src={chatTarget.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            ) : (
+                              displayName.charAt(0).toUpperCase()
+                            )}
+                          </div>
+                          {online && (
+                            <div style={{ position: 'absolute', bottom: '2px', right: '2px', width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#22c55e', border: '2px solid #0f172a', boxShadow: '0 0 6px #22c55e' }} />
+                          )}
+                        </div>
+
+                        <div style={{ overflow: 'hidden', flex: 1 }}>
+                          <div style={{ color: '#fff', fontWeight: '800', fontSize: '0.92rem', display: 'flex', alignItems: 'center', gap: '0.3rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                            <span>{displayName}</span>
+                            {chatTarget.is_pro && <ProVerifiedBadge size={16} />}
+                          </div>
+                          <div style={{ color: lastMsg ? '#cbd5e1' : '#64748b', fontSize: '0.78rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', marginTop: '0.2rem', fontWeight: lastMsg ? '500' : 'normal' }}>
+                            {lastMsg ? lastMsg.text : (chatTarget.headline || 'Start a conversation')}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ textAlign: 'right', flexShrink: 0, paddingLeft: '0.5rem' }}>
+                        <span style={{ fontSize: '0.72rem', color: online ? '#4ade80' : '#64748b', fontWeight: '700', background: online ? 'rgba(34, 197, 94, 0.1)' : 'rgba(100, 116, 139, 0.1)', padding: '0.25rem 0.6rem', borderRadius: '12px', border: online ? '1px solid rgba(34, 197, 94, 0.2)' : '1px solid rgba(100, 116, 139, 0.2)' }}>
+                          {online ? 'Online' : 'Offline'}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+          </div>
+        )}
+
+      </main>
+
+      <BottomNav />
     </div>
   );
 }
