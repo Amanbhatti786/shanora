@@ -7,7 +7,14 @@ function ProVerifiedBadge({ size = 18 }) {
   return (
     <span 
       title="Verified PRO Member" 
-      style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', verticalAlign: 'middle', marginLeft: '4px', flexShrink: 0 }}
+      style={{ 
+        display: 'inline-flex', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        verticalAlign: 'middle',
+        marginLeft: '4px',
+        flexShrink: 0
+      }}
     >
       <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <circle cx="12" cy="12" r="10.5" fill="url(#proBadgeGrad)" stroke="#38bdf8" strokeWidth="1.2" />
@@ -59,8 +66,12 @@ export default function MyProfileTab({ profile, setShowEditProfileModal, navigat
               <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                 <span>{profile.full_name}</span>
                 {profile.is_pro && <ProVerifiedBadge size={20} />}
+                {profile.is_ambassador && <span title="Shanora Ambassador" style={{ color: '#facc15', fontSize: '1rem' }}>🌟</span>}
               </h3>
-              <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.8rem', color: '#94a3b8' }}>{profile.headline || 'Professional Member'}</p>
+              <div style={{ fontSize: '0.82rem', color: '#38bdf8', fontWeight: '600', marginTop: '0.15rem' }}>
+                {profile.headline || 'Member on Shanora.pk'}
+              </div>
+              <span style={{ fontSize: '0.74rem', color: '#64748b' }}>{profile.email}</span>
             </div>
           </div>
 
@@ -82,13 +93,41 @@ export default function MyProfileTab({ profile, setShowEditProfileModal, navigat
           </button>
         </div>
 
-        <div style={{ borderTop: '1px solid #1e293b', paddingTop: '1rem', marginTop: '1rem' }}>
-          <div style={{ fontSize: '0.82rem', color: '#cbd5e1', marginBottom: '0.5rem' }}>
-            <strong style={{ color: '#38bdf8' }}>Bio:</strong> {profile.bio || 'No bio added yet.'}
+        {profile.bio && (
+          <div style={{ backgroundColor: 'rgba(30, 41, 59, 0.4)', borderRadius: '10px', padding: '0.8rem', fontSize: '0.84rem', color: '#cbd5e1', lineHeight: '1.45', marginBottom: '1rem' }}>
+            {profile.bio}
           </div>
-          <div style={{ fontSize: '0.82rem', color: '#cbd5e1' }}>
-            <strong style={{ color: '#38bdf8' }}>City:</strong> {profile.city || 'Pakistan'}
+        )}
+
+        {profile.skills && (
+          <div style={{ marginBottom: '1rem' }}>
+            <div style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase', marginBottom: '0.4rem' }}>
+              Skills & Expertise
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+              {profile.skills.split(',').map((s, idx) => (
+                <span key={idx} style={{ backgroundColor: '#1e293b', color: '#38bdf8', border: '1px solid #334155', padding: '0.2rem 0.6rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '600' }}>
+                  {s.trim()}
+                </span>
+              ))}
+            </div>
           </div>
+        )}
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', fontSize: '0.84rem', color: '#94a3b8', borderTop: '1px solid #1e293b', paddingTop: '1rem' }}>
+          <div>📞 <strong style={{ color: '#fff' }}>WhatsApp / Phone:</strong> {profile.phone || 'Not provided'}</div>
+          <div>📍 <strong style={{ color: '#fff' }}>City / Location:</strong> {profile.city || 'Pakistan'}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            📄 <strong style={{ color: '#fff' }}>Linked CV / Resume:</strong>
+            {profile.resume_url ? (
+              <a href={profile.resume_url} target="_blank" rel="noreferrer" style={{ backgroundColor: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '0.2rem 0.6rem', borderRadius: '6px', textDecoration: 'none', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                View Linked CV 🔗
+              </a>
+            ) : (
+              <span style={{ color: '#64748b' }}>No CV attached yet</span>
+            )}
+          </div>
+          <div>👑 <strong style={{ color: '#fff' }}>Account Status:</strong> {profile.is_pro ? <span style={{ color: '#facc15', fontWeight: '800' }}>Shanora PRO (Verified ✓)</span> : 'Standard Member'}</div>
         </div>
       </div>
     </div>
