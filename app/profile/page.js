@@ -22,8 +22,63 @@ function sanitizeInput(str) {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
+    .replace(Yeh lijiye aapka final, mukammal aur perfectly structured **`app/profile/page.jsx`** ka code. Ismein aapka profile name bold aur saare shortcut cards bilkul eik jaise (uniform height aur clean layout ke sath) set kar diye gaye hain:
+
+```jsx
+'use client';
+
+import { Suspense, useState, useEffect } from 'react';
+import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { supabase } from '../../lib/supabaseClient';
+import BottomNav from '../../components/BottomNav';
+import ResumeStudio from '../../components/ResumeStudio';
+
+// Imported Modular Component Tabs & Modals
+import ProTab from '../../components/ProTab';
+import DashboardTab from '../../components/DashboardTab';
+import MyProfileTab from '../../components/MyProfileTab';
+import PagesTab from '../../components/PagesTab';
+import SavedPostsTab from '../../components/SavedPostsTab';
+import NetworkTab from '../../components/NetworkTab';
+import InviteModal from '../../components/InviteModal';
+
+function sanitizeInput(str) {
+  if (typeof str !== 'string') return str;
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+// Executive High-End Verified PRO Badge Component
+function ProVerifiedBadge({ size = 18 }) {
+  return (
+    <span 
+      title="Verified PRO Member" 
+      style={{ 
+        display: 'inline-flex', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        verticalAlign: 'middle',
+        marginLeft: '4px',
+        flexShrink: 0
+      }}
+    >
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)">
+        <circle cx="12" cy="12" r="10.5" fill="url(#proBadgeGrad)" stroke="#38bdf8" strokeWidth="1.2" />
+        <path d="M7.5 12.2L10.3 15L16.5 9" stroke="#ffffff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+        <defs>
+          <linearGradient id="proBadgeGrad" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#0284c7" />
+            <stop offset="1" stopColor="#0369a1" />
+          </linearGradient>
+        </defs>
+      </svg>
+    </span>
+  );
 }
 
 function ProfilePortalContent() {
@@ -263,7 +318,7 @@ function ProfilePortalContent() {
     }
   }
 
-  const referralLink = `${typeof window !== 'undefined' ? window.location.origin : 'https://shanora-pk.vercel.app'}/auth?ref=${encodeURIComponent(user?.email?.split('@')[0] || 'member')}`;
+  const referralLink = `${typeof window !== 'undefined' ? window.location.origin : '[https://shanora-pk.vercel.app](https://shanora-pk.vercel.app)'}/auth?ref=${encodeURIComponent(user?.email?.split('@')[0] || 'member')}`;
 
   function handleCopyInviteLink() {
     if (typeof navigator !== 'undefined') {
@@ -278,9 +333,9 @@ function ProfilePortalContent() {
     const link = encodeURIComponent(referralLink);
 
     if (platform === 'whatsapp') {
-      window.open(`https://api.whatsapp.com/send?text=${text}${link}`, '_blank');
+      window.open(`[https://api.whatsapp.com/send?text=$](https://api.whatsapp.com/send?text=$){text}${link}`, '_blank');
     } else if (platform === 'facebook') {
-      window.open(`https://www.facebook.com/sharer/sharer.php?u=${link}`, '_blank');
+      window.open(`[https://www.facebook.com/sharer/sharer.php?u=$](https://www.facebook.com/sharer/sharer.php?u=$){link}`, '_blank');
     } else if (platform === 'messenger') {
       window.open(`fb-messenger://share/?link=${link}`, '_blank');
     } else if (platform === 'email') {
@@ -357,7 +412,7 @@ function ProfilePortalContent() {
             {activeTab !== 'menu' ? '←' : '✕'}
           </button>
           
-          <Link href="/feed" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.65rem', backgroundColor: '#0b1322', border: '1px solid #1e293b', borderRadius: '10px', padding: '0.28rem 0.65rem 0.28rem 0.35rem' }}>
+          <Link #1e293b', '#0b1322', '0.28rem '0.65rem', '10px', '1px 'center', 'inline-flex', 'none', 0.28rem 0.35rem' 0.65rem alignItems: backgroundColor: border: borderRadius: display: gap: href="/feed" padding: solid style="{{" textDecoration: }}>
             <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: '900' }}>S</div>
             <span style={{ fontSize: '1.05rem', fontWeight: '900', color: '#ffffff' }}>SHANORA<span style={{ fontSize: '0.55rem', color: '#38bdf8', verticalAlign: 'super' }}>.PK</span></span>
           </Link>
@@ -374,24 +429,30 @@ function ProfilePortalContent() {
                 {profile.avatar_url ? <img src={profile.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (profile.full_name || 'U').charAt(0)}
               </div>
               <div>
-                <div style={{ color: '#fff', fontWeight: '700', fontSize: '0.95rem' }}>{profile.full_name}</div>
+                <div style={{ color: '#fff', fontWeight: '900', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <span>{profile.full_name}</span>
+                  {profile.is_pro && <ProVerifiedBadge size="{17}"/>}
+                  {profile.is_ambassador && <span title="Official Ambassador" style={{ color: '#facc15', fontSize: '0.9rem' }}>🌟</span>}
+                </div>
                 <div style={{ color: '#94a3b8', fontSize: '0.74rem' }}>{profile.headline || 'View profile'}</div>
               </div>
             </div>
 
             <div style={{ fontSize: '0.72rem', fontWeight: '800', color: '#64748b', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Shortcuts & Services</div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '0.55rem', marginBottom: '1.2rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '0.6rem', marginBottom: '1.2rem', width: '100%', boxSizing: 'border-box' }}>
               {allMenuItems.map(item => {
                 const card = (
-                  <div key={item.id} style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '0.65rem 0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                    <div style={{ width: '32px', height: '32px', borderRadius: '8px', backgroundColor: item.bg, border: `1px solid ${item.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem' }}>{item.icon}</div>
-                    <div style={{ color: '#f8fafc', fontSize: '0.8rem', fontWeight: '800', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.label}</div>
+                  <div key={item.id} style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '0.75rem 0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.7rem', height: '48px', width: '100%', boxSizing: 'border-box' }}>
+                    <div style={{ width: '32px', height: '32px', borderRadius: '8px', backgroundColor: item.bg, border: `1px solid ${item.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', flexShrink: 0 }}>{item.icon}</div>
+                    <div style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
+                      <div style={{ color: '#f8fafc', fontSize: '0.82rem', fontWeight: '800', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.label}</div>
+                    </div>
                   </div>
                 );
 
                 if (item.isLink) {
-                  return <Link key={item.id} href={item.route} style={{ textDecoration: 'none' }}>{card}</Link>;
+                  return <Link 'none' href="{item.route}" key="{item.id}" style="{{" textDecoration: }}>{card}</Link>;
                 }
 
                 return (
@@ -413,89 +474,37 @@ function ProfilePortalContent() {
 
         {/* MODULAR COMPONENT TABS */}
         {activeTab === 'pro' && (
-          <ProTab 
-            profile={profile} 
-            latestProRequest={latestProRequest} 
-            paymentMethod={paymentMethod} 
-            setPaymentMethod={setPaymentMethod} 
-            trxId={trxId} 
-            setTrxId={setTrxId} 
-            submittingPro={submittingPro} 
-            handleProActivation={handleProActivation} 
-            navigateToTab={navigateToTab} 
-          />
+          <ProTab handleProActivation="{handleProActivation}" latestProRequest="{latestProRequest}" navigateToTab="{navigateToTab}" paymentMethod="{paymentMethod}" profile="{profile}" setPaymentMethod="{setPaymentMethod}" setTrxId="{setTrxId}" submittingPro="{submittingPro}" trxId="{trxId}"/>
         )}
 
         {activeTab === 'dashboard' && (
-          <DashboardTab 
-            profile={profile} 
-            myPostsCount={myPostsCount} 
-            followersList={followersList} 
-            followingList={followingList} 
-            profileCompletionPercent={profileCompletionPercent} 
-            navigateToTab={navigateToTab} 
-          />
+          <DashboardTab followersList="{followersList}" followingList="{followingList}" myPostsCount="{myPostsCount}" navigateToTab="{navigateToTab}" profile="{profile}" profileCompletionPercent="{profileCompletionPercent}"/>
         )}
 
         {activeTab === 'profile' && (
-          <MyProfileTab 
-            profile={profile} 
-            setShowEditProfileModal={setShowEditProfileModal} 
-            navigateToTab={navigateToTab} 
-          />
+          <MyProfileTab navigateToTab="{navigateToTab}" profile="{profile}" setShowEditProfileModal="{setShowEditProfileModal}"/>
         )}
 
         {activeTab === 'pages' && (
-          <PagesTab 
-            myPages={myPages} 
-            navigateToTab={navigateToTab} 
-          />
+          <PagesTab myPages="{myPages}" navigateToTab="{navigateToTab}"/>
         )}
 
         {activeTab === 'resume' && (
-          <ResumeStudio 
-            profile={profile} 
-            resumeData={resumeData} 
-            navigateToTab={navigateToTab} 
-          />
+          <ResumeStudio navigateToTab="{navigateToTab}" profile="{profile}" resumeData="{resumeData}"/>
         )}
 
         {activeTab === 'saved' && (
-          <SavedPostsTab 
-            savedPostsList={savedPostsList} 
-            handleRemoveSavedPost={handleRemoveSavedPost} 
-            navigateToTab={navigateToTab} 
-          />
+          <SavedPostsTab handleRemoveSavedPost="{handleRemoveSavedPost}" navigateToTab="{navigateToTab}" savedPostsList="{savedPostsList}"/>
         )}
 
         {activeTab === 'network' && (
-          <NetworkTab 
-            followersList={followersList} 
-            followingList={followingList} 
-            followingMap={followingMap} 
-            actionLoading={actionLoading} 
-            handleToggleFollow={handleToggleFollow} 
-            setActiveChatUser={setActiveChatUser} 
-            setActiveTab={setActiveTab} 
-            navigateToTab={navigateToTab} 
-          />
+          <NetworkTab actionLoading="{actionLoading}" followersList="{followersList}" followingList="{followingList}" followingMap="{followingMap}" handleToggleFollow="{handleToggleFollow}" navigateToTab="{navigateToTab}" setActiveChatUser="{setActiveChatUser}" setActiveTab="{setActiveTab}"/>
         )}
 
       </main>
 
       {/* Invite Friends Modal Component */}
-      <InviteModal 
-        showInviteModal={showInviteModal} 
-        setShowInviteModal={setShowInviteModal} 
-        referralLink={referralLink} 
-        copiedLink={copiedLink} 
-        handleCopyInviteLink={handleCopyInviteLink} 
-        handleShare={handleShare} 
-        referralCount={referralCount} 
-        referralMilestones={referralMilestones} 
-        claimingMilestone={claimingMilestone} 
-        handleClaimMilestone={handleClaimMilestone} 
-      />
+      <InviteModal claimingMilestone="{claimingMilestone}" copiedLink="{copiedLink}" handleClaimMilestone="{handleClaimMilestone}" handleCopyInviteLink="{handleCopyInviteLink}" handleShare="{handleShare}" referralCount="{referralCount}" referralLink="{referralLink}" referralMilestones="{referralMilestones}" setShowInviteModal="{setShowInviteModal}" showInviteModal="{showInviteModal}"/>
 
       {/* Edit Profile Modal */}
       {showEditProfileModal && (
@@ -530,7 +539,7 @@ function ProfilePortalContent() {
         </div>
       )}
 
-      <BottomNav />
+      <BottomNav/>
     </div>
   );
 }
@@ -538,7 +547,7 @@ function ProfilePortalContent() {
 export default function ProfilePortal() {
   return (
     <Suspense fallback={<div style={{ minHeight: '100vh', backgroundColor: '#070b14', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#38bdf8' }}>Loading...</div>}>
-      <ProfilePortalContent />
+      <ProfilePortalContent/>
     </Suspense>
   );
 }
