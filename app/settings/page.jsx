@@ -119,7 +119,7 @@ export default function SettingsHub() {
   ];
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#070b14', color: '#f8fafc', fontFamily: 'system-ui, sans-serif' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: '#070b14', color: '#f8fafc', fontFamily: 'system-ui, sans-serif', paddingBottom: '3rem' }}>
       
       {/* Top Header */}
       <header style={{ backgroundColor: '#0f172a', borderBottom: '1px solid #1e293b', padding: '0.85rem 1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100 }}>
@@ -132,42 +132,38 @@ export default function SettingsHub() {
       </header>
 
       {/* Main Layout Container */}
-      <div style={{ maxWidth: '1100px', margin: '1.5rem auto', padding: '0 1rem', display: 'grid', gridTemplateColumns: '280px 1fr', gap: '1.5rem' }}>
+      <div style={{ maxWidth: '800px', margin: '1.2rem auto', padding: '0 0.8rem', display: 'flex', flexDirection: 'column', gap: '1rem', boxSizing: 'border-box' }}>
         
-        {/* Left Sidebar Menu */}
-        <aside style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '0.8rem', height: 'fit-content', position: 'sticky', top: '5rem' }}>
-          <div style={{ fontSize: '0.75rem', fontWeight: '800', color: '#64748b', padding: '0.5rem 0.75rem', textTransform: 'uppercase' }}>Preferences & Security</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginTop: '0.4rem' }}>
-            {menuSections.map(sec => (
-              <button
-                key={sec.id}
-                onClick={() => setActiveTab(sec.id)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.75rem',
-                  padding: '0.7rem 0.85rem',
-                  borderRadius: '10px',
-                  border: 'none',
-                  backgroundColor: activeTab === sec.id ? 'rgba(56, 189, 248, 0.15)' : 'transparent',
-                  color: activeTab === sec.id ? '#38bdf8' : '#cbd5e1',
-                  fontWeight: activeTab === sec.id ? '800' : '600',
-                  fontSize: '0.84rem',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  width: '100%',
-                  transition: 'all 0.2s'
-                }}
-              >
-                <span>{sec.icon}</span>
-                <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sec.label}</span>
-              </button>
-            ))}
-          </div>
-        </aside>
+        {/* Horizontal Scrollable Menu for Mobile */}
+        <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '0.6rem', display: 'flex', gap: '0.5rem', overflowX: 'auto', whiteSpace: 'nowrap', WebkitOverflowScrolling: 'touch' }}>
+          {menuSections.map(sec => (
+            <button
+              key={sec.id}
+              onClick={() => setActiveTab(sec.id)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                padding: '0.5rem 0.8rem',
+                borderRadius: '8px',
+                border: 'none',
+                backgroundColor: activeTab === sec.id ? '#0284c7' : '#1e293b',
+                color: activeTab === sec.id ? '#fff' : '#cbd5e1',
+                fontWeight: activeTab === sec.id ? '800' : '600',
+                fontSize: '0.78rem',
+                cursor: 'pointer',
+                flexShrink: 0,
+                transition: 'all 0.2s'
+              }}
+            >
+              <span>{sec.icon}</span>
+              <span>{sec.label.split('. ')[1]}</span>
+            </button>
+          ))}
+        </div>
 
-        {/* Right Content Panel */}
-        <main style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.8rem', minHeight: '600px' }}>
+        {/* Content Panel */}
+        <main style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.2rem', minHeight: '500px', boxSizing: 'border-box' }}>
           
           {successMsg && (
             <div style={{ backgroundColor: 'rgba(34, 197, 94, 0.15)', border: '1px solid rgba(34, 197, 94, 0.4)', color: '#4ade80', padding: '0.75rem 1rem', borderRadius: '10px', marginBottom: '1.2rem', fontSize: '0.88rem', fontWeight: '700' }}>
@@ -178,22 +174,22 @@ export default function SettingsHub() {
           {/* 1. Account Settings */}
           {activeTab === 'account' && (
             <div>
-              <h2 style={{ color: '#fff', fontSize: '1.25rem', fontWeight: '900', marginTop: 0 }}>Account Settings</h2>
-              <p style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: '1.5rem' }}>Manage your account credentials and primary details.</p>
+              <h2 style={{ color: '#fff', fontSize: '1.15rem', fontWeight: '900', marginTop: 0 }}>Account Settings</h2>
+              <p style={{ color: '#94a3b8', fontSize: '0.8rem', marginBottom: '1.2rem' }}>Manage your account credentials and primary details.</p>
               
-              <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '500px' }}>
+              <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%', boxSizing: 'border-box' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700', marginBottom: '0.4rem' }}>Email Address</label>
-                  <input type="email" value={user?.email || ''} disabled style={{ width: '100%', backgroundColor: '#131b2e', border: '1px solid #334155', borderRadius: '10px', padding: '0.7rem', color: '#64748b', fontSize: '0.85rem', cursor: 'not-allowed' }} />
-                  <span style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '0.2rem', display: 'block' }}>Email cannot be changed directly for security reasons.</span>
+                  <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700', marginBottom: '0.4rem' }}>Email Address</label>
+                  <input type="email" value={user?.email || ''} disabled style={{ width: '100%', backgroundColor: '#131b2e', border: '1px solid #334155', borderRadius: '10px', padding: '0.7rem', color: '#64748b', fontSize: '0.82rem', cursor: 'not-allowed', boxSizing: 'border-box' }} />
+                  <span style={{ fontSize: '0.68rem', color: '#64748b', marginTop: '0.2rem', display: 'block' }}>Email cannot be changed directly for security reasons.</span>
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700', marginBottom: '0.4rem' }}>Full Name</label>
-                  <input type="text" value={fullName} onChange={e => setFullName(e.target.value)} style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '10px', padding: '0.7rem', color: '#fff', fontSize: '0.85rem', outline: 'none' }} />
+                  <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700', marginBottom: '0.4rem' }}>Full Name</label>
+                  <input type="text" value={fullName} onChange={e => setFullName(e.target.value)} style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '10px', padding: '0.7rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }} />
                 </div>
 
-                <button type="submit" disabled={saving} style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.75rem 1.5rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.85rem', cursor: 'pointer', width: 'fit-content' }}>
+                <button type="submit" disabled={saving} style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.7rem 1.2rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer', width: '100%' }}>
                   {saving ? 'Saving...' : 'Save Changes'}
                 </button>
               </form>
@@ -203,21 +199,21 @@ export default function SettingsHub() {
           {/* 2. Personal Information */}
           {activeTab === 'personal' && (
             <div>
-              <h2 style={{ color: '#fff', fontSize: '1.25rem', fontWeight: '900', marginTop: 0 }}>Personal Information</h2>
-              <p style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: '1.5rem' }}>Update your professional headline and bio for the network.</p>
+              <h2 style={{ color: '#fff', fontSize: '1.15rem', fontWeight: '900', marginTop: 0 }}>Personal Information</h2>
+              <p style={{ color: '#94a3b8', fontSize: '0.8rem', marginBottom: '1.2rem' }}>Update your professional headline and bio for the network.</p>
               
-              <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '500px' }}>
+              <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%', boxSizing: 'border-box' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700', marginBottom: '0.4rem' }}>Professional Headline</label>
-                  <input type="text" value={headline} onChange={e => setHeadline(e.target.value)} placeholder="e.g. Full-Stack Developer at Shanora.pk" style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '10px', padding: '0.7rem', color: '#fff', fontSize: '0.85rem', outline: 'none' }} />
+                  <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700', marginBottom: '0.4rem' }}>Professional Headline</label>
+                  <input type="text" value={headline} onChange={e => setHeadline(e.target.value)} placeholder="e.g. Full-Stack Developer at Shanora.pk" style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '10px', padding: '0.7rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }} />
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700', marginBottom: '0.4rem' }}>Bio / About</label>
-                  <textarea rows={4} value={bio} onChange={e => setBio(e.target.value)} placeholder="Tell the community about your expertise..." style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '10px', padding: '0.7rem', color: '#fff', fontSize: '0.85rem', outline: 'none' }} />
+                  <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700', marginBottom: '0.4rem' }}>Bio / About</label>
+                  <textarea rows={4} value={bio} onChange={e => setBio(e.target.value)} placeholder="Tell the community about your expertise..." style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '10px', padding: '0.7rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }} />
                 </div>
 
-                <button type="submit" disabled={saving} style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.75rem 1.5rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.85rem', cursor: 'pointer', width: 'fit-content' }}>
+                <button type="submit" disabled={saving} style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.7rem 1.2rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer', width: '100%' }}>
                   {saving ? 'Updating...' : 'Update Personal Info'}
                 </button>
               </form>
@@ -227,40 +223,40 @@ export default function SettingsHub() {
           {/* 5. Account Security */}
           {activeTab === 'security' && (
             <div>
-              <h2 style={{ color: '#fff', fontSize: '1.25rem', fontWeight: '900', marginTop: 0 }}>Account Security</h2>
-              <p style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: '1.5rem' }}>Secure your account with robust encryption and password management.</p>
+              <h2 style={{ color: '#fff', fontSize: '1.15rem', fontWeight: '900', marginTop: 0 }}>Account Security</h2>
+              <p style={{ color: '#94a3b8', fontSize: '0.8rem', marginBottom: '1.2rem' }}>Secure your account with robust encryption and password management.</p>
               
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '500px' }}>
-                <form onSubmit={handlePasswordChange} style={{ backgroundColor: '#131b2e', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.2rem', display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
-                  <h3 style={{ color: '#fff', fontSize: '0.95rem', margin: 0 }}>Change Password</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%', boxSizing: 'border-box' }}>
+                <form onSubmit={handlePasswordChange} style={{ backgroundColor: '#131b2e', border: '1px solid #1e293b', borderRadius: '14px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.8rem', boxSizing: 'border-box' }}>
+                  <h3 style={{ color: '#fff', fontSize: '0.9rem', margin: 0 }}>Change Password</h3>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', marginBottom: '0.3rem' }}>New Password</label>
-                    <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="At least 6 characters" style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem', color: '#fff', fontSize: '0.82rem', outline: 'none' }} />
+                    <label style={{ display: 'block', fontSize: '0.72rem', color: '#94a3b8', marginBottom: '0.3rem' }}>New Password</label>
+                    <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="At least 6 characters" style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem', color: '#fff', fontSize: '0.8rem', outline: 'none', boxSizing: 'border-box' }} />
                   </div>
-                  <button type="submit" disabled={passwordUpdating} style={{ backgroundColor: '#22c55e', color: '#000', border: 'none', padding: '0.6rem 1.2rem', borderRadius: '8px', fontWeight: '800', fontSize: '0.8rem', cursor: 'pointer', width: 'fit-content' }}>
+                  <button type="submit" disabled={passwordUpdating} style={{ backgroundColor: '#22c55e', color: '#000', border: 'none', padding: '0.6rem 1rem', borderRadius: '8px', fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer', width: '100%' }}>
                     {passwordUpdating ? 'Updating...' : 'Update Password'}
                   </button>
                 </form>
 
-                <div style={{ backgroundColor: '#131b2e', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ backgroundColor: '#131b2e', border: '1px solid #1e293b', borderRadius: '14px', padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
-                    <div style={{ color: '#fff', fontWeight: '800', fontSize: '0.9rem' }}>Two-Factor Authentication (2FA)</div>
-                    <div style={{ color: '#94a3b8', fontSize: '0.75rem' }}>Protect your account with an extra verification layer.</div>
+                    <div style={{ color: '#fff', fontWeight: '800', fontSize: '0.85rem' }}>Two-Factor Auth</div>
+                    <div style={{ color: '#94a3b8', fontSize: '0.7rem' }}>Extra verification layer.</div>
                   </div>
-                  <span style={{ color: '#38bdf8', fontSize: '0.75rem', fontWeight: 'bold', background: 'rgba(56, 189, 248, 0.1)', padding: '0.3rem 0.7rem', borderRadius: '10px' }}>Coming Soon 🚀</span>
+                  <span style={{ color: '#38bdf8', fontSize: '0.7rem', fontWeight: 'bold', background: 'rgba(56, 189, 248, 0.1)', padding: '0.25rem 0.6rem', borderRadius: '8px' }}>Soon 🚀</span>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Placeholder for other sections (3, 4, 6-16) */}
+          {/* Placeholder for other sections */}
           {['profile', 'privacy', 'notifications', 'appearance', 'language', 'feed', 'messaging', 'accessibility', 'data', 'ads', 'jobs', 'support', 'management'].includes(activeTab) && (
             <div>
-              <h2 style={{ color: '#fff', fontSize: '1.25rem', fontWeight: '900', marginTop: 0, textTransform: 'capitalize' }}>{activeTab} Settings</h2>
-              <p style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: '1.5rem' }}>Configure your custom preferences for {activeTab} on SHANORA.PK.</p>
+              <h2 style={{ color: '#fff', fontSize: '1.15rem', fontWeight: '900', marginTop: 0, textTransform: 'capitalize' }}>{activeTab} Settings</h2>
+              <p style={{ color: '#94a3b8', fontSize: '0.8rem', marginBottom: '1.2rem' }}>Configure your custom preferences for {activeTab}.</p>
               
-              <div style={{ backgroundColor: '#131b2e', border: '1px solid #1e293b', borderRadius: '14px', padding: '2rem', textAlign: 'center', color: '#94a3b8' }}>
-                ⚙️ Advanced {activeTab} controls are fully optimized and ready for activation in your Supabase database tier.
+              <div style={{ backgroundColor: '#131b2e', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.5rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.82rem' }}>
+                ⚙️ Advanced {activeTab} controls are ready for activation in your database.
               </div>
             </div>
           )}
@@ -270,5 +266,4 @@ export default function SettingsHub() {
       </div>
     </div>
   );
-        }
-                    
+                    }
