@@ -2,6 +2,34 @@
 
 import React from 'react';
 
+// Executive High-End Verified PRO Badge Component
+function ProVerifiedBadge({ size = 18 }) {
+  return (
+    <span 
+      title="Verified PRO Member" 
+      style={{ 
+        display: 'inline-flex', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        verticalAlign: 'middle',
+        marginLeft: '4px',
+        flexShrink: 0
+      }}
+    >
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="12" cy="12" r="10.5" fill="url(#proBadgeGrad)" stroke="#38bdf8" strokeWidth="1.2" />
+        <path d="M7.5 12.2L10.3 15L16.5 9" stroke="#ffffff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+        <defs>
+          <linearGradient id="proBadgeGrad" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#0284c7" />
+            <stop offset="1" stopColor="#0369a1" />
+          </linearGradient>
+        </defs>
+      </svg>
+    </span>
+  );
+}
+
 export default function ProTab({ profile, latestProRequest, paymentMethod, setPaymentMethod, trxId, setTrxId, submittingPro, handleProActivation, navigateToTab }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -27,6 +55,12 @@ export default function ProTab({ profile, latestProRequest, paymentMethod, setPa
               <span style={{ backgroundColor: '#22c55e', color: '#000', borderRadius: '50%', width: '22px', height: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.8rem' }}>✓</span>
               <strong style={{ color: '#4ade80', fontSize: '1rem' }}>Your Shanora PRO Membership is ACTIVE!</strong>
             </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.82rem', color: '#cbd5e1' }}>
+              <div>✓ <strong>Executive Verified Badge:</strong> Cyan-Blue starburst badge is active across your profile and posts.</div>
+              <div>✓ <strong>ATS Resume Builder:</strong> Unlimited professional CV generation & PDF download unlocked.</div>
+              <div>✓ <strong>Application Boost:</strong> Featured placement on employer applicant portals.</div>
+              <div>✓ <strong>Feed Reach:</strong> 5x higher reach on your published articles and updates.</div>
+            </div>
           </div>
         ) : latestProRequest?.status === 'pending' ? (
           <div style={{ backgroundColor: '#0f172a', border: '1px solid #facc15', borderRadius: '12px', padding: '1.2rem', textAlign: 'left' }}>
@@ -35,15 +69,31 @@ export default function ProTab({ profile, latestProRequest, paymentMethod, setPa
               <strong style={{ color: '#facc15', fontSize: '0.95rem' }}>Verification in Progress</strong>
             </div>
             <p style={{ margin: 0, fontSize: '0.8rem', color: '#94a3b8', lineHeight: '1.4' }}>
-              Your payment request (TID: <strong style={{ color: '#fff' }}>{latestProRequest.transaction_id}</strong>) is currently being reviewed.
+              Your payment request (TID: <strong style={{ color: '#fff' }}>{latestProRequest.transaction_id}</strong>) is currently being reviewed. The verified badge will be enabled immediately after review.
             </p>
           </div>
         ) : (
           <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.8)', border: '1px solid #334155', borderRadius: '12px', padding: '1.2rem', textAlign: 'left' }}>
+            <div style={{ fontSize: '0.9rem', fontWeight: '800', color: '#fff', marginBottom: '0.6rem' }}>Exclusive PRO Perks:</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', fontSize: '0.8rem', color: '#94a3b8', marginBottom: '1.2rem' }}>
+              <div>✓ <strong>Official Verified Badge:</strong> Stand out with a glowing cyan-blue executive badge.</div>
+              <div>✓ <strong>ATS Resume Builder:</strong> Build & Export ATS-Friendly CV in 1-Click.</div>
+              <div>✓ <strong>Priority Job Application:</strong> Featured at the top for hiring managers.</div>
+              <div>✓ <strong>Direct Messenger:</strong> Connect with verified creators and businesses.</div>
+              <div>✓ <strong>Profile Boost:</strong> Enhanced organic reach on all publications.</div>
+            </div>
+
             <div style={{ borderTop: '1px solid #1e293b', paddingTop: '1rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.8rem' }}>
                 <span style={{ color: '#fff', fontWeight: '700', fontSize: '0.85rem' }}>Monthly Subscription:</span>
                 <span style={{ color: '#facc15', fontWeight: '900', fontSize: '1.1rem' }}>Rs. 499 / mo</span>
+              </div>
+
+              <div style={{ backgroundColor: '#1e293b', padding: '0.75rem', borderRadius: '8px', fontSize: '0.78rem', color: '#cbd5e1', marginBottom: '0.8rem', lineHeight: '1.4' }}>
+                <strong>Payment Procedure:</strong><br />
+                1. Transfer <strong>Rs. 499</strong> via EasyPaisa / JazzCash to: <code>03033639664</code><br />
+                2. Account Title: <code>Amanullah</code><br />
+                3. Enter Transaction ID (TID) below and click submit.
               </div>
 
               <form onSubmit={handleProActivation} style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
