@@ -5,15 +5,17 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabaseClient';
 
-export default function ComprehensiveSettingsHub() {
+export default function ProfessionalSettingsHub() {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('account');
+  const [activeCategory, setActiveCategory] = useState('account');
   const [saving, setSaving] = useState(false);
-  const [successMsg, setSuccessMsg] = useState('');
+  
+  // Notification Card State
+  const [notification, setNotification] = useState({ show: false, message: '', type: 'success' });
 
-  // Comprehensive Form States across all 16 sections
+  // Safe Form States mapped strictly to standard profile columns
   const [formData, setFormData] = useState({
     full_name: '',
     username: '',
@@ -31,14 +33,21 @@ export default function ComprehensiveSettingsHub() {
     feed_sort: 'recent',
     video_autoplay: true,
     open_to_work: true,
-    remote_work: true,
-    support_ticket_subject: '',
-    support_ticket_msg: ''
+    remote_work: true
   });
 
-  // Password state
+  // Separate local states for support and security
+  const [supportSubject, setSupportSubject] = useState('');
+  const [supportMsg, setSupportMsg] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [passwordUpdating, setPasswordUpdating] = useState(false);
+
+  const showCardMessage = (message, type = 'success') => {
+    setNotification({ show: true, message, type });
+    setTimeout(() => {
+      setNotification({ show: false, message: '', type: 'success' });
+    }, 4000);
+  };
 
   useEffect(() => {
     async function initSettings() {
@@ -73,9 +82,7 @@ export default function ComprehensiveSettingsHub() {
           feed_sort: profile.feed_sort || 'recent',
           video_autoplay: profile.video_autoplay ?? true,
           open_to_work: profile.open_to_work ?? true,
-          remote_work: profile.remote_work ?? true,
-          support_ticket_subject: '',
-          support_ticket_msg: ''
+          remote_work: profile.remote_work ?? true
         });
       }
       setLoading(false);
@@ -83,23 +90,37 @@ export default function ComprehensiveSettingsHub() {
     initSettings();
   }, [router]);
 
-  async function handleSave(sectionName, customPayload = null) {
+  async function handleSave(sectionName) {
     if (!user) return;
     setSaving(true);
-    setSuccessMsg('');
 
     try {
-      const payload = customPayload || formData;
+      const payload = {
+        full_name: formData.full_name,
+        username: formData.username,
+        phone: formData.phone,
+        country: formData.country,
+        city: formData.city,
+        headline: formData.headline,
+        bio: formData.bio,
+        profile_visibility: formData.profile_visibility,
+        messaging_permission: formData.messaging_permission,
+        email_notifications: formData.email_notifications,
+        push_notifications: formData.push_notifications,
+        theme_mode: formData.theme_mode,
+        app_language: formData.app_language,
+        updated_at: new Date().toISOString()
+      };
+
       const { error } = await supabase
         .from('profiles')
-        .update({ ...payload, updated_at: new Date().toISOString() })
+        .update(payload)
         .ilike('email', user.email);
 
       if (error) throw error;
-      setSuccessMsg(`${sectionName} saved successfully! ✓`);
-      setTimeout(() => setSuccessMsg(''), 3000);
+      showCardMessage(`${sectionName} saved successfully! ✓`, 'success');
     } catch (err) {
-      alert('Save failed: ' + err.message);
+      showCardMessage('Save failed: ' + err.message, 'error');
     } finally {
       setSaving(false);
     }
@@ -108,47 +129,47 @@ export default function ComprehensiveSettingsHub() {
   async function handlePasswordChange(e) {
     e.preventDefault();
     if (!newPassword || newPassword.length < 6) {
-      alert('Password must be at least 6 characters.');
+      showCardMessage('Password must be at least 6 characters.', 'error');
       return;
     }
     setPasswordUpdating(true);
     try {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
-      alert('Password updated securely via Supabase Auth!');
+      showCardMessage('Password updated securely via Supabase Auth!', 'success');
       setNewPassword('');
     } catch (err) {
-      alert('Password update failed: ' + err.message);
+      showCardMessage('Password update failed: ' + err.message, 'error');
     } finally {
       setPasswordUpdating(false);
     }
   }
 
   if (loading) {
-    return <div style={{ minHeight: '100vh', backgroundColor: '#070b14', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#38bdf8' }}>Loading SHANORA Settings...</div>;
+    return <div style={{ minHeight: '100vh', backgroundColor: '#070b14', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#38bdf8' }}>Loading SHANORA Settings Hub...</div>;
   }
 
   const sections = [
-    { id: 'account', label: '1. Account', icon: '⚙️' },
-    { id: 'personal', label: '2. Personal', icon: '👤' },
-    { id: 'profile', label: '3. Profile', icon: '🎨' },
-    { id: 'privacy', label: '4. Privacy', icon: '🔒' },
-    { id: 'security', label: '5. Security', icon: '🛡️' },
-    { id: 'notifications', label: '6. Notifications', icon: '🔔' },
-    { id: 'appearance', label: '7. Appearance', icon: '🌙' },
-    { id: 'language', label: '8. Language', icon: '🌍' },
-    { id: 'feed', label: '9. Feed', icon: '📰' },
-    { id: 'messaging', label: '10. Messaging', icon: '💬' },
+    { id: 'account', label: '1. Account Settings', icon: '⚙️' },
+    { id: 'personal', label: '2. Personal Information', icon: '👤' },
+    { id: 'profile', label: '3. Profile Customization', icon: '🎨' },
+    { id: 'privacy', label: '4. Privacy & Visibility', icon: '🔒' },
+    { id: 'security', label: '5. Account Security & 2FA', icon: '🛡️' },
+    { id: 'notifications', label: '6. Notification Preferences', icon: '🔔' },
+    { id: 'appearance', label: '7. Appearance & Theme', icon: '🌙' },
+    { id: 'language', label: '8. Language & Region', icon: '🌍' },
+    { id: 'feed', label: '9. Feed Preferences', icon: '📰' },
+    { id: 'messaging', label: '10. Messaging Controls', icon: '💬' },
     { id: 'accessibility', label: '11. Accessibility', icon: '♿' },
-    { id: 'data', label: '12. Data & Export', icon: '📁' },
+    { id: 'data', label: '12. Data & Export Archive', icon: '📁' },
     { id: 'ads', label: '13. Ads & Monetization', icon: '💰' },
-    { id: 'jobs', label: '14. Jobs & Career', icon: '💼' },
-    { id: 'support', label: '15. Help & Support', icon: '❓' },
+    { id: 'jobs', label: '14. Jobs & Career Hub', icon: '💼' },
+    { id: 'support', label: '15. Help & Support Center', icon: '❓' },
     { id: 'management', label: '16. Account Management', icon: '⚠️' }
   ];
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#070b14', color: '#f8fafc', fontFamily: 'system-ui, sans-serif', paddingBottom: '3rem' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: '#070b14', color: '#f8fafc', fontFamily: 'system-ui, sans-serif', paddingBottom: '4rem' }}>
       
       {/* Top Header */}
       <header style={{ backgroundColor: '#0f172a', borderBottom: '1px solid #1e293b', padding: '0.85rem 1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100 }}>
@@ -156,52 +177,67 @@ export default function ComprehensiveSettingsHub() {
           <Link href="/profile?tab=menu" style={{ width: '34px', height: '34px', borderRadius: '8px', backgroundColor: '#070b14', border: '1px solid #1e293b', color: '#38bdf8', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
             ←
           </Link>
-          <span style={{ fontSize: '1.1rem', fontWeight: '900', color: '#fff' }}>SHANORA <span style={{ color: '#38bdf8' }}>Professional Settings Hub</span></span>
+          <span style={{ fontSize: '1.1rem', fontWeight: '900', color: '#fff' }}>SHANORA <span style={{ color: '#38bdf8' }}>Settings Hub</span></span>
         </div>
       </header>
 
       {/* Main Container */}
       <div style={{ maxWidth: '840px', margin: '1.2rem auto', padding: '0 0.8rem', display: 'flex', flexDirection: 'column', gap: '1rem', boxSizing: 'border-box' }}>
         
-        {/* Horizontal Navigation for All 16 Sections */}
-        <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '0.6rem', display: 'flex', gap: '0.5rem', overflowX: 'auto', whiteSpace: 'nowrap', WebkitOverflowScrolling: 'touch' }}>
-          {sections.map(sec => (
-            <button
-              key={sec.id}
-              onClick={() => setActiveTab(sec.id)}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.4rem',
-                padding: '0.5rem 0.85rem',
-                borderRadius: '8px',
-                border: 'none',
-                backgroundColor: activeTab === sec.id ? '#0284c7' : '#1e293b',
-                color: activeTab === sec.id ? '#fff' : '#cbd5e1',
-                fontWeight: activeTab === sec.id ? '800' : '600',
-                fontSize: '0.78rem',
-                cursor: 'pointer',
-                flexShrink: 0,
-                transition: 'all 0.2s'
-              }}
-            >
-              <span>{sec.icon}</span>
-              <span>{sec.label.split('. ')[1]}</span>
-            </button>
-          ))}
+        {/* Professional Notification Card Box */}
+        {notification.show && (
+          <div style={{
+            backgroundColor: notification.type === 'error' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(34, 197, 94, 0.15)',
+            border: `1px solid ${notification.type === 'error' ? 'rgba(239, 68, 68, 0.4)' : 'rgba(34, 197, 94, 0.4)'}`,
+            color: notification.type === 'error' ? '#ef4444' : '#4ade80',
+            padding: '0.9rem 1.2rem',
+            borderRadius: '12px',
+            fontSize: '0.88rem',
+            fontWeight: '700',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+            animation: 'fadeIn 0.3s ease-in-out'
+          }}>
+            <span>{notification.type === 'error' ? '⚠️ ' : '✅ '} {notification.message}</span>
+            <button onClick={() => setNotification({ show: false, message: '', type: 'success' })} style={{ background: 'none', border: 'none', color: 'inherit', fontSize: '1rem', cursor: 'pointer' }}>✕</button>
+          </div>
+        )}
+
+        {/* Professional Dropdown Selector for Settings Categories */}
+        <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '0.8rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.4rem', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}>
+          <label style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Select Settings Category</label>
+          <select
+            value={activeCategory}
+            onChange={e => setActiveCategory(e.target.value)}
+            style={{
+              width: '100%',
+              backgroundColor: '#1e293b',
+              border: '1px solid #334155',
+              borderRadius: '10px',
+              padding: '0.75rem 1rem',
+              color: '#fff',
+              fontSize: '0.9rem',
+              fontWeight: '700',
+              outline: 'none',
+              cursor: 'pointer',
+              boxSizing: 'border-box'
+            }}
+          >
+            {sections.map(sec => (
+              <option key={sec.id} value={sec.id} style={{ backgroundColor: '#0f172a', color: '#fff' }}>
+                {sec.icon} {sec.label}
+              </option>
+            ))}
+          </select>
         </div>
 
         {/* Content Panel */}
-        <main style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.4rem', minHeight: '520px', boxSizing: 'border-box' }}>
+        <main style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.4rem', minHeight: '520px', boxSizing: 'border-box', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
           
-          {successMsg && (
-            <div style={{ backgroundColor: 'rgba(34, 197, 94, 0.15)', border: '1px solid rgba(34, 197, 94, 0.4)', color: '#4ade80', padding: '0.75rem 1rem', borderRadius: '10px', marginBottom: '1.2rem', fontSize: '0.85rem', fontWeight: '700' }}>
-              {successMsg}
-            </div>
-          )}
-
           {/* 1. Account Settings */}
-          {activeTab === 'account' && (
+          {activeCategory === 'account' && (
             <div>
               <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', marginTop: 0 }}>1. Account Settings</h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
@@ -223,7 +259,7 @@ export default function ComprehensiveSettingsHub() {
           )}
 
           {/* 2. Personal Information */}
-          {activeTab === 'personal' && (
+          {activeCategory === 'personal' && (
             <div>
               <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', marginTop: 0 }}>2. Personal Information</h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
@@ -241,9 +277,9 @@ export default function ComprehensiveSettingsHub() {
           )}
 
           {/* 3. Profile Settings */}
-          {activeTab === 'profile' && (
+          {activeCategory === 'profile' && (
             <div>
-              <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', marginTop: 0 }}>3. Profile Settings</h2>
+              <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', marginTop: 0 }}>3. Profile Customization</h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700', marginBottom: '0.4rem' }}>Professional Headline</label>
@@ -253,15 +289,15 @@ export default function ComprehensiveSettingsHub() {
                   <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700', marginBottom: '0.4rem' }}>About Me (Bio)</label>
                   <textarea rows={4} value={formData.bio} onChange={e => setFormData({...formData, bio: e.target.value})} style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '10px', padding: '0.7rem', color: '#fff', fontSize: '0.82rem', boxSizing: 'border-box' }} />
                 </div>
-                <button onClick={() => handleSave('Profile Settings')} disabled={saving} style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.75rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.85rem', cursor: 'pointer' }}>{saving ? 'Saving...' : 'Save Profile Settings'}</button>
+                <button onClick={() => handleSave('Profile Settings')} disabled={saving} style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.75rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.85rem', cursor: 'pointer' }}>{saving ? 'Saving...' : 'Save Profile Customization'}</button>
               </div>
             </div>
           )}
 
           {/* 4. Privacy Settings */}
-          {activeTab === 'privacy' && (
+          {activeCategory === 'privacy' && (
             <div>
-              <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', marginTop: 0 }}>4. Privacy Settings</h2>
+              <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', marginTop: 0 }}>4. Privacy & Visibility</h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700', marginBottom: '0.4rem' }}>Profile Visibility</label>
@@ -277,9 +313,9 @@ export default function ComprehensiveSettingsHub() {
           )}
 
           {/* 5. Account Security */}
-          {activeTab === 'security' && (
+          {activeCategory === 'security' && (
             <div>
-              <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', marginTop: 0 }}>5. Account Security</h2>
+              <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', marginTop: 0 }}>5. Account Security & 2FA</h2>
               <form onSubmit={handlePasswordChange} style={{ backgroundColor: '#131b2e', border: '1px solid #1e293b', borderRadius: '14px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.8rem', marginTop: '1rem' }}>
                 <h3 style={{ color: '#fff', fontSize: '0.9rem', margin: 0 }}>Change Password</h3>
                 <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="New password (min 6 chars)" style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem', color: '#fff', fontSize: '0.8rem', boxSizing: 'border-box' }} />
@@ -288,10 +324,10 @@ export default function ComprehensiveSettingsHub() {
             </div>
           )}
 
-          {/* 6. Notifications */}
-          {activeTab === 'notifications' && (
+               {/* 6. Notifications */}
+          {activeCategory === 'notifications' && (
             <div>
-              <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', marginTop: 0 }}>6. Notifications Settings</h2>
+              <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', marginTop: 0 }}>6. Notification Preferences</h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
                 <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#131b2e', padding: '0.8rem', borderRadius: '10px', border: '1px solid #1e293b', cursor: 'pointer' }}>
                   <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>Email Notifications</span>
@@ -307,9 +343,9 @@ export default function ComprehensiveSettingsHub() {
           )}
 
           {/* 7. Appearance */}
-          {activeTab === 'appearance' && (
+          {activeCategory === 'appearance' && (
             <div>
-              <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', marginTop: 0 }}>7. Appearance Settings</h2>
+              <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', marginTop: 0 }}>7. Appearance & Theme</h2>
               <div style={{ marginTop: '1rem' }}>
                 <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700', marginBottom: '0.4rem' }}>Theme Mode</label>
                 <select value={formData.theme_mode} onChange={e => setFormData({...formData, theme_mode: e.target.value})} style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '10px', padding: '0.7rem', color: '#fff', fontSize: '0.82rem', boxSizing: 'border-box' }}>
@@ -321,24 +357,29 @@ export default function ComprehensiveSettingsHub() {
             </div>
           )}
 
-             {/* 8. Language & Region */}
-          {activeTab === 'language' && (
+          {/* 8. Language & Region (Expanded with many languages) */}
+          {activeCategory === 'language' && (
             <div>
               <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', marginTop: 0 }}>8. Language & Region</h2>
               <div style={{ marginTop: '1rem' }}>
-                <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700', marginBottom: '0.4rem' }}>App Language</label>
+                <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700', marginBottom: '0.4rem' }}>Select Application Language</label>
                 <select value={formData.app_language} onChange={e => setFormData({...formData, app_language: e.target.value})} style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '10px', padding: '0.7rem', color: '#fff', fontSize: '0.82rem', boxSizing: 'border-box' }}>
-                  <option value="en">English</option>
-                  <option value="ur">Urdu / Roman Urdu</option>
-                  <option value="sd">Sindhi</option>
+                  <option value="en">English (US/UK)</option>
+                  <option value="ur">Urdu (اردو)</option>
+                  <option value="sd">Sindhi (سنڌي)</option>
+                  <option value="ar">Arabic (العربية)</option>
+                  <option value="fr">French (Français)</option>
+                  <option value="de">German (Deutsch)</option>
+                  <option value="es">Spanish (Español)</option>
+                  <option value="zh">Chinese (中文)</option>
                 </select>
-                <button onClick={() => handleSave('Language Settings')} disabled={saving} style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.75rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.85rem', cursor: 'pointer', marginTop: '1rem', width: '100%' }}>{saving ? 'Saving...' : 'Save Language'}</button>
+                <button onClick={() => handleSave('Language Settings')} disabled={saving} style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.75rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.85rem', cursor: 'pointer', marginTop: '1rem', width: '100%' }}>{saving ? 'Saving...' : 'Save Language Preference'}</button>
               </div>
             </div>
           )}
 
           {/* 9. Feed Preferences */}
-          {activeTab === 'feed' && (
+          {activeCategory === 'feed' && (
             <div>
               <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', marginTop: 0 }}>9. Feed Preferences</h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
@@ -349,57 +390,50 @@ export default function ComprehensiveSettingsHub() {
                     <option value="trending">Top Trending</option>
                   </select>
                 </div>
-                <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#131b2e', padding: '0.8rem', borderRadius: '10px', border: '1px solid #1e293b', cursor: 'pointer' }}>
-                  <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>Video Autoplay in Feed</span>
-                  <input type="checkbox" checked={formData.video_autoplay} onChange={e => setFormData({...formData, video_autoplay: e.target.checked})} style={{ width: '18px', height: '18px' }} />
-                </label>
                 <button onClick={() => handleSave('Feed Preferences')} disabled={saving} style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.75rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.85rem', cursor: 'pointer' }}>{saving ? 'Saving...' : 'Save Feed Preferences'}</button>
               </div>
             </div>
           )}
 
           {/* 10. Messaging Settings */}
-          {activeTab === 'messaging' && (
+          {activeCategory === 'messaging' && (
             <div>
-              <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', marginTop: 0 }}>10. Messaging Settings</h2>
+              <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', marginTop: 0 }}>10. Messaging Controls</h2>
               <div style={{ marginTop: '1rem' }}>
                 <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700', marginBottom: '0.4rem' }}>Who can message you?</label>
                 <select value={formData.messaging_permission} onChange={e => setFormData({...formData, messaging_permission: e.target.value})} style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '10px', padding: '0.7rem', color: '#fff', fontSize: '0.82rem', boxSizing: 'border-box' }}>
                   <option value="everyone">Everyone</option>
                   <option value="connections">Connections Only</option>
                 </select>
-                <button onClick={() => handleSave('Messaging Settings')} disabled={saving} style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.75rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.85rem', cursor: 'pointer', marginTop: '1rem', width: '100%' }}>{saving ? 'Saving...' : 'Save Messaging Settings'}</button>
+                <button onClick={() => handleSave('Messaging Settings')} disabled={saving} style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.75rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.85rem', cursor: 'pointer', marginTop: '1rem', width: '100%' }}>{saving ? 'Saving...' : 'Save Messaging Controls'}</button>
               </div>
             </div>
           )}
-
-          {/* 11. Accessibility */}
-          {activeTab === 'accessibility' && (
+   {/* 11. Accessibility */}
+          {activeCategory === 'accessibility' && (
             <div>
               <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', marginTop: 0 }}>11. Accessibility</h2>
-              <p style={{ color: '#94a3b8', fontSize: '0.82rem', marginBottom: '1.2rem' }}>Enhance readability and high contrast navigation.</p>
-              <div style={{ backgroundColor: '#131b2e', padding: '1rem', borderRadius: '10px', border: '1px solid #1e293b' }}>
+              <div style={{ backgroundColor: '#131b2e', padding: '1rem', borderRadius: '10px', border: '1px solid #1e293b', marginTop: '1rem' }}>
                 <div style={{ fontWeight: 'bold', fontSize: '0.85rem', marginBottom: '0.3rem' }}>High Contrast Mode</div>
-                <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>SHANORA automatically optimizes dark theme contrast for eye safety.</div>
+                <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>SHANORA automatically optimizes dark theme contrast for high visibility.</div>
               </div>
             </div>
           )}
 
           {/* 12. Data & Export */}
-          {activeTab === 'data' && (
+          {activeCategory === 'data' && (
             <div>
-              <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', marginTop: 0 }}>12. Data & Export</h2>
-              <p style={{ color: '#94a3b8', fontSize: '0.82rem', marginBottom: '1.2rem' }}>Download your personal profile data and activity logs.</p>
-              <button onClick={() => alert('Data export request submitted. You will receive an email shortly.')} style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.75rem 1.2rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}>📥 Download My Data Archive</button>
+              <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', marginTop: 0 }}>12. Data & Export Archive</h2>
+              <p style={{ color: '#94a3b8', fontSize: '0.82rem', marginBottom: '1.2rem' }}>Download your personal profile data and activity logs securely.</p>
+              <button onClick={() => showCardMessage('Data export archive requested successfully. Check your email.', 'success')} style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.75rem 1.2rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}>📥 Request Data Archive</button>
             </div>
           )}
 
           {/* 13. Ads & Monetization */}
-          {activeTab === 'ads' && (
+          {activeCategory === 'ads' && (
             <div>
               <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', marginTop: 0 }}>13. Ads & Monetization</h2>
-              <p style={{ color: '#94a3b8', fontSize: '0.82rem', marginBottom: '1.2rem' }}>Manage your advertiser preferences and creator earnings status.</p>
-              <div style={{ backgroundColor: '#131b2e', padding: '1rem', borderRadius: '10px', border: '1px solid #1e293b', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ backgroundColor: '#131b2e', padding: '1rem', borderRadius: '10px', border: '1px solid #1e293b', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem' }}>
                 <div>
                   <div style={{ fontWeight: 'bold', fontSize: '0.85rem' }}>Creator Monetization Status</div>
                   <div style={{ fontSize: '0.75rem', color: '#22c55e' }}>Active & Eligible for Payouts</div>
@@ -410,9 +444,9 @@ export default function ComprehensiveSettingsHub() {
           )}
 
           {/* 14. Jobs & Career */}
-          {activeTab === 'jobs' && (
+          {activeCategory === 'jobs' && (
             <div>
-              <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', marginTop: 0 }}>14. Jobs & Career Preferences</h2>
+              <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', marginTop: 0 }}>14. Jobs & Career Hub</h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
                 <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#131b2e', padding: '0.8rem', borderRadius: '10px', border: '1px solid #1e293b', cursor: 'pointer' }}>
                   <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>Open to Work (Recruiter Discovery)</span>
@@ -428,26 +462,24 @@ export default function ComprehensiveSettingsHub() {
           )}
 
           {/* 15. Help & Support */}
-          {activeTab === 'support' && (
+          {activeCategory === 'support' && (
             <div>
               <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', marginTop: 0 }}>15. Help & Support Center</h2>
-              <p style={{ color: '#94a3b8', fontSize: '0.82rem', marginBottom: '1.2rem' }}>Submit a support ticket or report a bug directly to SHANORA engineering.</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                <input type="text" placeholder="Issue Subject (e.g. Login bug)" value={formData.support_ticket_subject} onChange={e => setFormData({...formData, support_ticket_subject: e.target.value})} style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '10px', padding: '0.7rem', color: '#fff', fontSize: '0.82rem', boxSizing: 'border-box' }} />
-                <textarea rows={3} placeholder="Describe your problem..." value={formData.support_ticket_msg} onChange={e => setFormData({...formData, support_ticket_msg: e.target.value})} style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '10px', padding: '0.7rem', color: '#fff', fontSize: '0.82rem', boxSizing: 'border-box' }} />
-                <button onClick={() => { alert('Support ticket submitted successfully! Ticket ID #SH-' + Math.floor(Math.random()*90000+10000)); setFormData({...formData, support_ticket_subject:'', support_ticket_msg:''}); }} style={{ backgroundColor: '#22c55e', color: '#000', border: 'none', padding: '0.75rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.85rem', cursor: 'pointer' }}>Submit Support Ticket</button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', marginTop: '1rem' }}>
+                <input type="text" placeholder="Issue Subject (e.g. Login bug)" value={supportSubject} onChange={e => setSupportSubject(e.target.value)} style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '10px', padding: '0.7rem', color: '#fff', fontSize: '0.82rem', boxSizing: 'border-box' }} />
+                <textarea rows={3} placeholder="Describe your problem..." value={supportMsg} onChange={e => setSupportMsg(e.target.value)} style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '10px', padding: '0.7rem', color: '#fff', fontSize: '0.82rem', boxSizing: 'border-box' }} />
+                <button onClick={() => { if(!supportSubject) { showCardMessage('Please enter a subject', 'error'); return; } showCardMessage('Support ticket submitted successfully! Ticket ID #SH-' + Math.floor(Math.random()*90000+10000), 'success'); setSupportSubject(''); setSupportMsg(''); }} style={{ backgroundColor: '#22c55e', color: '#000', border: 'none', padding: '0.75rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.85rem', cursor: 'pointer' }}>Submit Support Ticket</button>
               </div>
             </div>
           )}
 
           {/* 16. Account Management */}
-          {activeTab === 'management' && (
+          {activeCategory === 'management' && (
             <div>
               <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', marginTop: 0 }}>16. Account Management</h2>
-              <p style={{ color: '#94a3b8', fontSize: '0.82rem', marginBottom: '1.2rem' }}>Deactivate or permanently close your SHANORA account.</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', marginTop: '1rem' }}>
                 <button onClick={async () => { if(confirm('Are you sure you want to log out?')) { await supabase.auth.signOut(); router.push('/auth'); } }} style={{ backgroundColor: '#334155', color: '#fff', border: 'none', padding: '0.75rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}>Log Out of SHANORA</button>
-                <button onClick={() => alert('Account deletion requires security re-authentication. Please contact support.')} style={{ backgroundColor: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.4)', padding: '0.75rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}>Permanently Delete Account</button>
+                <button onClick={() => showCardMessage('Account deletion requires security re-authentication. Contact support.', 'error')} style={{ backgroundColor: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.4)', padding: '0.75rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}>Permanently Delete Account</button>
               </div>
             </div>
           )}
@@ -457,4 +489,6 @@ export default function ComprehensiveSettingsHub() {
       </div>
     </div>
   );
-                          }
+}
+
+          
