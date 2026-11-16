@@ -22,7 +22,198 @@ function sanitizeInput(str) {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
-    .replace(Yeh lijiye aapka final, mukammal aur perfectly structured **`app/profile/page.jsx`** ka code. Ismein aapka profile name bold aur saare shortcut cards bilkul eik jaise (uniform height aur clean layout ke sath) set kar diye gaye hain:
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+// Executive High-End Verified PRO Badge Component
+function ProVerifiedBadge({ size = 18 }) {
+  return (
+    <span 
+      title="Verified PRO Member" 
+      style={{ 
+        display: 'inline-flex', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        verticalAlign: 'middle',
+        marginLeft: '4px',
+        flexShrink: 0
+      }}
+    >
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="12" cy="12" r="10.5" fill="url(#proBadgeGrad)" stroke="#38bdf8" strokeWidth="1.2" />
+        <path d="M7.5 12.2L10.3 15L16.5 9" stroke="#ffffff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+        <defs>
+          <linearGradient id="proBadgeGrad" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#0284c7" />
+            <stop offset="1" stopColor="#0369a1" />
+          </linearGradient>
+        </defs>
+      </svg>
+    </span>
+  );
+}
+
+function ProfilePortalContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const [activeTab, setActiveTab] = useState(searchParams?.get('tab') || 'profile');
+  const [loading, setLoading] = useState(true);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+
+  // Invite Modal States
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [referralCount, setReferralCount] = useState(0);
+  const [claimingMilestone, setClaimingMilestone] = useState(null);
+
+  const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState({
+    full_name: '', email: '', phone: '', city: 'Pakistan', bio: '', headline: '', skills: '', avatar_url: '', resume_url: '', is_pro: false, is_ambassador: false, referral_badge: false, is_monetized: false, wallet_balance: 0
+  });
+
+  const [showEditProfileModal, setShowEditProfileModal] = useState(false);
+  const [editProfileForm, setEditProfileForm] = useState({
+    full_name: '', headline: '', phone: '', city: 'Pakistan', bio: '', skills: '', avatar_url: '', resume_url: ''
+  });
+  const [updatingProfile, setUpdatingProfile] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  const [resumeData, setResumeData] = useState({
+    summary: '', skills: '', experience: 'Senior Freelance Creator & Specialist (2024 - Present)', education: 'Bachelor of Science', languages: 'English, Urdu'
+  });
+
+  const [trxId, setTrxId] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('EasyPaisa');
+  const [submittingPro, setSubmittingPro] = useState(false);
+  const [latestProRequest, setLatestProRequest] = useState(null);
+
+  const [myPostsCount, setMyPostsCount] = useState(0);
+  const [myPages, setMyPages] = useState([]);
+  const [followersList, setFollowersList] = useState([]);
+  const [followingList, setFollowingList] = useState([]);
+  const [followingMap, setFollowingMap] = useState({});
+  const [actionLoading, setActionLoading] = useState({});
+  const [savedPostsList, setSavedPostsList] = useState([]);
+  const [activeChatUser, setActiveChatUser] = useState(null);
+
+  const navigateToTab = (newTab, chatUser = null) => {
+    setActiveTab(newTab);
+    setActiveChatUser(chatUser);
+    if (typeof window !== 'undefined') {
+      const url = newTab === 'menu' ? '/profile?tab=menu' : `/profile?tab=${newTab}`;
+      window.history.pushState({ tab: newTab }, '', url);
+    }
+  };
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get('tab');
+      if (tabParam === 'notifications' || tabParam === 'alerts') {
+        window.location.replace('/alerts');
+        return;
+      }
+      if (tabParam === 'security') {
+        window.location.replace('/settings/security');
+        return;
+      }
+      if (tabParam) setActiveTab(tabParam);
+    }
+  }, []);
+
+  useEffect(() => {
+    async function initPortal() {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user) {
+          router.push('/auth');
+          return;
+        }
+
+        const currentUser = session.user;
+        setUser(currentUser);
+        const myEmail = (currentUser.email || '').trim().toLowerCase();
+
+        const { data: profileData } = await supabase.from('profiles').select('*').ilike('email', myEmail).maybeSingle();
+
+        const defaultProfile = {
+          full_name: profileData?.full_name || profileData?.name || currentUser.user_metadata?.full_name || myEmail.split('@')[0],
+          email: currentUser.email,
+          phone: profileData?.phone || '',
+          city: profileData?.city || 'Pakistan',
+          headline: profileData?.headline || 'Professional Member on Shanora',
+          bio: profileData?.bio || 'Passionate creator & professional on Shanora.pk',
+          skills: profileData?.skills || '',
+          avatar_url: profileData?.avatar_url || '',
+          resume_url: profileData?.resume_url || '',
+          is_pro: !!profileData?.is_pro,
+          is_ambassador: !!profileData?.is_ambassador,
+          referral_badge: !!profileData?.referral_badge,
+          is_monetized: !!profileData?.is_monetized,
+          wallet_balance: Number(profileData?.wallet_balance || 0)
+        };
+
+        setProfile(defaultProfile);
+        setEditProfileForm(defaultProfile);
+
+        const { data: followsData } = await supabase.from('user_follows').select('id, follower_email, following_email');
+        if (followsData) {
+          const myFollowersRaw = followsData.filter(f => (f.following_email || '').toLowerCase() === myEmail);
+          const myFollowingsRaw = followsData.filter(f => (f.follower_email || '').toLowerCase() === myEmail);
+
+          const curMap = {};
+          myFollowingsRaw.forEach(f => { if (f.following_email) curMap[f.following_email.toLowerCase()] = true; });
+          setFollowingMap(curMap);
+          setFollowersList(myFollowersRaw);
+          setFollowingList(myFollowingsRaw);
+        }
+
+        supabase.from('user_posts').select('id', { count: 'exact', head: true }).ilike('user_email', myEmail).then(({ count }) => { if (count !== null) setMyPostsCount(count); });
+        supabase.from('pro_requests').select('*').ilike('user_email', myEmail).order('created_at', { ascending: false }).limit(1).maybeSingle().then(({ data }) => { if (data) setLatestProRequest(data); });
+        supabase.from('pages').select('*').ilike('owner_email', myEmail).then(({ data }) => { if (data) setMyPages(data); });
+        supabase.from('saved_posts').select('*, user_posts(*)').ilike('user_email', myEmail).then(({ data }) => { if (data) setSavedPostsList(data); });
+        supabase.from('user_referrals').select('id', { count: 'exact', head: true }).ilike('referrer_email', myEmail).then(({ count }) => { if (count !== null) setReferralCount(count); });
+      } catch (err) {
+        console.error('Error loading portal:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    initPortal();
+  }, [router]);
+
+  async function handleAvatarUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    setUploadingAvatar(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const filePath = `avatars/${user.id}-${Date.now()}.${fileExt}`;
+      await supabase.storage.from('avatars').upload(filePath, file, { upsert: true });
+      const { data: publicUrlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
+      setEditProfileForm(prev => ({ ...prev, avatar_url: publicUrlData.publicUrl }));
+      alert('Avatar uploaded successfully!');
+    } catch (err) {
+      alert('Upload error: ' + err.message);
+    } finally {
+      setUploadingAvatar(false);
+    }
+  }
+
+  async function handleSaveProfile(e) {
+    e.preventDefault();
+    if (!user) return;
+    setUpdatingProfile(true);
+    try {
+      const updates = {
+        email: user.email.toLowerCase(),
+        full_name: sanitizeInput(editProfileForm.full_name?.trim()),Aapke bheje huay code mein aik chhota sa syntax error tha (wo jo text ke beech mein HTML tags ya broken code aa gaya tha, misal ke taur par `Link #1e293b'...` wala hissa), jiski wajah se Next.js compile nahi ho pa raha tha.
+
+Maine uss poore error ko bilkul saaf karke, aapka **complete aur bug-free code** niche tayar kar diya hai. Ismein aapka profile name bhi bold hai aur saare shortcut cards ki height bhi bilkul uniform (ek jaisi) hai.
+
+Aap apni **`app/profile/page.jsx`** file ka saara code hata kar yeh naya code paste kar dein:
 
 ```jsx
 'use client';
@@ -377,7 +568,7 @@ function ProfilePortalContent() {
     ([Boolean(profile.full_name), Boolean(profile.phone), Boolean(profile.city), Boolean(profile.bio), Boolean(profile.resume_url), Boolean(profile.skills)].filter(Boolean).length / 6) * 100
   );
 
- const allMenuItems = [
+  const allMenuItems = [
     { id: 'pro', label: 'Shanora PRO 👑', icon: '👑', bg: 'rgba(234, 179, 8, 0.15)', border: 'rgba(234, 179, 8, 0.4)' },
     { id: 'invite_friends', label: 'Invite Friends 👥', icon: '👥', bg: 'rgba(34, 197, 94, 0.15)', border: 'rgba(34, 197, 94, 0.35)' },
     { id: 'advertiser_portal', label: 'Ads Manager 📢', icon: '📢', bg: 'rgba(59, 130, 246, 0.15)', border: 'rgba(59, 130, 246, 0.35)', isLink: true, route: '/ads-manager' },
