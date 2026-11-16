@@ -80,5 +80,4 @@ export default function ProTab({ profile, latestProRequest, paymentMethod, setPa
       </div>
     </div>
   );
-                   }
-            
+}
