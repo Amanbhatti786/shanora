@@ -974,7 +974,7 @@ function FeedContent() {
             </span>
           </Link>
 
-          {/* Search Box with responsive dropdown (Fixed for Mobile) */}
+          {/* Search Box with responsive dropdown */}
           <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '22px', padding: '0.35rem 0.75rem' }}>
               <span style={{ color: '#94a3b8', fontSize: '0.85rem', marginRight: '0.4rem', flexShrink: 0 }}>🔍</span>
@@ -992,7 +992,7 @@ function FeedContent() {
             </div>
 
             {showSearchDropdown && (
-              <div style={{ position: 'absolute', top: '44px', left: 0, right: 0, width: '100%', minWidth: '220px', backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '12px', boxShadow: '0 12px 30px rgba(0,0,0,0.8)', zIndex: 150, overflow: 'hidden', maxHeight: '380px', display: 'flex', flexDirection: 'column', boxSizing: 'border-box' }}>
+              <div style={{ position: 'absolute', top: '44px', right: 0, width: '100vw', maxWidth: '320px', backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '12px', boxShadow: '0 12px 30px rgba(0,0,0,0.8)', zIndex: 150, overflow: 'hidden', maxHeight: '380px', display: 'flex', flexDirection: 'column', boxSizing: 'border-box' }}>
                 <div style={{ display: 'flex', borderBottom: '1px solid #1e293b', backgroundColor: '#1e293b', padding: '0.3rem 0.4rem', gap: '0.3rem' }}>
                   {['all', 'pages', 'profiles'].map(tab => (
                     <button key={tab} type="button" onClick={() => setSearchFilter(tab)} style={{ flex: 1, padding: '0.3rem 0.4rem', fontSize: '0.72rem', fontWeight: '700', borderRadius: '6px', border: 'none', cursor: 'pointer', textTransform: 'capitalize', backgroundColor: searchFilter === tab ? '#0284c7' : 'transparent', color: searchFilter === tab ? '#fff' : '#94a3b8' }}>
