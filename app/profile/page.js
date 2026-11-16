@@ -209,224 +209,6 @@ function ProfilePortalContent() {
     try {
       const updates = {
         email: user.email.toLowerCase(),
-        full_name: sanitizeInput(editProfileForm.full_name?.trim()),Aapke bheje huay code mein aik chhota sa syntax error tha (wo jo text ke beech mein HTML tags ya broken code aa gaya tha, misal ke taur par `Link #1e293b'...` wala hissa), jiski wajah se Next.js compile nahi ho pa raha tha.
-
-Maine uss poore error ko bilkul saaf karke, aapka **complete aur bug-free code** niche tayar kar diya hai. Ismein aapka profile name bhi bold hai aur saare shortcut cards ki height bhi bilkul uniform (ek jaisi) hai.
-
-Aap apni **`app/profile/page.jsx`** file ka saara code hata kar yeh naya code paste kar dein:
-
-```jsx
-'use client';
-
-import { Suspense, useState, useEffect } from 'react';
-import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { supabase } from '../../lib/supabaseClient';
-import BottomNav from '../../components/BottomNav';
-import ResumeStudio from '../../components/ResumeStudio';
-
-// Imported Modular Component Tabs & Modals
-import ProTab from '../../components/ProTab';
-import DashboardTab from '../../components/DashboardTab';
-import MyProfileTab from '../../components/MyProfileTab';
-import PagesTab from '../../components/PagesTab';
-import SavedPostsTab from '../../components/SavedPostsTab';
-import NetworkTab from '../../components/NetworkTab';
-import InviteModal from '../../components/InviteModal';
-
-function sanitizeInput(str) {
-  if (typeof str !== 'string') return str;
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
-// Executive High-End Verified PRO Badge Component
-function ProVerifiedBadge({ size = 18 }) {
-  return (
-    <span 
-      title="Verified PRO Member" 
-      style={{ 
-        display: 'inline-flex', 
-        alignItems: 'center', 
-        justifyContent: 'center',
-        verticalAlign: 'middle',
-        marginLeft: '4px',
-        flexShrink: 0
-      }}
-    >
-      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)">
-        <circle cx="12" cy="12" r="10.5" fill="url(#proBadgeGrad)" stroke="#38bdf8" strokeWidth="1.2" />
-        <path d="M7.5 12.2L10.3 15L16.5 9" stroke="#ffffff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-        <defs>
-          <linearGradient id="proBadgeGrad" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
-            <stop stopColor="#0284c7" />
-            <stop offset="1" stopColor="#0369a1" />
-          </linearGradient>
-        </defs>
-      </svg>
-    </span>
-  );
-}
-
-function ProfilePortalContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-
-  const [activeTab, setActiveTab] = useState(searchParams?.get('tab') || 'profile');
-  const [loading, setLoading] = useState(true);
-  const [showLogoutModal, setShowLogoutModal] = useState(false);
-
-  // Invite Modal States
-  const [showInviteModal, setShowInviteModal] = useState(false);
-  const [copiedLink, setCopiedLink] = useState(false);
-  const [referralCount, setReferralCount] = useState(0);
-  const [claimingMilestone, setClaimingMilestone] = useState(null);
-
-  const [user, setUser] = useState(null);
-  const [profile, setProfile] = useState({
-    full_name: '', email: '', phone: '', city: 'Pakistan', bio: '', headline: '', skills: '', avatar_url: '', resume_url: '', is_pro: false, is_ambassador: false, referral_badge: false, is_monetized: false, wallet_balance: 0
-  });
-
-  const [showEditProfileModal, setShowEditProfileModal] = useState(false);
-  const [editProfileForm, setEditProfileForm] = useState({
-    full_name: '', headline: '', phone: '', city: 'Pakistan', bio: '', skills: '', avatar_url: '', resume_url: ''
-  });
-  const [updatingProfile, setUpdatingProfile] = useState(false);
-  const [uploadingAvatar, setUploadingAvatar] = useState(false);
-
-  const [resumeData, setResumeData] = useState({
-    summary: '', skills: '', experience: 'Senior Freelance Creator & Specialist (2024 - Present)', education: 'Bachelor of Science', languages: 'English, Urdu'
-  });
-
-  const [trxId, setTrxId] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('EasyPaisa');
-  const [submittingPro, setSubmittingPro] = useState(false);
-  const [latestProRequest, setLatestProRequest] = useState(null);
-
-  const [myPostsCount, setMyPostsCount] = useState(0);
-  const [myPages, setMyPages] = useState([]);
-  const [followersList, setFollowersList] = useState([]);
-  const [followingList, setFollowingList] = useState([]);
-  const [followingMap, setFollowingMap] = useState({});
-  const [actionLoading, setActionLoading] = useState({});
-  const [savedPostsList, setSavedPostsList] = useState([]);
-  const [activeChatUser, setActiveChatUser] = useState(null);
-
-  const navigateToTab = (newTab, chatUser = null) => {
-    setActiveTab(newTab);
-    setActiveChatUser(chatUser);
-    if (typeof window !== 'undefined') {
-      const url = newTab === 'menu' ? '/profile?tab=menu' : `/profile?tab=${newTab}`;
-      window.history.pushState({ tab: newTab }, '', url);
-    }
-  };
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const tabParam = params.get('tab');
-      if (tabParam === 'notifications' || tabParam === 'alerts') {
-        window.location.replace('/alerts');
-        return;
-      }
-      if (tabParam === 'security') {
-        window.location.replace('/settings/security');
-        return;
-      }
-      if (tabParam) setActiveTab(tabParam);
-    }
-  }, []);
-
-  useEffect(() => {
-    async function initPortal() {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.user) {
-          router.push('/auth');
-          return;
-        }
-
-        const currentUser = session.user;
-        setUser(currentUser);
-        const myEmail = (currentUser.email || '').trim().toLowerCase();
-
-        const { data: profileData } = await supabase.from('profiles').select('*').ilike('email', myEmail).maybeSingle();
-
-        const defaultProfile = {
-          full_name: profileData?.full_name || profileData?.name || currentUser.user_metadata?.full_name || myEmail.split('@')[0],
-          email: currentUser.email,
-          phone: profileData?.phone || '',
-          city: profileData?.city || 'Pakistan',
-          headline: profileData?.headline || 'Professional Member on Shanora',
-          bio: profileData?.bio || 'Passionate creator & professional on Shanora.pk',
-          skills: profileData?.skills || '',
-          avatar_url: profileData?.avatar_url || '',
-          resume_url: profileData?.resume_url || '',
-          is_pro: !!profileData?.is_pro,
-          is_ambassador: !!profileData?.is_ambassador,
-          referral_badge: !!profileData?.referral_badge,
-          is_monetized: !!profileData?.is_monetized,
-          wallet_balance: Number(profileData?.wallet_balance || 0)
-        };
-
-        setProfile(defaultProfile);
-        setEditProfileForm(defaultProfile);
-
-        const { data: followsData } = await supabase.from('user_follows').select('id, follower_email, following_email');
-        if (followsData) {
-          const myFollowersRaw = followsData.filter(f => (f.following_email || '').toLowerCase() === myEmail);
-          const myFollowingsRaw = followsData.filter(f => (f.follower_email || '').toLowerCase() === myEmail);
-
-          const curMap = {};
-          myFollowingsRaw.forEach(f => { if (f.following_email) curMap[f.following_email.toLowerCase()] = true; });
-          setFollowingMap(curMap);
-          setFollowersList(myFollowersRaw);
-          setFollowingList(myFollowingsRaw);
-        }
-
-        supabase.from('user_posts').select('id', { count: 'exact', head: true }).ilike('user_email', myEmail).then(({ count }) => { if (count !== null) setMyPostsCount(count); });
-        supabase.from('pro_requests').select('*').ilike('user_email', myEmail).order('created_at', { ascending: false }).limit(1).maybeSingle().then(({ data }) => { if (data) setLatestProRequest(data); });
-        supabase.from('pages').select('*').ilike('owner_email', myEmail).then(({ data }) => { if (data) setMyPages(data); });
-        supabase.from('saved_posts').select('*, user_posts(*)').ilike('user_email', myEmail).then(({ data }) => { if (data) setSavedPostsList(data); });
-        supabase.from('user_referrals').select('id', { count: 'exact', head: true }).ilike('referrer_email', myEmail).then(({ count }) => { if (count !== null) setReferralCount(count); });
-      } catch (err) {
-        console.error('Error loading portal:', err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    initPortal();
-  }, [router]);
-
-  async function handleAvatarUpload(e) {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
-    setUploadingAvatar(true);
-    try {
-      const fileExt = file.name.split('.').pop();
-      const filePath = `avatars/${user.id}-${Date.now()}.${fileExt}`;
-      await supabase.storage.from('avatars').upload(filePath, file, { upsert: true });
-      const { data: publicUrlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
-      setEditProfileForm(prev => ({ ...prev, avatar_url: publicUrlData.publicUrl }));
-      alert('Avatar uploaded successfully!');
-    } catch (err) {
-      alert('Upload error: ' + err.message);
-    } finally {
-      setUploadingAvatar(false);
-    }
-  }
-
-  async function handleSaveProfile(e) {
-    e.preventDefault();
-    if (!user) return;
-    setUpdatingProfile(true);
-    try {
-      const updates = {
-        email: user.email.toLowerCase(),
         full_name: sanitizeInput(editProfileForm.full_name?.trim()),
         headline: sanitizeInput(editProfileForm.headline?.trim()),
         phone: sanitizeInput(editProfileForm.phone?.trim()),
@@ -509,7 +291,7 @@ function ProfilePortalContent() {
     }
   }
 
-  const referralLink = `${typeof window !== 'undefined' ? window.location.origin : '[https://shanora-pk.vercel.app](https://shanora-pk.vercel.app)'}/auth?ref=${encodeURIComponent(user?.email?.split('@')[0] || 'member')}`;
+  const referralLink = `${typeof window !== 'undefined' ? window.location.origin : 'https://shanora-pk.vercel.app'}/auth?ref=${encodeURIComponent(user?.email?.split('@')[0] || 'member')}`;
 
   function handleCopyInviteLink() {
     if (typeof navigator !== 'undefined') {
@@ -524,9 +306,9 @@ function ProfilePortalContent() {
     const link = encodeURIComponent(referralLink);
 
     if (platform === 'whatsapp') {
-      window.open(`[https://api.whatsapp.com/send?text=$](https://api.whatsapp.com/send?text=$){text}${link}`, '_blank');
+      window.open(`https://api.whatsapp.com/send?text=${text}${link}`, '_blank');
     } else if (platform === 'facebook') {
-      window.open(`[https://www.facebook.com/sharer/sharer.php?u=$](https://www.facebook.com/sharer/sharer.php?u=$){link}`, '_blank');
+      window.open(`https://www.facebook.com/sharer/sharer.php?u=${link}`, '_blank');
     } else if (platform === 'messenger') {
       window.open(`fb-messenger://share/?link=${link}`, '_blank');
     } else if (platform === 'email') {
@@ -604,7 +386,7 @@ function ProfilePortalContent() {
             {activeTab !== 'menu' ? '←' : '✕'}
           </button>
           
-          <Link #1e293b', '#0b1322', '0.28rem '0.65rem', '10px', '1px 'center', 'inline-flex', 'none', 0.28rem 0.35rem' 0.65rem alignItems: backgroundColor: border: borderRadius: display: gap: href="/feed" padding: solid style="{{" textDecoration: }}>
+          <Link href="/feed" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.65rem', backgroundColor: '#0b1322', border: '1px solid #1e293b', borderRadius: '10px', padding: '0.28rem 0.65rem 0.28rem 0.35rem' }}>
             <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: '900' }}>S</div>
             <span style={{ fontSize: '1.05rem', fontWeight: '900', color: '#ffffff' }}>SHANORA<span style={{ fontSize: '0.55rem', color: '#38bdf8', verticalAlign: 'super' }}>.PK</span></span>
           </Link>
@@ -623,7 +405,7 @@ function ProfilePortalContent() {
               <div>
                 <div style={{ color: '#fff', fontWeight: '900', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                   <span>{profile.full_name}</span>
-                  {profile.is_pro && <ProVerifiedBadge size="{17}"/>}
+                  {profile.is_pro && <ProVerifiedBadge size={17} />}
                   {profile.is_ambassador && <span title="Official Ambassador" style={{ color: '#facc15', fontSize: '0.9rem' }}>🌟</span>}
                 </div>
                 <div style={{ color: '#94a3b8', fontSize: '0.74rem' }}>{profile.headline || 'View profile'}</div>
@@ -644,7 +426,7 @@ function ProfilePortalContent() {
                 );
 
                 if (item.isLink) {
-                  return <Link 'none' href="{item.route}" key="{item.id}" style="{{" textDecoration: }}>{card}</Link>;
+                  return <Link key={item.id} href={item.route} style={{ textDecoration: 'none' }}>{card}</Link>;
                 }
 
                 return (
@@ -666,37 +448,89 @@ function ProfilePortalContent() {
 
         {/* MODULAR COMPONENT TABS */}
         {activeTab === 'pro' && (
-          <ProTab handleProActivation="{handleProActivation}" latestProRequest="{latestProRequest}" navigateToTab="{navigateToTab}" paymentMethod="{paymentMethod}" profile="{profile}" setPaymentMethod="{setPaymentMethod}" setTrxId="{setTrxId}" submittingPro="{submittingPro}" trxId="{trxId}"/>
+          <ProTab 
+            profile={profile} 
+            latestProRequest={latestProRequest} 
+            paymentMethod={paymentMethod} 
+            setPaymentMethod={setPaymentMethod} 
+            trxId={trxId} 
+            setTrxId={setTrxId} 
+            submittingPro={submittingPro} 
+            handleProActivation={handleProActivation} 
+            navigateToTab={navigateToTab} 
+          />
         )}
 
         {activeTab === 'dashboard' && (
-          <DashboardTab followersList="{followersList}" followingList="{followingList}" myPostsCount="{myPostsCount}" navigateToTab="{navigateToTab}" profile="{profile}" profileCompletionPercent="{profileCompletionPercent}"/>
+          <DashboardTab 
+            profile={profile} 
+            myPostsCount={myPostsCount} 
+            followersList={followersList} 
+            followingList={followingList} 
+            profileCompletionPercent={profileCompletionPercent} 
+            navigateToTab={navigateToTab} 
+          />
         )}
 
         {activeTab === 'profile' && (
-          <MyProfileTab navigateToTab="{navigateToTab}" profile="{profile}" setShowEditProfileModal="{setShowEditProfileModal}"/>
+          <MyProfileTab 
+            profile={profile} 
+            setShowEditProfileModal={setShowEditProfileModal} 
+            navigateToTab={navigateToTab} 
+          />
         )}
 
         {activeTab === 'pages' && (
-          <PagesTab myPages="{myPages}" navigateToTab="{navigateToTab}"/>
+          <PagesTab 
+            myPages={myPages} 
+            navigateToTab={navigateToTab} 
+          />
         )}
 
         {activeTab === 'resume' && (
-          <ResumeStudio navigateToTab="{navigateToTab}" profile="{profile}" resumeData="{resumeData}"/>
+          <ResumeStudio 
+            profile={profile} 
+            resumeData={resumeData} 
+            navigateToTab={navigateToTab} 
+          />
         )}
 
         {activeTab === 'saved' && (
-          <SavedPostsTab handleRemoveSavedPost="{handleRemoveSavedPost}" navigateToTab="{navigateToTab}" savedPostsList="{savedPostsList}"/>
+          <SavedPostsTab 
+            savedPostsList={savedPostsList} 
+            handleRemoveSavedPost={handleRemoveSavedPost} 
+            navigateToTab={navigateToTab} 
+          />
         )}
 
         {activeTab === 'network' && (
-          <NetworkTab actionLoading="{actionLoading}" followersList="{followersList}" followingList="{followingList}" followingMap="{followingMap}" handleToggleFollow="{handleToggleFollow}" navigateToTab="{navigateToTab}" setActiveChatUser="{setActiveChatUser}" setActiveTab="{setActiveTab}"/>
+          <NetworkTab 
+            followersList={followersList} 
+            followingList={followingList} 
+            followingMap={followingMap} 
+            actionLoading={actionLoading} 
+            handleToggleFollow={handleToggleFollow} 
+            setActiveChatUser={setActiveChatUser} 
+            setActiveTab={setActiveTab} 
+            navigateToTab={navigateToTab} 
+          />
         )}
 
       </main>
 
       {/* Invite Friends Modal Component */}
-      <InviteModal claimingMilestone="{claimingMilestone}" copiedLink="{copiedLink}" handleClaimMilestone="{handleClaimMilestone}" handleCopyInviteLink="{handleCopyInviteLink}" handleShare="{handleShare}" referralCount="{referralCount}" referralLink="{referralLink}" referralMilestones="{referralMilestones}" setShowInviteModal="{setShowInviteModal}" showInviteModal="{showInviteModal}"/>
+      <InviteModal 
+        showInviteModal={showInviteModal} 
+        setShowInviteModal={setShowInviteModal} 
+        referralLink={referralLink} 
+        copiedLink={copiedLink} 
+        handleCopyInviteLink={handleCopyInviteLink} 
+        handleShare={handleShare} 
+        referralCount={referralCount} 
+        referralMilestones={referralMilestones} 
+        claimingMilestone={claimingMilestone} 
+        handleClaimMilestone={handleClaimMilestone} 
+      />
 
       {/* Edit Profile Modal */}
       {showEditProfileModal && (
@@ -731,7 +565,7 @@ function ProfilePortalContent() {
         </div>
       )}
 
-      <BottomNav/>
+      <BottomNav />
     </div>
   );
 }
@@ -739,7 +573,7 @@ function ProfilePortalContent() {
 export default function ProfilePortal() {
   return (
     <Suspense fallback={<div style={{ minHeight: '100vh', backgroundColor: '#070b14', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#38bdf8' }}>Loading...</div>}>
-      <ProfilePortalContent/>
+      <ProfilePortalContent />
     </Suspense>
   );
 }
