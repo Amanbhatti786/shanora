@@ -36,7 +36,13 @@ export default function MessagesPage() {
   const [sending, setSending] = useState(false);
   const [lastMessagesMap, setLastMessagesMap] = useState({});
 
+  // Attachment states
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [filePreviewUrl, setFilePreviewUrl] = useState(null);
+  const [uploadingFile, setUploadingFile] = useState(false);
+
   const messagesEndRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const scrollToBottom = () => {
     setTimeout(() => {
@@ -69,7 +75,7 @@ export default function MessagesPage() {
         // Fetch direct messages for last message previews
         const { data: msgs } = await supabase
           .from('direct_messages')
-          .select('sender_email, receiver_email, message, created_at')
+          .select('sender_email, receiver_email, message, attachment_url, attachment_type, created_at')
           .or(`sender_email.ilike.${myEmail},receiver_email.ilike.${myEmail}`)
           .order('created_at', { ascending: true });
 
@@ -77,7 +83,8 @@ export default function MessagesPage() {
           const map = {};
           msgs.forEach(m => {
             const other = (m.sender_email.toLowerCase() === myEmail ? m.receiver_email : m.sender_email).toLowerCase();
-            map[other] = { text: m.message, time: new Date(m.created_at).getTime() };
+            const previewText = m.message || (m.attachment_type === 'image' ? '📷 Photo' : '📎 Attachment');
+            map[other] = { text: previewText, time: new Date(m.created_at).getTime() };
           });
           setLastMessagesMap(map);
         }
@@ -128,9 +135,10 @@ export default function MessagesPage() {
             return [...prev, msg];
           });
           scrollToBottom();
+          const previewText = msg.message || (msg.attachment_type === 'image' ? '📷 Photo' : '📎 Attachment');
           setLastMessagesMap(prev => ({
             ...prev,
-            [otherEmail]: { text: msg.message, time: new Date(msg.created_at).getTime() }
+            [otherEmail]: { text: previewText, time: new Date(msg.created_at).getTime() }
           }));
         }
       })
@@ -141,40 +149,88 @@ export default function MessagesPage() {
     };
   }, [activeChatUser, user]);
 
+  const handleFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSelectedFile(file);
+    if (file.type.startsWith('image/')) {
+      setFilePreviewUrl(URL.createObjectURL(file));
+    } else {
+      setFilePreviewUrl(null);
+    }
+  };
+
+  const clearAttachment = () => {
+    setSelectedFile(null);
+    setFilePreviewUrl(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   async function handleSend(e) {
     if (e) e.preventDefault();
-    if (!newMessage.trim() || !activeChatUser || !user || sending) return;
+    if ((!newMessage.trim() && !selectedFile) || !activeChatUser || !user || sending) return;
 
     const myEmail = user.email.toLowerCase();
     const otherEmail = activeChatUser.email.toLowerCase();
     const text = newMessage.trim();
 
     setSending(true);
-    setNewMessage('');
+    setUploadingFile(true);
 
     try {
+      let attachmentUrl = null;
+      let attachmentType = null;
+
+      if (selectedFile) {
+        const fileExt = selectedFile.name.split('.').pop();
+        const fileName = `chat_${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
+        const filePath = `chat-files/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('avatars') // Using avatars bucket (publicly accessible)
+          .upload(filePath, selectedFile, { upsert: true });
+
+        if (uploadError) throw uploadError;
+
+        const { data: publicUrlData } = supabase.storage
+          .from('avatars')
+          .getPublicUrl(filePath);
+
+        attachmentUrl = publicUrlData.publicUrl;
+        attachmentType = selectedFile.type.startsWith('image/') ? 'image' : 'document';
+      }
+
+      const insertPayload = {
+        sender_email: myEmail,
+        receiver_email: otherEmail,
+        message: text,
+        attachment_url: attachmentUrl,
+        attachment_type: attachmentType
+      };
+
       const { data, error } = await supabase
         .from('direct_messages')
-        .insert([{
-          sender_email: myEmail,
-          receiver_email: otherEmail,
-          message: text
-        }])
+        .insert([insertPayload])
         .select()
         .single();
 
       if (error) throw error;
 
       setMessages(prev => [...prev, data]);
+      setNewMessage('');
+      clearAttachment();
       scrollToBottom();
+
+      const previewText = text || (attachmentType === 'image' ? '📷 Photo' : '📎 Document');
       setLastMessagesMap(prev => ({
         ...prev,
-        [otherEmail]: { text: text, time: Date.now() }
+        [otherEmail]: { text: previewText, time: Date.now() }
       }));
     } catch (err) {
       alert('Failed to send message: ' + err.message);
     } finally {
       setSending(false);
+      setUploadingFile(false);
     }
   }
 
@@ -233,7 +289,7 @@ export default function MessagesPage() {
       <main style={{ maxWidth: '640px', margin: '0 auto', padding: '1rem 0.9rem' }}>
         
         {activeChatUser ? (
-          /* ACTIVE CHAT INTERFACE (LinkedIn / FB Style) */
+          /* ACTIVE CHAT INTERFACE */
           <div style={{ backgroundColor: '#0b1322', border: '1px solid #1e293b', borderRadius: '20px', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: '78vh', minHeight: '540px', boxShadow: '0 12px 30px rgba(0,0,0,0.6)' }}>
             
             {/* Chat Header */}
@@ -282,7 +338,7 @@ export default function MessagesPage() {
                       <div style={{
                         backgroundColor: isMe ? '#0284c7' : '#1e293b',
                         color: '#fff',
-                        padding: '0.75rem 1.05rem',
+                        padding: msg.attachment_url ? '0.5rem' : '0.75rem 1.05rem',
                         borderRadius: isMe ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
                         fontSize: '0.88rem',
                         lineHeight: '1.45',
@@ -290,7 +346,21 @@ export default function MessagesPage() {
                         boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
                         border: isMe ? '1px solid rgba(56, 189, 248, 0.3)' : '1px solid #334155'
                       }}>
-                        {msg.message}
+                        {/* Render Attachment if exists */}
+                        {msg.attachment_url && (
+                          <div style={{ marginBottom: msg.message ? '0.5rem' : '0' }}>
+                            {msg.attachment_type === 'image' ? (
+                              <a href={msg.attachment_url} target="_blank" rel="noopener noreferrer">
+                                <img src={msg.attachment_url} alt="Attachment" style={{ maxWidth: '240px', maxHeight: '200px', borderRadius: '12px', objectFit: 'cover', display: 'block' }} />
+                              </a>
+                            ) : (
+                              <a href={msg.attachment_url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: 'rgba(0,0,0,0.2)', padding: '0.6rem 0.8rem', borderRadius: '10px', color: '#38bdf8', textDecoration: 'none', fontWeight: 'bold', fontSize: '0.8rem' }}>
+                                <span>📄 View Attached Document ↗</span>
+                              </a>
+                            )}
+                          </div>
+                        )}
+                        {msg.message && <div style={{ padding: msg.attachment_url ? '0 0.4rem 0.4rem 0.4rem' : '0' }}>{msg.message}</div>}
                       </div>
                       <span style={{ fontSize: '0.62rem', color: '#64748b', marginTop: '0.25rem', padding: '0 0.2rem' }}>
                         {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -302,22 +372,57 @@ export default function MessagesPage() {
               <div ref={messagesEndRef} />
             </div>
 
+            {/* Selected File Preview Box */}
+            {selectedFile && (
+              <div style={{ backgroundColor: '#131e33', padding: '0.6rem 1rem', borderTop: '1px solid #1e293b', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.7rem' }}>
+                  {filePreviewUrl ? (
+                    <img src={filePreviewUrl} alt="Preview" style={{ width: '36px', height: '36px', borderRadius: '6px', objectFit: 'cover' }} />
+                  ) : (
+                    <span style={{ fontSize: '1.4rem' }}>📄</span>
+                  )}
+                  <div style={{ overflow: 'hidden' }}>
+                    <div style={{ fontSize: '0.78rem', color: '#fff', fontWeight: 'bold', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', maxWidth: '250px' }}>{selectedFile.name}</div>
+                    <div style={{ fontSize: '0.68rem', color: '#38bdf8' }}>Ready to send</div>
+                  </div>
+                </div>
+                <button type="button" onClick={clearAttachment} style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '1rem', cursor: 'pointer', fontWeight: 'bold' }}>✕</button>
+              </div>
+            )}
+
             {/* Chat Input Bar */}
             <form onSubmit={handleSend} style={{ padding: '0.8rem 1rem', backgroundColor: '#0f172a', borderTop: '1px solid #1e293b', display: 'flex', gap: '0.6rem', alignItems: 'center' }}>
               <input
-                type="text"
-                placeholder="Write a professional message..."
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                style={{ flex: 1, backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '24px', padding: '0.7rem 1.1rem', color: '#fff', fontSize: '0.86rem', outline: 'none', transition: 'border-color 0.2s' }}
-                autoFocus
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileSelect}
+                style={{ display: 'none' }}
+                accept="image/*,.pdf,.doc,.docx,.txt,.xls,.xlsx"
               />
               <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                title="Attach photo or document"
+                style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '50%', width: '38px', height: '38px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#38bdf8', cursor: 'pointer', fontSize: '1.1rem', flexShrink: 0 }}
+              >
+                📎
+              </button>
+
+              <input
+                type="text"
+                placeholder={uploadingFile ? "Uploading file..." : "Write a professional message..."}
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                disabled={uploadingFile}
+                style={{ flex: 1, backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '24px', padding: '0.7rem 1.1rem', color: '#fff', fontSize: '0.86rem', outline: 'none' }}
+              />
+
+              <button
                 type="submit"
-                disabled={sending || !newMessage.trim()}
+                disabled={sending || uploadingFile || (!newMessage.trim() && !selectedFile)}
                 style={{
-                  backgroundColor: newMessage.trim() ? '#0284c7' : '#1e293b',
-                  color: newMessage.trim() ? '#fff' : '#64748b',
+                  backgroundColor: (newMessage.trim() || selectedFile) ? '#0284c7' : '#1e293b',
+                  color: (newMessage.trim() || selectedFile) ? '#fff' : '#64748b',
                   border: 'none',
                   borderRadius: '50%',
                   width: '42px',
@@ -325,14 +430,13 @@ export default function MessagesPage() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  cursor: newMessage.trim() ? 'pointer' : 'not-allowed',
+                  cursor: (newMessage.trim() || selectedFile) ? 'pointer' : 'not-allowed',
                   fontSize: '1.1rem',
                   fontWeight: 'bold',
-                  boxShadow: newMessage.trim() ? '0 0 15px rgba(2, 132, 199, 0.4)' : 'none',
-                  transition: 'all 0.2s'
+                  flexShrink: 0
                 }}
               >
-                ➤
+                {uploadingFile ? '⌛' : '➤'}
               </button>
             </form>
 
