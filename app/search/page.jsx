@@ -14,7 +14,6 @@ export default function FullScreenSearchPage() {
   const [loading, setLoading] = useState(false);
   const [recentSearches, setRecentSearches] = useState([]);
 
-  // Search Results State
   const [results, setResults] = useState({
     people: [],
     posts: [],
@@ -65,7 +64,6 @@ export default function FullScreenSearchPage() {
     localStorage.removeItem('shanora_recent_searches');
   };
 
-  // Clean and Simple Search Execution
   useEffect(() => {
     const q = query.trim();
     if (!q) {
@@ -133,7 +131,6 @@ export default function FullScreenSearchPage() {
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#070b14', color: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif', boxSizing: 'border-box' }}>
       
-      {/* Header */}
       <header style={{ backgroundColor: '#0f172a', borderBottom: '1px solid #1e293b', padding: '0.75rem 1rem', position: 'sticky', top: 0, zIndex: 100, display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
         <button
           onClick={() => router.back()}
@@ -159,7 +156,6 @@ export default function FullScreenSearchPage() {
         </div>
       </header>
 
-      {/* Tabs */}
       {query.trim() && (
         <div style={{ backgroundColor: '#0f172a', borderBottom: '1px solid #1e293b', padding: '0.5rem 1rem', display: 'flex', gap: '0.5rem', overflowX: 'auto', whiteSpace: 'nowrap' }}>
           {['all', 'people', 'posts', 'jobs', 'pages'].map(tab => (
@@ -185,10 +181,8 @@ export default function FullScreenSearchPage() {
         </div>
       )}
 
-      {/* Main Container */}
       <main style={{ maxWidth: '640px', margin: '0 auto', padding: '1rem' }}>
         
-        {/* Recent Searches */}
         {!query.trim() && (
           <div>
             {recentSearches.length > 0 && (
@@ -232,7 +226,6 @@ export default function FullScreenSearchPage() {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
                 
-                {/* PEOPLE */}
                 {(activeTab === 'all' || activeTab === 'people') && results.people.length > 0 && (
                   <div>
                     <h3 style={{ fontSize: '0.82rem', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.5rem' }}>People</h3>
@@ -278,7 +271,6 @@ export default function FullScreenSearchPage() {
                   </div>
                 )}
 
-                {/* PAGES */}
                 {(activeTab === 'all' || activeTab === 'pages') && results.pages.length > 0 && (
                   <div>
                     <h3 style={{ fontSize: '0.82rem', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Pages & Companies</h3>
@@ -308,7 +300,6 @@ export default function FullScreenSearchPage() {
                   </div>
                 )}
 
-                {/* POSTS */}
                 {(activeTab === 'all' || activeTab === 'posts') && results.posts.length > 0 && (
                   <div>
                     <h3 style={{ fontSize: '0.82rem', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Posts</h3>
@@ -327,7 +318,6 @@ export default function FullScreenSearchPage() {
                   </div>
                 )}
 
-                {/* JOBS */}
                 {(activeTab === 'all' || activeTab === 'jobs') && results.jobs.length > 0 && (
                   <div>
                     <h3 style={{ fontSize: '0.82rem', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Jobs</h3>
