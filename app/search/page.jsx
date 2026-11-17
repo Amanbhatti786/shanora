@@ -42,7 +42,6 @@ export default function FullScreenSearchPage() {
     localStorage.removeItem('shanora_recent_searches');
   };
 
-  // Safe and Independent Search Execution
   useEffect(() => {
     const q = query.trim();
     if (!q) {
@@ -54,7 +53,6 @@ export default function FullScreenSearchPage() {
     setLoading(true);
     const timer = setTimeout(async () => {
       try {
-        // Fetch tables individually to prevent total failure if one fails
         const profilesRes = await supabase.from('profiles').select('*').ilike('name', `%${q}%`).limit(10);
         const pagesRes = await supabase.from('pages').select('*').ilike('name', `%${q}%`).limit(10);
         const postsRes = await supabase.from('user_posts').select('*').ilike('content', `%${q}%`).limit(10);
@@ -157,19 +155,44 @@ export default function FullScreenSearchPage() {
                   <div>
                     <h3 style={{ fontSize: '0.82rem', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.5rem' }}>People</h3>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      {results.people.map(person => (
-                        <div 
-                          key={person.id} 
-                          onClick={() => router.push(`/view-profile?email=${encodeURIComponent(person.email || '')}`)}
-                          style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '0.75rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
-                        >
-                          <div>
-                            <div style={{ fontWeight: '700', fontSize: '0.88rem', color: '#fff' }}>{person.name || person.username || 'User'}</div>
-                            <div style={{ fontSize: '0.75rem', color: '#38bdf8' }}>{person.email || 'Member'}</div>
+                      {results.people.map(person => {
+                        const displayName = person.name || person.username || 'User';
+                        const avatarImage = person.avatar_url || person.logo_url;
+                        return (
+                          <div 
+                            key={person.id} 
+                            onClick={() => router.push(`/view-profile?email=${encodeURIComponent(person.email || '')}`)}
+                            style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '0.75rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                              {/* Facebook Style Circular Avatar */}
+                              <div style={{ 
+                                width: '42px', 
+                                height: '42px', 
+                                borderRadius: '50%', 
+                                backgroundColor: '#0284c7', 
+                                backgroundImage: avatarImage ? `url(${avatarImage})` : 'none', 
+                                backgroundSize: 'cover', 
+                                backgroundPosition: 'center', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center', 
+                                fontWeight: 'bold', 
+                                color: '#fff',
+                                flexShrink: 0,
+                                border: '2px solid #334155'
+                              }}>
+                                {!avatarImage && displayName.charAt(0).toUpperCase()}
+                              </div>
+                              <div>
+                                <div style={{ fontWeight: '700', fontSize: '0.88rem', color: '#fff' }}>{displayName}</div>
+                                <div style={{ fontSize: '0.75rem', color: '#38bdf8' }}>{person.email || 'Member'}</div>
+                              </div>
+                            </div>
+                            <span style={{ color: '#38bdf8', fontSize: '0.78rem', fontWeight: '700' }}>View ↗</span>
                           </div>
-                          <span style={{ color: '#38bdf8', fontSize: '0.78rem', fontWeight: '700' }}>View ↗</span>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -185,9 +208,29 @@ export default function FullScreenSearchPage() {
                           onClick={() => router.push(`/page/${page.slug}`)}
                           style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '0.75rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
                         >
-                          <div>
-                            <div style={{ fontWeight: '700', fontSize: '0.88rem', color: '#fff' }}>{page.name}</div>
-                            <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{page.category || 'Page'}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <div style={{ 
+                              width: '42px', 
+                              height: '42px', 
+                              borderRadius: '10px', 
+                              backgroundColor: '#1e293b', 
+                              backgroundImage: page.logo_url ? `url(${page.logo_url})` : 'none', 
+                              backgroundSize: 'cover', 
+                              backgroundPosition: 'center', 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'center', 
+                              fontWeight: 'bold', 
+                              color: '#38bdf8',
+                              flexShrink: '0',
+                              border: '1px solid #334155'
+                            }}>
+                              {!page.logo_url && page.name.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <div style={{ fontWeight: '700', fontSize: '0.88rem', color: '#fff' }}>{page.name}</div>
+                              <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{page.category || 'Page'}</div>
+                            </div>
                           </div>
                           <span style={{ color: '#38bdf8', fontSize: '0.78rem', fontWeight: '700' }}>Visit ↗</span>
                         </div>
