@@ -23,26 +23,21 @@ export default function FullScreenSearchPage() {
     groups: []
   });
 
-  // Current User for Follow/Connect actions
   const [currentUser, setCurrentUser] = useState(null);
   const [followingMap, setFollowingMap] = useState({});
 
   useEffect(() => {
-    // Focus input on mount
     if (inputRef.current) inputRef.current.focus();
 
-    // Load recent searches from localStorage
     const saved = localStorage.getItem('shanora_recent_searches');
     if (saved) {
       try { setRecentSearches(JSON.parse(saved)); } catch (e) {}
     }
 
-    // Get current session user
     async function getUser() {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
         setCurrentUser(session.user);
-        // Load user follows
         const { data: follows } = await supabase
           .from('user_follows')
           .select('following_email')
@@ -58,7 +53,6 @@ export default function FullScreenSearchPage() {
     getUser();
   }, []);
 
-  // Save recent search to local storage
   const saveRecentSearch = (searchTerm) => {
     if (!searchTerm.trim()) return;
     const updated = [searchTerm, ...recentSearches.filter(item => item !== searchTerm)].slice(0, 8);
@@ -71,7 +65,7 @@ export default function FullScreenSearchPage() {
     localStorage.removeItem('shanora_recent_searches');
   };
 
-  // Debounced search effect across Supabase tables supporting Name, Full Name & Username
+  // Robust Search Execution with error console logging
   useEffect(() => {
     const q = query.trim();
     if (!q) {
@@ -83,32 +77,53 @@ export default function FullScreenSearchPage() {
     setLoading(true);
     const timer = setTimeout(async () => {
       try {
-        const promises = [
-          // 1. People / Profiles (Searches name, full_name, and username)
-          supabase.from('profiles').select('id, name, full_name, username, email, headline, avatar_url')
-            .or(`name.ilike.%${q}%,full_name.ilike.%${q}%,username.ilike.%${q}%`)
-            .limit(10),
-          // 2. Posts (user_posts)
-          supabase.from('user_posts').select('id, content, image_url, created_at, user_name, user_email').ilike('content', `%${q}%`).limit(10),
-          // 3. Jobs
-          supabase.from('jobs').select('*').ilike('title', `%${q}%`).limit(10),
-          // 4. Pages / Companies
-          supabase.from('pages').select('id, name, slug, logo_url, category, monetization_status').ilike('name', `%${q}%`).limit(10),
-          // 5. Groups
-          supabase.from('groups').select('*').ilike('name', `%${q}%`).limit(10).catch(() => ({ data: [] }))
-        ];
+        console.log("Searching for:", q);
 
-        const [profilesRes, postsRes, jobsRes, pagesRes, groupsRes] = await Promise.all(promises);
+        // Fetch profiles safely
+        const profilesRes = await supabase
+          .from('profiles')
+          .select('*')
+          .or(`name.ilike.%${q}%,full_name.ilike.%${q}%,username.ilike.%${q}%,email.ilike.%${q}%`)
+          .limit(10);
+
+        if (profilesRes.error) console.error("Profiles search error:", profilesRes.error);
+
+        // Fetch posts safely
+        const postsRes = await supabase
+          .from('user_posts')
+          .select('*')
+          .ilike('content', `%${q}%`)
+          .limit(10);
+
+        if (postsRes.error) console.error("Posts search error:", postsRes.error);
+
+        // Fetch jobs safely
+        const jobsRes = await supabase
+          .from('jobs')
+          .select('*')
+          .ilike('title', `%${q}%`)
+          .limit(10);
+
+        if (jobsRes.error) console.error("Jobs search error:", jobsRes.error);
+
+        // Fetch pages safely
+        const pagesRes = await supabase
+          .from('pages')
+          .select('*')
+          .ilike('name', `%${q}%`)
+          .limit(10);
+
+        if (pagesRes.error) console.error("Pages search error:", pagesRes.error);
 
         setResults({
           people: profilesRes.data || [],
           posts: postsRes.data || [],
           jobs: jobsRes.data || [],
           pages: pagesRes.data || [],
-          groups: groupsRes.data || []
+          groups: []
         });
       } catch (err) {
-        console.error('Search execution error:', err);
+        console.error('Search execution crash:', err);
       } finally {
         setLoading(false);
       }
@@ -117,31 +132,7 @@ export default function FullScreenSearchPage() {
     return () => clearTimeout(timer);
   }, [query]);
 
-  async function handleToggleFollow(targetEmail, e) {
-    e.stopPropagation();
-    if (!currentUser) return router.push('/auth');
-    if (!targetEmail) return;
-
-    const cleanTarget = targetEmail.toLowerCase();
-    const cleanCurrent = currentUser.email.toLowerCase();
-    if (cleanTarget === cleanCurrent) return;
-
-    const isFollowing = !!followingMap[cleanTarget];
-    setFollowingMap(prev => ({ ...prev, [cleanTarget]: !isFollowing }));
-
-    try {
-      if (isFollowing) {
-        await supabase.from('user_follows').delete().eq('follower_email', cleanCurrent).eq('following_email', cleanTarget);
-      } else {
-        await supabase.from('user_follows').insert([{ follower_email: cleanCurrent, following_email: cleanTarget }]);
-      }
-    } catch (err) {
-      console.error('Follow action error:', err);
-      setFollowingMap(prev => ({ ...prev, [cleanTarget]: isFollowing }));
-    }
-  }
-
-  const totalResultsCount = results.people.length + results.posts.length + results.jobs.length + results.pages.length + results.groups.length;
+  const totalResultsCount = results.people.length + results.posts.length + results.jobs.length + results.pages.length;
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#070b14', color: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif', boxSizing: 'border-box' }}>
@@ -161,7 +152,7 @@ export default function FullScreenSearchPage() {
           <input
             ref={inputRef}
             type="text"
-            placeholder="Search by name, username, posts, jobs..."
+            placeholder="Search profiles, posts, jobs..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') saveRecentSearch(query); }}
@@ -173,101 +164,34 @@ export default function FullScreenSearchPage() {
         </div>
       </header>
 
-      {/* Search Categories Tabs */}
-      {query.trim() && (
-        <div style={{ backgroundColor: '#0f172a', borderBottom: '1px solid #1e293b', padding: '0.5rem 1rem', display: 'flex', gap: '0.5rem', overflowX: 'auto', whiteSpace: 'nowrap' }}>
-          {['all', 'people', 'posts', 'jobs', 'companies', 'groups', 'pages'].map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              style={{
-                padding: '0.4rem 0.85rem',
-                borderRadius: '16px',
-                border: 'none',
-                fontSize: '0.78rem',
-                fontWeight: '700',
-                cursor: 'pointer',
-                textTransform: 'capitalize',
-                backgroundColor: activeTab === tab ? '#0284c7' : '#1e293b',
-                color: activeTab === tab ? '#fff' : '#94a3b8',
-                flexShrink: 0
-              }}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
-      )}
-
       {/* Main Container */}
       <main style={{ maxWidth: '640px', margin: '0 auto', padding: '1rem' }}>
         
-        {/* Recent Searches */}
-        {!query.trim() && (
-          <div>
-            {recentSearches.length > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                <span style={{ fontSize: '0.82rem', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase' }}>Recent Searches</span>
-                <button onClick={clearRecentSearches} style={{ background: 'none', border: 'none', color: '#38bdf8', fontSize: '0.78rem', cursor: 'pointer', fontWeight: '700' }}>Clear All</button>
-              </div>
-            )}
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-              {recentSearches.map((term, index) => (
-                <div
-                  key={index}
-                  onClick={() => setQuery(term)}
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#0f172a', padding: '0.75rem 1rem', borderRadius: '12px', border: '1px solid #1e293b', cursor: 'pointer' }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <span style={{ color: '#94a3b8' }}>🕒</span>
-                    <span style={{ fontSize: '0.88rem', color: '#fff', fontWeight: '600' }}>{term}</span>
-                  </div>
-                  <span style={{ color: '#64748b', fontSize: '0.8rem' }}>↗</span>
-                </div>
-              ))}
-            </div>
-
-            {recentSearches.length === 0 && (
-              <div style={{ textAlign: 'center', padding: '3rem 1rem', color: '#64748b' }}>
-                <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>🔍</div>
-                <div style={{ fontSize: '0.9rem', fontWeight: '700', color: '#94a3b8' }}>Search SHANORA</div>
-                <div style={{ fontSize: '0.78rem', marginTop: '0.3rem' }}>Find people by name, full name, or username (@handle), jobs, posts, and pages instantly.</div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Loading Indicator */}
         {loading && (
           <div style={{ textAlign: 'center', padding: '2.5rem', color: '#38bdf8', fontSize: '0.88rem', fontWeight: '700' }}>
-            Searching SHANORA network...
+            Searching...
           </div>
         )}
 
-        {/* Search Results Display */}
         {query.trim() && !loading && (
           <div>
             {totalResultsCount === 0 ? (
               <div style={{ textAlign: 'center', padding: '3rem 1rem', color: '#94a3b8' }}>
                 <div style={{ fontSize: '1.2rem', fontWeight: '800', color: '#fff' }}>No results found for "{query}"</div>
-                <div style={{ fontSize: '0.82rem', marginTop: '0.4rem' }}>Check your spelling or try searching for another name or username.</div>
+                <div style={{ fontSize: '0.82rem', marginTop: '0.4rem' }}>Check browser Console (F12) to see if Supabase returned any error.</div>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
                 
-                {/* PEOPLE SECTION */}
-                {(activeTab === 'all' || activeTab === 'people') && results.people.length > 0 && (
+                {results.people.length > 0 && (
                   <div>
                     <h3 style={{ fontSize: '0.82rem', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.5rem' }}>People</h3>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                       {results.people.map(person => {
-                        const emailClean = (person.email || '').toLowerCase();
-                        const isFollowing = !!followingMap[emailClean];
-                        const displayName = person.name || person.full_name || person.username || 'User';
+                        const displayName = person.name || person.full_name || person.username || person.email || 'User';
                         return (
                           <div 
-                            key={person.id} 
+                            key={person.id || person.email} 
                             onClick={() => router.push(`/view-profile?email=${encodeURIComponent(person.email || '')}`)}
                             style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '0.75rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
                           >
@@ -277,24 +201,9 @@ export default function FullScreenSearchPage() {
                               </div>
                               <div>
                                 <div style={{ fontWeight: '700', fontSize: '0.88rem', color: '#fff' }}>{displayName}</div>
-                                <div style={{ fontSize: '0.75rem', color: '#38bdf8' }}>@{person.username || person.email?.split('@')[0]} {person.headline ? `• ${person.headline}` : ''}</div>
+                                <div style={{ fontSize: '0.75rem', color: '#38bdf8' }}>{person.email || `@${person.username}`}</div>
                               </div>
                             </div>
-                            <button
-                              onClick={(e) => handleToggleFollow(emailClean, e)}
-                              style={{
-                                backgroundColor: isFollowing ? 'transparent' : 'rgba(2, 132, 199, 0.2)',
-                                color: isFollowing ? '#94a3b8' : '#38bdf8',
-                                border: isFollowing ? '1px solid #334155' : '1px solid #0284c7',
-                                padding: '0.3rem 0.75rem',
-                                borderRadius: '14px',
-                                fontSize: '0.75rem',
-                                fontWeight: '700',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              {isFollowing ? '✓ Following' : '+ Follow'}
-                            </button>
                           </div>
                         );
                       })}
@@ -302,38 +211,7 @@ export default function FullScreenSearchPage() {
                   </div>
                 )}
 
-                {/* PAGES / COMPANIES SECTION */}
-                {(activeTab === 'all' || activeTab === 'pages' || activeTab === 'companies') && results.pages.length > 0 && (
-                  <div>
-                    <h3 style={{ fontSize: '0.82rem', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Pages & Companies</h3>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      {results.pages.map(page => (
-                        <div 
-                          key={page.id} 
-                          onClick={() => router.push(`/page/${page.slug}`)}
-                          style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '0.75rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                            <div style={{ width: '40px', height: '40px', borderRadius: '10px', backgroundColor: '#1e293b', backgroundImage: page.logo_url ? `url(${page.logo_url})` : 'none', backgroundSize: 'cover', backgroundPosition: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#38bdf8' }}>
-                              {!page.logo_url && page.name.charAt(0).toUpperCase()}
-                            </div>
-                            <div>
-                              <div style={{ fontWeight: '700', fontSize: '0.88rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                                {page.name}
-                                {page.monetization_status === 'approved' && <span style={{ color: '#22c55e', fontSize: '0.75rem' }}>✓</span>}
-                              </div>
-                              <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{page.category || 'Official Page'}</div>
-                            </div>
-                          </div>
-                          <span style={{ color: '#38bdf8', fontSize: '0.78rem', fontWeight: '700' }}>Visit ↗</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* POSTS SECTION */}
-                {(activeTab === 'all' || activeTab === 'posts') && results.posts.length > 0 && (
+                {results.posts.length > 0 && (
                   <div>
                     <h3 style={{ fontSize: '0.82rem', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Posts</h3>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
@@ -341,29 +219,10 @@ export default function FullScreenSearchPage() {
                         <div 
                           key={post.id} 
                           onClick={() => router.push(`/feed?postId=${post.id}`)}
-                          style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '0.9rem', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}
-                        >
-                          <div style={{ fontSize: '0.76rem', color: '#38bdf8', fontWeight: '700' }}>{post.user_name || 'Member'} • {new Date(post.created_at).toLocaleDateString()}</div>
-                          <div style={{ fontSize: '0.85rem', color: '#cbd5e1', lineHeight: '1.4' }}>{post.content}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* JOBS SECTION */}
-                {(activeTab === 'all' || activeTab === 'jobs') && results.jobs.length > 0 && (
-                  <div>
-                    <h3 style={{ fontSize: '0.82rem', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Jobs</h3>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                      {results.jobs.map(job => (
-                        <div 
-                          key={job.id} 
-                          onClick={() => router.push('/jobs')}
                           style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '0.9rem', cursor: 'pointer' }}
                         >
-                          <div style={{ fontWeight: '700', fontSize: '0.9rem', color: '#fff' }}>{job.title}</div>
-                          <div style={{ fontSize: '0.78rem', color: '#38bdf8' }}>{job.company} • {job.location}</div>
+                          <div style={{ fontSize: '0.76rem', color: '#38bdf8', fontWeight: '700' }}>{post.user_name || 'Member'}</div>
+                          <div style={{ fontSize: '0.85rem', color: '#cbd5e1', marginTop: '0.3rem' }}>{post.content}</div>
                         </div>
                       ))}
                     </div>
