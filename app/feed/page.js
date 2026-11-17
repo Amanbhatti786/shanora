@@ -96,6 +96,9 @@ function FeedContent() {
   const POSTS_PER_PAGE = 10;
   const [showSplash, setShowSplash] = useState(false);
 
+  // New Posts Badge State (Facebook-style unread count)
+  const [newPostsCount, setNewPostsCount] = useState(0);
+
   useEffect(() => {
     const hasSeenSplash = sessionStorage.getItem('shanora_splash_shown');
     if (!hasSeenSplash) {
@@ -110,12 +113,6 @@ function FeedContent() {
   const [followingLoading, setFollowingLoading] = useState({});
   const [openMenuPostId, setOpenMenuPostId] = useState(null);
   const [savedPosts, setSavedPosts] = useState({});
-
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
-  const [searchFilter, setSearchFilter] = useState('all');
-  const [isSearching, setIsSearching] = useState(false);
-  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
 
   const [postText, setPostText] = useState('');
   const [postPhoto, setPostPhoto] = useState(null);
@@ -434,6 +431,26 @@ function FeedContent() {
     loadData();
   }, []);
 
+  // Supabase Realtime Subscription for New Posts Count (Facebook-style badge)
+  useEffect(() => {
+    const channel = supabase
+      .channel('public:user_posts')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'user_posts' }, (payload) => {
+        // Increment new posts unread badge count
+        setNewPostsCount(prev => prev + 1);
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  // Clear unread badge when user interacts or scrolls/views feed
+  const handleClearNewPostsBadge = () => {
+    setNewPostsCount(0);
+  };
+
   const loadMorePosts = useCallback(async () => {
     if (loading || loadingMore || !hasMore) return;
     setLoadingMore(true);
@@ -506,8 +523,7 @@ function FeedContent() {
     }
     window.addEventListener('click', handleClickOutside);
     return () => window.removeEventListener('click', handleClickOutside);
-  }, []);
-
+  },[])
   async function handleToggleFollow(targetEmail, e) {
     e.stopPropagation();
     if (!currentUser) return router.push('/auth');
@@ -563,55 +579,6 @@ function FeedContent() {
       alert('Delete failed: ' + err.message);
     }
   }
-
-  useEffect(() => {
-    const delayDebounceFn = setTimeout(async () => {
-      const q = searchQuery.trim();
-      if (!q) {
-        setSearchResults([]);
-        setShowSearchDropdown(false);
-        return;
-      }
-      setIsSearching(true);
-      setShowSearchDropdown(true);
-
-      try {
-        const { data: pagesData } = await supabase.from('pages').select('id, name, slug, logo_url, category, monetization_status').ilike('name', `%${q}%`).limit(10);
-        const { data: profilesData } = await supabase.from('profiles').select('id, name, username, email, avatar_url').ilike('name', `%${q}%`).limit(10);
-
-        const formattedPages = (pagesData || []).map(p => ({
-          id: `page-${p.id}`,
-          type: 'page',
-          title: p.name,
-          subtitle: p.category || 'Official Page',
-          avatar: p.logo_url,
-          link: `/page/${p.slug}`,
-          isVerified: p.monetization_status === 'approved'
-        }));
-
-        const formattedProfiles = (profilesData || []).map(u => {
-          const uname = u.username || u.email?.split('@')[0] || 'user';
-          return {
-            id: `profile-${u.id || uname}`,
-            type: 'profile',
-            title: u.name || uname,
-            subtitle: `@${uname} • Personal Account`,
-            avatar: u.avatar_url,
-            link: `/view-profile?email=${encodeURIComponent(u.email || '')}`,
-            isVerified: false
-          };
-        });
-
-        setSearchResults([...formattedPages, ...formattedProfiles]);
-      } catch (err) {
-        console.error('Search error:', err);
-      } finally {
-        setIsSearching(false);
-      }
-    }, 300);
-
-    return () => clearTimeout(delayDebounceFn);
-  }, [searchQuery]);
 
   async function handleImageSelect(e) {
     const file = e.target.files[0];
@@ -709,6 +676,9 @@ function FeedContent() {
       setPhotoPreview('');
       setPostDoc(null);
       setDocName('');
+      
+      // Clear badge after posting
+      setNewPostsCount(0);
     } catch (err) {
       alert('Post failed: ' + err.message);
     } finally {
@@ -881,7 +851,6 @@ function FeedContent() {
       setSubmittingComment(false);
     }
   }
-
   async function handleCommentReaction(commentId, type) {
     if (!currentUser) return router.push('/auth');
     playActionSound('reaction');
@@ -932,12 +901,6 @@ function FeedContent() {
   const currentUserName = userProfile?.name || currentUser?.email?.split('@')[0] || 'You';
   const cleanCurrentUserEmail = (currentUser?.email || '').toLowerCase();
 
-  const filteredResults = searchResults.filter(item => {
-    if (searchFilter === 'pages') return item.type === 'page';
-    if (searchFilter === 'profiles') return item.type === 'profile';
-    return true;
-  });
-
   if (showSplash) {
     return (
       <div style={{ position: 'fixed', inset: 0, backgroundColor: '#070b14', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '60px 20px 40px 20px', zIndex: 999999, fontFamily: 'system-ui, -apple-system, sans-serif' }}>
@@ -965,65 +928,56 @@ function FeedContent() {
       {/* Top Header */}
       <header style={{ backgroundColor: '#0f172a', borderBottom: '1px solid #1e293b', padding: '0.65rem 0.8rem', position: 'sticky', top: 0, zIndex: 100 }}>
         <div style={{ maxWidth: '640px', margin: '0 auto', display: 'flex', alignItems: 'center', gap: '0.6rem', justifyContent: 'space-between' }}>
-          <Link href="/feed" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#0b1322', border: '1px solid #1e293b', borderRadius: '10px', padding: '0.28rem 0.55rem 0.28rem 0.35rem', boxShadow: '0 2px 8px rgba(0,0,0,0.4)', flexShrink: 0 }}>
-            <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)', border: '1px solid rgba(255, 255, 255, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 10px rgba(2, 132, 199, 0.45)', flexShrink: 0 }}>
+          
+          {/* Feed Brand Link with Facebook-style New Posts Badge Counter */}
+          <Link 
+            href="/feed" 
+            onClick={handleClearNewPostsBadge}
+            style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#0b1322', border: '1px solid #1e293b', borderRadius: '10px', padding: '0.28rem 0.55rem 0.28rem 0.35rem', boxShadow: '0 2px 8px rgba(0,0,0,0.4)', flexShrink: 0, position: 'relative' }}
+          >
+            <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)', border: '1px solid rgba(255, 255, 255, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 10px rgba(2, 132, 199, 0.45)', flexShrink: 0, position: 'relative' }}>
               <span style={{ color: '#ffffff', fontSize: '0.95rem', fontWeight: '900', lineHeight: 1 }}>S</span>
+              
+              {/* New Posts Counter Badge */}
+              {newPostsCount > 0 && (
+                <span style={{
+                  position: 'absolute',
+                  top: '-6px',
+                  right: '-6px',
+                  backgroundColor: '#ef4444',
+                  color: '#fff',
+                  fontSize: '0.62rem',
+                  fontWeight: '900',
+                  padding: '1px 5px',
+                  borderRadius: '10px',
+                  border: '2px solid #0f172a',
+                  boxShadow: '0 2px 6px rgba(239, 68, 68, 0.5)',
+                  zIndex: 10
+                }}>
+                  {newPostsCount > 99 ? '99+' : newPostsCount}
+                </span>
+              )}
             </div>
+
             <span style={{ fontSize: '1rem', fontWeight: '900', color: '#ffffff', letterSpacing: '-0.3px', whiteSpace: 'nowrap' }}>
               SHANORA<span style={{ fontSize: '0.55rem', fontWeight: '800', color: '#38bdf8', verticalAlign: 'super', marginLeft: '2px', letterSpacing: '0.5px' }}>.PK</span>
             </span>
           </Link>
 
-          {/* Search Box with responsive dropdown */}
-          <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '22px', padding: '0.35rem 0.75rem' }}>
+          {/* Full-Screen Search Bar Linked to /search */}
+          <div 
+            onClick={() => router.push('/search')}
+            style={{ position: 'relative', flex: 1, minWidth: 0, cursor: 'pointer' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '22px', padding: '0.35rem 0.75rem', pointerEvents: 'none' }}>
               <span style={{ color: '#94a3b8', fontSize: '0.85rem', marginRight: '0.4rem', flexShrink: 0 }}>🔍</span>
               <input
                 type="text"
-                placeholder="Search..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onFocus={() => { if (searchQuery.trim()) setShowSearchDropdown(true); }}
-                style={{ width: '100%', minWidth: 0, background: 'transparent', border: 'none', color: '#fff', fontSize: '0.82rem', outline: 'none' }}
+                placeholder="Search SHANORA..."
+                readOnly
+                style={{ width: '100%', minWidth: 0, background: 'transparent', border: 'none', color: '#fff', fontSize: '0.82rem', outline: 'none', cursor: 'pointer' }}
               />
-              {searchQuery && (
-                <button onClick={() => { setSearchQuery(''); setShowSearchDropdown(false); }} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '0.8rem', cursor: 'pointer', padding: 0, marginLeft: '4px' }}>✕</button>
-              )}
             </div>
-
-            {showSearchDropdown && (
-              <div style={{ position: 'absolute', top: '44px', right: 0, width: '100vw', maxWidth: '320px', backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '12px', boxShadow: '0 12px 30px rgba(0,0,0,0.8)', zIndex: 150, overflow: 'hidden', maxHeight: '380px', display: 'flex', flexDirection: 'column', boxSizing: 'border-box' }}>
-                <div style={{ display: 'flex', borderBottom: '1px solid #1e293b', backgroundColor: '#1e293b', padding: '0.3rem 0.4rem', gap: '0.3rem' }}>
-                  {['all', 'pages', 'profiles'].map(tab => (
-                    <button key={tab} type="button" onClick={() => setSearchFilter(tab)} style={{ flex: 1, padding: '0.3rem 0.4rem', fontSize: '0.72rem', fontWeight: '700', borderRadius: '6px', border: 'none', cursor: 'pointer', textTransform: 'capitalize', backgroundColor: searchFilter === tab ? '#0284c7' : 'transparent', color: searchFilter === tab ? '#fff' : '#94a3b8' }}>
-                      {tab}
-                    </button>
-                  ))}
-                </div>
-                <div style={{ overflowY: 'auto', padding: '0.3rem 0' }}>
-                  {isSearching ? (
-                    <div style={{ padding: '1rem', textAlign: 'center', fontSize: '0.8rem', color: '#94a3b8' }}>Searching...</div>
-                  ) : filteredResults.length === 0 ? (
-                    <div style={{ padding: '1rem', textAlign: 'center', fontSize: '0.8rem', color: '#94a3b8' }}>No {searchFilter === 'all' ? 'results' : searchFilter} found</div>
-                  ) : (
-                    filteredResults.map(res => (
-                      <Link key={res.id} href={res.link} onClick={() => setShowSearchDropdown(false)} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.55rem 0.75rem', textDecoration: 'none', borderBottom: '1px solid #1e293b' }}>
-                        <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: res.type === 'page' ? '#1e293b' : '#0284c7', backgroundImage: res.avatar ? `url(${res.avatar})` : 'none', backgroundSize: 'cover', backgroundPosition: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#fff', fontSize: '0.8rem', flexShrink: 0 }}>
-                          {!res.avatar && res.title.charAt(0).toUpperCase()}
-                        </div>
-                        <div style={{ flex: 1, overflow: 'hidden' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                            <span style={{ color: '#fff', fontWeight: '700', fontSize: '0.8rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{res.title}</span>
-                            {res.isVerified && <span style={{ color: '#22c55e', fontSize: '0.72rem' }}>✓</span>}
-                          </div>
-                          <div style={{ color: '#94a3b8', fontSize: '0.68rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{res.subtitle}</div>
-                        </div>
-                      </Link>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Professional Messenger Link Button */}
@@ -1054,7 +1008,7 @@ function FeedContent() {
         </div>
       </header>
 
-      <main style={{ maxWidth: '640px', margin: '0 auto', padding: '1rem 0.8rem 3rem 0.8rem' }}>
+      <main style={{ maxWidth: '640px', margin: '0 auto', padding: '1rem 0.8rem 3rem 0.8rem' }} onClick={handleClearNewPostsBadge}>
         {/* Post Creation Box */}
         {currentUser && (
           <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1rem', marginBottom: '1.5rem' }}>
@@ -1344,3 +1298,5 @@ export default function FeedPage() {
     </Suspense>
   );
 }
+
+                      
