@@ -2,6 +2,9 @@ import './globals.css';
 import { Suspense } from 'react';
 import BottomNav from '../components/BottomNav';
 
+// Align Vercel serverless region with Supabase Tokyo region for minimum latency
+export const preferredRegion = 'hnd1';
+
 export const metadata = {
   title: "Shanora.pk",
   description: "Connect with verified creators, discover executive career opportunities, build ATS-friendly resumes, and grow your professional network on Shanora.",
