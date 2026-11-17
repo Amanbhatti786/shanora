@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { supabase } from '../../lib/supabaseClient';
+import { supabase } from '../lib/supabaseClient';
 
 export default function FullScreenSearchPage() {
   const router = useRouter();
@@ -71,7 +71,7 @@ export default function FullScreenSearchPage() {
     localStorage.removeItem('shanora_recent_searches');
   };
 
-  // Debounced search effect across Supabase tables
+  // Debounced search effect across Supabase tables supporting Name & Username
   useEffect(() => {
     const q = query.trim();
     if (!q) {
@@ -84,15 +84,17 @@ export default function FullScreenSearchPage() {
     const timer = setTimeout(async () => {
       try {
         const promises = [
-          // 1. People / Profiles
-          supabase.from('profiles').select('id, name, username, email, headline, avatar_url').ilike('name', `%${q}%`).limit(10),
-          // 2. Posts (user_posts & page_posts)
+          // 1. People / Profiles (Searches both Name and Username)
+          supabase.from('profiles').select('id, name, username, email, headline, avatar_url')
+            .or(`name.ilike.%${q}%,username.ilike.%${q}%`)
+            .limit(10),
+          // 2. Posts (user_posts)
           supabase.from('user_posts').select('id, content, image_url, created_at, user_name, user_email').ilike('content', `%${q}%`).limit(10),
           // 3. Jobs
           supabase.from('jobs').select('*').ilike('title', `%${q}%`).limit(10),
           // 4. Pages / Companies
           supabase.from('pages').select('id, name, slug, logo_url, category, monetization_status').ilike('name', `%${q}%`).limit(10),
-          // 5. Groups (if table exists, otherwise mock/empty fallback)
+          // 5. Groups
           supabase.from('groups').select('*').ilike('name', `%${q}%`).limit(10).catch(() => ({ data: [] }))
         ];
 
@@ -159,7 +161,7 @@ export default function FullScreenSearchPage() {
           <input
             ref={inputRef}
             type="text"
-            placeholder="Search SHANORA (People, Posts, Jobs, Pages)..."
+            placeholder="Search by name, username, posts, jobs..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') saveRecentSearch(query); }}
@@ -200,7 +202,7 @@ export default function FullScreenSearchPage() {
       {/* Main Container */}
       <main style={{ maxWidth: '640px', margin: '0 auto', padding: '1rem' }}>
         
-        {/* Recent Searches (Shown when query is empty) */}
+        {/* Recent Searches */}
         {!query.trim() && (
           <div>
             {recentSearches.length > 0 && (
@@ -230,7 +232,7 @@ export default function FullScreenSearchPage() {
               <div style={{ textAlign: 'center', padding: '3rem 1rem', color: '#64748b' }}>
                 <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>🔍</div>
                 <div style={{ fontSize: '0.9rem', fontWeight: '700', color: '#94a3b8' }}>Search SHANORA</div>
-                <div style={{ fontSize: '0.78rem', marginTop: '0.3rem' }}>Find people, jobs, posts, pages and companies instantly.</div>
+                <div style={{ fontSize: '0.78rem', marginTop: '0.3rem' }}>Find people by name or username (@handle), jobs, posts, and pages instantly.</div>
               </div>
             )}
           </div>
@@ -249,7 +251,7 @@ export default function FullScreenSearchPage() {
             {totalResultsCount === 0 ? (
               <div style={{ textAlign: 'center', padding: '3rem 1rem', color: '#94a3b8' }}>
                 <div style={{ fontSize: '1.2rem', fontWeight: '800', color: '#fff' }}>No results found for "{query}"</div>
-                <div style={{ fontSize: '0.82rem', marginTop: '0.4rem' }}>Check your spelling or try searching for another keyword.</div>
+                <div style={{ fontSize: '0.82rem', marginTop: '0.4rem' }}>Check your spelling or try searching for another name or username.</div>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
@@ -274,7 +276,7 @@ export default function FullScreenSearchPage() {
                               </div>
                               <div>
                                 <div style={{ fontWeight: '700', fontSize: '0.88rem', color: '#fff' }}>{person.name || person.username}</div>
-                                <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{person.headline || `@${person.username}`}</div>
+                                <div style={{ fontSize: '0.75rem', color: '#38bdf8' }}>@{person.username || person.email?.split('@')[0]} {person.headline ? `• ${person.headline}` : ''}</div>
                               </div>
                             </div>
                             <button
@@ -375,5 +377,4 @@ export default function FullScreenSearchPage() {
       </main>
     </div>
   );
-    }
-        
+}
