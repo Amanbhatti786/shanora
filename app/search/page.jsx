@@ -71,7 +71,7 @@ export default function FullScreenSearchPage() {
     localStorage.removeItem('shanora_recent_searches');
   };
 
-  // Debounced search effect across Supabase tables supporting Name & Username
+  // Debounced search effect across Supabase tables supporting Name, Full Name & Username
   useEffect(() => {
     const q = query.trim();
     if (!q) {
@@ -84,9 +84,9 @@ export default function FullScreenSearchPage() {
     const timer = setTimeout(async () => {
       try {
         const promises = [
-          // 1. People / Profiles (Searches both Name and Username)
-          supabase.from('profiles').select('id, name, username, email, headline, avatar_url')
-            .or(`name.ilike.%${q}%,username.ilike.%${q}%`)
+          // 1. People / Profiles (Searches name, full_name, and username)
+          supabase.from('profiles').select('id, name, full_name, username, email, headline, avatar_url')
+            .or(`name.ilike.%${q}%,full_name.ilike.%${q}%,username.ilike.%${q}%`)
             .limit(10),
           // 2. Posts (user_posts)
           supabase.from('user_posts').select('id, content, image_url, created_at, user_name, user_email').ilike('content', `%${q}%`).limit(10),
@@ -232,7 +232,7 @@ export default function FullScreenSearchPage() {
               <div style={{ textAlign: 'center', padding: '3rem 1rem', color: '#64748b' }}>
                 <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>🔍</div>
                 <div style={{ fontSize: '0.9rem', fontWeight: '700', color: '#94a3b8' }}>Search SHANORA</div>
-                <div style={{ fontSize: '0.78rem', marginTop: '0.3rem' }}>Find people by name or username (@handle), jobs, posts, and pages instantly.</div>
+                <div style={{ fontSize: '0.78rem', marginTop: '0.3rem' }}>Find people by name, full name, or username (@handle), jobs, posts, and pages instantly.</div>
               </div>
             )}
           </div>
@@ -264,6 +264,7 @@ export default function FullScreenSearchPage() {
                       {results.people.map(person => {
                         const emailClean = (person.email || '').toLowerCase();
                         const isFollowing = !!followingMap[emailClean];
+                        const displayName = person.name || person.full_name || person.username || 'User';
                         return (
                           <div 
                             key={person.id} 
@@ -272,10 +273,10 @@ export default function FullScreenSearchPage() {
                           >
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                               <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#0284c7', backgroundImage: person.avatar_url ? `url(${person.avatar_url})` : 'none', backgroundSize: 'cover', backgroundPosition: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#fff' }}>
-                                {!person.avatar_url && (person.name || 'U').charAt(0).toUpperCase()}
+                                {!person.avatar_url && displayName.charAt(0).toUpperCase()}
                               </div>
                               <div>
-                                <div style={{ fontWeight: '700', fontSize: '0.88rem', color: '#fff' }}>{person.name || person.username}</div>
+                                <div style={{ fontWeight: '700', fontSize: '0.88rem', color: '#fff' }}>{displayName}</div>
                                 <div style={{ fontSize: '0.75rem', color: '#38bdf8' }}>@{person.username || person.email?.split('@')[0]} {person.headline ? `• ${person.headline}` : ''}</div>
                               </div>
                             </div>
