@@ -65,7 +65,7 @@ export default function FullScreenSearchPage() {
     localStorage.removeItem('shanora_recent_searches');
   };
 
-  // Verified & Tested Search Execution
+  // Clean and Simple Search Execution
   useEffect(() => {
     const q = query.trim();
     if (!q) {
@@ -78,31 +78,11 @@ export default function FullScreenSearchPage() {
     const timer = setTimeout(async () => {
       try {
         const promises = [
-          // 1. Profiles / People search
-          supabase.from('profiles').select('*')
-            .or(`name.ilike.%${q}%,full_name.ilike.%${q}%,username.ilike.%${q}%,email.ilike.%${q}%`)
-            .limit(10),
-          
-          // 2. Posts search
-          supabase.from('user_posts').select('*')
-            .ilike('content', `%${q}%`)
-            .limit(10),
-          
-          // 3. Jobs search
-          supabase.from('jobs').select('*')
-            .ilike('title', `%${q}%`)
-            .limit(10),
-          
-          // 4. Pages search (using exact verified columns: name, headline, category)
-          supabase.from('pages').select('*')
-            .or(`name.ilike.%${q}%,headline.ilike.%${q}%,category.ilike.%${q}%`)
-            .limit(10),
-          
-          // 5. Groups search fallback
-          supabase.from('groups').select('*')
-            .ilike('name', `%${q}%`)
-            .limit(10)
-            .catch(() => ({ data: [] }))
+          supabase.from('profiles').select('*').ilike('name', `%${q}%`).limit(10),
+          supabase.from('user_posts').select('*').ilike('content', `%${q}%`).limit(10),
+          supabase.from('jobs').select('*').ilike('title', `%${q}%`).limit(10),
+          supabase.from('pages').select('*').ilike('name', `%${q}%`).limit(10),
+          supabase.from('groups').select('*').ilike('name', `%${q}%`).limit(10).catch(() => ({ data: [] }))
         ];
 
         const [profilesRes, postsRes, jobsRes, pagesRes, groupsRes] = await Promise.all(promises);
@@ -260,7 +240,7 @@ export default function FullScreenSearchPage() {
                       {results.people.map(person => {
                         const emailClean = (person.email || '').toLowerCase();
                         const isFollowing = !!followingMap[emailClean];
-                        const displayName = person.name || person.full_name || person.username || 'User';
+                        const displayName = person.name || person.username || 'User';
                         return (
                           <div 
                             key={person.id} 
@@ -268,12 +248,12 @@ export default function FullScreenSearchPage() {
                             style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '0.75rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
                           >
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                              <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#0284c7', backgroundImage: person.avatar_url ? `url(${person.avatar_url})` : 'none', backgroundSize: 'cover', backgroundPosition: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#fff' }}>
-                                {!person.avatar_url && displayName.charAt(0).toUpperCase()}
+                              <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#0284c7', backgroundImage: person.logo_url || person.avatar_url ? `url(${person.logo_url || person.avatar_url})` : 'none', backgroundSize: 'cover', backgroundPosition: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#fff' }}>
+                                {!(person.logo_url || person.avatar_url) && displayName.charAt(0).toUpperCase()}
                               </div>
                               <div>
                                 <div style={{ fontWeight: '700', fontSize: '0.88rem', color: '#fff' }}>{displayName}</div>
-                                <div style={{ fontSize: '0.75rem', color: '#38bdf8' }}>@{person.username || person.email?.split('@')[0]}</div>
+                                <div style={{ fontSize: '0.75rem', color: '#38bdf8' }}>{person.email || 'Member'}</div>
                               </div>
                             </div>
                             <button
