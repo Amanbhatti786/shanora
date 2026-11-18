@@ -280,7 +280,13 @@ function FeedContent() {
   useEffect(() => {
     async function loadData() {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        // --- AUTH GUARD CHECK ---
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          router.push('/');
+          return;
+        }
+        const user = session.user;
         setCurrentUser(user);
 
         const profilePromise = user?.email
@@ -429,7 +435,7 @@ function FeedContent() {
       }
     }
     loadData();
-  }, []);
+  }, [router]);
 
   // Supabase Realtime Subscription for New Posts Count (Facebook-style badge)
   useEffect(() => {
@@ -526,7 +532,7 @@ function FeedContent() {
 
   async function handleToggleFollow(targetEmail, e) {
     e.stopPropagation();
-    if (!currentUser) return router.push('/auth');
+    if (!currentUser) return router.push('/');
     if (!targetEmail) return;
 
     const cleanTarget = targetEmail.toLowerCase();
@@ -606,7 +612,7 @@ function FeedContent() {
 
   async function handleCreatePersonalPost(e) {
     e.preventDefault();
-    if (!currentUser) return router.push('/auth');
+    if (!currentUser) return router.push('/');
     if (!postText.trim() && !postPhoto && !postDoc) return;
 
     setPosting(true);
@@ -685,7 +691,7 @@ function FeedContent() {
   }
 
   async function handleToggleLike(item) {
-    if (!currentUser) return router.push('/auth');
+    if (!currentUser) return router.push('/');
     playActionSound('like');
 
     const key = item.feedItemId;
@@ -714,7 +720,7 @@ function FeedContent() {
   }
 
   async function handleToggleRelay(item) {
-    if (!currentUser) return router.push('/auth');
+    if (!currentUser) return router.push('/');
     playActionSound('relay');
 
     const key = item.feedItemId;
@@ -743,7 +749,7 @@ function FeedContent() {
   }
 
   async function handleAddComment(item) {
-    if (!currentUser) return router.push('/auth');
+    if (!currentUser) return router.push('/');
     const key = item.feedItemId;
     const text = commentInputs[key]?.trim();
     if (!text || submittingComment) return;
@@ -795,7 +801,7 @@ function FeedContent() {
   }
 
   async function handleAddReply(item, parentComment) {
-    if (!currentUser) return router.push('/auth');
+    if (!currentUser) return router.push('/');
     const replyText = replyInputs[parentComment.id]?.trim();
     if (!replyText || submittingComment) return;
 
@@ -851,7 +857,7 @@ function FeedContent() {
   }
 
   async function handleCommentReaction(commentId, type) {
-    if (!currentUser) return router.push('/auth');
+    if (!currentUser) return router.push('/');
     playActionSound('reaction');
 
     const userEmail = currentUser.email.toLowerCase();
