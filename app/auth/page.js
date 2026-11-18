@@ -29,11 +29,11 @@ function AuthContent() {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  // ----- AUTOMATED SLIDESHOW PHOTOS (Aapki photo sabse pehle professional style mein) -----
+  // ----- AUTOMATED SLIDESHOW PHOTOS WITH YOUR PROFESSIONAL PHOTO -----
   const slideshowPhotos = [
     { 
-      url: 'https://supabase.com/dashboard/project/izdtmpowrcimaittuffv/storage/files/buckets/page-media?preview=Gemini_Generated_Image_wfhwuowfhwuowfhw.jpg', // <--- Yahan apni Supabase wali photo ka public URL paste kar dein
-      title: 'Amanullah Mahtam - Founder & Developer' 
+      url: 'https://izdtmpowrcimaittuffv.supabase.co/storage/v1/object/public/page-media/Gemini_Generated_Image_wfhwuowfhwuowfhw.jpg', 
+      title: 'Amanullah Mahtam - Founder & Full-Stack Developer' 
     },
     { 
       url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80', 
@@ -41,7 +41,7 @@ function AuthContent() {
     },
     { 
       url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=800&q=80', 
-      title: 'Grow Your Career & ATS Resumes' 
+      title: 'Grow Your Career & Build ATS Resumes' 
     },
     { 
       url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=800&q=80', 
@@ -191,7 +191,7 @@ function AuthContent() {
         alignItems: 'center'
       }}>
         
-        {/* Left Column: Brand & Automated Slideshow with your Photo */}
+        {/* Left Column: Brand & Automated Slideshow */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', textAlign: 'left' }}>
           <Link href="/" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
             <div style={{
@@ -214,10 +214,10 @@ function AuthContent() {
           </Link>
 
           <h1 style={{ fontSize: '30px', fontWeight: '800', lineHeight: '1.2', margin: 0, letterSpacing: '-0.5px' }}>
-            Explore the professional connections you love[cite: 1].
+            Explore the professional connections you love.
           </h1>
           <p style={{ color: '#94a3b8', fontSize: '14px', lineHeight: '1.5', margin: 0 }}>
-            "پیشہ ورانہ ترقی آپ کی پہنچ میں" — Connect with creators and global employers across Pakistan.
+            "Professional growth within your reach" — Connect with creators and global employers across Pakistan.
           </p>
 
           {/* Slideshow Photo Box */}
@@ -373,7 +373,7 @@ function AuthContent() {
                 <div>
                   <label style={{ fontSize: '11px', color: '#cbd5e1', fontWeight: '600' }}>Account Type</label>
                   <select name="accountType" value={formData.accountType} onChange={handleChange} style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '8px 10px', color: '#fff', fontSize: '13px', outline: 'none' }}>
-                    {accountTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                    {accountTypes.link ? accountTypes.map(t => <option key={t} value={t}>{t}</option>) : accountTypes.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
 
