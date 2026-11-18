@@ -24,6 +24,7 @@ export default function AuthPage() {
 
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
 
   const countriesList = [
     'Pakistan', 'United States', 'United Kingdom', 'Canada', 'United Arab Emirates', 
@@ -45,6 +46,7 @@ export default function AuthPage() {
   const handleAuth = async (e) => {
     e.preventDefault();
     setErrorMessage('');
+    setSuccessMessage('');
     setLoading(true);
 
     try {
@@ -91,10 +93,15 @@ export default function AuthPage() {
 
         if (authError) throw authError;
 
-        // 3. Upsert into profiles table
-        await supabase
+        if (!authData.user) {
+          throw new Error('User registration failed. Please try again.');
+        }
+
+        // 3. Upsert into profiles table with 'id' as primary key and conflict target
+        const { error: profileError } = await supabase
           .from('profiles')
           .upsert({
+            id: authData.user.id,
             email: cleanEmail,
             first_name: formData.firstName.trim(),
             last_name: formData.lastName.trim(),
@@ -104,10 +111,16 @@ export default function AuthPage() {
             account_type: formData.accountType,
             date_of_birth: formData.dob || null,
             updated_at: new Date().toISOString()
-          }, { onConflict: 'email' });
+          }, { onConflict: 'id' });
 
-        alert('Registration successful! Please check your email for verification link.');
-        router.push('/profile?tab=profile');
+        if (profileError) throw profileError;
+
+        setSuccessMessage('Registration successful! Please check your email for verification link.');
+        
+        // Optional redirect after a brief moment or let user read the message
+        setTimeout(() => {
+          router.push('/profile?tab=profile');
+        }, 2000);
 
       } else {
         // Sign In Flow
@@ -160,9 +173,17 @@ export default function AuthPage() {
           </p>
         </div>
 
+        {/* Error Message Banner */}
         {errorMessage && (
           <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#ef4444', padding: '0.75rem', borderRadius: '8px', fontSize: '0.82rem', marginBottom: '1rem', textAlign: 'center' }}>
             {errorMessage}
+          </div>
+        )}
+
+        {/* Success Message Banner */}
+        {successMessage && (
+          <div style={{ backgroundColor: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.3)', color: '#22c55e', padding: '0.75rem', borderRadius: '8px', fontSize: '0.82rem', marginBottom: '1rem', textAlign: 'center' }}>
+            {successMessage}
           </div>
         )}
 
@@ -264,9 +285,9 @@ export default function AuthPage() {
         {/* Toggle between Sign In and Sign Up */}
         <div style={{ textAlign: 'center', marginTop: '1.2rem', fontSize: '0.8rem', color: '#94a3b8' }}>
           {isSignup ? (
-            <>Already have an account? <button type="button" onClick={() => setIsSignup(false)} style={{ background: 'none', border: 'none', color: '#38bdf8', fontWeight: 'bold', cursor: 'pointer', padding: 0, fontSize: '0.8rem' }}>Sign In</button></>
+            <>Already have an account? <button type="button" onClick={() => { setIsSignup(false); setErrorMessage(''); setSuccessMessage(''); }} style={{ background: 'none', border: 'none', color: '#38bdf8', fontWeight: 'bold', cursor: 'pointer', padding: 0, fontSize: '0.8rem' }}>Sign In</button></>
           ) : (
-            <>New to SHANORA? <button type="button" onClick={() => setIsSignup(true)} style={{ background: 'none', border: 'none', color: '#38bdf8', fontWeight: 'bold', cursor: 'pointer', padding: 0, fontSize: '0.8rem' }}>Join Free</button></>
+            <>New to SHANORA? <button type="button" onClick={() => { setIsSignup(true); setErrorMessage(''); setSuccessMessage(''); }} style={{ background: 'none', border: 'none', color: '#38bdf8', fontWeight: 'bold', cursor: 'pointer', padding: 0, fontSize: '0.8rem' }}>Join Free</button></>
           )}
         </div>
 
@@ -274,3 +295,4 @@ export default function AuthPage() {
     </div>
   );
 }
+
