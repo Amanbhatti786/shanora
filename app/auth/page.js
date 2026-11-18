@@ -51,6 +51,17 @@ function AuthContent() {
 
   const [currentSlide, setCurrentSlide] = useState(0);
 
+  // Check if user is already logged in and redirect to feed
+  useEffect(() => {
+    async function checkExistingSession() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        router.push('/feed');
+      }
+    }
+    checkExistingSession();
+  }, [router]);
+
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % slideshowPhotos.length);
