@@ -29,7 +29,7 @@ function AuthContent() {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  // ----- AUTOMATED SLIDESHOW PHOTOS (Professional Women with Tech, Laptops & Books) -----
+  // ----- AUTOMATED SLIDESHOW PHOTOS (Fixed for Full View without cutting) -----
   const slideshowPhotos = [
     { 
       url: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=800&q=80', 
@@ -231,11 +231,11 @@ function AuthContent() {
             "Professional growth within your reach" — Connect with creators and global employers across Pakistan.
           </p>
 
-          {/* Slideshow Photo Box with Professional Tech/Workspace Photos */}
+          {/* Slideshow Photo Box with Contain Sizing (No Cutting) */}
           <div style={{
             position: 'relative',
             width: '100%',
-            height: '260px',
+            height: '280px',
             borderRadius: '16px',
             overflow: 'hidden',
             border: '1px solid rgba(255,255,255,0.1)',
@@ -249,7 +249,8 @@ function AuthContent() {
                 opacity: currentSlide === idx ? 1 : 0,
                 transition: 'opacity 0.8s ease-in-out',
                 backgroundImage: `url(${photo.url})`,
-                backgroundSize: 'cover',
+                backgroundSize: 'contain', // Yahan cover ki jagah contain kiya hai taake picture cut na ho
+                backgroundRepeat: 'no-repeat',
                 backgroundPosition: 'center center',
                 display: 'flex',
                 alignItems: 'flex-end',
