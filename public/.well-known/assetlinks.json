@@ -1,8 +1,12 @@
-[{
-      "relation": ["delegate_permission/common.handle_all_urls"],
-      "target": {
-        "namespace": "android_app",
-        "package_name": "app.vercel.shanora_pk.twa",
-        "sha256_cert_fingerprints": ["C5:67:80:F1:D8:8A:84:61:F4:81:EA:CB:CD:F4:64:04:DC:A6:60:48:7D:42:E5:A7:13:39:7C:5E:C9:12:5E:10"]
-      }
-    }]
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "online.shanora.twa",
+      "sha256_cert_fingerprints": [
+        "E8:88:42:40:BB:17:BD:A6:6A:FF:31:B1:4A:09:96:6D:82:E7:93:BB:1E:72:0E:3C:84:DE:FE:54:61:2A:1B:F8"
+      ]
+    }
+  }
+]
