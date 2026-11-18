@@ -29,7 +29,7 @@ function AuthContent() {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  // ----- AUTOMATED SLIDESHOW PHOTOS WITH YOUR PROFESSIONAL PHOTO -----
+  // ----- AUTOMATED SLIDESHOW PHOTOS (Optimized Sizing) -----
   const slideshowPhotos = [
     { 
       url: 'https://izdtmpowrcimaittuffv.supabase.co/storage/v1/object/public/page-media/Gemini_Generated_Image_wfhwuowfhwuowfhw.jpg', 
@@ -220,7 +220,7 @@ function AuthContent() {
             "Professional growth within your reach" — Connect with creators and global employers across Pakistan.
           </p>
 
-          {/* Slideshow Photo Box */}
+          {/* Slideshow Photo Box with Perfect Fit Sizing */}
           <div style={{
             position: 'relative',
             width: '100%',
@@ -228,7 +228,8 @@ function AuthContent() {
             borderRadius: '16px',
             overflow: 'hidden',
             border: '1px solid rgba(255,255,255,0.1)',
-            boxShadow: '0 15px 35px rgba(0,0,0,0.6)'
+            boxShadow: '0 15px 35px rgba(0,0,0,0.6)',
+            backgroundColor: '#0b1322'
           }}>
             {slideshowPhotos.map((photo, idx) => (
               <div key={idx} style={{
@@ -238,7 +239,7 @@ function AuthContent() {
                 transition: 'opacity 0.8s ease-in-out',
                 backgroundImage: `url(${photo.url})`,
                 backgroundSize: 'cover',
-                backgroundPosition: 'center',
+                backgroundPosition: 'center center',
                 display: 'flex',
                 alignItems: 'flex-end',
                 padding: '16px'
@@ -373,7 +374,7 @@ function AuthContent() {
                 <div>
                   <label style={{ fontSize: '11px', color: '#cbd5e1', fontWeight: '600' }}>Account Type</label>
                   <select name="accountType" value={formData.accountType} onChange={handleChange} style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '8px 10px', color: '#fff', fontSize: '13px', outline: 'none' }}>
-                    {accountTypes.link ? accountTypes.map(t => <option key={t} value={t}>{t}</option>) : accountTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                    {accountTypes.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
 
