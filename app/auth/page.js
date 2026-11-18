@@ -1,4 +1,4 @@
-  const handleAuth = async (e) => {
+const handleAuth = async (e) => {
     e.preventDefault();
     console.log("--- Form Submitted ---");
     setErrorMessage('');
