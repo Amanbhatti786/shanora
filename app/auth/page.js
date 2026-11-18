@@ -32,7 +32,7 @@ function AuthContent() {
   // ----- AUTOMATED SLIDESHOW PHOTOS (Aapki photo sabse pehle professional style mein) -----
   const slideshowPhotos = [
     { 
-      url: 'YOUR_AMAHULLAH_PHOTO_URL_HERE', // <--- Yahan apni Supabase wali photo ka public URL paste kar dein
+      url: 'https://supabase.com/dashboard/project/izdtmpowrcimaittuffv/storage/files/buckets/page-media?preview=Gemini_Generated_Image_wfhwuowfhwuowfhw.jpg', // <--- Yahan apni Supabase wali photo ka public URL paste kar dein
       title: 'Amanullah Mahtam - Founder & Developer' 
     },
     { 
