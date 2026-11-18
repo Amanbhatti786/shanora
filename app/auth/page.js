@@ -29,23 +29,23 @@ function AuthContent() {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  // ----- AUTOMATED SLIDESHOW PHOTOS (Global Culture & Professionals) -----
+  // ----- AUTOMATED SLIDESHOW PHOTOS (Professional Women with Tech, Laptops & Books) -----
   const slideshowPhotos = [
     { 
-      url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=800&q=80', 
-      title: 'Global Professionals & Tech Leaders' 
+      url: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=800&q=80', 
+      title: 'Professional Collaboration & Tech Workspace' 
     },
     { 
-      url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80', 
-      title: 'Connect & Network with Creators Worldwide' 
+      url: 'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?auto=format&fit=crop&w=800&q=80', 
+      title: 'Connect & Network with Global Creators' 
     },
     { 
-      url: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=800&q=80', 
+      url: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&q=80', 
       title: 'Grow Your Career & Build ATS Resumes' 
     },
     { 
-      url: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&w=800&q=80', 
-      title: 'Hire Top Talent & Verified Experts' 
+      url: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80', 
+      title: 'Hire Top Talent & Verified Professionals' 
     }
   ];
 
@@ -231,7 +231,7 @@ function AuthContent() {
             "Professional growth within your reach" — Connect with creators and global employers across Pakistan.
           </p>
 
-          {/* Slideshow Photo Box with Perfect Fit Sizing */}
+          {/* Slideshow Photo Box with Professional Tech/Workspace Photos */}
           <div style={{
             position: 'relative',
             width: '100%',
@@ -299,7 +299,7 @@ function AuthContent() {
             </div>
           )}
 
-          {/* Google OAuth Button */}
+          {/* Google OAuth Button with Official SVG Icon */}
           <button
             type="button"
             onClick={handleGoogleAuth}
@@ -316,11 +316,17 @@ function AuthContent() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '8px',
+              gap: '10px',
               marginBottom: '16px'
             }}
           >
-            <span>🌐</span> Continue with Google
+            <svg width="18" height="18" viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/>
+              <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.13 0-5.78-2.11-6.73-4.96H1.18v3.15C3.15 21.32 7.23 24 12 24z"/>
+              <path fill="#FBBC05" d="M5.27 14.24c-.25-.72-.38-1.49-.38-2.24s.13-1.52.38-2.24V6.6H1.18C.43 8.13 0 9.87 0 12s.43 3.87 1.18 5.4l4.09-3.16z"/>
+              <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.23 0 3.15 2.68 1.18 6.6l4.09 3.16c.95-2.85 3.6-4.96 6.73-4.96z"/>
+            </svg>
+            Continue with Google
           </button>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#64748b', fontSize: '11px', marginBottom: '16px' }}>
