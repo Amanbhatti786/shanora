@@ -24,6 +24,7 @@ export default function AuthPage() {
 
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
 
   const countriesList = [
     'Pakistan', 'United States', 'United Kingdom', 'Canada', 'United Arab Emirates', 
@@ -45,10 +46,11 @@ export default function AuthPage() {
   const handleAuth = async (e) => {
     e.preventDefault();
     setErrorMessage('');
+    setSuccessMessage('');
     setLoading(true);
 
     try {
-      const cleanEmail = formData.email.trim().toLowerCase();
+      const cleanEmail = formData.email ? formData.email.trim().toLowerCase() : '';
 
       if (isSignup) {
         if (!formData.agreeTerms) {
@@ -91,10 +93,15 @@ export default function AuthPage() {
 
         if (authError) throw authError;
 
+        if (!authData.user) {
+          throw new Error('User registration failed. Please try again.');
+        }
+
         // 3. Upsert into profiles table
-        await supabase
+        const { error: profileError } = await supabase
           .from('profiles')
           .upsert({
+            id: authData.user.id,
             email: cleanEmail,
             first_name: formData.firstName.trim(),
             last_name: formData.lastName.trim(),
@@ -104,10 +111,14 @@ export default function AuthPage() {
             account_type: formData.accountType,
             date_of_birth: formData.dob || null,
             updated_at: new Date().toISOString()
-          }, { onConflict: 'email' });
+          }, { onConflict: 'id' });
 
-        alert('Registration successful! Please check your email for verification link.');
-        router.push('/profile?tab=profile');
+        if (profileError) throw profileError;
+
+        setSuccessMessage('Registration successful! Redirecting...');
+        setTimeout(() => {
+          router.push('/feed');
+        }, 1500);
 
       } else {
         // Sign In Flow
@@ -133,7 +144,7 @@ export default function AuthPage() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/profile?tab=profile`
+          redirectTo: `${window.location.origin}/feed`
         }
       });
       if (error) throw error;
@@ -152,7 +163,7 @@ export default function AuthPage() {
             <span style={{ color: '#fff', fontWeight: '900', fontSize: '1.2rem', background: 'linear-gradient(135deg, #0284c7, #0369a1)', padding: '2px 8px', borderRadius: '6px' }}>S</span>
             <span style={{ fontWeight: '900', fontSize: '1.25rem', color: '#fff' }}>SHANORA<span style={{ color: '#38bdf8', fontSize: '0.8rem' }}>.PK</span></span>
           </Link>
-          <h2 style={{ fontSize: '1.35rem', fontWeight: '800', color: '#fff', margin: 0 }}>
+          <h2 style={{ fontSize: '1.35rem', fontWeight: '850', color: '#fff', margin: 0 }}>
             {isSignup ? 'Join the Professional Network' : 'Welcome Back to SHANORA'}
           </h2>
           <p style={{ color: '#94a3b8', fontSize: '0.82rem', marginTop: '0.3rem' }}>
@@ -163,6 +174,12 @@ export default function AuthPage() {
         {errorMessage && (
           <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#ef4444', padding: '0.75rem', borderRadius: '8px', fontSize: '0.82rem', marginBottom: '1rem', textAlign: 'center' }}>
             {errorMessage}
+          </div>
+        )}
+
+        {successMessage && (
+          <div style={{ backgroundColor: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.3)', color: '#22c55e', padding: '0.75rem', borderRadius: '8px', fontSize: '0.82rem', marginBottom: '1rem', textAlign: 'center' }}>
+            {successMessage}
           </div>
         )}
 
@@ -264,9 +281,9 @@ export default function AuthPage() {
         {/* Toggle between Sign In and Sign Up */}
         <div style={{ textAlign: 'center', marginTop: '1.2rem', fontSize: '0.8rem', color: '#94a3b8' }}>
           {isSignup ? (
-            <>Already have an account? <button type="button" onClick={() => setIsSignup(false)} style={{ background: 'none', border: 'none', color: '#38bdf8', fontWeight: 'bold', cursor: 'pointer', padding: 0, fontSize: '0.8rem' }}>Sign In</button></>
+            <>Already have an account? <button type="button" onClick={() => { setIsSignup(false); setErrorMessage(''); setSuccessMessage(''); }} style={{ background: 'none', border: 'none', color: '#38bdf8', fontWeight: 'bold', cursor: 'pointer', padding: 0, fontSize: '0.8rem' }}>Sign In</button></>
           ) : (
-            <>New to SHANORA? <button type="button" onClick={() => setIsSignup(true)} style={{ background: 'none', border: 'none', color: '#38bdf8', fontWeight: 'bold', cursor: 'pointer', padding: 0, fontSize: '0.8rem' }}>Join Free</button></>
+            <>New to SHANORA? <button type="button" onClick={() => { setIsSignup(true); setErrorMessage(''); setSuccessMessage(''); }} style={{ background: 'none', border: 'none', color: '#38bdf8', fontWeight: 'bold', cursor: 'pointer', padding: 0, fontSize: '0.8rem' }}>Join Free</button></>
           )}
         </div>
 
