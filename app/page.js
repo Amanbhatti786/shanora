@@ -1,170 +1,417 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { supabase } from '../../lib/supabaseClient';
 import Link from 'next/link';
 
-export default function LandingPage() {
+export default function AuthPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialMode = searchParams.get('mode') === 'register' ? true : false;
+
+  const [isSignup, setIsSignup] = useState(initialMode);
+
+  // Form states
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    username: '',
+    email: '',
+    password: '',
+    dob: '',
+    country: 'Pakistan',
+    accountType: 'Professional',
+    agreeTerms: false
+  });
+
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+
+  // Slideshow images array (Yahan aap apni aur professionals ki photos ke URLs dal sakte hain)
+  const slideshowImages = [
+    { url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80', title: 'Connect & Network' },
+    { url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=800&q=80', title: 'Grow Your Career' },
+    { url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=800&q=80', title: 'Hire Top Talent' }
+  ];
+
+  const [currentSlide, setCurrentSlide] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % slideshowImages.length);
+    }, 4000);
+    return () => clearInterval(timer);
+  }, [slideshowImages.length]);
+
+  const countriesList = [
+    'Pakistan', 'United States', 'United Kingdom', 'Canada', 'United Arab Emirates', 
+    'Saudi Arabia', 'Australia', 'Germany', 'France', 'Other'
+  ];
+
+  const accountTypes = [
+    'Job Seeker', 'Student', 'Employer / Recruiter', 'Company', 'Freelancer', 'Professional'
+  ];
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+  };
+
+  const handleAuth = async (e) => {
+    e.preventDefault();
+    setErrorMessage('');
+    setSuccessMessage('');
+    setLoading(true);
+
+    try {
+      const cleanEmail = formData.email ? formData.email.trim().toLowerCase() : '';
+
+      if (isSignup) {
+        if (!formData.agreeTerms) {
+          setErrorMessage('You must agree to the Terms & Conditions and Privacy Policy.');
+          setLoading(false);
+          return;
+        }
+
+        if (formData.password.length < 6) {
+          setErrorMessage('Password must be at least 6 characters long.');
+          setLoading(false);
+          return;
+        }
+
+        // 1. Check unique username
+        const { data: existingUser } = await supabase
+          .from('profiles')
+          .select('id')
+          .ilike('username', formData.username.trim())
+          .maybeSingle();
+
+        if (existingUser) {
+          setErrorMessage('Username is already taken. Please choose another.');
+          setLoading(false);
+          return;
+        }
+
+        // 2. Supabase Signup
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: cleanEmail,
+          password: formData.password,
+          options: {
+            data: {
+              full_name: `${formData.firstName} ${formData.lastName}`,
+              username: formData.username.trim(),
+              account_type: formData.accountType
+            }
+          }
+        });
+
+        if (authError) throw authError;
+        if (!authData.user) throw new Error('User registration failed.');
+
+        // 3. Upsert into profiles table
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .upsert({
+            id: authData.user.id,
+            email: cleanEmail,
+            first_name: formData.firstName.trim(),
+            last_name: formData.lastName.trim(),
+            full_name: `${formData.firstName} ${formData.lastName}`,
+            username: formData.username.trim().toLowerCase(),
+            country: formData.country,
+            account_type: formData.accountType,
+            date_of_birth: formData.dob || null,
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'id' });
+
+        if (profileError) throw profileError;
+
+        setSuccessMessage('Registration successful! Redirecting...');
+        setTimeout(() => { router.push('/feed'); }, 1200);
+
+      } else {
+        // Sign In Flow
+        const { error: signinError } = await supabase.auth.signInWithPassword({
+          email: cleanEmail,
+          password: formData.password
+        });
+
+        if (signinError) throw signinError;
+        router.push('/feed');
+      }
+
+    } catch (err) {
+      setErrorMessage(err.message || 'Authentication failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleAuth = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: `${window.location.origin}/feed` }
+      });
+      if (error) throw error;
+    } catch (err) {
+      setErrorMessage('Google Auth error: ' + err.message);
+    }
+  };
+
   return (
     <div style={{
       minHeight: '100vh',
       backgroundColor: '#070b14',
       color: '#f8fafc',
       display: 'flex',
-      flexDirection: 'column',
-      justifyContent: 'space-between',
-      padding: '20px 16px',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '20px',
       fontFamily: 'system-ui, -apple-system, sans-serif'
     }}>
-      {/* Top Header / Brand */}
-      <header style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingBottom: '16px',
-        borderBottom: '1px solid rgba(255, 255, 255, 0.08)'
+      {/* Main Split Wrapper (Facebook Style) */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+        maxWidth: '1000px',
+        width: '100%',
+        gap: '40px',
+        alignItems: 'center'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        
+        {/* Left Column: Brand & Animated Slideshow */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', textAlign: 'left' }}>
+          <Link href="/" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '10px',
+              background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 'bold',
+              fontSize: '20px',
+              color: '#fff'
+            }}>
+              S
+            </div>
+            <span style={{ fontSize: '24px', fontWeight: '800', color: '#fff', letterSpacing: '-0.5px' }}>
+              SHANORA<span style={{ color: '#3b82f6' }}>.PK</span>
+            </span>
+          </Link>
+
+          <h1 style={{ fontSize: '32px', fontWeight: '800', lineHeight: '1.2', margin: 0, letterSpacing: '-0.5px' }}>
+            Explore the professional connections you love[cite: 5].
+          </h1>
+          <p style={{ color: '#94a3b8', fontSize: '15px', lineHeight: '1.5', margin: 0 }}>
+            Connect with creators, discover executive career opportunities, and grow your professional presence across Pakistan.
+          </p>
+
+          {/* Photo Slideshow Box */}
           <div style={{
-            width: '32px',
-            height: '32px',
-            borderRadius: '8px',
-            background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontWeight: 'bold',
-            fontSize: '16px',
-            color: '#fff'
+            position: 'relative',
+            width: '100%',
+            height: '240px',
+            borderRadius: '16px',
+            overflow: 'hidden',
+            border: '1px solid rgba(255,255,255,0.1)',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
           }}>
-            S
+            {slideshowImages.map((slide, idx) => (
+              <div key={idx} style={{
+                position: 'absolute',
+                inset: 0,
+                opacity: currentSlide === idx ? 1 : 0,
+                transition: 'opacity 0.8s ease-in-out',
+                backgroundImage: `url(${slide.url})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                display: 'flex',
+                alignItems: 'flex-end',
+                padding: '16px'
+              }}>
+                <div style={{
+                  background: 'rgba(7, 11, 20, 0.8)',
+                  backdropFilter: 'blur(6px)',
+                  padding: '6px 12px',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  color: '#38bdf8',
+                  border: '1px solid rgba(255,255,255,0.1)'
+                }}>
+                  ✨ {slide.title}
+                </div>
+              </div>
+            ))}
           </div>
-          <span style={{ fontSize: '18px', fontWeight: '700', letterSpacing: '-0.5px' }}>
-            SHANORA<span style={{ color: '#3b82f6' }}>.PK</span>
-          </span>
         </div>
 
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <Link href="/auth?mode=login" style={{
-            padding: '6px 14px',
-            borderRadius: '20px',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            color: '#f8fafc',
-            textDecoration: 'none',
-            fontSize: '13px',
-            fontWeight: '500'
-          }}>
-            Sign In
-          </Link>
-        </div>
-      </header>
-
-      {/* Hero Section */}
-      <main style={{
-        flex: 1,
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-        alignItems: 'center',
-        textAlign: 'center',
-        padding: '24px 0'
-      }}>
+        {/* Right Column: Auth Card Form */}
         <div style={{
-          display: 'inline-block',
-          padding: '4px 12px',
-          borderRadius: '12px',
-          background: 'rgba(59, 130, 246, 0.1)',
-          color: '#3b82f6',
-          fontSize: '12px',
-          fontWeight: '600',
-          marginBottom: '16px',
-          border: '1px solid rgba(59, 130, 246, 0.2)'
+          backgroundColor: '#0f172a',
+          border: '1px solid rgba(255,255,255,0.08)',
+          borderRadius: '20px',
+          padding: '28px',
+          boxShadow: '0 20px 40px rgba(0,0,0,0.6)'
         }}>
-          Pakistan's Premier Professional Network
-        </div>
+          <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '6px', color: '#fff' }}>
+            {isSignup ? 'Create a new account' : 'Sign in to SHANORA'}
+          </h2>
+          <p style={{ color: '#94a3b8', fontSize: '13px', marginBottom: '20px' }}>
+            {isSignup ? 'Quick and easy registration.' : 'Welcome back! Please enter your details.'}
+          </p>
 
-        <h1 style={{
-          fontSize: '28px',
-          fontWeight: '800',
-          lineHeight: '1.2',
-          marginBottom: '12px',
-          letterSpacing: '-0.5px'
-        }}>
-          Connect, Grow & Hire <br />
-          <span style={{ color: '#3b82f6' }}>Professional Talent</span>
-        </h1>
+          {errorMessage && (
+            <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#ef4444', padding: '10px', borderRadius: '8px', fontSize: '12px', marginBottom: '16px', textAlign: 'center' }}>
+              {errorMessage}
+            </div>
+          )}
 
-        <p style={{
-          fontSize: '14px',
-          color: '#94a3b8',
-          maxWidth: '320px',
-          lineHeight: '1.5',
-          marginBottom: '28px'
-        }}>
-          Build ATS-friendly resumes, discover executive career opportunities, and collaborate with verified creators and employers.
-        </p>
+          {successMessage && (
+            <div style={{ backgroundColor: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.3)', color: '#22c55e', padding: '10px', borderRadius: '8px', fontSize: '12px', marginBottom: '16px', textAlign: 'center' }}>
+              {successMessage}
+            </div>
+          )}
 
-        {/* Action Buttons (LinkedIn / Facebook Style Card Stack) */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%', maxWidth: '280px' }}>
-          <Link href="/auth?mode=register" style={{
-            backgroundColor: '#3b82f6',
-            color: '#fff',
-            padding: '12px',
-            borderRadius: '24px',
-            textDecoration: 'none',
-            fontWeight: '600',
-            fontSize: '14px',
-            boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
-            textAlign: 'center'
-          }}>
-            Join SHANORA - It's Free
-          </Link>
+          {/* Google OAuth Button */}
+          <button
+            type="button"
+            onClick={handleGoogleAuth}
+            style={{
+              width: '100%',
+              backgroundColor: '#1e293b',
+              border: '1px solid rgba(255,255,255,0.1)',
+              color: '#fff',
+              padding: '10px',
+              borderRadius: '12px',
+              fontSize: '13px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              marginBottom: '16px'
+            }}
+          >
+            <span>🌐</span> Continue with Google
+          </button>
 
-          <Link href="/auth?mode=login" style={{
-            backgroundColor: 'rgba(255, 255, 255, 0.05)',
-            color: '#f8fafc',
-            padding: '12px',
-            borderRadius: '24px',
-            textDecoration: 'none',
-            fontWeight: '600',
-            fontSize: '14px',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            textAlign: 'center'
-          }}>
-            Existing User? Sign In
-          </Link>
-        </div>
-
-        {/* Mini Trust Features */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: '12px',
-          marginTop: '36px',
-          width: '100%',
-          maxWidth: '320px',
-          textAlign: 'left'
-        }}>
-          <div style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <div style={{ fontSize: '16px', marginBottom: '4px' }}>💼</div>
-            <div style={{ fontSize: '13px', fontWeight: '600' }}>Job Portal</div>
-            <div style={{ fontSize: '11px', color: '#94a3b8' }}>Find top local & remote roles</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#64748b', fontSize: '11px', marginBottom: '16px' }}>
+            <div style={{ flex: 1, height: '1px', backgroundColor: 'rgba(255,255,255,0.1)' }} />
+            <span>OR EMAIL</span>
+            <div style={{ flex: 1, height: '1px', backgroundColor: 'rgba(255,255,255,0.1)' }} />
           </div>
-          <div style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <div style={{ fontSize: '16px', marginBottom: '4px' }}>📄</div>
-            <div style={{ fontSize: '13px', fontWeight: '600' }}>ATS Resumes</div>
-            <div style={{ fontSize: '11px', color: '#94a3b8' }}>Build professional CVs</div>
+
+          <form onSubmit={handleAuth} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {isSignup && (
+              <>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div>
+                    <label style={{ fontSize: '11px', color: '#cbd5e1', fontWeight: '600' }}>First Name *</label>
+                    <input type="text" name="firstName" placeholder="Aman" value={formData.firstName} onChange={handleChange} required style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '8px 10px', color: '#fff', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '11px', color: '#cbd5e1', fontWeight: '600' }}>Last Name *</label>
+                    <input type="text" name="lastName" placeholder="Ullah" value={formData.lastName} onChange={handleChange} required style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '8px 10px', color: '#fff', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '11px', color: '#cbd5e1', fontWeight: '600' }}>Username *</label>
+                  <input type="text" name="username" placeholder="amanullah_pk" value={formData.username} onChange={handleChange} required style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '8px 10px', color: '#fff', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+              </>
+            )}
+
+            <div>
+              <label style={{ fontSize: '11px', color: '#cbd5e1', fontWeight: '600' }}>Email Address *</label>
+              <input type="email" name="email" placeholder="name@example.com" value={formData.email} onChange={handleChange} required style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '8px 10px', color: '#fff', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+            </div>
+
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                <label style={{ fontSize: '11px', color: '#cbd5e1', fontWeight: '600' }}>Password *</label>
+                {!isSignup && (
+                  <Link href="/auth/forgot-password" style={{ fontSize: '11px', color: '#38bdf8', textDecoration: 'none' }}>
+                    Forgot?
+                  </Link>
+                )}
+              </div>
+              <input type="password" name="password" placeholder="••••••••" value={formData.password} onChange={handleChange} required style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '8px 10px', color: '#fff', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+            </div>
+
+            {isSignup && (
+              <>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div>
+                    <label style={{ fontSize: '11px', color: '#cbd5e1', fontWeight: '600' }}>Date of Birth</label>
+                    <input type="date" name="dob" value={formData.dob} onChange={handleChange} style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '8px 10px', color: '#fff', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '11px', color: '#cbd5e1', fontWeight: '600' }}>Country</label>
+                    <select name="country" value={formData.country} onChange={handleChange} style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '8px 10px', color: '#fff', fontSize: '13px', outline: 'none' }}>
+                      {countriesList.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '11px', color: '#cbd5e1', fontWeight: '600' }}>Account Type</label>
+                  <select name="accountType" value={formData.accountType} onChange={handleChange} style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '8px 10px', color: '#fff', fontSize: '13px', outline: 'none' }}>
+                    {accountTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginTop: '4px' }}>
+                  <input type="checkbox" name="agreeTerms" checked={formData.agreeTerms} onChange={handleChange} id="terms" style={{ marginTop: '2px', accentColor: '#3b82f6', cursor: 'pointer' }} />
+                  <label htmlFor="terms" style={{ fontSize: '11px', color: '#94a3b8', lineHeight: '1.3', cursor: 'pointer' }}>
+                    I agree to SHANORA's <Link href="/terms" style={{ color: '#38bdf8' }}>Terms</Link> and <Link href="/privacy" style={{ color: '#38bdf8' }}>Privacy Policy</Link>.
+                  </label>
+                </div>
+              </>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              style={{
+                width: '100%',
+                backgroundColor: '#3b82f6',
+                color: '#fff',
+                border: 'none',
+                padding: '11px',
+                borderRadius: '12px',
+                fontSize: '14px',
+                fontWeight: '700',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                marginTop: '8px',
+                boxShadow: '0 4px 12px rgba(59, 130, 246, 0.4)'
+              }}
+            >
+              {loading ? 'Please wait...' : (isSignup ? 'Create Account 🚀' : 'Sign In ➔')}
+            </button>
+          </form>
+
+          {/* Toggle between Sign In / Sign Up */}
+          <div style={{ textAlign: 'center', marginTop: '16px', fontSize: '12px', color: '#94a3b8' }}>
+            {isSignup ? (
+              <>Already have an account? <button type="button" onClick={() => setIsSignup(false)} style={{ background: 'none', border: 'none', color: '#38bdf8', fontWeight: '700', cursor: 'pointer', padding: 0, fontSize: '12px' }}>Sign In</button></>
+            ) : (
+              <>New to SHANORA? <button type="button" onClick={() => setIsSignup(true)} style={{ background: 'none', border: 'none', color: '#38bdf8', fontWeight: '700', cursor: 'pointer', padding: 0, fontSize: '12px' }}>Join Free</button></>
+            )}
           </div>
         </div>
-      </main>
 
-      {/* Footer */}
-      <footer style={{
-        textAlign: 'center',
-        fontSize: '11px',
-        color: '#64748b',
-        paddingTop: '16px',
-        borderTop: '1px solid rgba(255, 255, 255, 0.04)'
-      }}>
-        &copy; {new Date().getFullYear()} SHANORA.PK &bull; All rights reserved.
-      </footer>
+      </div>
     </div>
   );
-            }
-              
+}
