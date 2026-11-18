@@ -29,23 +29,57 @@ function AuthContent() {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  // ----- AUTOMATED SLIDESHOW PHOTOS (Fixed for Full View without cutting) -----
+  // ----- 10 PROFESSIONAL SLIDESHOW PHOTOS (Alternating: Single -> Group -> Single -> Group) -----
   const slideshowPhotos = [
+    // 1. Single
     { 
-      url: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=800&q=80', 
-      title: 'Professional Collaboration & Tech Workspace' 
+      url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=800&q=80', 
+      title: 'Professional Expert Working Online' 
     },
-    { 
-      url: 'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?auto=format&fit=crop&w=800&q=80', 
-      title: 'Connect & Network with Global Creators' 
-    },
+    // 2. Group
     { 
       url: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&q=80', 
-      title: 'Grow Your Career & Build ATS Resumes' 
+      title: 'Global Team Collaboration & Meetings' 
     },
+    // 3. Single
+    { 
+      url: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=800&q=80', 
+      title: 'Digital Creator with Laptop & Books' 
+    },
+    // 4. Group
     { 
       url: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80', 
-      title: 'Hire Top Talent & Verified Professionals' 
+      title: 'Coworking & Professional Network' 
+    },
+    // 5. Single
+    { 
+      url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80', 
+      title: 'Tech Professional & Developer Workspace' 
+    },
+    // 6. Group
+    { 
+      url: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=800&q=80', 
+      title: 'Business Growth & Team Strategy' 
+    },
+    // 7. Single
+    { 
+      url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=800&q=80', 
+      title: 'Career Growth & ATS Resume Builder' 
+    },
+    // 8. Group
+    { 
+      url: 'https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&w=800&q=80', 
+      title: 'Connecting Talents & Employers' 
+    },
+    // 9. Single
+    { 
+      url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=800&q=80', 
+      title: 'Freelancer Managing Global Projects' 
+    },
+    // 10. Group
+    { 
+      url: 'https://images.unsplash.com/photo-1543269865-cbf427effbad?auto=format&fit=crop&w=800&q=80', 
+      title: 'Community & Professional Success' 
     }
   ];
 
@@ -249,7 +283,7 @@ function AuthContent() {
                 opacity: currentSlide === idx ? 1 : 0,
                 transition: 'opacity 0.8s ease-in-out',
                 backgroundImage: `url(${photo.url})`,
-                backgroundSize: 'contain', // Yahan cover ki jagah contain kiya hai taake picture cut na ho
+                backgroundSize: 'contain',
                 backgroundRepeat: 'no-repeat',
                 backgroundPosition: 'center center',
                 display: 'flex',
