@@ -57,6 +57,7 @@ export default function ProfessionalSettingsHub() {
   const [supportMsg, setSupportMsg] = useState('');
   const [submittingSupport, setSubmittingSupport] = useState(false);
   const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordUpdating, setPasswordUpdating] = useState(false);
   const [exportingData, setExportingData] = useState(false);
 
@@ -275,12 +276,17 @@ export default function ProfessionalSettingsHub() {
       showCardMessage('Password must be at least 6 characters.', 'error');
       return;
     }
+    if (newPassword !== confirmPassword) {
+      showCardMessage('Password and Confirm Password do not match.', 'error');
+      return;
+    }
     setPasswordUpdating(true);
     try {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
       showCardMessage('Password updated securely via Supabase Auth!', 'success');
       setNewPassword('');
+      setConfirmPassword('');
     } catch (err) {
       showCardMessage('Password update failed: ' + err.message, 'error');
     } finally {
@@ -611,13 +617,26 @@ export default function ProfessionalSettingsHub() {
             </div>
           )}
 
-          {/* 5. Account Security & Sessions */}
+          {/* 5. Account Security & 2FA */}
           {activeCategory === 'security' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', margin: 0 }}>5. Account Security & 2FA</h2>
-              <form onSubmit={handlePasswordChange} style={{ backgroundColor: '#131b2e', border: '1px solid #1e293b', borderRadius: '14px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+              <form onSubmit={handlePasswordChange} style={{ backgroundColor: '#131b2e', border: '1px solid #1e293b', borderRadius: '14px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 <h3 style={{ color: '#fff', fontSize: '0.9rem', margin: 0 }}>Change Password</h3>
-                <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="New password (min 6 chars)" style={inputStyle} />
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="New password (min 6 chars)"
+                  style={inputStyle}
+                />
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm new password"
+                  style={inputStyle}
+                />
                 <button type="submit" disabled={passwordUpdating} style={{ backgroundColor: '#22c55e', color: '#000', border: 'none', padding: '0.65rem 1rem', borderRadius: '8px', fontWeight: '800', fontSize: '0.8rem', cursor: 'pointer' }}>
                   {passwordUpdating ? 'Updating...' : 'Update Password Securely'}
                 </button>
