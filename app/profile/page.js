@@ -721,18 +721,21 @@ function ProfilePortalContent() {
               </button>
 
               <Link href="/auth" style={{ textDecoration: 'none' }}>
-                <button
-                  type="button"
-                  style={{
-                    ...bottomActionBtnStyle,
-                    backgroundColor: '#131b2e',
-                    borderColor: '#334155',
-                    color: '#38bdf8'
-                  }}
-                >
-                  <span>➕</span>
-                  <span>Add Account</span>
-                </button>
+              <button
+  type="button"
+  onClick={() => {
+    window.location.href = '/auth?addAccount=1';
+  }}
+  style={{
+    ...bottomActionBtnStyle,
+    backgroundColor: '#131b2e',
+    borderColor: '#334155',
+    color: '#38bdf8'
+  }}
+>
+  <span>➕</span>
+  <span>Add Account</span>
+</button>
               </Link>
 
               <button
