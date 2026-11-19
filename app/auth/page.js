@@ -29,167 +29,127 @@ function AuthContent() {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  // ----- 10 FIVERR-STYLE SLIDESHOW ITEMS (Single -> Group -> Single -> Group) -----
+  // ----- 10 CLEAN SLIDESHOW ITEMS (Single -> Group -> Single -> Group) -----
   const slideshowItems = [
     // 1. Single
     {
       type: 'Single',
       url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=900&q=80',
       name: 'Ayesha K.',
-      role: 'UI/UX & Brand Specialist',
-      tagTop: 'Trending',
-      tagTitle: 'UI/UX & Web',
-      bannerBg: 'linear-gradient(135deg, #064e3b 0%, #09131a 100%)',
-      photoBg: '#10b981',
-      msgCards: [
-        { initial: 'A', title: 'Design system ready', status: 'Sent' },
-        { initial: 'K', title: 'Client feedback synced', status: 'Live' },
-        { initial: 'S', title: 'Sprint files shared', status: 'Sent' }
-      ]
+      role: 'UI/UX Designer',
+      category: 'Design',
+      message: 'Ready for modern interface & brand design work.',
+      status: 'Available',
+      accent: '#38bdf8',
+      surface: 'linear-gradient(145deg, #0b2239 0%, #0d1526 100%)'
     },
     // 2. Group
     {
       type: 'Group',
       url: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=900&q=80',
-      name: 'Karachi & Lahore Squad',
-      role: 'Product & Tech Team',
-      tagTop: 'Team Hub',
-      tagTitle: 'Group Collab',
-      bannerBg: 'linear-gradient(135deg, #1e3a8a 0%, #09131a 100%)',
-      photoBg: '#3b82f6',
-      msgCards: [
-        { initial: 'M', title: 'Sprint tasks assigned', status: 'Sent' },
-        { initial: 'Z', title: 'Build check passed', status: 'Live' },
-        { initial: 'R', title: 'Team notes updated', status: 'Sent' }
-      ]
+      name: 'Product Squad',
+      role: 'Engineering & Design Team',
+      category: 'Team Hub',
+      message: 'Collaborating on sprints, launches, and hiring.',
+      status: 'Active',
+      accent: '#34d399',
+      surface: 'linear-gradient(145deg, #092a27 0%, #0d1526 100%)'
     },
     // 3. Single
     {
       type: 'Single',
       url: 'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?auto=format&fit=crop&w=900&q=80',
       name: 'Hina R.',
-      role: 'Career & Resume Mentor',
-      tagTop: 'Featured',
-      tagTitle: 'ATS Resume Help',
-      bannerBg: 'linear-gradient(135deg, #4c1d95 0%, #09131a 100%)',
-      photoBg: '#8b5cf6',
-      msgCards: [
-        { initial: 'H', title: 'CV review completed', status: 'Sent' },
-        { initial: 'N', title: 'Interview tips sent', status: 'Live' },
-        { initial: 'F', title: 'Profile checklist done', status: 'Sent' }
-      ]
+      role: 'Career Mentor',
+      category: 'Career',
+      message: 'Helping professionals refine CVs & interview prep.',
+      status: 'Online',
+      accent: '#a78bfa',
+      surface: 'linear-gradient(145deg, #21153b 0%, #0d1526 100%)'
     },
     // 4. Group
     {
       type: 'Group',
       url: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=900&q=80',
-      name: 'Talent & Ops Group',
-      role: 'Hiring & Operations',
-      tagTop: 'Hiring',
-      tagTitle: 'Open Roles',
-      bannerBg: 'linear-gradient(135deg, #78350f 0%, #09131a 100%)',
-      photoBg: '#f59e0b',
-      msgCards: [
-        { initial: 'T', title: 'Shortlist shared', status: 'Sent' },
-        { initial: 'O', title: 'Remote roles live', status: 'Live' },
-        { initial: 'D', title: 'Interview slots open', status: 'Sent' }
-      ]
+      name: 'Hiring Desk',
+      role: 'Talent & Recruitment Group',
+      category: 'Opportunities',
+      message: 'Connecting skilled applicants with verified roles.',
+      status: 'Hiring',
+      accent: '#fbbf24',
+      surface: 'linear-gradient(145deg, #2e200b 0%, #0d1526 100%)'
     },
     // 5. Single
     {
       type: 'Single',
       url: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=900&q=80',
       name: 'Zainab M.',
-      role: 'Full-Stack Web Developer',
-      tagTop: 'Specialist',
-      tagTitle: 'Next.js & Cloud',
-      bannerBg: 'linear-gradient(135deg, #0c4a6e 0%, #09131a 100%)',
-      photoBg: '#0ea5e9',
-      msgCards: [
-        { initial: 'Z', title: 'Auth flow deployed', status: 'Sent' },
-        { initial: 'U', title: 'Database synced', status: 'Live' },
-        { initial: 'P', title: 'Preview link ready', status: 'Sent' }
-      ]
+      role: 'Full-Stack Developer',
+      category: 'Development',
+      message: 'Building fast Next.js & cloud-backed web apps.',
+      status: 'Available',
+      accent: '#38bdf8',
+      surface: 'linear-gradient(145deg, #0b2239 0%, #0d1526 100%)'
     },
     // 6. Group
     {
       type: 'Group',
       url: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=900&q=80',
-      name: 'Growth Strategy Team',
-      role: 'Partnerships & Scale',
-      tagTop: 'Strategy',
-      tagTitle: 'Growth Hub',
-      bannerBg: 'linear-gradient(135deg, #134e4a 0%, #09131a 100%)',
-      photoBg: '#14b8a6',
-      msgCards: [
-        { initial: 'G', title: 'Partner deck sent', status: 'Sent' },
-        { initial: 'B', title: 'Weekly goals live', status: 'Live' },
-        { initial: 'C', title: 'Outreach plan ready', status: 'Sent' }
-      ]
+      name: 'Growth Circle',
+      role: 'Strategy & Partnerships',
+      category: 'Growth',
+      message: 'Planning campaigns & scaling client outreach.',
+      status: 'Active',
+      accent: '#34d399',
+      surface: 'linear-gradient(145deg, #092a27 0%, #0d1526 100%)'
     },
     // 7. Single
     {
       type: 'Single',
       url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=900&q=80',
       name: 'Bilal A.',
-      role: 'Growth & Outreach Lead',
-      tagTop: 'Top Rated',
-      tagTitle: 'Client Growth',
-      bannerBg: 'linear-gradient(135deg, #1e293b 0%, #090d16 100%)',
-      photoBg: '#38bdf8',
-      msgCards: [
-        { initial: 'B', title: 'Leads list updated', status: 'Sent' },
-        { initial: 'M', title: 'Proposal delivered', status: 'Live' },
-        { initial: 'A', title: 'Call invite sent', status: 'Sent' }
-      ]
+      role: 'Growth Strategist',
+      category: 'Advisory',
+      message: 'Focused on measurable client & market growth.',
+      status: 'Online',
+      accent: '#38bdf8',
+      surface: 'linear-gradient(145deg, #122138 0%, #0d1526 100%)'
     },
     // 8. Group
     {
       type: 'Group',
       url: 'https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&w=900&q=80',
-      name: 'Advisory & Success Team',
-      role: 'Client Delivery Group',
-      tagTop: 'Enterprise',
-      tagTitle: 'Onboarding',
-      bannerBg: 'linear-gradient(135deg, #4a1d1f 0%, #09131a 100%)',
-      photoBg: '#f97316',
-      msgCards: [
-        { initial: 'E', title: 'Onboarding kit sent', status: 'Sent' },
-        { initial: 'S', title: 'Milestone 1 live', status: 'Live' },
-        { initial: 'W', title: 'Sync schedule set', status: 'Sent' }
-      ]
+      name: 'Client Success',
+      role: 'Onboarding & Delivery Team',
+      category: 'Enterprise',
+      message: 'Smooth project kickoffs and clear milestones.',
+      status: 'Active',
+      accent: '#fbbf24',
+      surface: 'linear-gradient(145deg, #2e200b 0%, #0d1526 100%)'
     },
     // 9. Single
     {
       type: 'Single',
       url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=900&q=80',
       name: 'Sana T.',
-      role: 'Visual & Brand Creator',
-      tagTop: 'Creative',
-      tagTitle: 'Brand Visuals',
-      bannerBg: 'linear-gradient(135deg, #500724 0%, #09131a 100%)',
-      photoBg: '#ec4899',
-      msgCards: [
-        { initial: 'S', title: 'Brand kit exported', status: 'Sent' },
-        { initial: 'L', title: 'Social assets live', status: 'Live' },
-        { initial: 'V', title: 'Final files shared', status: 'Sent' }
-      ]
+      role: 'Visual Creator',
+      category: 'Creative',
+      message: 'Crafting clean visuals & standout brand stories.',
+      status: 'Available',
+      accent: '#f472b6',
+      surface: 'linear-gradient(145deg, #331126 0%, #0d1526 100%)'
     },
     // 10. Group
     {
       type: 'Group',
       url: 'https://images.unsplash.com/photo-1543269865-cbf427effbad?auto=format&fit=crop&w=900&q=80',
-      name: 'SHANORA Circle',
-      role: 'Creators & Employers',
-      tagTop: 'Community',
-      tagTitle: 'Global Network',
-      bannerBg: 'linear-gradient(135deg, #172554 0%, #09131a 100%)',
-      photoBg: '#60a5fa',
-      msgCards: [
-        { initial: 'P', title: 'Job alerts posted', status: 'Sent' },
-        { initial: 'C', title: 'Creators active now', status: 'Live' },
-        { initial: 'G', title: 'Network expanding', status: 'Sent' }
-      ]
+      name: 'SHANORA Network',
+      role: 'Creators & Employers Hub',
+      category: 'Community',
+      message: 'Where ambitious talent and teams connect.',
+      status: 'Live',
+      accent: '#38bdf8',
+      surface: 'linear-gradient(145deg, #0b2239 0%, #0d1526 100%)'
     }
   ];
 
@@ -343,13 +303,13 @@ function AuthContent() {
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-        maxWidth: '1060px',
+        maxWidth: '1040px',
         width: '100%',
         gap: '32px',
         alignItems: 'center'
       }}>
 
-        {/* Left Column: Brand & Fiverr Banner Style Photo + Card Message Box */}
+        {/* Left Column: Brand & Clean Fiverr-Style Showcase */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', textAlign: 'left', minWidth: 0 }}>
           <Link href="/" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
             <div style={{
@@ -378,13 +338,13 @@ function AuthContent() {
             "Professional growth within your reach" — Connect with creators and global employers across Pakistan.
           </p>
 
-          {/* Fiverr-Style Banner Container */}
+          {/* Clean Showcase Banner */}
           <div style={{
             width: '100%',
             borderRadius: '18px',
-            background: activeItem.bannerBg,
-            border: '1px solid rgba(255,255,255,0.12)',
-            boxShadow: '0 18px 40px rgba(0,0,0,0.55)',
+            background: activeItem.surface,
+            border: '1px solid rgba(255,255,255,0.1)',
+            boxShadow: '0 18px 38px rgba(0,0,0,0.5)',
             padding: '16px',
             boxSizing: 'border-box',
             transition: 'background 0.5s ease'
@@ -393,181 +353,90 @@ function AuthContent() {
               display: 'flex',
               flexWrap: 'wrap',
               alignItems: 'center',
-              justifyContent: 'space-between',
               gap: '14px'
             }}>
-              {/* Left Side: Topic Tag + Photo with Name on Top */}
+              {/* Portrait Photo Only (Name shown once below) */}
               <div style={{
-                display: 'flex',
-                alignItems: 'flex-end',
-                gap: '10px',
-                flex: '1 1 210px',
-                minWidth: 0
+                width: '124px',
+                height: '148px',
+                borderRadius: '14px',
+                overflow: 'hidden',
+                border: '1px solid rgba(255,255,255,0.16)',
+                backgroundColor: '#0b1322',
+                position: 'relative',
+                flexShrink: 0
               }}>
-                {/* Small Fiverr-Style Topic Badge */}
-                <div style={{
-                  backgroundColor: 'rgba(255,255,255,0.09)',
-                  border: '1px solid rgba(255,255,255,0.16)',
-                  borderRadius: '10px',
-                  padding: '7px 9px',
-                  maxWidth: '88px',
-                  flexShrink: 0,
-                  marginBottom: '18px'
-                }}>
-                  <div style={{ fontSize: '9.5px', color: 'rgba(255,255,255,0.72)', fontWeight: '600' }}>
-                    {activeItem.tagTop}
-                  </div>
-                  <div style={{ fontSize: '11.5px', color: '#fff', fontWeight: '800', lineHeight: 1.2, marginTop: '2px' }}>
-                    {activeItem.tagTitle}
-                  </div>
-                </div>
-
-                {/* Photo with Name Clearly Shown */}
-                <div style={{ minWidth: 0, flex: '0 1 136px' }}>
-                  <div style={{
-                    width: '136px',
-                    maxWidth: '100%',
-                    height: '154px',
-                    borderRadius: '14px',
-                    backgroundColor: activeItem.photoBg,
-                    border: '2px solid rgba(255,255,255,0.22)',
-                    overflow: 'hidden',
-                    position: 'relative',
-                    boxShadow: '0 10px 22px rgba(0,0,0,0.4)'
-                  }}>
-                    {slideshowItems.map((item, idx) => (
-                      <img
-                        key={idx}
-                        src={item.url}
-                        alt={item.name}
-                        style={{
-                          position: 'absolute',
-                          inset: 0,
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'cover',
-                          objectPosition: '50% 18%',
-                          opacity: currentSlide === idx ? 1 : 0,
-                          transition: 'opacity 0.55s ease-in-out'
-                        }}
-                      />
-                    ))}
-
-                    {/* Name Pill on Photo */}
-                    <div style={{
+                {slideshowItems.map((item, idx) => (
+                  <img
+                    key={idx}
+                    src={item.url}
+                    alt={item.name}
+                    style={{
                       position: 'absolute',
-                      top: '8px',
-                      left: '8px',
-                      right: '8px',
-                      backgroundColor: 'rgba(7, 11, 20, 0.82)',
-                      backdropFilter: 'blur(6px)',
-                      border: '1px solid rgba(255,255,255,0.16)',
-                      borderRadius: '8px',
-                      padding: '4px 7px',
-                      color: '#fff',
-                      fontSize: '11px',
-                      fontWeight: '700',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis'
-                    }}>
-                      {activeItem.name}
-                    </div>
-                  </div>
-
-                  {/* Role & Type Below Photo */}
-                  <div style={{ marginTop: '6px', lineHeight: 1.25 }}>
-                    <div style={{
-                      fontSize: '11px',
-                      fontWeight: '700',
-                      color: '#f8fafc',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis'
-                    }}>
-                      {activeItem.name} • <span style={{ color: '#94a3b8', fontWeight: '600' }}>{activeItem.type}</span>
-                    </div>
-                    <div style={{
-                      fontSize: '10px',
-                      color: 'rgba(255,255,255,0.72)',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis'
-                    }}>
-                      {activeItem.role}
-                    </div>
-                  </div>
-                </div>
+                      inset: 0,
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      objectPosition: '50% 15%',
+                      opacity: currentSlide === idx ? 1 : 0,
+                      transition: 'opacity 0.55s ease-in-out'
+                    }}
+                  />
+                ))}
               </div>
 
-              {/* Right Side: Card-Design Message Box */}
+              {/* Clean Single Message Card */}
               <div style={{
-                flex: '1 1 195px',
+                flex: '1 1 180px',
                 minWidth: 0,
-                backgroundColor: 'rgba(255, 255, 255, 0.96)',
-                borderRadius: '14px',
-                padding: '10px',
-                boxShadow: '0 12px 26px rgba(0,0,0,0.42)',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '7px',
-                boxSizing: 'border-box'
+                gap: '8px'
               }}>
-                {activeItem.msgCards.map((m, idx) => (
-                  <div
-                    key={idx}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: '8px',
-                      backgroundColor: '#f8fafc',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '10px',
-                      padding: '6px 8px'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '7px', minWidth: 0 }}>
-                      <span style={{
-                        width: '22px',
-                        height: '22px',
-                        borderRadius: '50%',
-                        backgroundColor: '#0f172a',
-                        color: '#fff',
-                        fontSize: '10px',
-                        fontWeight: '700',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0
-                      }}>
-                        {m.initial}
-                      </span>
-                      <span style={{
-                        fontSize: '11px',
-                        fontWeight: '600',
-                        color: '#0f172a',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis'
-                      }}>
-                        {m.title}
-                      </span>
-                    </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                  <span style={{
+                    fontSize: '11px',
+                    fontWeight: '700',
+                    color: activeItem.accent,
+                    letterSpacing: '0.3px'
+                  }}>
+                    {activeItem.category} • {activeItem.type}
+                  </span>
+                  <span style={{
+                    fontSize: '10px',
+                    fontWeight: '700',
+                    color: '#cbd5e1',
+                    backgroundColor: 'rgba(255,255,255,0.07)',
+                    padding: '2px 8px',
+                    borderRadius: '999px'
+                  }}>
+                    {activeItem.status}
+                  </span>
+                </div>
 
-                    <span style={{
-                      backgroundColor: '#dcfce7',
-                      color: '#15803d',
-                      fontSize: '9px',
-                      fontWeight: '800',
-                      padding: '2px 7px',
-                      borderRadius: '999px',
-                      flexShrink: 0
-                    }}>
-                      {m.status}
-                    </span>
+                {/* Single Name & Role */}
+                <div>
+                  <div style={{ fontSize: '15px', fontWeight: '800', color: '#ffffff', lineHeight: 1.25 }}>
+                    {activeItem.name}
                   </div>
-                ))}
+                  <div style={{ fontSize: '11.5px', color: '#94a3b8', marginTop: '1px' }}>
+                    {activeItem.role}
+                  </div>
+                </div>
+
+                {/* Minimal Message Bubble */}
+                <div style={{
+                  backgroundColor: 'rgba(15, 23, 42, 0.85)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderLeft: `3px solid ${activeItem.accent}`,
+                  borderRadius: '12px',
+                  padding: '10px 12px',
+                  fontSize: '12px',
+                  color: '#e2e8f0',
+                  lineHeight: '1.45'
+                }}>
+                  “{activeItem.message}”
+                </div>
               </div>
             </div>
           </div>
