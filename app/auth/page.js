@@ -29,52 +29,62 @@ function AuthContent() {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  // ----- 10 PROFESSIONAL SLIDESHOW PHOTOS (Single -> Group -> Single -> Group) + Fiverr-Style Msg Box -----
+  // ----- 10 PROFESSIONAL SLIDESHOW ITEMS (Single -> Group -> Single -> Group) -----
   const slideshowItems = [
     // 1. Single
     {
       type: 'Single',
       url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=900&q=80',
       badge: 'Verified Talent',
-      sender: 'Ayesha K. • Product Designer',
-      message: '“Ready for remote UI/UX & brand identity sprints this week.”',
-      accent: '#38bdf8'
+      sender: 'Ayesha K.',
+      role: 'Product Designer',
+      message: 'Ready for remote UI/UX & brand identity sprints this week.',
+      accent: '#38bdf8',
+      focus: '50% 18%'
     },
     // 2. Group
     {
       type: 'Group',
       url: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=900&q=80',
       badge: 'Team Collab',
-      sender: 'Karachi & Lahore Product Squad',
-      message: '“Sprint review & hiring shortlist shared in SHANORA workspace.”',
-      accent: '#34d399'
+      sender: 'Product & Engineering Squad',
+      role: 'Remote Collaboration',
+      message: 'Sprint review & hiring shortlist shared in SHANORA workspace.',
+      accent: '#34d399',
+      focus: '50% 22%'
     },
     // 3. Single
     {
       type: 'Single',
-      url: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=900&q=80',
-      badge: 'Creator & Educator',
-      sender: 'Hina R. • Career Mentor',
-      message: '“ATS resume feedback & portfolio review slots open now.”',
-      accent: '#a78bfa'
+      url: 'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?auto=format&fit=crop&w=900&q=80',
+      badge: 'Creator & Mentor',
+      sender: 'Hina R.',
+      role: 'Career & Resume Mentor',
+      message: 'ATS resume feedback & portfolio review slots open now.',
+      accent: '#a78bfa',
+      focus: '50% 18%'
     },
     // 4. Group
     {
       type: 'Group',
       url: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=900&q=80',
       badge: 'Hiring Hub',
-      sender: 'Tech & Operations Team',
-      message: '“3 new engineering & support roles posted for global applicants.”',
-      accent: '#fbbf24'
+      sender: 'Talent & Operations Team',
+      role: 'Global Recruitment',
+      message: 'New engineering, design & support roles open for applicants.',
+      accent: '#fbbf24',
+      focus: '50% 25%'
     },
     // 5. Single
     {
       type: 'Single',
-      url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=900&q=80',
+      url: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=900&q=80',
       badge: 'Full-Stack Specialist',
-      sender: 'Zainab M. • Web Architect',
-      message: '“Shipping fast Next.js & Supabase apps with clean architecture.”',
-      accent: '#38bdf8'
+      sender: 'Zainab M.',
+      role: 'Web & Cloud Developer',
+      message: 'Building fast, modern web apps with clean UI & reliable APIs.',
+      accent: '#38bdf8',
+      focus: '50% 18%'
     },
     // 6. Group
     {
@@ -82,35 +92,43 @@ function AuthContent() {
       url: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=900&q=80',
       badge: 'Strategy Session',
       sender: 'Growth & Partnerships Group',
-      message: '“Aligning Q1 milestones with verified partners & clients.”',
-      accent: '#34d399'
+      role: 'Business Strategy',
+      message: 'Aligning milestones & client deliverables across teams.',
+      accent: '#34d399',
+      focus: '50% 22%'
     },
     // 7. Single
     {
       type: 'Single',
       url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=900&q=80',
       badge: 'Top Rated',
-      sender: 'Bilal A. • Growth Strategist',
-      message: '“Helping founders scale outreach & convert international leads.”',
-      accent: '#38bdf8'
+      sender: 'Bilal A.',
+      role: 'Growth & Outreach Lead',
+      message: 'Helping founders scale outreach & connect with global clients.',
+      accent: '#38bdf8',
+      focus: '50% 18%'
     },
     // 8. Group
     {
       type: 'Group',
       url: 'https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&w=900&q=80',
       badge: 'Client Sync',
-      sender: 'Enterprise Advisory Board',
-      message: '“Proposal approved — onboarding starts Monday morning.”',
-      accent: '#fbbf24'
+      sender: 'Enterprise Advisory Team',
+      role: 'Project Onboarding',
+      message: 'Proposal approved — new project onboarding kicks off on time.',
+      accent: '#fbbf24',
+      focus: '50% 22%'
     },
     // 9. Single
     {
       type: 'Single',
       url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=900&q=80',
       badge: 'Creative Lead',
-      sender: 'Sana T. • Content & Visuals',
-      message: '“Delivering high-impact visual stories for modern brands.”',
-      accent: '#f472b6'
+      sender: 'Sana T.',
+      role: 'Brand & Visual Creator',
+      message: 'Crafting clean visual stories & modern identities for brands.',
+      accent: '#f472b6',
+      focus: '50% 18%'
     },
     // 10. Group
     {
@@ -118,8 +136,10 @@ function AuthContent() {
       url: 'https://images.unsplash.com/photo-1543269865-cbf427effbad?auto=format&fit=crop&w=900&q=80',
       badge: 'Community Network',
       sender: 'SHANORA Professionals Circle',
-      message: '“Connect, share opportunities, and grow together globally.”',
-      accent: '#34d399'
+      role: 'Global Community',
+      message: 'Connect, share opportunities, and grow your career together.',
+      accent: '#34d399',
+      focus: '50% 22%'
     }
   ];
 
@@ -278,8 +298,8 @@ function AuthContent() {
         alignItems: 'center'
       }}>
 
-        {/* Left Column: Brand & Fiverr-Style Showcase Card with Floating Message Box */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px', textAlign: 'left' }}>
+        {/* Left Column: Brand & Fiverr-Style Showcase + Clean Message Box */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', textAlign: 'left' }}>
           <Link href="/" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
             <div style={{
               width: '40px',
@@ -300,120 +320,155 @@ function AuthContent() {
             </span>
           </Link>
 
-          <h1 style={{ fontSize: '30px', fontWeight: '800', lineHeight: '1.2', margin: 0, letterSpacing: '-0.5px' }}>
+          <h1 style={{ fontSize: '29px', fontWeight: '800', lineHeight: '1.2', margin: 0, letterSpacing: '-0.5px' }}>
             Explore the professional connections you love.
           </h1>
           <p style={{ color: '#94a3b8', fontSize: '14px', lineHeight: '1.5', margin: 0 }}>
             "Professional growth within your reach" — Connect with creators and global employers across Pakistan.
           </p>
 
-          {/* Fiverr-Inspired Showcase Frame + Floating Message Box */}
+          {/* Outer Showcase Container */}
           <div style={{
-            position: 'relative',
-            width: '100%',
-            height: '310px',
+            backgroundColor: '#0f172a',
+            border: '1px solid rgba(255,255,255,0.1)',
             borderRadius: '18px',
             overflow: 'hidden',
-            border: '1px solid rgba(255,255,255,0.12)',
-            boxShadow: '0 20px 45px rgba(0,0,0,0.65)',
-            backgroundColor: '#0b1322'
+            boxShadow: '0 20px 45px rgba(0,0,0,0.6)'
           }}>
-            {slideshowItems.map((item, idx) => (
-              <img
-                key={idx}
-                src={item.url}
-                alt={item.sender}
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                  objectPosition: 'center top',
-                  opacity: currentSlide === idx ? 1 : 0,
-                  transition: 'opacity 0.7s ease-in-out'
-                }}
-              />
-            ))}
-
-            {/* Subtle bottom gradient for readability */}
+            {/* Photo Area (Face-safe framing) */}
             <div style={{
-              position: 'absolute',
-              inset: 0,
-              background: 'linear-gradient(180deg, rgba(7,11,20,0.08) 35%, rgba(7,11,20,0.88) 100%)',
-              pointerEvents: 'none'
-            }} />
-
-            {/* Top Status Pill */}
-            <div style={{
-              position: 'absolute',
-              top: '14px',
-              left: '14px',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              backgroundColor: 'rgba(15, 23, 42, 0.85)',
-              backdropFilter: 'blur(8px)',
-              border: '1px solid rgba(255,255,255,0.14)',
-              padding: '5px 10px',
-              borderRadius: '999px',
-              fontSize: '11px',
-              fontWeight: '700',
-              color: activeItem.accent
+              position: 'relative',
+              width: '100%',
+              height: '250px',
+              backgroundColor: '#0b1322',
+              overflow: 'hidden'
             }}>
-              <span style={{
-                width: '7px',
-                height: '7px',
-                borderRadius: '50%',
-                backgroundColor: activeItem.accent,
-                display: 'inline-block'
-              }} />
-              {activeItem.badge}
+              {slideshowItems.map((item, idx) => (
+                <img
+                  key={idx}
+                  src={item.url}
+                  alt={item.sender}
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    objectPosition: item.focus || '50% 20%',
+                    opacity: currentSlide === idx ? 1 : 0,
+                    transition: 'opacity 0.65s ease-in-out'
+                  }}
+                />
+              ))}
+
+              {/* Top Badge */}
+              <div style={{
+                position: 'absolute',
+                top: '12px',
+                left: '12px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                backgroundColor: 'rgba(7, 11, 20, 0.82)',
+                backdropFilter: 'blur(8px)',
+                border: '1px solid rgba(255,255,255,0.14)',
+                padding: '5px 10px',
+                borderRadius: '999px',
+                fontSize: '11px',
+                fontWeight: '700',
+                color: activeItem.accent
+              }}>
+                <span style={{
+                  width: '7px',
+                  height: '7px',
+                  borderRadius: '50%',
+                  backgroundColor: activeItem.accent
+                }} />
+                {activeItem.badge}
+              </div>
+
+              {/* Slide Counter Pill */}
+              <div style={{
+                position: 'absolute',
+                top: '12px',
+                right: '12px',
+                backgroundColor: 'rgba(7, 11, 20, 0.82)',
+                backdropFilter: 'blur(8px)',
+                border: '1px solid rgba(255,255,255,0.14)',
+                padding: '4px 9px',
+                borderRadius: '999px',
+                fontSize: '11px',
+                fontWeight: '700',
+                color: '#cbd5e1'
+              }}>
+                {currentSlide + 1} / {slideshowItems.length}
+              </div>
             </div>
 
-            {/* Fiverr-Style Message Box Overlay */}
+            {/* Dedicated Professional Message Box Below Photo */}
             <div style={{
-              position: 'absolute',
-              left: '14px',
-              right: '14px',
-              bottom: '14px',
-              backgroundColor: 'rgba(15, 23, 42, 0.92)',
-              backdropFilter: 'blur(10px)',
-              border: '1px solid rgba(255,255,255,0.14)',
-              borderLeft: `3px solid ${activeItem.accent}`,
-              borderRadius: '12px',
-              padding: '11px 13px',
-              boxShadow: '0 10px 25px rgba(0,0,0,0.45)'
+              padding: '14px 16px',
+              background: 'linear-gradient(180deg, rgba(15,23,42,0.96) 0%, rgba(11,19,34,1) 100%)',
+              borderTop: `2px solid ${activeItem.accent}`
             }}>
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                gap: '8px',
-                marginBottom: '4px'
+                gap: '10px',
+                marginBottom: '6px'
               }}>
-                <span style={{ fontSize: '12px', fontWeight: '700', color: '#f8fafc' }}>
-                  💬 {activeItem.sender}
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
+                  <div style={{
+                    width: '30px',
+                    height: '30px',
+                    borderRadius: '8px',
+                    backgroundColor: 'rgba(56, 189, 248, 0.12)',
+                    border: `1px solid ${activeItem.accent}`,
+                    color: activeItem.accent,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '12px',
+                    fontWeight: '800',
+                    flexShrink: 0
+                  }}>
+                    {activeItem.sender.charAt(0)}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: '700', color: '#f8fafc', lineHeight: 1.2 }}>
+                      {activeItem.sender}
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#94a3b8', lineHeight: 1.2 }}>
+                      {activeItem.role}
+                    </div>
+                  </div>
+                </div>
+
                 <span style={{
                   fontSize: '10px',
                   fontWeight: '700',
-                  color: '#94a3b8',
-                  backgroundColor: 'rgba(255,255,255,0.06)',
-                  padding: '2px 7px',
+                  color: activeItem.accent,
+                  backgroundColor: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  padding: '3px 8px',
                   borderRadius: '6px'
                 }}>
                   {activeItem.type}
                 </span>
               </div>
-              <p style={{
-                margin: 0,
+
+              <div style={{
+                backgroundColor: 'rgba(30, 41, 59, 0.65)',
+                border: '1px solid rgba(255,255,255,0.07)',
+                borderRadius: '10px',
+                padding: '9px 11px',
                 fontSize: '12px',
-                color: '#cbd5e1',
-                lineHeight: '1.4'
+                color: '#e2e8f0',
+                lineHeight: '1.45'
               }}>
-                {activeItem.message}
-              </p>
+                “{activeItem.message}”
+              </div>
             </div>
           </div>
 
@@ -426,7 +481,7 @@ function AuthContent() {
                 aria-label={`Slide ${idx + 1}`}
                 onClick={() => setCurrentSlide(idx)}
                 style={{
-                  width: currentSlide === idx ? '20px' : '7px',
+                  width: currentSlide === idx ? '22px' : '7px',
                   height: '7px',
                   borderRadius: '999px',
                   border: 'none',
