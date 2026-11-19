@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState, useEffect } from 'react';
+import { Suspense, useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '../../lib/supabaseClient';
@@ -73,7 +73,9 @@ function ProfilePortalContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [activeTab, setActiveTab] = useState(searchParams?.get('tab') || 'profile');
+  const initialTab = searchParams?.get('tab') || 'profile';
+  const [activeTab, setActiveTab] = useState(initialTab);
+  const [tabHistory, setTabHistory] = useState([initialTab]);
   const [loading, setLoading] = useState(true);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
@@ -121,33 +123,139 @@ function ProfilePortalContent() {
   const [savedPostsList, setSavedPostsList] = useState([]);
   const [activeChatUser, setActiveChatUser] = useState(null);
 
-  const navigateToTab = (newTab, chatUser = null) => {
-    setActiveTab(newTab);
+  // Refs for ordered mobile/header back navigation without stale closures
+  const historyRef = useRef([initialTab]);
+  const menuPanelRef = useRef(null);
+  const ignoreNextPopRef = useRef(false);
+
+  useEffect(() => {
+    historyRef.current = tabHistory;
+  }, [tabHistory]);
+
+  useEffect(() => {
+    menuPanelRef.current = menuPanel;
+  }, [menuPanel]);
+
+  const navigateToTab = useCallback((newTab, chatUser = null) => {
     setActiveChatUser(chatUser);
     if (newTab !== 'menu') {
       setMenuPanel(null);
+      menuPanelRef.current = null;
     }
+
+    setTabHistory((prev) => {
+      if (prev[prev.length - 1] === newTab) return prev;
+      const nextStack = [...prev, newTab];
+      historyRef.current = nextStack;
+      return nextStack;
+    });
+
+    setActiveTab(newTab);
+
     if (typeof window !== 'undefined') {
       const url = newTab === 'menu' ? '/profile?tab=menu' : `/profile?tab=${newTab}`;
-      window.history.pushState({ tab: newTab }, '', url);
-    }
-  };
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const tabParam = params.get('tab');
-      if (tabParam === 'notifications' || tabParam === 'alerts') {
-        window.location.replace('/alerts');
-        return;
-      }
-      if (tabParam === 'security') {
-        window.location.replace('/settings/security');
-        return;
-      }
-      if (tabParam) setActiveTab(tabParam);
+      window.history.pushState({ shanoraProfileStep: true, tab: newTab }, '', url);
     }
   }, []);
+
+  const toggleMenuPanel = useCallback((panelName) => {
+    const current = menuPanelRef.current;
+    const next = current === panelName ? null : panelName;
+    setMenuPanel(next);
+    menuPanelRef.current = next;
+    if (next && typeof window !== 'undefined') {
+      window.history.pushState({ shanoraMenuPanel: next }, '');
+    }
+  }, []);
+
+  const handleStepBack = useCallback(() => {
+    if (showLogoutModal) {
+      setShowLogoutModal(false);
+      return;
+    }
+    if (showEditProfileModal) {
+      setShowEditProfileModal(false);
+      return;
+    }
+    if (showInviteModal) {
+      setShowInviteModal(false);
+      return;
+    }
+
+    if (menuPanelRef.current) {
+      setMenuPanel(null);
+      menuPanelRef.current = null;
+      return;
+    }
+
+    const stack = historyRef.current;
+    if (stack.length > 1) {
+      const updated = stack.slice(0, -1);
+      const prevTab = updated[updated.length - 1];
+      historyRef.current = updated;
+      setTabHistory(updated);
+      setActiveTab(prevTab);
+      if (typeof window !== 'undefined') {
+        const url = prevTab === 'menu' ? '/profile?tab=menu' : `/profile?tab=${prevTab}`;
+        window.history.replaceState({ shanoraProfileStep: true, tab: prevTab }, '', url);
+      }
+      return;
+    }
+
+    router.push('/feed');
+  }, [router, showLogoutModal, showEditProfileModal, showInviteModal]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const params = new URLSearchParams(window.location.search);
+    const tabParam = params.get('tab');
+    if (tabParam === 'notifications' || tabParam === 'alerts') {
+      window.location.replace('/alerts');
+      return;
+    }
+    if (tabParam === 'security') {
+      window.location.replace('/settings/security');
+      return;
+    }
+    if (tabParam) {
+      setActiveTab(tabParam);
+      setTabHistory([tabParam]);
+      historyRef.current = [tabParam];
+    }
+
+    // Seed an entry state so mobile back button triggers popstate cleanly
+    window.history.replaceState({ shanoraProfileRoot: true, tab: tabParam || initialTab }, '');
+
+    const onPopState = () => {
+      if (ignoreNextPopRef.current) {
+        ignoreNextPopRef.current = false;
+        return;
+      }
+
+      if (menuPanelRef.current) {
+        setMenuPanel(null);
+        menuPanelRef.current = null;
+        ignoreNextPopRef.current = true;
+        window.history.pushState({ shanoraProfileStep: true }, '');
+        return;
+      }
+
+      const stack = historyRef.current;
+      if (stack.length > 1) {
+        const updated = stack.slice(0, -1);
+        const prevTab = updated[updated.length - 1];
+        historyRef.current = updated;
+        setTabHistory(updated);
+        setActiveTab(prevTab);
+        ignoreNextPopRef.current = true;
+        window.history.pushState({ shanoraProfileStep: true, tab: prevTab }, '');
+      }
+    };
+
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, [initialTab]);
 
   useEffect(() => {
     async function initPortal() {
@@ -220,7 +328,7 @@ function ProfilePortalContent() {
   async function handleSupportTicketSubmit(e) {
     e.preventDefault();
     if (!supportSubject.trim() || !supportMessage.trim()) {
-      showMenuNotice('error', 'Please enter both a subject and a message.');
+      showMenuNotice('error', 'Please enter both a subject and message.');
       return;
     }
     setSubmittingSupport(true);
@@ -230,7 +338,7 @@ function ProfilePortalContent() {
         const emailLower = user.email.trim().toLowerCase();
         await supabase.from('notifications').insert([{
           recipient_email: emailLower,
-          sender_name: 'SHANORA Help & Support',
+          sender_name: 'SHANORA Support',
           sender_email: emailLower,
           action_type: 'support_ticket',
           content: `Ticket ${ticketCode} [${supportCategory}]: ${supportSubject.trim()} — ${supportMessage.trim()}`,
@@ -457,13 +565,10 @@ function ProfilePortalContent() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
           <button
             type="button"
-            onClick={() => {
-              if (activeTab !== 'menu') navigateToTab('menu');
-              else router.push('/feed');
-            }}
+            onClick={handleStepBack}
             style={{ width: '32px', height: '32px', borderRadius: '8px', backgroundColor: '#070b14', border: '1px solid #1e293b', color: '#38bdf8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}
           >
-            {activeTab !== 'menu' ? '←' : '✕'}
+            {activeTab !== 'menu' || menuPanel ? '←' : '✕'}
           </button>
           
           <Link href="/feed" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.65rem', backgroundColor: '#0b1322', border: '1px solid #1e293b', borderRadius: '10px', padding: '0.28rem 0.65rem 0.28rem 0.35rem' }}>
@@ -593,7 +698,7 @@ function ProfilePortalContent() {
 
               <button
                 type="button"
-                onClick={() => setMenuPanel(prev => (prev === 'terms' ? null : 'terms'))}
+                onClick={() => toggleMenuPanel('terms')}
                 style={{
                   ...bottomActionBtnStyle,
                   borderColor: menuPanel === 'terms' ? '#0284c7' : '#1e293b'
@@ -605,7 +710,7 @@ function ProfilePortalContent() {
 
               <button
                 type="button"
-                onClick={() => setMenuPanel(prev => (prev === 'support' ? null : 'support'))}
+                onClick={() => toggleMenuPanel('support')}
                 style={{
                   ...bottomActionBtnStyle,
                   borderColor: menuPanel === 'support' ? '#0284c7' : '#1e293b'
@@ -615,19 +720,20 @@ function ProfilePortalContent() {
                 <span>Help & Support</span>
               </button>
 
-              <button
-                type="button"
-                onClick={() => router.push('/auth')}
-                style={{
-                  ...bottomActionBtnStyle,
-                  backgroundColor: '#131b2e',
-                  borderColor: '#334155',
-                  color: '#38bdf8'
-                }}
-              >
-                <span>➕</span>
-                <span>Add Account</span>
-              </button>
+              <Link href="/auth" style={{ textDecoration: 'none' }}>
+                <button
+                  type="button"
+                  style={{
+                    ...bottomActionBtnStyle,
+                    backgroundColor: '#131b2e',
+                    borderColor: '#334155',
+                    color: '#38bdf8'
+                  }}
+                >
+                  <span>➕</span>
+                  <span>Add Account</span>
+                </button>
+              </Link>
 
               <button
                 type="button"
