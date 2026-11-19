@@ -41,7 +41,8 @@ function AuthContent() {
       message: 'Ready for modern interface & brand design work.',
       status: 'Available',
       accent: '#38bdf8',
-      surface: 'linear-gradient(145deg, #0b2239 0%, #0d1526 100%)'
+      surface: 'linear-gradient(145deg, #0b2239 0%, #0d1526 100%)',
+      pos: '50% 22%'
     },
     // 2. Group
     {
@@ -53,7 +54,8 @@ function AuthContent() {
       message: 'Collaborating on sprints, launches, and hiring.',
       status: 'Active',
       accent: '#34d399',
-      surface: 'linear-gradient(145deg, #092a27 0%, #0d1526 100%)'
+      surface: 'linear-gradient(145deg, #092a27 0%, #0d1526 100%)',
+      pos: '50% 25%'
     },
     // 3. Single
     {
@@ -65,7 +67,8 @@ function AuthContent() {
       message: 'Helping professionals refine CVs & interview prep.',
       status: 'Online',
       accent: '#a78bfa',
-      surface: 'linear-gradient(145deg, #21153b 0%, #0d1526 100%)'
+      surface: 'linear-gradient(145deg, #21153b 0%, #0d1526 100%)',
+      pos: '50% 28%'
     },
     // 4. Group
     {
@@ -77,7 +80,8 @@ function AuthContent() {
       message: 'Connecting skilled applicants with verified roles.',
       status: 'Hiring',
       accent: '#fbbf24',
-      surface: 'linear-gradient(145deg, #2e200b 0%, #0d1526 100%)'
+      surface: 'linear-gradient(145deg, #2e200b 0%, #0d1526 100%)',
+      pos: '50% 25%'
     },
     // 5. Single
     {
@@ -89,7 +93,8 @@ function AuthContent() {
       message: 'Building fast Next.js & cloud-backed web apps.',
       status: 'Available',
       accent: '#38bdf8',
-      surface: 'linear-gradient(145deg, #0b2239 0%, #0d1526 100%)'
+      surface: 'linear-gradient(145deg, #0b2239 0%, #0d1526 100%)',
+      pos: '50% 35%'
     },
     // 6. Group
     {
@@ -101,7 +106,8 @@ function AuthContent() {
       message: 'Planning campaigns & scaling client outreach.',
       status: 'Active',
       accent: '#34d399',
-      surface: 'linear-gradient(145deg, #092a27 0%, #0d1526 100%)'
+      surface: 'linear-gradient(145deg, #092a27 0%, #0d1526 100%)',
+      pos: '50% 25%'
     },
     // 7. Single
     {
@@ -113,7 +119,8 @@ function AuthContent() {
       message: 'Focused on measurable client & market growth.',
       status: 'Online',
       accent: '#38bdf8',
-      surface: 'linear-gradient(145deg, #122138 0%, #0d1526 100%)'
+      surface: 'linear-gradient(145deg, #122138 0%, #0d1526 100%)',
+      pos: '50% 28%'
     },
     // 8. Group
     {
@@ -125,7 +132,8 @@ function AuthContent() {
       message: 'Smooth project kickoffs and clear milestones.',
       status: 'Active',
       accent: '#fbbf24',
-      surface: 'linear-gradient(145deg, #2e200b 0%, #0d1526 100%)'
+      surface: 'linear-gradient(145deg, #2e200b 0%, #0d1526 100%)',
+      pos: '50% 25%'
     },
     // 9. Single
     {
@@ -137,7 +145,8 @@ function AuthContent() {
       message: 'Crafting clean visuals & standout brand stories.',
       status: 'Available',
       accent: '#f472b6',
-      surface: 'linear-gradient(145deg, #331126 0%, #0d1526 100%)'
+      surface: 'linear-gradient(145deg, #331126 0%, #0d1526 100%)',
+      pos: '50% 25%'
     },
     // 10. Group
     {
@@ -149,7 +158,8 @@ function AuthContent() {
       message: 'Where ambitious talent and teams connect.',
       status: 'Live',
       accent: '#38bdf8',
-      surface: 'linear-gradient(145deg, #0b2239 0%, #0d1526 100%)'
+      surface: 'linear-gradient(145deg, #0b2239 0%, #0d1526 100%)',
+      pos: '50% 25%'
     }
   ];
 
@@ -305,11 +315,11 @@ function AuthContent() {
         gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))',
         maxWidth: '1040px',
         width: '100%',
-        gap: '28px',
+        gap: '32px',
         alignItems: 'center'
       }}>
 
-        {/* Left Column: Brand & Full-Width Balanced Showcase */}
+        {/* Left Column: Brand & Clean Showcase Card */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', textAlign: 'left', minWidth: 0 }}>
           <Link href="/" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
             <div style={{
@@ -338,7 +348,7 @@ function AuthContent() {
             "Professional growth within your reach" — Connect with creators and global employers across Pakistan.
           </p>
 
-          {/* Clean Full-Width Showcase Card (No Empty Side Space on Mobile) */}
+          {/* Clean Showcase Card */}
           <div style={{
             width: '100%',
             borderRadius: '18px',
@@ -352,10 +362,12 @@ function AuthContent() {
             gap: '12px',
             transition: 'background 0.5s ease'
           }}>
-            {/* Full-Width Photo Frame */}
+            {/* Balanced Portrait Frame so Full Face Shows Clearly */}
             <div style={{
               width: '100%',
-              height: '195px',
+              maxWidth: '280px',
+              height: '240px',
+              margin: '0 auto',
               borderRadius: '14px',
               overflow: 'hidden',
               border: '1px solid rgba(255,255,255,0.14)',
@@ -373,7 +385,7 @@ function AuthContent() {
                     width: '100%',
                     height: '100%',
                     objectFit: 'cover',
-                    objectPosition: '50% 15%',
+                    objectPosition: item.pos || '50% 25%',
                     opacity: currentSlide === idx ? 1 : 0,
                     transition: 'opacity 0.55s ease-in-out'
                   }}
@@ -381,7 +393,7 @@ function AuthContent() {
               ))}
             </div>
 
-            {/* Full-Width Clean Message Card */}
+            {/* Clean Message Card */}
             <div style={{
               width: '100%',
               boxSizing: 'border-box',
