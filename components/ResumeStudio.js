@@ -22,7 +22,6 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
   };
 
   // --- REAL SUPABASE DATABASE PRO SUBSCRIPTION CHECK ---
-  // Automatically unlocks all 12 templates if the user's ID has PRO active in Supabase
   const hasDbPaidPro = Boolean(
     profile?.is_pro === true ||
     profile?.is_pro === 'true' ||
@@ -32,7 +31,6 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
     profile?.subscription_status === 'active'
   );
 
-  // Optional toggle so the Founder can test Free User restrictions even while logged into a PRO account
   const [testAsFreeUser, setTestAsFreeUser] = useState(false);
   const isUserPro = hasDbPaidPro && !testAsFreeUser;
 
@@ -49,7 +47,7 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
   const [isSaving, setIsSaving] = useState(false);
   const [statusMsg, setStatusMsg] = useState('');
 
-  // Professional Custom Notification Card Modal State (Replaces ugly browser alert())
+  // Professional Custom Notification Card Modal State
   const [modalNotice, setModalNotice] = useState(null);
 
   const openNoticeCard = ({
@@ -196,13 +194,10 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
 
   // --- PRESERVED 12 TEMPLATES (4 FREE + 8 PRO) ---
   const templates = [
-    // 4 FREE TEMPLATES (Editable & Free PDF Download)
     { id: 'free-classic', name: '1. Basic Standard', type: 'Free', variant: 'free-left', accent: '#334155', subBg: '#f8fafc' },
     { id: 'free-centered', name: '2. Academic Centered', type: 'Free', variant: 'free-center', accent: '#0f172a', subBg: '#f8fafc' },
     { id: 'free-boxed', name: '3. Classic Boxed', type: 'Free', variant: 'free-box', accent: '#475569', subBg: '#f1f5f9' },
     { id: 'free-minimal', name: '4. Clean Entry', type: 'Free', variant: 'free-topbar', accent: '#0284c7', subBg: '#f0f9ff' },
-
-    // 8 PRO TEMPLATES (Editable for All, PDF Download Strictly Locked Unless User Has PRO)
     { id: 'pro-crimson', name: '5. Executive Crimson', type: 'Pro', variant: 'pro-left-sidebar', accent: '#991b1b', subBg: '#fef2f2' },
     { id: 'pro-royal', name: '6. Royal Split Banner', type: 'Pro', variant: 'pro-top-banner', accent: '#4c1d95', subBg: '#f5f3ff' },
     { id: 'pro-emerald', name: '7. Tech Emerald Grid', type: 'Pro', variant: 'pro-tech-pills', accent: '#065f46', subBg: '#ecfdf5' },
@@ -246,7 +241,6 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
     { num: 8, label: '8. Save & PDF' }
   ];
 
-  // --- BUTTON HANDLERS WITH SMOOTH SCROLL FEEDBACK ---
   const handleToggleWizard = () => {
     const nextState = !showWizard;
     setShowWizard(nextState);
@@ -305,7 +299,6 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
     setStatusMsg('✓ CV section order updated in live preview.');
   };
 
-  // --- FACT-BASED AI ASSISTANTS ---
   const handleAiGenerateSummary = () => {
     const role = cvData.headline || 'Professional';
     const topSkills = techSkillList.slice(0, 4).join(', ');
@@ -427,7 +420,6 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
     setStatusMsg('✨ Customized Cover Letter generated below!');
   };
 
-  // --- SAVE & VERSION MANAGEMENT (WORKS ONLINE & OFFLINE) ---
   const handleSaveCvToDatabase = async (asNewVersion = false) => {
     if (activeTemplateObj.type === 'Pro' && !isUserPro) {
       openNoticeCard({
@@ -468,7 +460,6 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
     };
 
     try {
-      // 1. Always save to LocalStorage list so dropdown works immediately
       const existingLocal = JSON.parse(localStorage.getItem('shanora_saved_cvs_list') || '[]');
       const filtered = existingLocal.filter((item) => item.id !== newId);
       const updatedList = [record, ...filtered];
@@ -477,7 +468,6 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
       setCurrentResumeId(newId);
       setCvTitle(finalTitle);
 
-      // 2. Also sync with Supabase if logged in
       const supabase = getSupabase();
       if (supabase && profile?.id) {
         await supabase.from('user_resumes').upsert({
@@ -509,7 +499,6 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
     setStatusMsg(`📂 Loaded CV: "${item.title}"`);
   };
 
-  // --- STRICT PDF DOWNLOAD (FREE = ALLOWED, PRO = ALLOWED FOR PRO ACCOUNTS, BLOCKED FOR FREE ACCOUNTS) ---
   const handleDownloadPDF = () => {
     if (activeTemplateObj.type === 'Pro' && !isUserPro) {
       openNoticeCard({
@@ -574,9 +563,8 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
     printWindow.document.close();
   };
 
-  // --- MINIATURE CARD PREVIEW RENDERER (DYNAMICALLY REFLECTS STANDARD + 12 DESIGNS) ---
+  // --- MINIATURE CARD PREVIEW RENDERER ---
   const renderMiniCardDesign = (tmpl) => {
-    // 1. If ATS-Friendly Standard is selected, show clean black-and-white ATS parser preview on cards
     if (cvStandard === 'ats') {
       return (
         <div style={{ padding: '12px', height: '100%', backgroundColor: '#ffffff', fontFamily: 'Georgia, serif', color: '#000', textAlign: 'left' }}>
@@ -596,7 +584,6 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
       );
     }
 
-    // 2. If European (Europass) Standard is selected, show Europass left-label grid on cards
     if (cvStandard === 'european') {
       return (
         <div style={{ padding: '10px', height: '100%', backgroundColor: '#ffffff', color: '#0f172a', textAlign: 'left' }}>
@@ -626,7 +613,6 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
       );
     }
 
-    // 3. International Standard: Show each of the 12 templates' unique visual architecture
     switch (tmpl.variant) {
       case 'free-left':
         return (
@@ -810,7 +796,6 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
     }
   };
 
-  // --- HELPER: RENDER ORDERED CV SECTIONS IN MAIN BODY ---
   const renderOrderedMainSections = (accent) => {
     return sectionOrder.map((secKey) => {
       switch (secKey) {
@@ -991,13 +976,11 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
     });
   };
 
-  // --- FULL-SIZE A4 LIVE CV RENDERER (DISTINCT FOR ATS, EUROPEAN & INTERNATIONAL) ---
   const renderFullA4Template = () => {
     const v = activeTemplateObj.variant;
     const accent = activeTemplateObj.accent;
     const subBg = activeTemplateObj.subBg;
 
-    // MODE A: STRICT ATS-FRIENDLY RESUME STANDARD (100% Machine-Readable Single-Column)
     if (cvStandard === 'ats') {
       return (
         <div style={{ minHeight: '842px', backgroundColor: '#ffffff', color: '#000000', padding: '2.5rem 2.8rem', fontFamily: "'Times New Roman', Georgia, serif", textAlign: 'left' }}>
@@ -1017,11 +1000,9 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
       );
     }
 
-    // MODE B: EUROPEAN (EUROPASS) OFFICIAL CV STANDARD
     if (cvStandard === 'european') {
       return (
         <div style={{ minHeight: '842px', backgroundColor: '#ffffff', color: '#0f172a', padding: '2.2rem 2.4rem', textAlign: 'left' }}>
-          {/* Europass Top Header */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `3px solid ${accent}`, paddingBottom: '1.2rem', marginBottom: '1.6rem', flexWrap: 'wrap', gap: '1rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1.2rem' }}>
               {cvData.showPhoto && cvData.photoUrl ? (
@@ -1047,7 +1028,6 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
             </div>
           </div>
 
-          {/* Europass Left-Label Grid Rows */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '26% 74%', gap: '1.2rem' }}>
               <div style={{ textAlign: 'right', paddingRight: '1rem', borderRight: `2px solid ${accent}`, fontSize: '0.8rem', fontWeight: '900', color: accent, textTransform: 'uppercase' }}>
@@ -1116,7 +1096,6 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
       );
     }
 
-    // MODE C: INTERNATIONAL STANDARD (Renders all 12 Distinct Template Designs)
     const renderAvatarOrCrest = (darkBg = false) => {
       if (cvData.showPhoto && cvData.photoUrl) {
         return (
@@ -1296,7 +1275,7 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.4rem', padding: '0.8rem 0' }}>
       
-      {/* PROFESSIONAL EXECUTIVE NOTIFICATION CARD MODAL (Replaces Browser alert()) */}
+      {/* PROFESSIONAL EXECUTIVE NOTIFICATION CARD MODAL */}
       {modalNotice && (
         <div
           onClick={() => setModalNotice(null)}
@@ -1326,11 +1305,9 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
               color: '#ffffff'
             }}
           >
-            {/* Top Gradient Accent Bar */}
             <div style={{ height: '6px', background: 'linear-gradient(90deg, #0284c7, #7c3aed, #eab308)' }} />
 
             <div style={{ padding: '1.6rem' }}>
-              {/* Header Row */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                 <span style={{
                   backgroundColor: 'rgba(124, 58, 237, 0.2)',
@@ -1363,7 +1340,6 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
                 </button>
               </div>
 
-              {/* Icon + Title */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', marginBottom: '0.85rem' }}>
                 <div style={{
                   width: '48px',
@@ -1384,12 +1360,10 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
                 </h3>
               </div>
 
-              {/* Main Message */}
               <p style={{ fontSize: '0.86rem', color: '#cbd5e1', lineHeight: '1.6', margin: '0 0 0.85rem 0' }}>
                 {modalNotice.message}
               </p>
 
-              {/* Highlight Sub-Box */}
               {modalNotice.subMessage && (
                 <div style={{
                   backgroundColor: '#070b14',
@@ -1406,7 +1380,6 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
                 </div>
               )}
 
-              {/* Action Buttons */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
                 {modalNotice.showUpgrade && (
                   <button
@@ -1481,15 +1454,23 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
         </div>
       )}
 
-      {/* 1. EXECUTIVE DASHBOARD HEADER & SAVED CVS BAR */}
-      <div style={{ backgroundColor: '#0f172a', padding: '1.25rem', borderRadius: '16px', border: '1px solid #1e293b', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.8rem' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
-              <h2 style={{ fontSize: '1.25rem', fontWeight: '800', color: '#fff', margin: 0 }}>
+      {/* 1. EXECUTIVE DASHBOARD HEADER & SAVED CVS BAR (POLISHED ARRANGEMENT) */}
+      <div style={{
+        backgroundColor: '#0f172a',
+        padding: '1.35rem',
+        borderRadius: '18px',
+        border: '1px solid #1e293b',
+        boxShadow: '0 10px 28px rgba(0, 0, 0, 0.4)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '1.05rem'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.9rem' }}>
+          <div style={{ minWidth: '240px', flex: '1 1 300px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: '900', color: '#fff', margin: 0, letterSpacing: '-0.01em' }}>
                 SHANORA Professional CV Studio 📄
               </h2>
-              {/* Automatic Database Status Badge (with optional click-to-test Free mode if user is PRO) */}
               <button
                 type="button"
                 onClick={() => {
@@ -1512,13 +1493,13 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
                   }
                 }}
                 style={{
-                  backgroundColor: isUserPro ? '#eab308' : '#0284c7',
-                  color: isUserPro ? '#000' : '#fff',
+                  backgroundColor: isUserPro ? '#eab308' : 'rgba(2, 132, 199, 0.16)',
+                  color: isUserPro ? '#000' : '#38bdf8',
+                  border: isUserPro ? 'none' : '1px solid rgba(56, 189, 248, 0.35)',
                   fontSize: '0.68rem',
                   fontWeight: '900',
                   padding: '4px 10px',
                   borderRadius: '999px',
-                  border: 'none',
                   cursor: 'pointer'
                 }}
               >
@@ -1527,16 +1508,26 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
                   : '🔒 FREE TIER (4 Free • 8 PRO Locked)'}
               </button>
             </div>
-            <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: '0.25rem 0 0 0' }}>
+            <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: '0.3rem 0 0 0', lineHeight: '1.45' }}>
               International, European (Europass) & ATS-Compliant Resume System • 4 Free & 8 PRO Executive Templates
             </p>
           </div>
 
-          <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+          {/* Primary Action Buttons Group */}
+          <div style={{ display: 'flex', gap: '0.55rem', flexWrap: 'wrap', alignItems: 'center' }}>
             <button
               type="button"
               onClick={handleToggleWizard}
-              style={{ backgroundColor: showWizard ? '#22c55e' : '#1e293b', color: '#fff', border: '1px solid #38bdf8', padding: '0.6rem 1rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.8rem', cursor: 'pointer' }}
+              style={{
+                backgroundColor: showWizard ? '#16a34a' : '#070b14',
+                color: '#fff',
+                border: showWizard ? '1px solid #4ade80' : '1px solid #38bdf8',
+                padding: '0.62rem 1rem',
+                borderRadius: '10px',
+                fontWeight: '800',
+                fontSize: '0.8rem',
+                cursor: 'pointer'
+              }}
             >
               {showWizard ? '✓ Close 8-Step CV Editor' : '✏️ Open 8-Step CV Builder'}
             </button>
@@ -1545,7 +1536,16 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
               type="button"
               onClick={() => handleSaveCvToDatabase(false)}
               disabled={isSaving}
-              style={{ backgroundColor: '#0f766e', color: '#fff', border: 'none', padding: '0.6rem 1rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.8rem', cursor: 'pointer' }}
+              style={{
+                backgroundColor: '#0f766e',
+                color: '#fff',
+                border: '1px solid #14b8a6',
+                padding: '0.62rem 1rem',
+                borderRadius: '10px',
+                fontWeight: '800',
+                fontSize: '0.8rem',
+                cursor: 'pointer'
+              }}
             >
               {isSaving ? 'Saving...' : '💾 Save CV'}
             </button>
@@ -1553,7 +1553,17 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
             <button
               type="button"
               onClick={handleDownloadPDF}
-              style={{ backgroundColor: isDownloadLocked ? '#7c3aed' : '#0284c7', color: '#fff', border: 'none', padding: '0.6rem 1.15rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer', boxShadow: '0 4px 14px rgba(2, 132, 199, 0.35)' }}
+              style={{
+                backgroundColor: isDownloadLocked ? '#7c3aed' : '#0284c7',
+                color: '#fff',
+                border: 'none',
+                padding: '0.62rem 1.15rem',
+                borderRadius: '10px',
+                fontWeight: '800',
+                fontSize: '0.82rem',
+                cursor: 'pointer',
+                boxShadow: isDownloadLocked ? '0 4px 14px rgba(124, 58, 237, 0.35)' : '0 4px 14px rgba(2, 132, 199, 0.35)'
+              }}
             >
               {isDownloadLocked ? '🔒 Unlock PRO to Download PDF' : '🖨️ Download Official A4 PDF'}
             </button>
@@ -1561,13 +1571,21 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
         </div>
 
         {/* CV Version Management & International Standards Selector */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', paddingTop: '0.8rem', borderTop: '1px solid #1e293b' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700' }}>CV Name:</span>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '0.85rem',
+          paddingTop: '0.9rem',
+          borderTop: '1px solid #1e293b'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '0.76rem', color: '#94a3b8', fontWeight: '800' }}>CV Name:</span>
             <input
               value={cvTitle}
               onChange={(e) => setCvTitle(e.target.value)}
-              style={{ ...inputStyle, width: '175px', padding: '0.38rem 0.6rem' }}
+              style={{ ...inputStyle, width: '185px', padding: '0.45rem 0.65rem', backgroundColor: '#131b2e' }}
               placeholder="e.g. IT Support CV"
             />
             {savedResumes.length > 0 && (
@@ -1577,7 +1595,7 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
                   if (found) handleLoadSavedCv(found);
                 }}
                 value={currentResumeId || ''}
-                style={{ ...inputStyle, width: '185px', padding: '0.38rem 0.6rem' }}
+                style={{ ...inputStyle, width: '185px', padding: '0.45rem 0.65rem', backgroundColor: '#131b2e' }}
               >
                 <option value="">📂 Saved CVs ({savedResumes.length})</option>
                 {savedResumes.map((r) => (
@@ -1588,37 +1606,49 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
             <button
               type="button"
               onClick={() => handleSaveCvToDatabase(true)}
-              style={{ backgroundColor: '#1e293b', color: '#38bdf8', border: '1px solid #334155', padding: '0.38rem 0.7rem', borderRadius: '8px', fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer' }}
+              style={{
+                backgroundColor: '#131b2e',
+                color: '#38bdf8',
+                border: '1px solid #334155',
+                padding: '0.45rem 0.8rem',
+                borderRadius: '8px',
+                fontSize: '0.75rem',
+                fontWeight: '800',
+                cursor: 'pointer'
+              }}
             >
               + Save as New Version {isUserPro ? '' : '(PRO 🔒)'}
             </button>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700' }}>Standard:</span>
+            <span style={{ fontSize: '0.76rem', color: '#94a3b8', fontWeight: '800' }}>Standard:</span>
             {[
               { id: 'international', label: '🌐 International CV' },
               { id: 'european', label: '🇪🇺 European CV' },
               { id: 'ats', label: '🤖 ATS-Friendly' }
-            ].map((std) => (
-              <button
-                key={std.id}
-                type="button"
-                onClick={() => handleSwitchStandard(std.id)}
-                style={{
-                  backgroundColor: cvStandard === std.id ? '#0284c7' : '#070b14',
-                  color: '#fff',
-                  border: cvStandard === std.id ? '2px solid #38bdf8' : '1px solid #334155',
-                  padding: '0.38rem 0.75rem',
-                  borderRadius: '8px',
-                  fontSize: '0.74rem',
-                  fontWeight: '800',
-                  cursor: 'pointer'
-                }}
-              >
-                {std.label}
-              </button>
-            ))}
+            ].map((std) => {
+              const active = cvStandard === std.id;
+              return (
+                <button
+                  key={std.id}
+                  type="button"
+                  onClick={() => handleSwitchStandard(std.id)}
+                  style={{
+                    backgroundColor: active ? '#0284c7' : '#131b2e',
+                    color: active ? '#fff' : '#cbd5e1',
+                    border: active ? '1px solid #38bdf8' : '1px solid #334155',
+                    padding: '0.44rem 0.8rem',
+                    borderRadius: '9px',
+                    fontSize: '0.75rem',
+                    fontWeight: '800',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {std.label}
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -1721,12 +1751,10 @@ export default function ResumeStudio({ profile, resumeData, navigateToTab }) {
         </div>
       </div>
 
-      {/* 3. STEP-BY-STEP CV CREATION WIZARD (ALL 12 INTERNATIONAL SECTIONS + AI) */}
+      {/* 3. STEP-BY-STEP CV CREATION WIZARD */}
       <div ref={wizardRef}>
         {showWizard && (
           <div style={{ backgroundColor: '#0f172a', border: '2px solid #38bdf8', borderRadius: '16px', padding: '1.35rem' }}>
-            
-            {/* Progress Indicator Bar */}
             <div style={{ display: 'flex', gap: '0.4rem', overflowX: 'auto', paddingBottom: '0.8rem', marginBottom: '1.1rem', borderBottom: '1px solid #1e293b' }}>
               {steps.map((st) => (
                 <button
