@@ -302,14 +302,14 @@ function AuthContent() {
     }}>
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))',
         maxWidth: '1040px',
         width: '100%',
-        gap: '32px',
+        gap: '28px',
         alignItems: 'center'
       }}>
 
-        {/* Left Column: Brand & Clean Fiverr-Style Showcase */}
+        {/* Left Column: Brand & Full-Width Balanced Showcase */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', textAlign: 'left', minWidth: 0 }}>
           <Link href="/" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
             <div style={{
@@ -338,105 +338,98 @@ function AuthContent() {
             "Professional growth within your reach" — Connect with creators and global employers across Pakistan.
           </p>
 
-          {/* Clean Showcase Banner */}
+          {/* Clean Full-Width Showcase Card (No Empty Side Space on Mobile) */}
           <div style={{
             width: '100%',
             borderRadius: '18px',
             background: activeItem.surface,
             border: '1px solid rgba(255,255,255,0.1)',
             boxShadow: '0 18px 38px rgba(0,0,0,0.5)',
-            padding: '16px',
+            padding: '14px',
             boxSizing: 'border-box',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px',
             transition: 'background 0.5s ease'
           }}>
+            {/* Full-Width Photo Frame */}
             <div style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              alignItems: 'center',
-              gap: '14px'
+              width: '100%',
+              height: '195px',
+              borderRadius: '14px',
+              overflow: 'hidden',
+              border: '1px solid rgba(255,255,255,0.14)',
+              backgroundColor: '#0b1322',
+              position: 'relative'
             }}>
-              {/* Portrait Photo Only (Name shown once below) */}
-              <div style={{
-                width: '124px',
-                height: '148px',
-                borderRadius: '14px',
-                overflow: 'hidden',
-                border: '1px solid rgba(255,255,255,0.16)',
-                backgroundColor: '#0b1322',
-                position: 'relative',
-                flexShrink: 0
-              }}>
-                {slideshowItems.map((item, idx) => (
-                  <img
-                    key={idx}
-                    src={item.url}
-                    alt={item.name}
-                    style={{
-                      position: 'absolute',
-                      inset: 0,
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover',
-                      objectPosition: '50% 15%',
-                      opacity: currentSlide === idx ? 1 : 0,
-                      transition: 'opacity 0.55s ease-in-out'
-                    }}
-                  />
-                ))}
+              {slideshowItems.map((item, idx) => (
+                <img
+                  key={idx}
+                  src={item.url}
+                  alt={item.name}
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    objectPosition: '50% 15%',
+                    opacity: currentSlide === idx ? 1 : 0,
+                    transition: 'opacity 0.55s ease-in-out'
+                  }}
+                />
+              ))}
+            </div>
+
+            {/* Full-Width Clean Message Card */}
+            <div style={{
+              width: '100%',
+              boxSizing: 'border-box',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '7px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                <span style={{
+                  fontSize: '11px',
+                  fontWeight: '700',
+                  color: activeItem.accent,
+                  letterSpacing: '0.3px'
+                }}>
+                  {activeItem.category} • {activeItem.type}
+                </span>
+                <span style={{
+                  fontSize: '10px',
+                  fontWeight: '700',
+                  color: '#cbd5e1',
+                  backgroundColor: 'rgba(255,255,255,0.08)',
+                  padding: '2px 8px',
+                  borderRadius: '999px'
+                }}>
+                  {activeItem.status}
+                </span>
               </div>
 
-              {/* Clean Single Message Card */}
+              <div>
+                <div style={{ fontSize: '15px', fontWeight: '800', color: '#ffffff', lineHeight: 1.25 }}>
+                  {activeItem.name}
+                </div>
+                <div style={{ fontSize: '11.5px', color: '#94a3b8', marginTop: '1px' }}>
+                  {activeItem.role}
+                </div>
+              </div>
+
               <div style={{
-                flex: '1 1 180px',
-                minWidth: 0,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '8px'
+                backgroundColor: 'rgba(15, 23, 42, 0.88)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                borderLeft: `3px solid ${activeItem.accent}`,
+                borderRadius: '12px',
+                padding: '10px 12px',
+                fontSize: '12px',
+                color: '#e2e8f0',
+                lineHeight: '1.45'
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                  <span style={{
-                    fontSize: '11px',
-                    fontWeight: '700',
-                    color: activeItem.accent,
-                    letterSpacing: '0.3px'
-                  }}>
-                    {activeItem.category} • {activeItem.type}
-                  </span>
-                  <span style={{
-                    fontSize: '10px',
-                    fontWeight: '700',
-                    color: '#cbd5e1',
-                    backgroundColor: 'rgba(255,255,255,0.07)',
-                    padding: '2px 8px',
-                    borderRadius: '999px'
-                  }}>
-                    {activeItem.status}
-                  </span>
-                </div>
-
-                {/* Single Name & Role */}
-                <div>
-                  <div style={{ fontSize: '15px', fontWeight: '800', color: '#ffffff', lineHeight: 1.25 }}>
-                    {activeItem.name}
-                  </div>
-                  <div style={{ fontSize: '11.5px', color: '#94a3b8', marginTop: '1px' }}>
-                    {activeItem.role}
-                  </div>
-                </div>
-
-                {/* Minimal Message Bubble */}
-                <div style={{
-                  backgroundColor: 'rgba(15, 23, 42, 0.85)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  borderLeft: `3px solid ${activeItem.accent}`,
-                  borderRadius: '12px',
-                  padding: '10px 12px',
-                  fontSize: '12px',
-                  color: '#e2e8f0',
-                  lineHeight: '1.45'
-                }}>
-                  “{activeItem.message}”
-                </div>
+                “{activeItem.message}”
               </div>
             </div>
           </div>
@@ -469,7 +462,7 @@ function AuthContent() {
           backgroundColor: '#0f172a',
           border: '1px solid rgba(255,255,255,0.08)',
           borderRadius: '20px',
-          padding: '28px',
+          padding: '24px',
           boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
           minWidth: 0
         }}>
