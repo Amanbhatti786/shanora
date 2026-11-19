@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabaseClient';
 
+const RTL_LANGUAGES = new Set(['ur', 'sd', 'ar']);
+
 export default function ProfessionalSettingsHub() {
   const router = useRouter();
   const [user, setUser] = useState(null);
@@ -15,36 +17,62 @@ export default function ProfessionalSettingsHub() {
 
   const [notification, setNotification] = useState({ show: false, message: '', type: 'success' });
 
+  const [metaStats, setMetaStats] = useState({
+    is_monetized: false,
+    wallet_balance: 0,
+    subscription_tier: 'free',
+    verification_status: 'unverified'
+  });
+
   const [formData, setFormData] = useState({
     full_name: '',
     username: '',
     phone: '',
     country: 'Pakistan',
     city: '',
+    target_role: '',
+    expected_salary: '',
+    relocate_ok: false,
     headline: '',
     bio: '',
+    company_name: '',
+    company_website: '',
     profile_visibility: 'public',
     messaging_permission: 'everyone',
+    online_status: true,
+    read_receipts: true,
     email_notifications: true,
     push_notifications: true,
+    job_alerts: true,
     theme_mode: 'dark',
     app_language: 'en',
     feed_sort: 'recent',
     video_autoplay: true,
+    high_contrast: true,
     open_to_work: true,
     remote_work: true
   });
 
   const [supportSubject, setSupportSubject] = useState('');
   const [supportMsg, setSupportMsg] = useState('');
+  const [submittingSupport, setSubmittingSupport] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [passwordUpdating, setPasswordUpdating] = useState(false);
+  const [exportingData, setExportingData] = useState(false);
 
   const showCardMessage = useCallback((message, type = 'success') => {
     setNotification({ show: true, message, type });
     setTimeout(() => {
       setNotification({ show: false, message: '', type: 'success' });
-    }, 4000);
+    }, 4200);
+  }, []);
+
+  const applyDocumentPreferences = useCallback((themeMode, langCode, highContrast) => {
+    if (typeof document === 'undefined') return;
+    document.documentElement.setAttribute('data-theme', themeMode || 'dark');
+    document.documentElement.setAttribute('lang', langCode || 'en');
+    document.documentElement.setAttribute('dir', RTL_LANGUAGES.has(langCode) ? 'rtl' : 'ltr');
+    document.documentElement.setAttribute('data-contrast', highContrast ? 'high' : 'normal');
   }, []);
 
   useEffect(() => {
@@ -65,25 +93,46 @@ export default function ProfessionalSettingsHub() {
         .maybeSingle();
 
       if (profile && active) {
-        setFormData({
-          full_name: profile.full_name || '',
+        const nextForm = {
+          full_name: profile.full_name || profile.name || '',
           username: profile.username || session.user.email.split('@')[0],
           phone: profile.phone || '',
           country: profile.country || 'Pakistan',
           city: profile.city || '',
+          target_role: profile.target_role || '',
+          expected_salary: profile.expected_salary || '',
+          relocate_ok: Boolean(profile.relocate_ok),
           headline: profile.headline || '',
           bio: profile.bio || '',
+          company_name: profile.company_name || '',
+          company_website: profile.company_website || '',
           profile_visibility: profile.profile_visibility || 'public',
           messaging_permission: profile.messaging_permission || 'everyone',
+          online_status: profile.online_status ?? true,
+          read_receipts: profile.read_receipts ?? true,
           email_notifications: profile.email_notifications ?? true,
           push_notifications: profile.push_notifications ?? true,
+          job_alerts: profile.job_alerts ?? true,
           theme_mode: profile.theme_mode || 'dark',
           app_language: profile.app_language || 'en',
           feed_sort: profile.feed_sort || 'recent',
           video_autoplay: profile.video_autoplay ?? true,
+          high_contrast: true,
           open_to_work: profile.open_to_work ?? true,
           remote_work: profile.remote_work ?? true
+        };
+
+        setFormData(nextForm);
+        setMetaStats({
+          is_monetized: Boolean(profile.is_monetized),
+          wallet_balance: Number(profile.wallet_balance || 0),
+          subscription_tier: profile.subscription_tier || profile.plan || 'free',
+          verification_status:
+            profile.is_verified || profile.verified
+              ? 'verified'
+              : profile.verification_status || 'unverified'
         });
+        applyDocumentPreferences(nextForm.theme_mode, nextForm.app_language, nextForm.high_contrast);
       }
       if (active) setLoading(false);
     }
@@ -91,7 +140,7 @@ export default function ProfessionalSettingsHub() {
     return () => {
       active = false;
     };
-  }, [router]);
+  }, [router, applyDocumentPreferences]);
 
   function handleCategoryChange(nextCat) {
     if (nextCat === activeCategory) return;
@@ -111,7 +160,11 @@ export default function ProfessionalSettingsHub() {
       return;
     }
 
-    if (typeof window !== 'undefined' && window.history.length > 1 && document.referrer.startsWith(window.location.origin)) {
+    if (
+      typeof window !== 'undefined' &&
+      window.history.length > 1 &&
+      document.referrer.startsWith(window.location.origin)
+    ) {
       router.back();
     } else {
       router.push('/profile?tab=menu');
@@ -131,29 +184,12 @@ export default function ProfessionalSettingsHub() {
     return () => window.removeEventListener('popstate', onPopState);
   }, [categoryHistory]);
 
-  async function handleSave(sectionName) {
+  async function persistProfileFields(partialFields, label) {
     if (!user) return;
     setSaving(true);
-
     try {
       const payload = {
-        full_name: formData.full_name,
-        username: formData.username,
-        phone: formData.phone,
-        country: formData.country,
-        city: formData.city,
-        headline: formData.headline,
-        bio: formData.bio,
-        profile_visibility: formData.profile_visibility,
-        messaging_permission: formData.messaging_permission,
-        email_notifications: formData.email_notifications,
-        push_notifications: formData.push_notifications,
-        theme_mode: formData.theme_mode,
-        app_language: formData.app_language,
-        feed_sort: formData.feed_sort,
-        video_autoplay: formData.video_autoplay,
-        open_to_work: formData.open_to_work,
-        remote_work: formData.remote_work,
+        ...partialFields,
         updated_at: new Date().toISOString()
       };
 
@@ -163,9 +199,71 @@ export default function ProfessionalSettingsHub() {
         .ilike('email', user.email);
 
       if (error) throw error;
-      showCardMessage(`${sectionName} saved successfully! ✓`, 'success');
+      showCardMessage(`${label} saved successfully! ✓`, 'success');
     } catch (err) {
       showCardMessage('Save failed: ' + err.message, 'error');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleSave(sectionName) {
+    const payload = {
+      full_name: formData.full_name,
+      name: formData.full_name,
+      username: formData.username,
+      phone: formData.phone,
+      country: formData.country,
+      city: formData.city,
+      target_role: formData.target_role,
+      expected_salary: formData.expected_salary,
+      relocate_ok: formData.relocate_ok,
+      headline: formData.headline,
+      bio: formData.bio,
+      company_name: formData.company_name,
+      company_website: formData.company_website,
+      profile_visibility: formData.profile_visibility,
+      messaging_permission: formData.messaging_permission,
+      online_status: formData.online_status,
+      read_receipts: formData.read_receipts,
+      email_notifications: formData.email_notifications,
+      push_notifications: formData.push_notifications,
+      job_alerts: formData.job_alerts,
+      theme_mode: formData.theme_mode,
+      app_language: formData.app_language,
+      feed_sort: formData.feed_sort,
+      video_autoplay: formData.video_autoplay,
+      open_to_work: formData.open_to_work,
+      remote_work: formData.remote_work
+    };
+
+    applyDocumentPreferences(formData.theme_mode, formData.app_language, formData.high_contrast);
+    await persistProfileFields(payload, sectionName);
+  }
+
+  async function handleRequestVerification() {
+    if (!user) return;
+    if (!formData.company_name.trim()) {
+      showCardMessage('Please enter your Company Name first.', 'error');
+      return;
+    }
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          company_name: formData.company_name.trim(),
+          company_website: formData.company_website.trim() || null,
+          verification_status: 'pending',
+          updated_at: new Date().toISOString()
+        })
+        .ilike('email', user.email);
+
+      if (error) throw error;
+      setMetaStats((prev) => ({ ...prev, verification_status: 'pending' }));
+      showCardMessage('Company verification request submitted for review!', 'success');
+    } catch (err) {
+      showCardMessage('Verification request failed: ' + err.message, 'error');
     } finally {
       setSaving(false);
     }
@@ -190,8 +288,100 @@ export default function ProfessionalSettingsHub() {
     }
   }
 
+  async function handleSignOutAllDevices() {
+    try {
+      const { error } = await supabase.auth.signOut({ scope: 'global' });
+      if (error) throw error;
+      router.replace('/auth');
+    } catch (err) {
+      showCardMessage('Session sign-out failed: ' + err.message, 'error');
+    }
+  }
+
+  async function handleExportArchive() {
+    if (!user) return;
+    setExportingData(true);
+    try {
+      const [{ data: prof }, { data: apps }] = await Promise.all([
+        supabase.from('profiles').select('*').ilike('email', user.email).maybeSingle(),
+        supabase.from('job_applications').select('*').ilike('applicant_email', user.email)
+      ]);
+
+      const archive = {
+        exported_at: new Date().toISOString(),
+        account_email: user.email,
+        profile: prof || {},
+        job_applications: apps || []
+      };
+
+      const blob = new Blob([JSON.stringify(archive, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `shanora-data-archive-${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showCardMessage('Data archive downloaded (.json)!', 'success');
+    } catch (err) {
+      showCardMessage('Export failed: ' + err.message, 'error');
+    } finally {
+      setExportingData(false);
+    }
+  }
+
+  async function handleSupportSubmit() {
+    if (!supportSubject.trim() || !supportMsg.trim()) {
+      showCardMessage('Please enter both subject and message.', 'error');
+      return;
+    }
+    setSubmittingSupport(true);
+    const ticketId = '#SH-' + Math.floor(Math.random() * 90000 + 10000);
+    try {
+      await supabase.from('notifications').insert([
+        {
+          recipient_email: user.email.toLowerCase(),
+          sender_name: 'SHANORA Support',
+          sender_email: user.email.toLowerCase(),
+          action_type: 'support_ticket',
+          content: `Ticket ${ticketId} received: ${supportSubject.trim()} — ${supportMsg.trim()}`,
+          is_read: false
+        }
+      ]);
+      showCardMessage(`Support ticket ${ticketId} submitted!`, 'success');
+      setSupportSubject('');
+      setSupportMsg('');
+    } catch (err) {
+      showCardMessage('Ticket error: ' + err.message, 'error');
+    } finally {
+      setSubmittingSupport(false);
+    }
+  }
+
+  async function handleRequestAccountDeletion() {
+    if (!user) return;
+    if (!confirm('Request account deactivation/deletion for your SHANORA account?')) return;
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ account_status: 'deletion_requested', updated_at: new Date().toISOString() })
+        .ilike('email', user.email);
+
+      if (error) throw error;
+      showCardMessage('Account deletion request recorded. Support will confirm via email.', 'success');
+    } catch (err) {
+      showCardMessage('Request failed: ' + err.message, 'error');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   if (loading) {
-    return <div style={{ minHeight: '100vh', backgroundColor: '#070b14', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#38bdf8' }}>Loading SHANORA Settings Hub...</div>;
+    return (
+      <div style={{ minHeight: '100vh', backgroundColor: '#070b14', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#38bdf8' }}>
+        Loading SHANORA Settings Hub...
+      </div>
+    );
   }
 
   const sections = [
@@ -213,6 +403,42 @@ export default function ProfessionalSettingsHub() {
     { id: 'management', label: '16. Account Management', icon: '⚠️' }
   ];
 
+  const cardStyle = {
+    backgroundColor: '#131b2e',
+    padding: '0.8rem 0.95rem',
+    borderRadius: '10px',
+    border: '1px solid #1e293b',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: '0.75rem',
+    cursor: 'pointer'
+  };
+
+  const inputStyle = {
+    width: '100%',
+    backgroundColor: '#1e293b',
+    border: '1px solid #334155',
+    borderRadius: '10px',
+    padding: '0.7rem',
+    color: '#fff',
+    fontSize: '0.82rem',
+    outline: 'none',
+    boxSizing: 'border-box'
+  };
+
+  const primaryBtnStyle = {
+    backgroundColor: '#0284c7',
+    color: '#fff',
+    border: 'none',
+    padding: '0.75rem',
+    borderRadius: '10px',
+    fontWeight: '800',
+    fontSize: '0.85rem',
+    cursor: 'pointer',
+    width: '100%'
+  };
+
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#070b14', color: '#f8fafc', fontFamily: 'system-ui, sans-serif', paddingBottom: '4rem', overflowX: 'hidden' }}>
       <header style={{ backgroundColor: '#0f172a', borderBottom: '1px solid #1e293b', padding: '0.85rem 1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100 }}>
@@ -224,7 +450,9 @@ export default function ProfessionalSettingsHub() {
           >
             ←
           </button>
-          <span style={{ fontSize: '1.1rem', fontWeight: '900', color: '#fff' }}>SHANORA <span style={{ color: '#38bdf8' }}>Settings Hub</span></span>
+          <span style={{ fontSize: '1.1rem', fontWeight: '900', color: '#fff' }}>
+            SHANORA <span style={{ color: '#38bdf8' }}>Settings Hub</span>
+          </span>
         </div>
       </header>
 
@@ -249,7 +477,9 @@ export default function ProfessionalSettingsHub() {
         )}
 
         <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '0.8rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.4rem', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}>
-          <label style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Select Settings Category</label>
+          <label style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Select Settings Category
+          </label>
           <select
             value={activeCategory}
             onChange={(e) => handleCategoryChange(e.target.value)}
@@ -275,127 +505,181 @@ export default function ProfessionalSettingsHub() {
           </select>
         </div>
 
-        <main style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.4rem', minHeight: '520px', boxSizing: 'border-box', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
+        <main style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.4rem', minHeight: '480px', boxSizing: 'border-box', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
+          {/* 1. Account Settings */}
           {activeCategory === 'account' && (
-            <div>
-              <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', marginTop: 0 }}>1. Account Settings</h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700', marginBottom: '0.4rem' }}>Email Address</label>
-                  <input type="email" value={user?.email || ''} disabled style={{ width: '100%', backgroundColor: '#131b2e', border: '1px solid #334155', borderRadius: '10px', padding: '0.7rem', color: '#64748b', fontSize: '0.82rem', boxSizing: 'border-box' }} />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700', marginBottom: '0.4rem' }}>Username (@handle)</label>
-                  <input type="text" value={formData.username} onChange={(e) => setFormData({ ...formData, username: e.target.value })} style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '10px', padding: '0.7rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }} />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700', marginBottom: '0.4rem' }}>Phone Number</label>
-                  <input type="text" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} placeholder="+92 300 0000000" style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '10px', padding: '0.7rem', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }} />
-                </div>
-                <button type="button" onClick={() => handleSave('Account Settings')} disabled={saving} style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.75rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.85rem', cursor: 'pointer' }}>{saving ? 'Saving...' : 'Save Account Settings'}</button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', margin: 0 }}>1. Account Settings</h2>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700', marginBottom: '0.4rem' }}>Email Address</label>
+                <input type="email" value={user?.email || ''} disabled style={{ ...inputStyle, backgroundColor: '#131b2e', color: '#64748b' }} />
               </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700', marginBottom: '0.4rem' }}>Username (@handle)</label>
+                <input type="text" value={formData.username} onChange={(e) => setFormData({ ...formData, username: e.target.value })} style={inputStyle} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700', marginBottom: '0.4rem' }}>Phone Number</label>
+                <input type="text" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} placeholder="+92 300 0000000" style={inputStyle} />
+              </div>
+              <label style={cardStyle}>
+                <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>Show Online Activity Status</span>
+                <input type="checkbox" checked={formData.online_status} onChange={(e) => setFormData({ ...formData, online_status: e.target.checked })} style={{ width: '18px', height: '18px' }} />
+              </label>
+              <button type="button" onClick={() => handleSave('Account Settings')} disabled={saving} style={primaryBtnStyle}>
+                {saving ? 'Saving...' : 'Save Account Settings'}
+              </button>
             </div>
           )}
 
+          {/* 2. Personal Information */}
           {activeCategory === 'personal' && (
-            <div>
-              <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', marginTop: 0 }}>2. Personal Information</h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700', marginBottom: '0.4rem' }}>Full Name</label>
-                  <input type="text" value={formData.full_name} onChange={(e) => setFormData({ ...formData, full_name: e.target.value })} style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '10px', padding: '0.7rem', color: '#fff', fontSize: '0.82rem', boxSizing: 'border-box' }} />
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
-                  <input type="text" value={formData.country} onChange={(e) => setFormData({ ...formData, country: e.target.value })} placeholder="Country" style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '10px', padding: '0.7rem', color: '#fff', fontSize: '0.82rem', boxSizing: 'border-box' }} />
-                  <input type="text" value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} placeholder="City" style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '10px', padding: '0.7rem', color: '#fff', fontSize: '0.82rem', boxSizing: 'border-box' }} />
-                </div>
-                <button type="button" onClick={() => handleSave('Personal Information')} disabled={saving} style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.75rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.85rem', cursor: 'pointer' }}>{saving ? 'Saving...' : 'Save Personal Info'}</button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', margin: 0 }}>2. Personal Information</h2>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700', marginBottom: '0.4rem' }}>Full Name</label>
+                <input type="text" value={formData.full_name} onChange={(e) => setFormData({ ...formData, full_name: e.target.value })} style={inputStyle} />
               </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
+                <input type="text" value={formData.country} onChange={(e) => setFormData({ ...formData, country: e.target.value })} placeholder="Country" style={inputStyle} />
+                <input type="text" value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} placeholder="City" style={inputStyle} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
+                <input type="text" value={formData.target_role} onChange={(e) => setFormData({ ...formData, target_role: e.target.value })} placeholder="Target Role" style={inputStyle} />
+                <input type="text" value={formData.expected_salary} onChange={(e) => setFormData({ ...formData, expected_salary: e.target.value })} placeholder="Expected Salary" style={inputStyle} />
+              </div>
+              <label style={cardStyle}>
+                <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>Open to Relocation</span>
+                <input type="checkbox" checked={formData.relocate_ok} onChange={(e) => setFormData({ ...formData, relocate_ok: e.target.checked })} style={{ width: '18px', height: '18px' }} />
+              </label>
+              <button type="button" onClick={() => handleSave('Personal Information')} disabled={saving} style={primaryBtnStyle}>
+                {saving ? 'Saving...' : 'Save Personal Info'}
+              </button>
             </div>
           )}
 
+          {/* 3. Profile Customization + Company Verification */}
           {activeCategory === 'profile' && (
-            <div>
-              <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', marginTop: 0 }}>3. Profile Customization</h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700', marginBottom: '0.4rem' }}>Professional Headline</label>
-                  <input type="text" value={formData.headline} onChange={(e) => setFormData({ ...formData, headline: e.target.value })} style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '10px', padding: '0.7rem', color: '#fff', fontSize: '0.82rem', boxSizing: 'border-box' }} />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700', marginBottom: '0.4rem' }}>About Me (Bio)</label>
-                  <textarea rows={4} value={formData.bio} onChange={(e) => setFormData({ ...formData, bio: e.target.value })} style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '10px', padding: '0.7rem', color: '#fff', fontSize: '0.82rem', boxSizing: 'border-box' }} />
-                </div>
-                <button type="button" onClick={() => handleSave('Profile Settings')} disabled={saving} style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.75rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.85rem', cursor: 'pointer' }}>{saving ? 'Saving...' : 'Save Profile Customization'}</button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', margin: 0 }}>3. Profile Customization</h2>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700', marginBottom: '0.4rem' }}>Professional Headline</label>
+                <input type="text" value={formData.headline} onChange={(e) => setFormData({ ...formData, headline: e.target.value })} style={inputStyle} />
               </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700', marginBottom: '0.4rem' }}>About Me (Bio)</label>
+                <textarea rows={3} value={formData.bio} onChange={(e) => setFormData({ ...formData, bio: e.target.value })} style={inputStyle} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
+                <input type="text" value={formData.company_name} onChange={(e) => setFormData({ ...formData, company_name: e.target.value })} placeholder="Company Name" style={inputStyle} />
+                <input type="url" value={formData.company_website} onChange={(e) => setFormData({ ...formData, company_website: e.target.value })} placeholder="Company Website" style={inputStyle} />
+              </div>
+              <div style={{ backgroundColor: '#131b2e', border: '1px solid #1e293b', borderRadius: '10px', padding: '0.85rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+                <div>
+                  <div style={{ fontSize: '0.82rem', fontWeight: '800', color: '#fff' }}>Company Verification Status</div>
+                  <div style={{ fontSize: '0.74rem', color: '#38bdf8', textTransform: 'capitalize' }}>{metaStats.verification_status}</div>
+                </div>
+                <button type="button" onClick={handleRequestVerification} disabled={saving || metaStats.verification_status === 'verified'} style={{ backgroundColor: '#1e293b', color: '#38bdf8', border: '1px solid #334155', borderRadius: '8px', padding: '0.45rem 0.8rem', fontSize: '0.76rem', fontWeight: '700', cursor: 'pointer' }}>
+                  {metaStats.verification_status === 'verified' ? '✓ Verified' : 'Request Verification'}
+                </button>
+              </div>
+              <button type="button" onClick={() => handleSave('Profile Settings')} disabled={saving} style={primaryBtnStyle}>
+                {saving ? 'Saving...' : 'Save Profile Customization'}
+              </button>
             </div>
           )}
 
+          {/* 4. Privacy & Visibility */}
           {activeCategory === 'privacy' && (
-            <div>
-              <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', marginTop: 0 }}>4. Privacy & Visibility</h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700', marginBottom: '0.4rem' }}>Profile Visibility</label>
-                  <select value={formData.profile_visibility} onChange={(e) => setFormData({ ...formData, profile_visibility: e.target.value })} style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '10px', padding: '0.7rem', color: '#fff', fontSize: '0.82rem', boxSizing: 'border-box' }}>
-                    <option value="public">Public (Everyone)</option>
-                    <option value="connections">Connections Only</option>
-                    <option value="private">Private</option>
-                  </select>
-                </div>
-                <button type="button" onClick={() => handleSave('Privacy Settings')} disabled={saving} style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.75rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.85rem', cursor: 'pointer' }}>{saving ? 'Saving...' : 'Save Privacy Settings'}</button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', margin: 0 }}>4. Privacy & Visibility</h2>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700', marginBottom: '0.4rem' }}>Profile Visibility</label>
+                <select value={formData.profile_visibility} onChange={(e) => setFormData({ ...formData, profile_visibility: e.target.value })} style={inputStyle}>
+                  <option value="public">Public (Everyone)</option>
+                  <option value="connections">Connections Only</option>
+                  <option value="private">Private</option>
+                </select>
               </div>
+              <label style={cardStyle}>
+                <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>Send Read Receipts</span>
+                <input type="checkbox" checked={formData.read_receipts} onChange={(e) => setFormData({ ...formData, read_receipts: e.target.checked })} style={{ width: '18px', height: '18px' }} />
+              </label>
+              <button type="button" onClick={() => handleSave('Privacy Settings')} disabled={saving} style={primaryBtnStyle}>
+                {saving ? 'Saving...' : 'Save Privacy Settings'}
+              </button>
             </div>
           )}
 
+          {/* 5. Account Security & Sessions */}
           {activeCategory === 'security' && (
-            <div>
-              <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', marginTop: 0 }}>5. Account Security & 2FA</h2>
-              <form onSubmit={handlePasswordChange} style={{ backgroundColor: '#131b2e', border: '1px solid #1e293b', borderRadius: '14px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.8rem', marginTop: '1rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', margin: 0 }}>5. Account Security & 2FA</h2>
+              <form onSubmit={handlePasswordChange} style={{ backgroundColor: '#131b2e', border: '1px solid #1e293b', borderRadius: '14px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
                 <h3 style={{ color: '#fff', fontSize: '0.9rem', margin: 0 }}>Change Password</h3>
-                <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="New password (min 6 chars)" style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem', color: '#fff', fontSize: '0.8rem', boxSizing: 'border-box' }} />
-                <button type="submit" disabled={passwordUpdating} style={{ backgroundColor: '#22c55e', color: '#000', border: 'none', padding: '0.6rem 1rem', borderRadius: '8px', fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer' }}>{passwordUpdating ? 'Updating...' : 'Update Password Securely'}</button>
+                <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="New password (min 6 chars)" style={inputStyle} />
+                <button type="submit" disabled={passwordUpdating} style={{ backgroundColor: '#22c55e', color: '#000', border: 'none', padding: '0.65rem 1rem', borderRadius: '8px', fontWeight: '800', fontSize: '0.8rem', cursor: 'pointer' }}>
+                  {passwordUpdating ? 'Updating...' : 'Update Password Securely'}
+                </button>
               </form>
-            </div>
-          )}
-
-          {activeCategory === 'notifications' && (
-            <div>
-              <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', marginTop: 0 }}>6. Notification Preferences</h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
-                <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#131b2e', padding: '0.8rem', borderRadius: '10px', border: '1px solid #1e293b', cursor: 'pointer' }}>
-                  <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>Email Notifications</span>
-                  <input type="checkbox" checked={formData.email_notifications} onChange={(e) => setFormData({ ...formData, email_notifications: e.target.checked })} style={{ width: '18px', height: '18px' }} />
-                </label>
-                <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#131b2e', padding: '0.8rem', borderRadius: '10px', border: '1px solid #1e293b', cursor: 'pointer' }}>
-                  <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>Push Notifications</span>
-                  <input type="checkbox" checked={formData.push_notifications} onChange={(e) => setFormData({ ...formData, push_notifications: e.target.checked })} style={{ width: '18px', height: '18px' }} />
-                </label>
-                <button type="button" onClick={() => handleSave('Notification Preferences')} disabled={saving} style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.75rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.85rem', cursor: 'pointer' }}>{saving ? 'Saving...' : 'Save Preferences'}</button>
+              <div style={{ backgroundColor: '#131b2e', border: '1px solid #1e293b', borderRadius: '14px', padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.7rem', flexWrap: 'wrap' }}>
+                <div>
+                  <div style={{ fontSize: '0.85rem', fontWeight: '800' }}>Active Sessions</div>
+                  <div style={{ fontSize: '0.74rem', color: '#94a3b8' }}>Sign out from all other devices immediately</div>
+                </div>
+                <button type="button" onClick={handleSignOutAllDevices} style={{ backgroundColor: '#1e293b', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.35)', borderRadius: '8px', padding: '0.45rem 0.8rem', fontSize: '0.76rem', fontWeight: '700', cursor: 'pointer' }}>
+                  Sign Out All Devices
+                </button>
               </div>
             </div>
           )}
 
+          {/* 6. Notification Preferences */}
+          {activeCategory === 'notifications' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', margin: 0 }}>6. Notification Preferences</h2>
+              <label style={cardStyle}>
+                <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>Email Notifications</span>
+                <input type="checkbox" checked={formData.email_notifications} onChange={(e) => setFormData({ ...formData, email_notifications: e.target.checked })} style={{ width: '18px', height: '18px' }} />
+              </label>
+              <label style={cardStyle}>
+                <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>Push Notifications</span>
+                <input type="checkbox" checked={formData.push_notifications} onChange={(e) => setFormData({ ...formData, push_notifications: e.target.checked })} style={{ width: '18px', height: '18px' }} />
+              </label>
+              <label style={cardStyle}>
+                <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>Job & Hiring Alerts</span>
+                <input type="checkbox" checked={formData.job_alerts} onChange={(e) => setFormData({ ...formData, job_alerts: e.target.checked })} style={{ width: '18px', height: '18px' }} />
+              </label>
+              <button type="button" onClick={() => handleSave('Notification Preferences')} disabled={saving} style={primaryBtnStyle}>
+                {saving ? 'Saving...' : 'Save Preferences'}
+              </button>
+            </div>
+          )}
+
+          {/* 7. Appearance & Theme */}
           {activeCategory === 'appearance' && (
-            <div>
-              <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', marginTop: 0 }}>7. Appearance & Theme</h2>
-              <div style={{ marginTop: '1rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', margin: 0 }}>7. Appearance & Theme</h2>
+              <div>
                 <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700', marginBottom: '0.4rem' }}>Theme Mode</label>
-                <select value={formData.theme_mode} onChange={(e) => setFormData({ ...formData, theme_mode: e.target.value })} style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '10px', padding: '0.7rem', color: '#fff', fontSize: '0.82rem', boxSizing: 'border-box' }}>
+                <select value={formData.theme_mode} onChange={(e) => setFormData({ ...formData, theme_mode: e.target.value })} style={inputStyle}>
                   <option value="dark">Dark Theme (SHANORA Standard)</option>
                   <option value="light">Light Theme</option>
                 </select>
-                <button type="button" onClick={() => handleSave('Appearance Settings')} disabled={saving} style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.75rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.85rem', cursor: 'pointer', marginTop: '1rem', width: '100%' }}>{saving ? 'Saving...' : 'Save Appearance'}</button>
               </div>
+              <button type="button" onClick={() => handleSave('Appearance Settings')} disabled={saving} style={primaryBtnStyle}>
+                {saving ? 'Saving...' : 'Save Appearance'}
+              </button>
             </div>
           )}
 
+          {/* 8. Language & Region */}
           {activeCategory === 'language' && (
-            <div>
-              <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', marginTop: 0 }}>8. Language & Region</h2>
-              <div style={{ marginTop: '1rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', margin: 0 }}>8. Language & Region</h2>
+              <div>
                 <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700', marginBottom: '0.4rem' }}>Select Application Language</label>
-                <select value={formData.app_language} onChange={(e) => setFormData({ ...formData, app_language: e.target.value })} style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '10px', padding: '0.7rem', color: '#fff', fontSize: '0.82rem', boxSizing: 'border-box' }}>
+                <select value={formData.app_language} onChange={(e) => setFormData({ ...formData, app_language: e.target.value })} style={inputStyle}>
                   <option value="en">English (US/UK)</option>
                   <option value="ur">Urdu (اردو)</option>
                   <option value="sd">Sindhi (سنڌي)</option>
@@ -405,111 +689,145 @@ export default function ProfessionalSettingsHub() {
                   <option value="es">Spanish (Español)</option>
                   <option value="zh">Chinese (中文)</option>
                 </select>
-                <button type="button" onClick={() => handleSave('Language Settings')} disabled={saving} style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.75rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.85rem', cursor: 'pointer', marginTop: '1rem', width: '100%' }}>{saving ? 'Saving...' : 'Save Language Preference'}</button>
               </div>
+              <button type="button" onClick={() => handleSave('Language Settings')} disabled={saving} style={primaryBtnStyle}>
+                {saving ? 'Saving...' : 'Save Language Preference'}
+              </button>
             </div>
           )}
 
+          {/* 9. Feed Preferences */}
           {activeCategory === 'feed' && (
-            <div>
-              <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', marginTop: 0 }}>9. Feed Preferences</h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700', marginBottom: '0.4rem' }}>Feed Sort Order</label>
-                  <select value={formData.feed_sort} onChange={(e) => setFormData({ ...formData, feed_sort: e.target.value })} style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '10px', padding: '0.7rem', color: '#fff', fontSize: '0.82rem', boxSizing: 'border-box' }}>
-                    <option value="recent">Most Recent</option>
-                    <option value="trending">Top Trending</option>
-                  </select>
-                </div>
-                <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#131b2e', padding: '0.8rem', borderRadius: '10px', border: '1px solid #1e293b', cursor: 'pointer' }}>
-                  <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>Autoplay Videos in Feed</span>
-                  <input type="checkbox" checked={formData.video_autoplay} onChange={(e) => setFormData({ ...formData, video_autoplay: e.target.checked })} style={{ width: '18px', height: '18px' }} />
-                </label>
-                <button type="button" onClick={() => handleSave('Feed Preferences')} disabled={saving} style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.75rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.85rem', cursor: 'pointer' }}>{saving ? 'Saving...' : 'Save Feed Preferences'}</button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', margin: 0 }}>9. Feed Preferences</h2>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700', marginBottom: '0.4rem' }}>Feed Sort Order</label>
+                <select value={formData.feed_sort} onChange={(e) => setFormData({ ...formData, feed_sort: e.target.value })} style={inputStyle}>
+                  <option value="recent">Most Recent</option>
+                  <option value="trending">Top Trending</option>
+                </select>
               </div>
+              <label style={cardStyle}>
+                <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>Autoplay Videos in Feed</span>
+                <input type="checkbox" checked={formData.video_autoplay} onChange={(e) => setFormData({ ...formData, video_autoplay: e.target.checked })} style={{ width: '18px', height: '18px' }} />
+              </label>
+              <button type="button" onClick={() => handleSave('Feed Preferences')} disabled={saving} style={primaryBtnStyle}>
+                {saving ? 'Saving...' : 'Save Feed Preferences'}
+              </button>
             </div>
           )}
 
+          {/* 10. Messaging Controls */}
           {activeCategory === 'messaging' && (
-            <div>
-              <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', marginTop: 0 }}>10. Messaging Controls</h2>
-              <div style={{ marginTop: '1rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', margin: 0 }}>10. Messaging Controls</h2>
+              <div>
                 <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700', marginBottom: '0.4rem' }}>Who can message you?</label>
-                <select value={formData.messaging_permission} onChange={(e) => setFormData({ ...formData, messaging_permission: e.target.value })} style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '10px', padding: '0.7rem', color: '#fff', fontSize: '0.82rem', boxSizing: 'border-box' }}>
+                <select value={formData.messaging_permission} onChange={(e) => setFormData({ ...formData, messaging_permission: e.target.value })} style={inputStyle}>
                   <option value="everyone">Everyone</option>
                   <option value="connections">Connections Only</option>
                 </select>
-                <button type="button" onClick={() => handleSave('Messaging Settings')} disabled={saving} style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.75rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.85rem', cursor: 'pointer', marginTop: '1rem', width: '100%' }}>{saving ? 'Saving...' : 'Save Messaging Controls'}</button>
               </div>
+              <button type="button" onClick={() => handleSave('Messaging Settings')} disabled={saving} style={primaryBtnStyle}>
+                {saving ? 'Saving...' : 'Save Messaging Controls'}
+              </button>
             </div>
           )}
 
+          {/* 11. Accessibility */}
           {activeCategory === 'accessibility' && (
-            <div>
-              <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', marginTop: 0 }}>11. Accessibility</h2>
-              <div style={{ backgroundColor: '#131b2e', padding: '1rem', borderRadius: '10px', border: '1px solid #1e293b', marginTop: '1rem' }}>
-                <div style={{ fontWeight: 'bold', fontSize: '0.85rem', marginBottom: '0.3rem' }}>High Contrast Mode</div>
-                <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>SHANORA automatically optimizes dark theme contrast for high visibility.</div>
-              </div>
-            </div>
-          )}
-
-          {activeCategory === 'data' && (
-            <div>
-              <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', marginTop: 0 }}>12. Data & Export Archive</h2>
-              <p style={{ color: '#94a3b8', fontSize: '0.82rem', marginBottom: '1.2rem' }}>Download your personal profile data and activity logs securely.</p>
-              <button type="button" onClick={() => showCardMessage('Data export archive requested successfully. Check your email.', 'success')} style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.75rem 1.2rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}>📥 Request Data Archive</button>
-            </div>
-          )}
-
-          {activeCategory === 'ads' && (
-            <div>
-              <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', marginTop: 0 }}>13. Ads & Monetization</h2>
-              <div style={{ backgroundColor: '#131b2e', padding: '1rem', borderRadius: '10px', border: '1px solid #1e293b', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', margin: 0 }}>11. Accessibility</h2>
+              <label style={cardStyle}>
                 <div>
-                  <div style={{ fontWeight: 'bold', fontSize: '0.85rem' }}>Creator Monetization Status</div>
-                  <div style={{ fontSize: '0.75rem', color: '#22c55e' }}>Active & Eligible for Payouts</div>
+                  <div style={{ fontWeight: '800', fontSize: '0.85rem' }}>High Contrast Dark Mode</div>
+                  <div style={{ fontSize: '0.74rem', color: '#94a3b8' }}>Keep crisp borders and text contrast across pages</div>
                 </div>
-                <Link href="/monetization" style={{ color: '#38bdf8', fontSize: '0.8rem', fontWeight: 'bold', textDecoration: 'none' }}>Open Dashboard ↗</Link>
+                <input type="checkbox" checked={formData.high_contrast} onChange={(e) => { const v = e.target.checked; setFormData({ ...formData, high_contrast: v }); applyDocumentPreferences(formData.theme_mode, formData.app_language, v); }} style={{ width: '18px', height: '18px' }} />
+              </label>
+            </div>
+          )}
+
+          {/* 12. Data & Export Archive */}
+          {activeCategory === 'data' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', margin: 0 }}>12. Data & Export Archive</h2>
+              <p style={{ color: '#94a3b8', fontSize: '0.82rem', margin: 0 }}>
+                Download your SHANORA profile and job applications as a JSON archive file.
+              </p>
+              <button type="button" onClick={handleExportArchive} disabled={exportingData} style={{ ...primaryBtnStyle, width: 'fit-content', padding: '0.75rem 1.2rem' }}>
+                {exportingData ? 'Preparing Archive...' : '📥 Download Data Archive (.json)'}
+              </button>
+            </div>
+          )}
+
+          {/* 13. Ads & Monetization */}
+          {activeCategory === 'ads' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', margin: 0 }}>13. Ads & Monetization</h2>
+              <div style={{ backgroundColor: '#131b2e', padding: '1rem', borderRadius: '10px', border: '1px solid #1e293b', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <div>
+                  <div style={{ fontWeight: '800', fontSize: '0.85rem' }}>
+                    Plan: <span style={{ color: '#38bdf8', textTransform: 'uppercase' }}>{metaStats.subscription_tier}</span> • {metaStats.is_monetized ? 'Monetized' : 'Standard'}
+                  </div>
+                  <div style={{ fontSize: '0.76rem', color: '#22c55e', marginTop: '0.2rem' }}>
+                    Wallet Balance: {metaStats.wallet_balance}
+                  </div>
+                </div>
+                <Link href="/monetization" style={{ color: '#38bdf8', fontSize: '0.8rem', fontWeight: '800', textDecoration: 'none' }}>
+                  Open Dashboard ↗
+                </Link>
               </div>
             </div>
           )}
 
+          {/* 14. Jobs & Career Hub */}
           {activeCategory === 'jobs' && (
-            <div>
-              <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', marginTop: 0 }}>14. Jobs & Career Hub</h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
-                <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#131b2e', padding: '0.8rem', borderRadius: '10px', border: '1px solid #1e293b', cursor: 'pointer' }}>
-                  <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>Open to Work (Recruiter Discovery)</span>
-                  <input type="checkbox" checked={formData.open_to_work} onChange={(e) => setFormData({ ...formData, open_to_work: e.target.checked })} style={{ width: '18px', height: '18px' }} />
-                </label>
-                <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#131b2e', padding: '0.8rem', borderRadius: '10px', border: '1px solid #1e293b', cursor: 'pointer' }}>
-                  <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>Remote Job Preference</span>
-                  <input type="checkbox" checked={formData.remote_work} onChange={(e) => setFormData({ ...formData, remote_work: e.target.checked })} style={{ width: '18px', height: '18px' }} />
-                </label>
-                <button type="button" onClick={() => handleSave('Career Preferences')} disabled={saving} style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.75rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.85rem', cursor: 'pointer' }}>{saving ? 'Saving...' : 'Save Career Preferences'}</button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
+                <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', margin: 0 }}>14. Jobs & Career Hub</h2>
+                <Link href="/jobs" style={{ color: '#38bdf8', fontSize: '0.78rem', fontWeight: '800', textDecoration: 'none' }}>Go to Jobs ↗</Link>
               </div>
+              <label style={cardStyle}>
+                <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>Open to Work (Recruiter Discovery)</span>
+                <input type="checkbox" checked={formData.open_to_work} onChange={(e) => setFormData({ ...formData, open_to_work: e.target.checked })} style={{ width: '18px', height: '18px' }} />
+              </label>
+              <label style={cardStyle}>
+                <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>Remote Job Preference</span>
+                <input type="checkbox" checked={formData.remote_work} onChange={(e) => setFormData({ ...formData, remote_work: e.target.checked })} style={{ width: '18px', height: '18px' }} />
+              </label>
+              <label style={cardStyle}>
+                <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>Receive Matching Job Alerts</span>
+                <input type="checkbox" checked={formData.job_alerts} onChange={(e) => setFormData({ ...formData, job_alerts: e.target.checked })} style={{ width: '18px', height: '18px' }} />
+              </label>
+              <button type="button" onClick={() => handleSave('Career Preferences')} disabled={saving} style={primaryBtnStyle}>
+                {saving ? 'Saving...' : 'Save Career Preferences'}
+              </button>
             </div>
           )}
 
+          {/* 15. Help & Support Center */}
           {activeCategory === 'support' && (
-            <div>
-              <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', marginTop: 0 }}>15. Help & Support Center</h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', marginTop: '1rem' }}>
-                <input type="text" placeholder="Issue Subject (e.g. Login bug)" value={supportSubject} onChange={(e) => setSupportSubject(e.target.value)} style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '10px', padding: '0.7rem', color: '#fff', fontSize: '0.82rem', boxSizing: 'border-box' }} />
-                <textarea rows={3} placeholder="Describe your problem..." value={supportMsg} onChange={(e) => setSupportMsg(e.target.value)} style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '10px', padding: '0.7rem', color: '#fff', fontSize: '0.82rem', boxSizing: 'border-box' }} />
-                <button type="button" onClick={() => { if (!supportSubject.trim()) { showCardMessage('Please enter a subject', 'error'); return; } showCardMessage('Support ticket submitted successfully! Ticket ID #SH-' + Math.floor(Math.random() * 90000 + 10000), 'success'); setSupportSubject(''); setSupportMsg(''); }} style={{ backgroundColor: '#22c55e', color: '#000', border: 'none', padding: '0.75rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.85rem', cursor: 'pointer' }}>Submit Support Ticket</button>
-              </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+              <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', margin: 0 }}>15. Help & Support Center</h2>
+              <input type="text" placeholder="Issue Subject (e.g. Job application or login bug)" value={supportSubject} onChange={(e) => setSupportSubject(e.target.value)} style={inputStyle} />
+              <textarea rows={3} placeholder="Describe your problem..." value={supportMsg} onChange={(e) => setSupportMsg(e.target.value)} style={inputStyle} />
+              <button type="button" disabled={submittingSupport} onClick={handleSupportSubmit} style={{ backgroundColor: '#22c55e', color: '#000', border: 'none', padding: '0.75rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.85rem', cursor: 'pointer' }}>
+                {submittingSupport ? 'Submitting...' : 'Submit Support Ticket'}
+              </button>
             </div>
           )}
 
+          {/* 16. Account Management */}
           {activeCategory === 'management' && (
-            <div>
-              <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', marginTop: 0 }}>16. Account Management</h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', marginTop: '1rem' }}>
-                <button type="button" onClick={async () => { if (confirm('Are you sure you want to log out?')) { await supabase.auth.signOut(); router.replace('/auth'); } }} style={{ backgroundColor: '#334155', color: '#fff', border: 'none', padding: '0.75rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}>Log Out of SHANORA</button>
-                <button type="button" onClick={() => showCardMessage('Account deletion requires security re-authentication. Contact support.', 'error')} style={{ backgroundColor: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.4)', padding: '0.75rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}>Permanently Delete Account</button>
-              </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+              <h2 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '900', margin: 0 }}>16. Account Management</h2>
+              <button type="button" onClick={async () => { if (confirm('Are you sure you want to log out?')) { await supabase.auth.signOut(); router.replace('/auth'); } }} style={{ backgroundColor: '#334155', color: '#fff', border: 'none', padding: '0.75rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}>
+                Log Out of SHANORA
+              </button>
+              <button type="button" disabled={saving} onClick={handleRequestAccountDeletion} style={{ backgroundColor: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.4)', padding: '0.75rem', borderRadius: '10px', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}>
+                Request Account Deletion
+              </button>
             </div>
           )}
         </main>
