@@ -29,166 +29,166 @@ function AuthContent() {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  // ----- 10 FIVERR-STYLE SLIDESHOW CARDS (Single -> Group -> Single -> Group) -----
+  // ----- 10 FIVERR-STYLE SLIDESHOW ITEMS (Single -> Group -> Single -> Group) -----
   const slideshowItems = [
     // 1. Single
     {
       type: 'Single',
       url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=900&q=80',
-      tagLabel: 'Trending',
-      tagTitle: 'UI/UX & Web Design',
-      personName: 'Ayesha K.',
-      personRole: 'Product designer',
-      cardBg: 'linear-gradient(135deg, #064e3b 0%, #0f172a 100%)',
-      frameBg: '#10b981',
-      messages: [
-        { initial: 'A', text: 'Wireframes & design system ready', status: 'Sent' },
-        { initial: 'S', text: 'Client review approved today', status: 'Live' },
-        { initial: 'N', text: 'Next sprint brief shared', status: 'Sent' }
+      name: 'Ayesha K.',
+      role: 'UI/UX & Brand Specialist',
+      tagTop: 'Trending',
+      tagTitle: 'UI/UX & Web',
+      bannerBg: 'linear-gradient(135deg, #064e3b 0%, #09131a 100%)',
+      photoBg: '#10b981',
+      msgCards: [
+        { initial: 'A', title: 'Design system ready', status: 'Sent' },
+        { initial: 'K', title: 'Client feedback synced', status: 'Live' },
+        { initial: 'S', title: 'Sprint files shared', status: 'Sent' }
       ]
     },
     // 2. Group
     {
       type: 'Group',
       url: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=900&q=80',
-      tagLabel: 'Team Hub',
-      tagTitle: 'Product Squad',
-      personName: 'Karachi & Lahore Team',
-      personRole: 'Collaborative workspace',
-      cardBg: 'linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%)',
-      frameBg: '#3b82f6',
-      messages: [
-        { initial: 'M', text: 'Sprint roadmap synced with team', status: 'Sent' },
-        { initial: 'Z', text: 'QA checklist completed', status: 'Done' },
-        { initial: 'R', text: 'Release notes published', status: 'Live' }
+      name: 'Karachi & Lahore Squad',
+      role: 'Product & Tech Team',
+      tagTop: 'Team Hub',
+      tagTitle: 'Group Collab',
+      bannerBg: 'linear-gradient(135deg, #1e3a8a 0%, #09131a 100%)',
+      photoBg: '#3b82f6',
+      msgCards: [
+        { initial: 'M', title: 'Sprint tasks assigned', status: 'Sent' },
+        { initial: 'Z', title: 'Build check passed', status: 'Live' },
+        { initial: 'R', title: 'Team notes updated', status: 'Sent' }
       ]
     },
     // 3. Single
     {
       type: 'Single',
       url: 'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?auto=format&fit=crop&w=900&q=80',
-      tagLabel: 'Featured',
-      tagTitle: 'Career & ATS CVs',
-      personName: 'Hina R.',
-      personRole: 'Career & resume advisor',
-      cardBg: 'linear-gradient(135deg, #4c1d95 0%, #0f172a 100%)',
-      frameBg: '#8b5cf6',
-      messages: [
-        { initial: 'H', text: 'ATS resume audit completed', status: 'Sent' },
-        { initial: 'K', text: 'Interview prep notes shared', status: 'Live' },
-        { initial: 'F', text: 'Portfolio feedback delivered', status: 'Sent' }
+      name: 'Hina R.',
+      role: 'Career & Resume Mentor',
+      tagTop: 'Featured',
+      tagTitle: 'ATS Resume Help',
+      bannerBg: 'linear-gradient(135deg, #4c1d95 0%, #09131a 100%)',
+      photoBg: '#8b5cf6',
+      msgCards: [
+        { initial: 'H', title: 'CV review completed', status: 'Sent' },
+        { initial: 'N', title: 'Interview tips sent', status: 'Live' },
+        { initial: 'F', title: 'Profile checklist done', status: 'Sent' }
       ]
     },
     // 4. Group
     {
       type: 'Group',
       url: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=900&q=80',
-      tagLabel: 'Hiring',
-      tagTitle: 'Talent & Ops',
-      personName: 'Hiring & Ops Group',
-      personRole: 'Global recruitment team',
-      cardBg: 'linear-gradient(135deg, #78350f 0%, #0f172a 100%)',
-      frameBg: '#f59e0b',
-      messages: [
-        { initial: 'T', text: 'Shortlisted candidates messaged', status: 'Sent' },
-        { initial: 'O', text: 'Remote roles open now', status: 'Live' },
-        { initial: 'D', text: 'Offer letter draft ready', status: 'Sent' }
+      name: 'Talent & Ops Group',
+      role: 'Hiring & Operations',
+      tagTop: 'Hiring',
+      tagTitle: 'Open Roles',
+      bannerBg: 'linear-gradient(135deg, #78350f 0%, #09131a 100%)',
+      photoBg: '#f59e0b',
+      msgCards: [
+        { initial: 'T', title: 'Shortlist shared', status: 'Sent' },
+        { initial: 'O', title: 'Remote roles live', status: 'Live' },
+        { initial: 'D', title: 'Interview slots open', status: 'Sent' }
       ]
     },
     // 5. Single
     {
       type: 'Single',
       url: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=900&q=80',
-      tagLabel: 'Specialist',
-      tagTitle: 'Full-Stack Web',
-      personName: 'Zainab M.',
-      personRole: 'Next.js & cloud builder',
-      cardBg: 'linear-gradient(135deg, #0c4a6e 0%, #0f172a 100%)',
-      frameBg: '#0ea5e9',
-      messages: [
-        { initial: 'Z', text: 'API & auth flow deployed', status: 'Sent' },
-        { initial: 'U', text: 'Database schema verified', status: 'Done' },
-        { initial: 'P', text: 'Live preview link sent', status: 'Live' }
+      name: 'Zainab M.',
+      role: 'Full-Stack Web Developer',
+      tagTop: 'Specialist',
+      tagTitle: 'Next.js & Cloud',
+      bannerBg: 'linear-gradient(135deg, #0c4a6e 0%, #09131a 100%)',
+      photoBg: '#0ea5e9',
+      msgCards: [
+        { initial: 'Z', title: 'Auth flow deployed', status: 'Sent' },
+        { initial: 'U', title: 'Database synced', status: 'Live' },
+        { initial: 'P', title: 'Preview link ready', status: 'Sent' }
       ]
     },
     // 6. Group
     {
       type: 'Group',
       url: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=900&q=80',
-      tagLabel: 'Strategy',
-      tagTitle: 'Growth & Scale',
-      personName: 'Growth & Strategy Team',
-      personRole: 'Partnerships & outreach',
-      cardBg: 'linear-gradient(135deg, #134e4a 0%, #0f172a 100%)',
-      frameBg: '#14b8a6',
-      messages: [
-        { initial: 'G', text: 'Partner outreach deck shared', status: 'Sent' },
-        { initial: 'B', text: 'Weekly KPIs reviewed', status: 'Live' },
-        { initial: 'C', text: 'Campaign slots confirmed', status: 'Sent' }
+      name: 'Growth Strategy Team',
+      role: 'Partnerships & Scale',
+      tagTop: 'Strategy',
+      tagTitle: 'Growth Hub',
+      bannerBg: 'linear-gradient(135deg, #134e4a 0%, #09131a 100%)',
+      photoBg: '#14b8a6',
+      msgCards: [
+        { initial: 'G', title: 'Partner deck sent', status: 'Sent' },
+        { initial: 'B', title: 'Weekly goals live', status: 'Live' },
+        { initial: 'C', title: 'Outreach plan ready', status: 'Sent' }
       ]
     },
     // 7. Single
     {
       type: 'Single',
       url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=900&q=80',
-      tagLabel: 'Top Rated',
+      name: 'Bilal A.',
+      role: 'Growth & Outreach Lead',
+      tagTop: 'Top Rated',
       tagTitle: 'Client Growth',
-      personName: 'Bilal A.',
-      personRole: 'Growth & outreach lead',
-      cardBg: 'linear-gradient(135deg, #1e293b 0%, #090d16 100%)',
-      frameBg: '#38bdf8',
-      messages: [
-        { initial: 'B', text: 'Lead pipeline updated', status: 'Sent' },
-        { initial: 'M', text: 'Proposal sent to client', status: 'Live' },
-        { initial: 'A', text: 'Discovery call booked', status: 'Sent' }
+      bannerBg: 'linear-gradient(135deg, #1e293b 0%, #090d16 100%)',
+      photoBg: '#38bdf8',
+      msgCards: [
+        { initial: 'B', title: 'Leads list updated', status: 'Sent' },
+        { initial: 'M', title: 'Proposal delivered', status: 'Live' },
+        { initial: 'A', title: 'Call invite sent', status: 'Sent' }
       ]
     },
     // 8. Group
     {
       type: 'Group',
       url: 'https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&w=900&q=80',
-      tagLabel: 'Enterprise',
-      tagTitle: 'Client Onboarding',
-      personName: 'Advisory & Success Team',
-      personRole: 'Client delivery circle',
-      cardBg: 'linear-gradient(135deg, #4a1d1f 0%, #0f172a 100%)',
-      frameBg: '#f97316',
-      messages: [
-        { initial: 'E', text: 'Onboarding kit delivered', status: 'Sent' },
-        { initial: 'S', text: 'Milestone 1 approved', status: 'Done' },
-        { initial: 'W', text: 'Weekly sync scheduled', status: 'Live' }
+      name: 'Advisory & Success Team',
+      role: 'Client Delivery Group',
+      tagTop: 'Enterprise',
+      tagTitle: 'Onboarding',
+      bannerBg: 'linear-gradient(135deg, #4a1d1f 0%, #09131a 100%)',
+      photoBg: '#f97316',
+      msgCards: [
+        { initial: 'E', title: 'Onboarding kit sent', status: 'Sent' },
+        { initial: 'S', title: 'Milestone 1 live', status: 'Live' },
+        { initial: 'W', title: 'Sync schedule set', status: 'Sent' }
       ]
     },
     // 9. Single
     {
       type: 'Single',
       url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=900&q=80',
-      tagLabel: 'Creative',
-      tagTitle: 'Brand & Visuals',
-      personName: 'Sana T.',
-      personRole: 'Visual & brand creator',
-      cardBg: 'linear-gradient(135deg, #500724 0%, #0f172a 100%)',
-      frameBg: '#ec4899',
-      messages: [
-        { initial: 'S', text: 'Brand kit & assets ready', status: 'Sent' },
-        { initial: 'L', text: 'Social campaign templates', status: 'Live' },
-        { initial: 'V', text: 'High-res exports shared', status: 'Sent' }
+      name: 'Sana T.',
+      role: 'Visual & Brand Creator',
+      tagTop: 'Creative',
+      tagTitle: 'Brand Visuals',
+      bannerBg: 'linear-gradient(135deg, #500724 0%, #09131a 100%)',
+      photoBg: '#ec4899',
+      msgCards: [
+        { initial: 'S', title: 'Brand kit exported', status: 'Sent' },
+        { initial: 'L', title: 'Social assets live', status: 'Live' },
+        { initial: 'V', title: 'Final files shared', status: 'Sent' }
       ]
     },
     // 10. Group
     {
       type: 'Group',
       url: 'https://images.unsplash.com/photo-1543269865-cbf427effbad?auto=format&fit=crop&w=900&q=80',
-      tagLabel: 'Community',
-      tagTitle: 'SHANORA Network',
-      personName: 'SHANORA Professionals',
-      personRole: 'Creators, teams & employers',
-      cardBg: 'linear-gradient(135deg, #172554 0%, #0f172a 100%)',
-      frameBg: '#60a5fa',
-      messages: [
-        { initial: 'P', text: 'New job & collab alerts', status: 'Sent' },
-        { initial: 'C', text: 'Verified creators active', status: 'Live' },
-        { initial: 'G', text: 'Grow across Pakistan & beyond', status: 'Sent' }
+      name: 'SHANORA Circle',
+      role: 'Creators & Employers',
+      tagTop: 'Community',
+      tagTitle: 'Global Network',
+      bannerBg: 'linear-gradient(135deg, #172554 0%, #09131a 100%)',
+      photoBg: '#60a5fa',
+      msgCards: [
+        { initial: 'P', title: 'Job alerts posted', status: 'Sent' },
+        { initial: 'C', title: 'Creators active now', status: 'Live' },
+        { initial: 'G', title: 'Network expanding', status: 'Sent' }
       ]
     }
   ];
@@ -336,164 +336,186 @@ function AuthContent() {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: '20px',
-      fontFamily: 'system-ui, -apple-system, sans-serif'
+      padding: '16px',
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+      boxSizing: 'border-box'
     }}>
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(330px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
         maxWidth: '1060px',
         width: '100%',
-        gap: '40px',
+        gap: '32px',
         alignItems: 'center'
       }}>
 
-        {/* Left Column: Brand & Fiverr-Style Layered Showcase Card */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', textAlign: 'left' }}>
+        {/* Left Column: Brand & Fiverr Banner Style Photo + Card Message Box */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', textAlign: 'left', minWidth: 0 }}>
           <Link href="/" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
             <div style={{
-              width: '40px',
-              height: '40px',
+              width: '38px',
+              height: '38px',
               borderRadius: '10px',
               background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               fontWeight: 'bold',
-              fontSize: '20px',
+              fontSize: '19px',
               color: '#fff'
             }}>
               S
             </div>
-            <span style={{ fontSize: '24px', fontWeight: '800', color: '#fff', letterSpacing: '-0.5px' }}>
+            <span style={{ fontSize: '23px', fontWeight: '800', color: '#fff', letterSpacing: '-0.5px' }}>
               SHANORA<span style={{ color: '#38bdf8' }}>.PK</span>
             </span>
           </Link>
 
-          <h1 style={{ fontSize: '29px', fontWeight: '800', lineHeight: '1.2', margin: 0, letterSpacing: '-0.5px' }}>
+          <h1 style={{ fontSize: '28px', fontWeight: '800', lineHeight: '1.2', margin: 0, letterSpacing: '-0.5px' }}>
             Explore the professional connections you love.
           </h1>
-          <p style={{ color: '#94a3b8', fontSize: '14px', lineHeight: '1.5', margin: 0 }}>
+          <p style={{ color: '#94a3b8', fontSize: '13.5px', lineHeight: '1.5', margin: 0 }}>
             "Professional growth within your reach" — Connect with creators and global employers across Pakistan.
           </p>
 
-          {/* Fiverr-Inspired Rich Showcase Card */}
+          {/* Fiverr-Style Banner Container */}
           <div style={{
-            position: 'relative',
             width: '100%',
-            minHeight: '305px',
-            borderRadius: '20px',
-            background: activeItem.cardBg,
-            border: '1px solid rgba(255,255,255,0.14)',
-            boxShadow: '0 22px 48px rgba(0,0,0,0.65)',
-            padding: '18px',
+            borderRadius: '18px',
+            background: activeItem.bannerBg,
+            border: '1px solid rgba(255,255,255,0.12)',
+            boxShadow: '0 18px 40px rgba(0,0,0,0.55)',
+            padding: '16px',
             boxSizing: 'border-box',
-            overflow: 'hidden',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            transition: 'background 0.6s ease'
+            transition: 'background 0.5s ease'
           }}>
-            {/* Top Row: Tag Box + Type Pill */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px', zIndex: 2 }}>
-              <div style={{
-                backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                backdropFilter: 'blur(8px)',
-                border: '1px solid rgba(255, 255, 255, 0.18)',
-                borderRadius: '12px',
-                padding: '8px 12px',
-                maxWidth: '150px'
-              }}>
-                <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.75)', fontWeight: '600', marginBottom: '2px' }}>
-                  {activeItem.tagLabel}
-                </div>
-                <div style={{ fontSize: '13px', color: '#ffffff', fontWeight: '800', lineHeight: 1.2 }}>
-                  {activeItem.tagTitle}
-                </div>
-              </div>
-
-              <span style={{
-                backgroundColor: 'rgba(7, 11, 20, 0.55)',
-                backdropFilter: 'blur(6px)',
-                border: '1px solid rgba(255,255,255,0.15)',
-                color: '#f8fafc',
-                fontSize: '10px',
-                fontWeight: '700',
-                padding: '4px 9px',
-                borderRadius: '999px'
-              }}>
-                {activeItem.type} • {currentSlide + 1}/10
-              </span>
-            </div>
-
-            {/* Middle/Bottom Showcase Row: Portrait Card + Floating Message Stack */}
             <div style={{
-              display: 'grid',
-              gridTemplateColumns: '132px 1fr',
-              gap: '12px',
-              alignItems: 'end',
-              marginTop: '14px',
-              zIndex: 2
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '14px'
             }}>
-              {/* Portrait Frame with Safe Face Framing */}
+              {/* Left Side: Topic Tag + Photo with Name on Top */}
               <div style={{
                 display: 'flex',
-                flexDirection: 'column',
-                gap: '6px'
+                alignItems: 'flex-end',
+                gap: '10px',
+                flex: '1 1 210px',
+                minWidth: 0
               }}>
+                {/* Small Fiverr-Style Topic Badge */}
                 <div style={{
-                  width: '132px',
-                  height: '152px',
-                  borderRadius: '14px',
-                  backgroundColor: activeItem.frameBg,
-                  border: '2px solid rgba(255,255,255,0.22)',
-                  overflow: 'hidden',
-                  boxShadow: '0 10px 24px rgba(0,0,0,0.45)',
-                  position: 'relative'
+                  backgroundColor: 'rgba(255,255,255,0.09)',
+                  border: '1px solid rgba(255,255,255,0.16)',
+                  borderRadius: '10px',
+                  padding: '7px 9px',
+                  maxWidth: '88px',
+                  flexShrink: 0,
+                  marginBottom: '18px'
                 }}>
-                  {slideshowItems.map((item, idx) => (
-                    <img
-                      key={idx}
-                      src={item.url}
-                      alt={item.personName}
-                      style={{
-                        position: 'absolute',
-                        inset: 0,
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover',
-                        objectPosition: '50% 18%',
-                        opacity: currentSlide === idx ? 1 : 0,
-                        transition: 'opacity 0.6s ease-in-out'
-                      }}
-                    />
-                  ))}
+                  <div style={{ fontSize: '9.5px', color: 'rgba(255,255,255,0.72)', fontWeight: '600' }}>
+                    {activeItem.tagTop}
+                  </div>
+                  <div style={{ fontSize: '11.5px', color: '#fff', fontWeight: '800', lineHeight: 1.2, marginTop: '2px' }}>
+                    {activeItem.tagTitle}
+                  </div>
                 </div>
 
-                <div style={{ lineHeight: 1.2 }}>
-                  <div style={{ fontSize: '12px', fontWeight: '700', color: '#fff' }}>
-                    {activeItem.personName} ★ 4.9
+                {/* Photo with Name Clearly Shown */}
+                <div style={{ minWidth: 0, flex: '0 1 136px' }}>
+                  <div style={{
+                    width: '136px',
+                    maxWidth: '100%',
+                    height: '154px',
+                    borderRadius: '14px',
+                    backgroundColor: activeItem.photoBg,
+                    border: '2px solid rgba(255,255,255,0.22)',
+                    overflow: 'hidden',
+                    position: 'relative',
+                    boxShadow: '0 10px 22px rgba(0,0,0,0.4)'
+                  }}>
+                    {slideshowItems.map((item, idx) => (
+                      <img
+                        key={idx}
+                        src={item.url}
+                        alt={item.name}
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                          objectPosition: '50% 18%',
+                          opacity: currentSlide === idx ? 1 : 0,
+                          transition: 'opacity 0.55s ease-in-out'
+                        }}
+                      />
+                    ))}
+
+                    {/* Name Pill on Photo */}
+                    <div style={{
+                      position: 'absolute',
+                      top: '8px',
+                      left: '8px',
+                      right: '8px',
+                      backgroundColor: 'rgba(7, 11, 20, 0.82)',
+                      backdropFilter: 'blur(6px)',
+                      border: '1px solid rgba(255,255,255,0.16)',
+                      borderRadius: '8px',
+                      padding: '4px 7px',
+                      color: '#fff',
+                      fontSize: '11px',
+                      fontWeight: '700',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
+                    }}>
+                      {activeItem.name}
+                    </div>
                   </div>
-                  <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.75)' }}>
-                    {activeItem.personRole}
+
+                  {/* Role & Type Below Photo */}
+                  <div style={{ marginTop: '6px', lineHeight: 1.25 }}>
+                    <div style={{
+                      fontSize: '11px',
+                      fontWeight: '700',
+                      color: '#f8fafc',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
+                    }}>
+                      {activeItem.name} • <span style={{ color: '#94a3b8', fontWeight: '600' }}>{activeItem.type}</span>
+                    </div>
+                    <div style={{
+                      fontSize: '10px',
+                      color: 'rgba(255,255,255,0.72)',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
+                    }}>
+                      {activeItem.role}
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Fiverr-Style Floating Message Box Stack */}
+              {/* Right Side: Card-Design Message Box */}
               <div style={{
+                flex: '1 1 195px',
+                minWidth: 0,
                 backgroundColor: 'rgba(255, 255, 255, 0.96)',
-                color: '#0f172a',
                 borderRadius: '14px',
                 padding: '10px',
-                boxShadow: '0 12px 28px rgba(0,0,0,0.45)',
+                boxShadow: '0 12px 26px rgba(0,0,0,0.42)',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '7px'
+                gap: '7px',
+                boxSizing: 'border-box'
               }}>
-                {activeItem.messages.map((msg, mIdx) => (
+                {activeItem.msgCards.map((m, idx) => (
                   <div
-                    key={mIdx}
+                    key={idx}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -511,7 +533,7 @@ function AuthContent() {
                         height: '22px',
                         borderRadius: '50%',
                         backgroundColor: '#0f172a',
-                        color: '#ffffff',
+                        color: '#fff',
                         fontSize: '10px',
                         fontWeight: '700',
                         display: 'flex',
@@ -519,17 +541,17 @@ function AuthContent() {
                         justifyContent: 'center',
                         flexShrink: 0
                       }}>
-                        {msg.initial}
+                        {m.initial}
                       </span>
                       <span style={{
                         fontSize: '11px',
                         fontWeight: '600',
-                        color: '#1e293b',
+                        color: '#0f172a',
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis'
                       }}>
-                        {msg.text}
+                        {m.title}
                       </span>
                     </div>
 
@@ -542,7 +564,7 @@ function AuthContent() {
                       borderRadius: '999px',
                       flexShrink: 0
                     }}>
-                      {msg.status}
+                      {m.status}
                     </span>
                   </div>
                 ))}
@@ -579,7 +601,8 @@ function AuthContent() {
           border: '1px solid rgba(255,255,255,0.08)',
           borderRadius: '20px',
           padding: '28px',
-          boxShadow: '0 20px 40px rgba(0,0,0,0.6)'
+          boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
+          minWidth: 0
         }}>
           <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '6px', color: '#fff' }}>
             {isSignup ? 'Create a new account' : 'Sign in to SHANORA'}
