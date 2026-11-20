@@ -9,6 +9,7 @@ function AuthContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialMode = searchParams.get('mode') === 'register' ? true : false;
+  const isAddingAccount = searchParams.get('addAccount') === '1';
 
   const [isSignup, setIsSignup] = useState(initialMode);
 
@@ -31,7 +32,6 @@ function AuthContent() {
 
   // ----- 10 CLEAN SLIDESHOW ITEMS (Single -> Group -> Single -> Group) -----
   const slideshowItems = [
-    // 1. Single
     {
       type: 'Single',
       url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=900&q=80',
@@ -44,7 +44,6 @@ function AuthContent() {
       surface: 'linear-gradient(145deg, #0b2239 0%, #0d1526 100%)',
       pos: '50% 22%'
     },
-    // 2. Group
     {
       type: 'Group',
       url: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=900&q=80',
@@ -57,7 +56,6 @@ function AuthContent() {
       surface: 'linear-gradient(145deg, #092a27 0%, #0d1526 100%)',
       pos: '50% 25%'
     },
-    // 3. Single
     {
       type: 'Single',
       url: 'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?auto=format&fit=crop&w=900&q=80',
@@ -70,7 +68,6 @@ function AuthContent() {
       surface: 'linear-gradient(145deg, #21153b 0%, #0d1526 100%)',
       pos: '50% 28%'
     },
-    // 4. Group
     {
       type: 'Group',
       url: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=900&q=80',
@@ -83,7 +80,6 @@ function AuthContent() {
       surface: 'linear-gradient(145deg, #2e200b 0%, #0d1526 100%)',
       pos: '50% 25%'
     },
-    // 5. Single
     {
       type: 'Single',
       url: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=900&q=80',
@@ -96,7 +92,6 @@ function AuthContent() {
       surface: 'linear-gradient(145deg, #0b2239 0%, #0d1526 100%)',
       pos: '50% 35%'
     },
-    // 6. Group
     {
       type: 'Group',
       url: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=900&q=80',
@@ -109,7 +104,6 @@ function AuthContent() {
       surface: 'linear-gradient(145deg, #092a27 0%, #0d1526 100%)',
       pos: '50% 25%'
     },
-    // 7. Single
     {
       type: 'Single',
       url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=900&q=80',
@@ -122,7 +116,6 @@ function AuthContent() {
       surface: 'linear-gradient(145deg, #122138 0%, #0d1526 100%)',
       pos: '50% 28%'
     },
-    // 8. Group
     {
       type: 'Group',
       url: 'https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&w=900&q=80',
@@ -135,7 +128,6 @@ function AuthContent() {
       surface: 'linear-gradient(145deg, #2e200b 0%, #0d1526 100%)',
       pos: '50% 25%'
     },
-    // 9. Single
     {
       type: 'Single',
       url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=900&q=80',
@@ -148,7 +140,6 @@ function AuthContent() {
       surface: 'linear-gradient(145deg, #331126 0%, #0d1526 100%)',
       pos: '50% 25%'
     },
-    // 10. Group
     {
       type: 'Group',
       url: 'https://images.unsplash.com/photo-1543269865-cbf427effbad?auto=format&fit=crop&w=900&q=80',
@@ -165,8 +156,10 @@ function AuthContent() {
 
   const [currentSlide, setCurrentSlide] = useState(0);
 
-  // Check if user is already logged in and redirect to feed
+  // Check if user is already logged in and redirect to feed (unless adding another account)
   useEffect(() => {
+    if (isAddingAccount) return;
+
     async function checkExistingSession() {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
@@ -174,7 +167,7 @@ function AuthContent() {
       }
     }
     checkExistingSession();
-  }, [router]);
+  }, [router, isAddingAccount]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -345,7 +338,7 @@ function AuthContent() {
             Explore the professional connections you love.
           </h1>
           <p style={{ color: '#94a3b8', fontSize: '13.5px', lineHeight: '1.5', margin: 0 }}>
-            "Professional growth within your reach" — Connect with creators and global employers across Pakistan.
+            &ldquo;Professional growth within your reach&rdquo; — Connect with creators and global employers across Pakistan.
           </p>
 
           {/* Clean Showcase Card */}
@@ -362,7 +355,6 @@ function AuthContent() {
             gap: '12px',
             transition: 'background 0.5s ease'
           }}>
-            {/* Balanced Portrait Frame so Full Face Shows Clearly */}
             <div style={{
               width: '100%',
               maxWidth: '280px',
@@ -393,7 +385,6 @@ function AuthContent() {
               ))}
             </div>
 
-            {/* Clean Message Card */}
             <div style={{
               width: '100%',
               boxSizing: 'border-box',
@@ -441,12 +432,11 @@ function AuthContent() {
                 color: '#e2e8f0',
                 lineHeight: '1.45'
               }}>
-                “{activeItem.message}”
+                &ldquo;{activeItem.message}&rdquo;
               </div>
             </div>
           </div>
 
-          {/* Slide Dots */}
           <div style={{ display: 'flex', gap: '6px', alignItems: 'center', paddingLeft: '2px' }}>
             {slideshowItems.map((_, idx) => (
               <button
@@ -479,7 +469,9 @@ function AuthContent() {
           minWidth: 0
         }}>
           <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '6px', color: '#fff' }}>
-            {isSignup ? 'Create a new account' : 'Sign in to SHANORA'}
+            {isAddingAccount
+              ? (isSignup ? 'Add another account (Sign Up)' : 'Add another account (Sign In)')
+              : (isSignup ? 'Create a new account' : 'Sign in to SHANORA')}
           </h2>
           <p style={{ color: '#94a3b8', fontSize: '13px', marginBottom: '20px' }}>
             {isSignup ? 'Quick and easy registration.' : 'Welcome back! Please enter your details.'}
@@ -497,7 +489,6 @@ function AuthContent() {
             </div>
           )}
 
-          {/* Google OAuth Button with Official SVG Icon */}
           <button
             type="button"
             onClick={handleGoogleAuth}
@@ -596,7 +587,7 @@ function AuthContent() {
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginTop: '4px' }}>
                   <input type="checkbox" name="agreeTerms" checked={formData.agreeTerms} onChange={handleChange} id="terms" style={{ marginTop: '2px', accentColor: '#3b82f6', cursor: 'pointer' }} />
                   <label htmlFor="terms" style={{ fontSize: '11px', color: '#94a3b8', lineHeight: '1.3', cursor: 'pointer' }}>
-                    I agree to SHANORA's <Link href="/terms" style={{ color: '#38bdf8' }}>Terms</Link> and <Link href="/privacy" style={{ color: '#38bdf8' }}>Privacy Policy</Link>.
+                    I agree to SHANORA&apos;s <Link href="/terms" style={{ color: '#38bdf8' }}>Terms</Link> and <Link href="/privacy" style={{ color: '#38bdf8' }}>Privacy Policy</Link>.
                   </label>
                 </div>
               </>
@@ -623,7 +614,6 @@ function AuthContent() {
             </button>
           </form>
 
-          {/* Toggle between Sign In / Sign Up */}
           <div style={{ textAlign: 'center', marginTop: '16px', fontSize: '12px', color: '#94a3b8' }}>
             {isSignup ? (
               <>Already have an account? <button type="button" onClick={() => setIsSignup(false)} style={{ background: 'none', border: 'none', color: '#38bdf8', fontWeight: '700', cursor: 'pointer', padding: 0, fontSize: '12px' }}>Sign In</button></>
