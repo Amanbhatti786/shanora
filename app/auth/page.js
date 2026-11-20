@@ -491,20 +491,20 @@ function AuthContent() {
     const isFocused = focusedField === fieldName;
     return {
       width: '100%',
-      backgroundColor: isFocused ? '#162236' : '#111a2c',
+      backgroundColor: isFocused ? '#17253b' : '#111b2e',
       border: hasError
-        ? '1px solid rgba(239, 68, 68, 0.8)'
+        ? '1px solid rgba(239, 68, 68, 0.85)'
         : isFocused
-        ? '1px solid #38bdf8'
-        : '1px solid rgba(148, 163, 184, 0.2)',
-      borderRadius: '10px',
-      padding: '10px 12px',
+        ? '1.5px solid #38bdf8'
+        : '1px solid rgba(148, 163, 184, 0.22)',
+      borderRadius: '11px',
+      padding: '10.5px 12px',
       color: '#f8fafc',
       fontSize: '13.5px',
       outline: 'none',
       boxSizing: 'border-box',
       transition: 'border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease',
-      boxShadow: isFocused && !hasError ? '0 0 0 3px rgba(56, 189, 248, 0.16)' : 'none'
+      boxShadow: isFocused && !hasError ? '0 0 0 3px rgba(56, 189, 248, 0.18)' : 'none'
     };
   };
 
@@ -514,11 +514,11 @@ function AuthContent() {
     top: '50%',
     transform: 'translateY(-50%)',
     backgroundColor: '#1e293b',
-    border: '1px solid rgba(148, 163, 184, 0.25)',
-    borderRadius: '7px',
+    border: '1px solid rgba(56, 189, 248, 0.35)',
+    borderRadius: '8px',
     color: '#38bdf8',
     cursor: 'pointer',
-    padding: '4px 8px',
+    padding: '4px 9px',
     fontSize: '11px',
     fontWeight: '700',
     display: 'inline-flex',
@@ -533,12 +533,13 @@ function AuthContent() {
       style={{
         minHeight: '100vh',
         backgroundColor: '#070b14',
-        backgroundImage: 'radial-gradient(circle at 15% 15%, rgba(56, 189, 248, 0.08), transparent 45%), radial-gradient(circle at 85% 80%, rgba(59, 130, 246, 0.09), transparent 45%)',
+        backgroundImage:
+          'radial-gradient(circle at 12% 14%, rgba(56, 189, 248, 0.1), transparent 44%), radial-gradient(circle at 88% 82%, rgba(59, 130, 246, 0.11), transparent 46%)',
         color: '#f8fafc',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '18px 14px',
+        padding: '20px 14px',
         fontFamily: 'system-ui, -apple-system, sans-serif',
         boxSizing: 'border-box',
         overflowX: 'hidden'
@@ -598,8 +599,8 @@ function AuthContent() {
               width: '100%',
               borderRadius: '20px',
               background: activeItem.surface,
-              border: '1px solid rgba(148, 163, 184, 0.18)',
-              boxShadow: '0 22px 45px rgba(0,0,0,0.55)',
+              border: '1px solid rgba(148, 163, 184, 0.2)',
+              boxShadow: '0 22px 45px rgba(0,0,0,0.58)',
               padding: '15px',
               boxSizing: 'border-box',
               display: 'flex',
@@ -726,10 +727,11 @@ function AuthContent() {
         <div
           style={{
             backgroundColor: '#0f172a',
-            border: '1px solid rgba(148, 163, 184, 0.16)',
+            border: '1px solid rgba(56, 189, 248, 0.2)',
+            borderTop: '3px solid #38bdf8',
             borderRadius: '22px',
             padding: '24px',
-            boxShadow: '0 24px 50px rgba(0,0,0,0.65)',
+            boxShadow: '0 24px 55px rgba(0,0,0,0.7), 0 0 28px rgba(56, 189, 248, 0.08)',
             minWidth: 0
           }}
         >
@@ -742,7 +744,7 @@ function AuthContent() {
               backgroundColor: '#070b14',
               padding: '4px',
               borderRadius: '12px',
-              border: '1px solid rgba(148, 163, 184, 0.14)',
+              border: '1px solid rgba(148, 163, 184, 0.16)',
               marginBottom: '18px'
             }}
           >
@@ -844,10 +846,10 @@ function AuthContent() {
             onMouseLeave={() => setHoveredBtn('')}
             style={{
               width: '100%',
-              backgroundColor: hoveredBtn === 'google' ? '#1f2d42' : '#162033',
-              border: '1px solid rgba(148, 163, 184, 0.22)',
+              backgroundColor: hoveredBtn === 'google' ? '#1f2e45' : '#152033',
+              border: '1px solid rgba(148, 163, 184, 0.24)',
               color: '#fff',
-              padding: '10px 12px',
+              padding: '10.5px 12px',
               borderRadius: '12px',
               fontSize: '13px',
               fontWeight: '600',
@@ -871,9 +873,9 @@ function AuthContent() {
           </button>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#64748b', fontSize: '11px', marginBottom: '16px' }}>
-            <div style={{ flex: 1, height: '1px', backgroundColor: 'rgba(148, 163, 184, 0.14)' }} />
+            <div style={{ flex: 1, height: '1px', backgroundColor: 'rgba(148, 163, 184, 0.16)' }} />
             <span>OR EMAIL</span>
-            <div style={{ flex: 1, height: '1px', backgroundColor: 'rgba(148, 163, 184, 0.14)' }} />
+            <div style={{ flex: 1, height: '1px', backgroundColor: 'rgba(148, 163, 184, 0.16)' }} />
           </div>
 
           <form onSubmit={handleAuth} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -997,7 +999,7 @@ function AuthContent() {
                   required
                   style={{
                     ...getFieldInputStyle('password', Boolean(fieldErrors.password)),
-                    paddingRight: '72px'
+                    paddingRight: '74px'
                   }}
                 />
                 <button
@@ -1062,7 +1064,7 @@ function AuthContent() {
                     required
                     style={{
                       ...getFieldInputStyle('confirmPassword', Boolean(fieldErrors.confirmPassword)),
-                      paddingRight: '72px'
+                      paddingRight: '74px'
                     }}
                   />
                   <button
@@ -1179,7 +1181,10 @@ function AuthContent() {
               onMouseLeave={() => setHoveredBtn('')}
               style={{
                 width: '100%',
-                backgroundColor: hoveredBtn === 'submit' && !loading ? '#2563eb' : '#3b82f6',
+                background:
+                  hoveredBtn === 'submit' && !loading
+                    ? 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)'
+                    : 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
                 color: '#fff',
                 border: 'none',
                 padding: '11.5px 14px',
@@ -1188,13 +1193,13 @@ function AuthContent() {
                 fontWeight: '700',
                 cursor: loading ? 'not-allowed' : 'pointer',
                 marginTop: '6px',
-                boxShadow: '0 6px 16px rgba(59, 130, 246, 0.42)',
+                boxShadow: '0 8px 20px rgba(59, 130, 246, 0.42)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '8px',
                 opacity: loading ? 0.85 : 1,
-                transition: 'background-color 0.2s ease, transform 0.15s ease',
+                transition: 'background 0.2s ease, transform 0.15s ease',
                 transform: hoveredBtn === 'submit' && !loading ? 'translateY(-1px)' : 'none'
               }}
             >
