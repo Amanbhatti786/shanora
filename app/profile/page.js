@@ -126,6 +126,7 @@ function ProfilePortalContent() {
   // Refs for ordered mobile/header back navigation without stale closures
   const historyRef = useRef([initialTab]);
   const menuPanelRef = useRef(null);
+  const inviteModalRef = useRef(false);
   const ignoreNextPopRef = useRef(false);
 
   useEffect(() => {
@@ -135,6 +136,10 @@ function ProfilePortalContent() {
   useEffect(() => {
     menuPanelRef.current = menuPanel;
   }, [menuPanel]);
+
+  useEffect(() => {
+    inviteModalRef.current = showInviteModal;
+  }, [showInviteModal]);
 
   const navigateToTab = useCallback((newTab, chatUser = null) => {
     setActiveChatUser(chatUser);
@@ -158,6 +163,23 @@ function ProfilePortalContent() {
     }
   }, []);
 
+  const openInviteModal = useCallback(() => {
+    setShowInviteModal(true);
+    inviteModalRef.current = true;
+    if (typeof window !== 'undefined') {
+      window.history.pushState({ shanoraInviteModal: true }, '');
+    }
+  }, []);
+
+  const handleOpenCompleteProfile = useCallback(() => {
+    const targetEmail = (user?.email || profile?.email || '').trim().toLowerCase();
+    if (targetEmail) {
+      router.push(`/view-profile?email=${encodeURIComponent(targetEmail)}`);
+    } else {
+      navigateToTab('profile');
+    }
+  }, [router, user?.email, profile?.email, navigateToTab]);
+
   const toggleMenuPanel = useCallback((panelName) => {
     const current = menuPanelRef.current;
     const next = current === panelName ? null : panelName;
@@ -177,8 +199,9 @@ function ProfilePortalContent() {
       setShowEditProfileModal(false);
       return;
     }
-    if (showInviteModal) {
+    if (inviteModalRef.current || showInviteModal) {
       setShowInviteModal(false);
+      inviteModalRef.current = false;
       return;
     }
 
@@ -230,6 +253,14 @@ function ProfilePortalContent() {
     const onPopState = () => {
       if (ignoreNextPopRef.current) {
         ignoreNextPopRef.current = false;
+        return;
+      }
+
+      if (inviteModalRef.current) {
+        setShowInviteModal(false);
+        inviteModalRef.current = false;
+        ignoreNextPopRef.current = true;
+        window.history.pushState({ shanoraProfileStep: true }, '');
         return;
       }
 
@@ -568,7 +599,7 @@ function ProfilePortalContent() {
             onClick={handleStepBack}
             style={{ width: '32px', height: '32px', borderRadius: '8px', backgroundColor: '#070b14', border: '1px solid #1e293b', color: '#38bdf8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}
           >
-            {activeTab !== 'menu' || menuPanel ? '←' : '✕'}
+            {activeTab !== 'menu' || menuPanel || showInviteModal ? '←' : '✕'}
           </button>
           
           <Link href="/feed" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.65rem', backgroundColor: '#0b1322', border: '1px solid #1e293b', borderRadius: '10px', padding: '0.28rem 0.65rem 0.28rem 0.35rem' }}>
@@ -583,18 +614,35 @@ function ProfilePortalContent() {
         {/* TAB: MENU */}
         {activeTab === 'menu' && (
           <div>
-            <div onClick={() => navigateToTab('profile')} style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '0.8rem 1rem', display: 'flex', alignItems: 'center', gap: '0.85rem', marginBottom: '1.2rem', cursor: 'pointer' }}>
-              <div style={{ width: '46px', height: '46px', borderRadius: '50%', backgroundColor: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#fff', overflow: 'hidden' }}>
-                {profile.avatar_url ? <img src={profile.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (profile.full_name || 'U').charAt(0)}
-              </div>
-              <div>
-                <div style={{ color: '#fff', fontWeight: '900', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <span>{profile.full_name}</span>
-                  {profile.is_pro && <ProVerifiedBadge size={17} />}
-                  {profile.is_ambassador && <span title="Official Ambassador" style={{ color: '#facc15', fontSize: '0.9rem' }}>🌟</span>}
+            <div
+              onClick={handleOpenCompleteProfile}
+              style={{
+                backgroundColor: '#0f172a',
+                border: '1px solid #1e293b',
+                borderRadius: '14px',
+                padding: '0.8rem 1rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '0.85rem',
+                marginBottom: '1.2rem',
+                cursor: 'pointer'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', minWidth: 0 }}>
+                <div style={{ width: '46px', height: '46px', borderRadius: '50%', backgroundColor: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#fff', overflow: 'hidden', flexShrink: 0 }}>
+                  {profile.avatar_url ? <img src={profile.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (profile.full_name || 'U').charAt(0)}
                 </div>
-                <div style={{ color: '#94a3b8', fontSize: '0.74rem' }}>{profile.headline || 'View profile'}</div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ color: '#fff', fontWeight: '900', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{profile.full_name}</span>
+                    {profile.is_pro && <ProVerifiedBadge size={17} />}
+                    {profile.is_ambassador && <span title="Official Ambassador" style={{ color: '#facc15', fontSize: '0.9rem' }}>🌟</span>}
+                  </div>
+                  <div style={{ color: '#94a3b8', fontSize: '0.74rem' }}>{profile.headline || 'View profile'}</div>
+                </div>
               </div>
+              <span style={{ color: '#38bdf8', fontSize: '0.8rem', fontWeight: '800', flexShrink: 0 }}>›</span>
             </div>
 
             <div style={{ fontSize: '0.72rem', fontWeight: '800', color: '#64748b', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Shortcuts & Services</div>
@@ -616,7 +664,7 @@ function ProfilePortalContent() {
 
                 return (
                   <div key={item.id} onClick={() => {
-                    if (item.id === 'invite_friends') setShowInviteModal(true);
+                    if (item.id === 'invite_friends') openInviteModal();
                     else navigateToTab(item.id);
                   }}>
                     {card}
@@ -720,23 +768,21 @@ function ProfilePortalContent() {
                 <span>Help & Support</span>
               </button>
 
-              <Link href="/auth" style={{ textDecoration: 'none' }}>
               <button
-  type="button"
-  onClick={() => {
-    window.location.href = '/auth?addAccount=1';
-  }}
-  style={{
-    ...bottomActionBtnStyle,
-    backgroundColor: '#131b2e',
-    borderColor: '#334155',
-    color: '#38bdf8'
-  }}
->
-  <span>➕</span>
-  <span>Add Account</span>
-</button>
-              </Link>
+                type="button"
+                onClick={() => {
+                  window.location.href = '/auth?addAccount=1';
+                }}
+                style={{
+                  ...bottomActionBtnStyle,
+                  backgroundColor: '#131b2e',
+                  borderColor: '#334155',
+                  color: '#38bdf8'
+                }}
+              >
+                <span>➕</span>
+                <span>Add Account</span>
+              </button>
 
               <button
                 type="button"
@@ -830,7 +876,10 @@ function ProfilePortalContent() {
       {/* Invite Friends Modal Component */}
       <InviteModal 
         showInviteModal={showInviteModal} 
-        setShowInviteModal={setShowInviteModal} 
+        setShowInviteModal={(val) => {
+          setShowInviteModal(Boolean(val));
+          inviteModalRef.current = Boolean(val);
+        }} 
         referralLink={referralLink} 
         copiedLink={copiedLink} 
         handleCopyInviteLink={handleCopyInviteLink} 
