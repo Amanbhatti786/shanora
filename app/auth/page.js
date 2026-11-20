@@ -491,21 +491,39 @@ function AuthContent() {
     const isFocused = focusedField === fieldName;
     return {
       width: '100%',
-      backgroundColor: isFocused ? '#243247' : '#1e293b',
+      backgroundColor: isFocused ? '#162236' : '#111a2c',
       border: hasError
-        ? '1px solid rgba(239, 68, 68, 0.75)'
+        ? '1px solid rgba(239, 68, 68, 0.8)'
         : isFocused
         ? '1px solid #38bdf8'
-        : '1px solid rgba(255,255,255,0.1)',
-      borderRadius: '8px',
-      padding: '8px 10px',
-      color: '#fff',
-      fontSize: '13px',
+        : '1px solid rgba(148, 163, 184, 0.2)',
+      borderRadius: '10px',
+      padding: '10px 12px',
+      color: '#f8fafc',
+      fontSize: '13.5px',
       outline: 'none',
       boxSizing: 'border-box',
       transition: 'border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease',
-      boxShadow: isFocused && !hasError ? '0 0 0 3px rgba(56, 189, 248, 0.14)' : 'none'
+      boxShadow: isFocused && !hasError ? '0 0 0 3px rgba(56, 189, 248, 0.16)' : 'none'
     };
+  };
+
+  const toggleBtnStyle = {
+    position: 'absolute',
+    right: '6px',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    backgroundColor: '#1e293b',
+    border: '1px solid rgba(148, 163, 184, 0.25)',
+    borderRadius: '7px',
+    color: '#38bdf8',
+    cursor: 'pointer',
+    padding: '4px 8px',
+    fontSize: '11px',
+    fontWeight: '700',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px'
   };
 
   const activeItem = slideshowItems[currentSlide];
@@ -515,11 +533,12 @@ function AuthContent() {
       style={{
         minHeight: '100vh',
         backgroundColor: '#070b14',
+        backgroundImage: 'radial-gradient(circle at 15% 15%, rgba(56, 189, 248, 0.08), transparent 45%), radial-gradient(circle at 85% 80%, rgba(59, 130, 246, 0.09), transparent 45%)',
         color: '#f8fafc',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '16px',
+        padding: '18px 14px',
         fontFamily: 'system-ui, -apple-system, sans-serif',
         boxSizing: 'border-box',
         overflowX: 'hidden'
@@ -534,41 +553,42 @@ function AuthContent() {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-          maxWidth: '1040px',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))',
+          maxWidth: '1060px',
           width: '100%',
-          gap: '28px',
+          gap: '30px',
           alignItems: 'center'
         }}
       >
         {/* Left Column: Brand & Clean Showcase Card */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', textAlign: 'left', minWidth: 0 }}>
-          <Link href="/" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '8px', width: 'fit-content' }}>
+          <Link href="/" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '9px', width: 'fit-content' }}>
             <div
               style={{
-                width: '38px',
-                height: '38px',
-                borderRadius: '10px',
+                width: '40px',
+                height: '40px',
+                borderRadius: '11px',
                 background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontWeight: 'bold',
-                fontSize: '19px',
-                color: '#fff'
+                fontWeight: '900',
+                fontSize: '20px',
+                color: '#fff',
+                boxShadow: '0 6px 16px rgba(59, 130, 246, 0.35)'
               }}
             >
               S
             </div>
-            <span style={{ fontSize: '23px', fontWeight: '800', color: '#fff', letterSpacing: '-0.5px' }}>
+            <span style={{ fontSize: '24px', fontWeight: '800', color: '#fff', letterSpacing: '-0.5px' }}>
               SHANORA<span style={{ color: '#38bdf8' }}>.PK</span>
             </span>
           </Link>
 
-          <h1 style={{ fontSize: 'clamp(22px, 4vw, 28px)', fontWeight: '800', lineHeight: '1.2', margin: 0, letterSpacing: '-0.5px' }}>
+          <h1 style={{ fontSize: 'clamp(22px, 4vw, 29px)', fontWeight: '800', lineHeight: '1.18', margin: 0, letterSpacing: '-0.5px' }}>
             Explore the professional connections you love.
           </h1>
-          <p style={{ color: '#94a3b8', fontSize: '13.5px', lineHeight: '1.5', margin: 0 }}>
+          <p style={{ color: '#94a3b8', fontSize: '13.5px', lineHeight: '1.55', margin: 0 }}>
             &ldquo;Professional growth within your reach&rdquo; — Connect with creators and global employers across Pakistan.
           </p>
 
@@ -576,11 +596,11 @@ function AuthContent() {
           <div
             style={{
               width: '100%',
-              borderRadius: '18px',
+              borderRadius: '20px',
               background: activeItem.surface,
-              border: '1px solid rgba(255,255,255,0.1)',
-              boxShadow: '0 18px 38px rgba(0,0,0,0.5)',
-              padding: '14px',
+              border: '1px solid rgba(148, 163, 184, 0.18)',
+              boxShadow: '0 22px 45px rgba(0,0,0,0.55)',
+              padding: '15px',
               boxSizing: 'border-box',
               display: 'flex',
               flexDirection: 'column',
@@ -596,7 +616,7 @@ function AuthContent() {
                 margin: '0 auto',
                 borderRadius: '14px',
                 overflow: 'hidden',
-                border: '1px solid rgba(255,255,255,0.14)',
+                border: '1px solid rgba(255,255,255,0.16)',
                 backgroundColor: '#0b1322',
                 position: 'relative'
               }}
@@ -706,14 +726,63 @@ function AuthContent() {
         <div
           style={{
             backgroundColor: '#0f172a',
-            border: '1px solid rgba(255,255,255,0.08)',
-            borderRadius: '20px',
-            padding: '20px',
-            boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
+            border: '1px solid rgba(148, 163, 184, 0.16)',
+            borderRadius: '22px',
+            padding: '24px',
+            boxShadow: '0 24px 50px rgba(0,0,0,0.65)',
             minWidth: 0
           }}
         >
-          <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '6px', marginTop: 0, color: '#fff' }}>
+          {/* Mode Switcher Pills */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '6px',
+              backgroundColor: '#070b14',
+              padding: '4px',
+              borderRadius: '12px',
+              border: '1px solid rgba(148, 163, 184, 0.14)',
+              marginBottom: '18px'
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => switchAuthMode(false)}
+              style={{
+                padding: '7px 10px',
+                borderRadius: '9px',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: '12px',
+                fontWeight: '700',
+                backgroundColor: !isSignup ? '#1e293b' : 'transparent',
+                color: !isSignup ? '#38bdf8' : '#94a3b8',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              Sign In
+            </button>
+            <button
+              type="button"
+              onClick={() => switchAuthMode(true)}
+              style={{
+                padding: '7px 10px',
+                borderRadius: '9px',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: '12px',
+                fontWeight: '700',
+                backgroundColor: isSignup ? '#1e293b' : 'transparent',
+                color: isSignup ? '#38bdf8' : '#94a3b8',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              Create Account
+            </button>
+          </div>
+
+          <h2 style={{ fontSize: '20px', fontWeight: '800', marginBottom: '5px', marginTop: 0, color: '#fff' }}>
             {isAddingAccount
               ? (isSignup ? 'Add another account (Sign Up)' : 'Add another account (Sign In)')
               : (isSignup ? 'Create a new account' : 'Sign in to SHANORA')}
@@ -775,10 +844,10 @@ function AuthContent() {
             onMouseLeave={() => setHoveredBtn('')}
             style={{
               width: '100%',
-              backgroundColor: hoveredBtn === 'google' ? '#273549' : '#1e293b',
-              border: '1px solid rgba(255,255,255,0.12)',
+              backgroundColor: hoveredBtn === 'google' ? '#1f2d42' : '#162033',
+              border: '1px solid rgba(148, 163, 184, 0.22)',
               color: '#fff',
-              padding: '10px',
+              padding: '10px 12px',
               borderRadius: '12px',
               fontSize: '13px',
               fontWeight: '600',
@@ -802,9 +871,9 @@ function AuthContent() {
           </button>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#64748b', fontSize: '11px', marginBottom: '16px' }}>
-            <div style={{ flex: 1, height: '1px', backgroundColor: 'rgba(255,255,255,0.1)' }} />
+            <div style={{ flex: 1, height: '1px', backgroundColor: 'rgba(148, 163, 184, 0.14)' }} />
             <span>OR EMAIL</span>
-            <div style={{ flex: 1, height: '1px', backgroundColor: 'rgba(255,255,255,0.1)' }} />
+            <div style={{ flex: 1, height: '1px', backgroundColor: 'rgba(148, 163, 184, 0.14)' }} />
           </div>
 
           <form onSubmit={handleAuth} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -812,7 +881,7 @@ function AuthContent() {
               <>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(125px, 1fr))', gap: '10px' }}>
                   <div>
-                    <label htmlFor="auth-firstName" style={{ fontSize: '11px', color: '#cbd5e1', fontWeight: '600', display: 'block', marginBottom: '4px' }}>
+                    <label htmlFor="auth-firstName" style={{ fontSize: '11.5px', color: '#cbd5e1', fontWeight: '600', display: 'block', marginBottom: '4px' }}>
                       First Name *
                     </label>
                     <input
@@ -834,7 +903,7 @@ function AuthContent() {
                   </div>
 
                   <div>
-                    <label htmlFor="auth-lastName" style={{ fontSize: '11px', color: '#cbd5e1', fontWeight: '600', display: 'block', marginBottom: '4px' }}>
+                    <label htmlFor="auth-lastName" style={{ fontSize: '11.5px', color: '#cbd5e1', fontWeight: '600', display: 'block', marginBottom: '4px' }}>
                       Last Name *
                     </label>
                     <input
@@ -857,7 +926,7 @@ function AuthContent() {
                 </div>
 
                 <div>
-                  <label htmlFor="auth-username" style={{ fontSize: '11px', color: '#cbd5e1', fontWeight: '600', display: 'block', marginBottom: '4px' }}>
+                  <label htmlFor="auth-username" style={{ fontSize: '11.5px', color: '#cbd5e1', fontWeight: '600', display: 'block', marginBottom: '4px' }}>
                     Username *
                   </label>
                   <input
@@ -881,7 +950,7 @@ function AuthContent() {
             )}
 
             <div>
-              <label htmlFor="auth-email" style={{ fontSize: '11px', color: '#cbd5e1', fontWeight: '600', display: 'block', marginBottom: '4px' }}>
+              <label htmlFor="auth-email" style={{ fontSize: '11.5px', color: '#cbd5e1', fontWeight: '600', display: 'block', marginBottom: '4px' }}>
                 Email Address *
               </label>
               <input
@@ -904,11 +973,11 @@ function AuthContent() {
 
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                <label htmlFor="auth-password" style={{ fontSize: '11px', color: '#cbd5e1', fontWeight: '600' }}>
+                <label htmlFor="auth-password" style={{ fontSize: '11.5px', color: '#cbd5e1', fontWeight: '600' }}>
                   Password *
                 </label>
                 {!isSignup && (
-                  <Link href="/auth/forgot-password" style={{ fontSize: '11px', color: '#38bdf8', textDecoration: 'none' }}>
+                  <Link href="/auth/forgot-password" style={{ fontSize: '11.5px', color: '#38bdf8', textDecoration: 'none', fontWeight: '600' }}>
                     Forgot?
                   </Link>
                 )}
@@ -928,26 +997,17 @@ function AuthContent() {
                   required
                   style={{
                     ...getFieldInputStyle('password', Boolean(fieldErrors.password)),
-                    paddingRight: '38px'
+                    paddingRight: '72px'
                   }}
                 />
                 <button
                   type="button"
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                   onClick={() => setShowPassword((prev) => !prev)}
-                  style={{
-                    position: 'absolute',
-                    right: '8px',
-                    background: 'none',
-                    border: 'none',
-                    color: '#94a3b8',
-                    cursor: 'pointer',
-                    padding: '4px',
-                    fontSize: '13px',
-                    lineHeight: 1
-                  }}
+                  style={toggleBtnStyle}
                 >
-                  {showPassword ? '🙈' : '👁️'}
+                  <span>{showPassword ? '🙈' : '👁️'}</span>
+                  <span>{showPassword ? 'Hide' : 'Show'}</span>
                 </button>
               </div>
 
@@ -985,7 +1045,7 @@ function AuthContent() {
 
             {isSignup && (
               <div>
-                <label htmlFor="auth-confirmPassword" style={{ fontSize: '11px', color: '#cbd5e1', fontWeight: '600', display: 'block', marginBottom: '4px' }}>
+                <label htmlFor="auth-confirmPassword" style={{ fontSize: '11.5px', color: '#cbd5e1', fontWeight: '600', display: 'block', marginBottom: '4px' }}>
                   Confirm Password *
                 </label>
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
@@ -1002,26 +1062,17 @@ function AuthContent() {
                     required
                     style={{
                       ...getFieldInputStyle('confirmPassword', Boolean(fieldErrors.confirmPassword)),
-                      paddingRight: '38px'
+                      paddingRight: '72px'
                     }}
                   />
                   <button
                     type="button"
                     aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
                     onClick={() => setShowConfirmPassword((prev) => !prev)}
-                    style={{
-                      position: 'absolute',
-                      right: '8px',
-                      background: 'none',
-                      border: 'none',
-                      color: '#94a3b8',
-                      cursor: 'pointer',
-                      padding: '4px',
-                      fontSize: '13px',
-                      lineHeight: 1
-                    }}
+                    style={toggleBtnStyle}
                   >
-                    {showConfirmPassword ? '🙈' : '👁️'}
+                    <span>{showConfirmPassword ? '🙈' : '👁️'}</span>
+                    <span>{showConfirmPassword ? 'Hide' : 'Show'}</span>
                   </button>
                 </div>
                 {fieldErrors.confirmPassword && (
@@ -1050,7 +1101,7 @@ function AuthContent() {
               <>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(125px, 1fr))', gap: '10px' }}>
                   <div>
-                    <label htmlFor="auth-dob" style={{ fontSize: '11px', color: '#cbd5e1', fontWeight: '600', display: 'block', marginBottom: '4px' }}>
+                    <label htmlFor="auth-dob" style={{ fontSize: '11.5px', color: '#cbd5e1', fontWeight: '600', display: 'block', marginBottom: '4px' }}>
                       Date of Birth
                     </label>
                     <input
@@ -1065,7 +1116,7 @@ function AuthContent() {
                     />
                   </div>
                   <div>
-                    <label htmlFor="auth-country" style={{ fontSize: '11px', color: '#cbd5e1', fontWeight: '600', display: 'block', marginBottom: '4px' }}>
+                    <label htmlFor="auth-country" style={{ fontSize: '11.5px', color: '#cbd5e1', fontWeight: '600', display: 'block', marginBottom: '4px' }}>
                       Country
                     </label>
                     <select
@@ -1084,7 +1135,7 @@ function AuthContent() {
                 </div>
 
                 <div>
-                  <label htmlFor="auth-accountType" style={{ fontSize: '11px', color: '#cbd5e1', fontWeight: '600', display: 'block', marginBottom: '4px' }}>
+                  <label htmlFor="auth-accountType" style={{ fontSize: '11.5px', color: '#cbd5e1', fontWeight: '600', display: 'block', marginBottom: '4px' }}>
                     Account Type
                   </label>
                   <select
@@ -1131,13 +1182,13 @@ function AuthContent() {
                 backgroundColor: hoveredBtn === 'submit' && !loading ? '#2563eb' : '#3b82f6',
                 color: '#fff',
                 border: 'none',
-                padding: '11px',
+                padding: '11.5px 14px',
                 borderRadius: '12px',
                 fontSize: '14px',
                 fontWeight: '700',
                 cursor: loading ? 'not-allowed' : 'pointer',
                 marginTop: '6px',
-                boxShadow: '0 4px 12px rgba(59, 130, 246, 0.4)',
+                boxShadow: '0 6px 16px rgba(59, 130, 246, 0.42)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
