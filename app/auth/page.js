@@ -1549,77 +1549,11 @@ function AuthContent() {
           </div>
         </div>
 
-        {/* 4. How SHANORA Works Section (Steps 1–9 with Distinct Glass Colors) */}
-        <section
-          aria-labelledby="how-shanora-works-heading"
-          style={{
-            marginTop: '32px',
-            backgroundColor: 'rgba(15, 23, 42, 0.78)',
-            backdropFilter: 'blur(12px)',
-            border: '1px solid rgba(148, 163, 184, 0.16)',
-            borderRadius: '20px',
-            padding: '20px'
-          }}
-        >
-          <div style={{ marginBottom: '14px' }}>
-            <h2 id="how-shanora-works-heading" style={{ fontSize: '18px', fontWeight: '800', margin: 0, color: '#fff' }}>
-              How SHANORA Works
-            </h2>
-            <p style={{ fontSize: '12.5px', color: '#94a3b8', margin: '4px 0 0' }}>
-              Explore every part of SHANORA—from profile and CV building to PRO, Ad Campaigns, and Monetization.
-            </p>
-          </div>
-
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(195px, 1fr))',
-              gap: '12px'
-            }}
-          >
-            {HOW_IT_WORKS_STEPS.map((item) => (
-              <div
-                key={item.step}
-                style={{
-                  background: item.glassBg,
-                  backdropFilter: 'blur(14px)',
-                  border: `1px solid ${item.borderColor}`,
-                  borderTop: `2.5px solid ${item.accent}`,
-                  borderRadius: '15px',
-                  padding: '14px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '6px',
-                  boxShadow: '0 10px 26px rgba(0, 0, 0, 0.35)'
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: '18px' }} aria-hidden="true">{item.icon}</span>
-                  <span
-                    style={{
-                      fontSize: '10.5px',
-                      fontWeight: '800',
-                      color: item.accent,
-                      backgroundColor: 'rgba(7, 11, 20, 0.55)',
-                      padding: '2px 8px',
-                      borderRadius: '999px'
-                    }}
-                  >
-                    Step {item.step}
-                  </span>
-                </div>
-                <div style={{ fontSize: '13.5px', fontWeight: '800', color: '#fff' }}>{item.title}</div>
-                <div style={{ fontSize: '12px', color: '#cbd5e1', lineHeight: '1.42' }}>{item.description}</div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* 5. Download SHANORA App Section */}
+        {/* 5. Download SHANORA App Section (Placed ABOVE How SHANORA Works) */}
         <section
           aria-labelledby="download-shanora-heading"
           style={{
-            marginTop: '24px',
+            marginTop: '32px',
             backgroundColor: 'rgba(15, 23, 42, 0.78)',
             backdropFilter: 'blur(12px)',
             border: '1px solid rgba(148, 163, 184, 0.16)',
@@ -1794,6 +1728,72 @@ function AuthContent() {
                 Download for Windows
               </button>
             </div>
+          </div>
+        </section>
+
+        {/* 4. How SHANORA Works Section (Placed BELOW Download SHANORA) */}
+        <section
+          aria-labelledby="how-shanora-works-heading"
+          style={{
+            marginTop: '24px',
+            backgroundColor: 'rgba(15, 23, 42, 0.78)',
+            backdropFilter: 'blur(12px)',
+            border: '1px solid rgba(148, 163, 184, 0.16)',
+            borderRadius: '20px',
+            padding: '20px'
+          }}
+        >
+          <div style={{ marginBottom: '14px' }}>
+            <h2 id="how-shanora-works-heading" style={{ fontSize: '18px', fontWeight: '800', margin: 0, color: '#fff' }}>
+              How SHANORA Works
+            </h2>
+            <p style={{ fontSize: '12.5px', color: '#94a3b8', margin: '4px 0 0' }}>
+              Explore every part of SHANORA—from profile and CV building to PRO, Ad Campaigns, and Monetization.
+            </p>
+          </div>
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(195px, 1fr))',
+              gap: '12px'
+            }}
+          >
+            {HOW_IT_WORKS_STEPS.map((item) => (
+              <div
+                key={item.step}
+                style={{
+                  background: item.glassBg,
+                  backdropFilter: 'blur(14px)',
+                  border: `1px solid ${item.borderColor}`,
+                  borderTop: `2.5px solid ${item.accent}`,
+                  borderRadius: '15px',
+                  padding: '14px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px',
+                  boxShadow: '0 10px 26px rgba(0, 0, 0, 0.35)'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '18px' }} aria-hidden="true">{item.icon}</span>
+                  <span
+                    style={{
+                      fontSize: '10.5px',
+                      fontWeight: '800',
+                      color: item.accent,
+                      backgroundColor: 'rgba(7, 11, 20, 0.55)',
+                      padding: '2px 8px',
+                      borderRadius: '999px'
+                    }}
+                  >
+                    Step {item.step}
+                  </span>
+                </div>
+                <div style={{ fontSize: '13.5px', fontWeight: '800', color: '#fff' }}>{item.title}</div>
+                <div style={{ fontSize: '12px', color: '#cbd5e1', lineHeight: '1.42' }}>{item.description}</div>
+              </div>
+            ))}
           </div>
         </section>
       </div>
