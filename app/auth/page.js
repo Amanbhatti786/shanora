@@ -65,36 +65,88 @@ function getFriendlyAuthError(err) {
   return err.message;
 }
 
+// Each step has its own distinct glass tint, border, and accent color
 const HOW_IT_WORKS_STEPS = [
   {
     step: '1',
     icon: '✨',
     title: 'Join SHANORA',
-    description: 'Create your free account.'
+    description: 'Create your free account.',
+    accent: '#38bdf8',
+    glassBg: 'linear-gradient(145deg, rgba(14, 165, 233, 0.16) 0%, rgba(15, 23, 42, 0.72) 100%)',
+    borderColor: 'rgba(56, 189, 248, 0.34)'
   },
   {
     step: '2',
     icon: '🪪',
     title: 'Build Your Profile',
-    description: 'Create your professional identity.'
+    description: 'Create your professional identity.',
+    accent: '#a78bfa',
+    glassBg: 'linear-gradient(145deg, rgba(139, 92, 246, 0.16) 0%, rgba(15, 23, 42, 0.72) 100%)',
+    borderColor: 'rgba(167, 139, 250, 0.34)'
   },
   {
     step: '3',
     icon: '🌐',
     title: 'Connect Globally',
-    description: 'Connect with professionals and companies.'
+    description: 'Connect with professionals and companies.',
+    accent: '#34d399',
+    glassBg: 'linear-gradient(145deg, rgba(16, 185, 129, 0.16) 0%, rgba(15, 23, 42, 0.72) 100%)',
+    borderColor: 'rgba(52, 211, 153, 0.34)'
   },
   {
     step: '4',
     icon: '💼',
     title: 'Discover Opportunities',
-    description: 'Explore jobs and career opportunities.'
+    description: 'Explore jobs and career opportunities.',
+    accent: '#fbbf24',
+    glassBg: 'linear-gradient(145deg, rgba(245, 158, 11, 0.16) 0%, rgba(15, 23, 42, 0.72) 100%)',
+    borderColor: 'rgba(251, 191, 36, 0.34)'
   },
   {
     step: '5',
+    icon: '📄',
+    title: 'CV Studio',
+    description: 'Build and export job-ready resumes.',
+    accent: '#22d3ee',
+    glassBg: 'linear-gradient(145deg, rgba(6, 182, 212, 0.17) 0%, rgba(15, 23, 42, 0.72) 100%)',
+    borderColor: 'rgba(34, 211, 238, 0.36)'
+  },
+  {
+    step: '6',
+    icon: '👑',
+    title: 'SHANORA PRO',
+    description: 'Unlock verified badge, AI tools & PRO templates.',
+    accent: '#eab308',
+    glassBg: 'linear-gradient(145deg, rgba(234, 179, 8, 0.17) 0%, rgba(15, 23, 42, 0.72) 100%)',
+    borderColor: 'rgba(234, 179, 8, 0.38)'
+  },
+  {
+    step: '7',
+    icon: '📢',
+    title: 'Ad Campaigns',
+    description: 'Promote your brand, jobs, and services across feeds.',
+    accent: '#f472b6',
+    glassBg: 'linear-gradient(145deg, rgba(236, 72, 153, 0.16) 0%, rgba(15, 23, 42, 0.72) 100%)',
+    borderColor: 'rgba(244, 114, 182, 0.36)'
+  },
+  {
+    step: '8',
+    icon: '💰',
+    title: 'Monetization',
+    description: 'Earn rewards from reach, content, and referrals.',
+    accent: '#10b981',
+    glassBg: 'linear-gradient(145deg, rgba(5, 150, 105, 0.18) 0%, rgba(15, 23, 42, 0.72) 100%)',
+    borderColor: 'rgba(16, 185, 129, 0.38)'
+  },
+  {
+    step: '9',
     icon: '📈',
     title: 'Grow Together',
-    description: 'Build your network and professional career.'
+    description: 'Build your network and professional career.',
+    accent: '#60a5fa',
+    glassBg: 'linear-gradient(145deg, rgba(59, 130, 246, 0.16) 0%, rgba(15, 23, 42, 0.72) 100%)',
+    borderColor: 'rgba(96, 165, 250, 0.35)'
   }
 ];
 
@@ -107,6 +159,7 @@ function AuthContent() {
   const [isSignup, setIsSignup] = useState(initialMode);
   const [legalModal, setLegalModal] = useState(null); // 'terms' | 'privacy' | null
   const [appNotice, setAppNotice] = useState('');
+  const [deferredInstallPrompt, setDeferredInstallPrompt] = useState(null);
 
   // Form states
   const [formData, setFormData] = useState({
@@ -259,6 +312,17 @@ function AuthContent() {
 
   const [currentSlide, setCurrentSlide] = useState(0);
 
+  // Capture browser PWA install prompt when supported
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onBeforeInstall = (e) => {
+      e.preventDefault();
+      setDeferredInstallPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', onBeforeInstall);
+    return () => window.removeEventListener('beforeinstallprompt', onBeforeInstall);
+  }, []);
+
   // Restore remembered login email on mount (non-sensitive identifier only)
   useEffect(() => {
     try {
@@ -343,9 +407,22 @@ function AuthContent() {
     setSuccessMessage('');
   }, []);
 
-  const handlePlatformClick = useCallback((platformName) => {
+  const handlePlatformClick = useCallback(async (platformName) => {
+    if (deferredInstallPrompt && (platformName === 'Android' || platformName === 'Windows')) {
+      try {
+        deferredInstallPrompt.prompt();
+        const choice = await deferredInstallPrompt.userChoice;
+        if (choice?.outcome === 'accepted') {
+          setAppNotice(`SHANORA app installed on ${platformName}.`);
+          setDeferredInstallPrompt(null);
+          return;
+        }
+      } catch {
+        // Fallback to Coming Soon message
+      }
+    }
     setAppNotice(`SHANORA for ${platformName} — Coming Soon.`);
-  }, []);
+  }, [deferredInstallPrompt]);
 
   const validateFormInputs = useCallback(() => {
     const errs = {};
@@ -721,6 +798,7 @@ function AuthContent() {
           aria-labelledby="welcome-shanora-heading"
           style={{
             backgroundColor: 'rgba(15, 23, 42, 0.75)',
+            backdropFilter: 'blur(12px)',
             border: '1px solid rgba(148, 163, 184, 0.16)',
             borderRadius: '18px',
             padding: '16px 20px',
@@ -1471,12 +1549,13 @@ function AuthContent() {
           </div>
         </div>
 
-        {/* 4. How SHANORA Works Section */}
+        {/* 4. How SHANORA Works Section (Steps 1–9 with Distinct Glass Colors) */}
         <section
           aria-labelledby="how-shanora-works-heading"
           style={{
             marginTop: '32px',
-            backgroundColor: '#0f172a',
+            backgroundColor: 'rgba(15, 23, 42, 0.78)',
+            backdropFilter: 'blur(12px)',
             border: '1px solid rgba(148, 163, 184, 0.16)',
             borderRadius: '20px',
             padding: '20px'
@@ -1487,14 +1566,14 @@ function AuthContent() {
               How SHANORA Works
             </h2>
             <p style={{ fontSize: '12.5px', color: '#94a3b8', margin: '4px 0 0' }}>
-              Five simple steps to build your presence and connect across opportunities.
+              Explore every part of SHANORA—from profile and CV building to PRO, Ad Campaigns, and Monetization.
             </p>
           </div>
 
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(175px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(195px, 1fr))',
               gap: '12px'
             }}
           >
@@ -1502,21 +1581,35 @@ function AuthContent() {
               <div
                 key={item.step}
                 style={{
-                  backgroundColor: '#111b2e',
-                  border: '1px solid rgba(148, 163, 184, 0.15)',
-                  borderRadius: '14px',
+                  background: item.glassBg,
+                  backdropFilter: 'blur(14px)',
+                  border: `1px solid ${item.borderColor}`,
+                  borderTop: `2.5px solid ${item.accent}`,
+                  borderRadius: '15px',
                   padding: '14px',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '6px'
+                  gap: '6px',
+                  boxShadow: '0 10px 26px rgba(0, 0, 0, 0.35)'
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <span style={{ fontSize: '18px' }} aria-hidden="true">{item.icon}</span>
-                  <span style={{ fontSize: '11px', fontWeight: '800', color: '#38bdf8' }}>Step {item.step}</span>
+                  <span
+                    style={{
+                      fontSize: '10.5px',
+                      fontWeight: '800',
+                      color: item.accent,
+                      backgroundColor: 'rgba(7, 11, 20, 0.55)',
+                      padding: '2px 8px',
+                      borderRadius: '999px'
+                    }}
+                  >
+                    Step {item.step}
+                  </span>
                 </div>
                 <div style={{ fontSize: '13.5px', fontWeight: '800', color: '#fff' }}>{item.title}</div>
-                <div style={{ fontSize: '12px', color: '#94a3b8', lineHeight: '1.4' }}>{item.description}</div>
+                <div style={{ fontSize: '12px', color: '#cbd5e1', lineHeight: '1.42' }}>{item.description}</div>
               </div>
             ))}
           </div>
@@ -1527,7 +1620,8 @@ function AuthContent() {
           aria-labelledby="download-shanora-heading"
           style={{
             marginTop: '24px',
-            backgroundColor: '#0f172a',
+            backgroundColor: 'rgba(15, 23, 42, 0.78)',
+            backdropFilter: 'blur(12px)',
             border: '1px solid rgba(148, 163, 184, 0.16)',
             borderRadius: '20px',
             padding: '20px'
@@ -1581,8 +1675,8 @@ function AuthContent() {
             {/* A. ANDROID */}
             <div
               style={{
-                backgroundColor: '#111b2e',
-                border: '1px solid rgba(148, 163, 184, 0.16)',
+                background: 'linear-gradient(145deg, rgba(34, 197, 94, 0.12) 0%, rgba(17, 27, 46, 0.85) 100%)',
+                border: '1px solid rgba(74, 222, 128, 0.25)',
                 borderRadius: '14px',
                 padding: '15px',
                 display: 'flex',
@@ -1596,7 +1690,7 @@ function AuthContent() {
                   <span style={{ fontSize: '18px' }} aria-hidden="true">🤖</span>
                   <span style={{ fontSize: '13.5px', fontWeight: '800', color: '#fff' }}>ANDROID</span>
                 </div>
-                <span style={{ fontSize: '10.5px', fontWeight: '700', color: '#38bdf8', backgroundColor: 'rgba(56, 189, 248, 0.12)', padding: '2px 8px', borderRadius: '999px' }}>
+                <span style={{ fontSize: '10.5px', fontWeight: '700', color: '#4ade80', backgroundColor: 'rgba(34, 197, 94, 0.14)', padding: '2px 8px', borderRadius: '999px' }}>
                   Coming Soon
                 </span>
               </div>
@@ -1622,8 +1716,8 @@ function AuthContent() {
             {/* B. APPLE */}
             <div
               style={{
-                backgroundColor: '#111b2e',
-                border: '1px solid rgba(148, 163, 184, 0.16)',
+                background: 'linear-gradient(145deg, rgba(167, 139, 250, 0.12) 0%, rgba(17, 27, 46, 0.85) 100%)',
+                border: '1px solid rgba(167, 139, 250, 0.25)',
                 borderRadius: '14px',
                 padding: '15px',
                 display: 'flex',
@@ -1637,7 +1731,7 @@ function AuthContent() {
                   <span style={{ fontSize: '18px' }} aria-hidden="true">🍎</span>
                   <span style={{ fontSize: '13.5px', fontWeight: '800', color: '#fff' }}>APPLE</span>
                 </div>
-                <span style={{ fontSize: '10.5px', fontWeight: '700', color: '#38bdf8', backgroundColor: 'rgba(56, 189, 248, 0.12)', padding: '2px 8px', borderRadius: '999px' }}>
+                <span style={{ fontSize: '10.5px', fontWeight: '700', color: '#c4b5fd', backgroundColor: 'rgba(167, 139, 250, 0.14)', padding: '2px 8px', borderRadius: '999px' }}>
                   Coming Soon
                 </span>
               </div>
@@ -1663,8 +1757,8 @@ function AuthContent() {
             {/* C. WINDOWS */}
             <div
               style={{
-                backgroundColor: '#111b2e',
-                border: '1px solid rgba(148, 163, 184, 0.16)',
+                background: 'linear-gradient(145deg, rgba(56, 189, 248, 0.12) 0%, rgba(17, 27, 46, 0.85) 100%)',
+                border: '1px solid rgba(56, 189, 248, 0.25)',
                 borderRadius: '14px',
                 padding: '15px',
                 display: 'flex',
@@ -1678,7 +1772,7 @@ function AuthContent() {
                   <span style={{ fontSize: '18px' }} aria-hidden="true">🪟</span>
                   <span style={{ fontSize: '13.5px', fontWeight: '800', color: '#fff' }}>WINDOWS</span>
                 </div>
-                <span style={{ fontSize: '10.5px', fontWeight: '700', color: '#38bdf8', backgroundColor: 'rgba(56, 189, 248, 0.12)', padding: '2px 8px', borderRadius: '999px' }}>
+                <span style={{ fontSize: '10.5px', fontWeight: '700', color: '#7dd3fc', backgroundColor: 'rgba(56, 189, 248, 0.14)', padding: '2px 8px', borderRadius: '999px' }}>
                   Coming Soon
                 </span>
               </div>
@@ -1745,7 +1839,7 @@ function AuthContent() {
               onClick={() => setLegalModal('terms')}
               style={{ background: 'none', border: 'none', padding: 0, color: '#cbd5e1', fontWeight: '600', fontSize: '12px', cursor: 'pointer' }}
             >
-              Terms & Conditions
+              Terms &amp; Conditions
             </button>
           </div>
           <div>Copyright © 2026 SHANORA.</div>
