@@ -65,6 +65,39 @@ function getFriendlyAuthError(err) {
   return err.message;
 }
 
+const HOW_IT_WORKS_STEPS = [
+  {
+    step: '1',
+    icon: '✨',
+    title: 'Join SHANORA',
+    description: 'Create your free account.'
+  },
+  {
+    step: '2',
+    icon: '🪪',
+    title: 'Build Your Profile',
+    description: 'Create your professional identity.'
+  },
+  {
+    step: '3',
+    icon: '🌐',
+    title: 'Connect Globally',
+    description: 'Connect with professionals and companies.'
+  },
+  {
+    step: '4',
+    icon: '💼',
+    title: 'Discover Opportunities',
+    description: 'Explore jobs and career opportunities.'
+  },
+  {
+    step: '5',
+    icon: '📈',
+    title: 'Grow Together',
+    description: 'Build your network and professional career.'
+  }
+];
+
 function AuthContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -73,6 +106,7 @@ function AuthContent() {
 
   const [isSignup, setIsSignup] = useState(initialMode);
   const [legalModal, setLegalModal] = useState(null); // 'terms' | 'privacy' | null
+  const [appNotice, setAppNotice] = useState('');
 
   // Form states
   const [formData, setFormData] = useState({
@@ -309,6 +343,10 @@ function AuthContent() {
     setSuccessMessage('');
   }, []);
 
+  const handlePlatformClick = useCallback((platformName) => {
+    setAppNotice(`SHANORA for ${platformName} — Coming Soon.`);
+  }, []);
+
   const validateFormInputs = useCallback(() => {
     const errs = {};
     const trimmedEmail = (formData.email || '').trim().toLowerCase();
@@ -528,12 +566,12 @@ function AuthContent() {
           'radial-gradient(circle at 12% 14%, rgba(56, 189, 248, 0.1), transparent 44%), radial-gradient(circle at 88% 82%, rgba(59, 130, 246, 0.11), transparent 46%)',
         color: '#f8fafc',
         display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px 14px',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
         fontFamily: 'system-ui, -apple-system, sans-serif',
         boxSizing: 'border-box',
-        overflowX: 'hidden'
+        overflowX: 'hidden',
+        scrollBehavior: 'smooth'
       }}
     >
       <style>{`
@@ -677,726 +715,1042 @@ function AuthContent() {
         </div>
       )}
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))',
-          maxWidth: '1060px',
-          width: '100%',
-          gap: '30px',
-          alignItems: 'center'
-        }}
-      >
-        {/* Left Column: Brand & Clean Showcase Card */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', textAlign: 'left', minWidth: 0 }}>
-          <Link href="/" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '9px', width: 'fit-content' }}>
-            <div
-              style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '11px',
-                background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: '900',
-                fontSize: '20px',
-                color: '#fff',
-                boxShadow: '0 6px 16px rgba(59, 130, 246, 0.35)'
-              }}
-            >
-              S
+      <div style={{ maxWidth: '1080px', width: '100%', margin: '0 auto', padding: '20px 14px 28px', boxSizing: 'border-box' }}>
+        {/* 1. Welcome to SHANORA Header Section */}
+        <section
+          aria-labelledby="welcome-shanora-heading"
+          style={{
+            backgroundColor: 'rgba(15, 23, 42, 0.75)',
+            border: '1px solid rgba(148, 163, 184, 0.16)',
+            borderRadius: '18px',
+            padding: '16px 20px',
+            marginBottom: '22px',
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '12px'
+          }}
+        >
+          <div style={{ maxWidth: '720px' }}>
+            <div style={{ fontSize: '11px', fontWeight: '800', color: '#38bdf8', letterSpacing: '1.2px', textTransform: 'uppercase', marginBottom: '4px' }}>
+              WELCOME TO SHANORA
             </div>
-            <span style={{ fontSize: '24px', fontWeight: '800', color: '#fff', letterSpacing: '-0.5px' }}>
-              SHANORA<span style={{ color: '#38bdf8' }}>.PK</span>
-            </span>
-          </Link>
+            <h2 id="welcome-shanora-heading" style={{ fontSize: 'clamp(17px, 3vw, 21px)', fontWeight: '800', margin: 0, color: '#fff', lineHeight: 1.25 }}>
+              Your Global Professional Network
+            </h2>
+            <p style={{ color: '#94a3b8', fontSize: '12.5px', lineHeight: '1.5', margin: '4px 0 0' }}>
+              Connect with professionals, discover career opportunities, build your network, and grow your professional future with SHANORA.
+            </p>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11.5px', color: '#cbd5e1', backgroundColor: '#111b2e', border: '1px solid rgba(148, 163, 184, 0.18)', borderRadius: '999px', padding: '5px 12px', fontWeight: '700' }}>
+            <span>🌐</span>
+            <span>shanora.online</span>
+          </div>
+        </section>
 
-          <h1 style={{ fontSize: 'clamp(22px, 4vw, 29px)', fontWeight: '800', lineHeight: '1.18', margin: 0, letterSpacing: '-0.5px' }}>
-            Explore the professional connections you love.
-          </h1>
-          <p style={{ color: '#94a3b8', fontSize: '13.5px', lineHeight: '1.55', margin: 0 }}>
-            &ldquo;Professional growth within your reach&rdquo; — Connect with creators and global employers across Pakistan.
-          </p>
+        {/* Main Auth Grid (Slideshow + Form) */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))',
+            maxWidth: '1060px',
+            width: '100%',
+            gap: '30px',
+            alignItems: 'center'
+          }}
+        >
+          {/* Left Column: Brand & Clean Showcase Card */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', textAlign: 'left', minWidth: 0 }}>
+            <Link href="/" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '9px', width: 'fit-content' }}>
+              <div
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '11px',
+                  background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: '900',
+                  fontSize: '20px',
+                  color: '#fff',
+                  boxShadow: '0 6px 16px rgba(59, 130, 246, 0.35)'
+                }}
+              >
+                S
+              </div>
+              <span style={{ fontSize: '24px', fontWeight: '800', color: '#fff', letterSpacing: '-0.5px' }}>
+                SHANORA<span style={{ color: '#38bdf8' }}>.PK</span>
+              </span>
+            </Link>
 
-          {/* Clean Showcase Card */}
-          <div
-            style={{
-              width: '100%',
-              borderRadius: '20px',
-              background: activeItem.surface,
-              border: '1px solid rgba(148, 163, 184, 0.2)',
-              boxShadow: '0 22px 45px rgba(0,0,0,0.58)',
-              padding: '15px',
-              boxSizing: 'border-box',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px',
-              transition: 'background 0.5s ease'
-            }}
-          >
+            <h1 style={{ fontSize: 'clamp(22px, 4vw, 29px)', fontWeight: '800', lineHeight: '1.18', margin: 0, letterSpacing: '-0.5px' }}>
+              Explore the professional connections you love.
+            </h1>
+            <p style={{ color: '#94a3b8', fontSize: '13.5px', lineHeight: '1.55', margin: 0 }}>
+              &ldquo;Professional growth within your reach&rdquo; — Connect with creators and global employers across Pakistan.
+            </p>
+
+            {/* Clean Showcase Card */}
             <div
               style={{
                 width: '100%',
-                maxWidth: '280px',
-                height: '240px',
-                margin: '0 auto',
-                borderRadius: '14px',
-                overflow: 'hidden',
-                border: '1px solid rgba(255,255,255,0.16)',
-                backgroundColor: '#0b1322',
-                position: 'relative'
-              }}
-            >
-              {slideshowItems.map((item, idx) => (
-                <img
-                  key={idx}
-                  src={item.url}
-                  alt={item.name}
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover',
-                    objectPosition: item.pos || '50% 25%',
-                    opacity: currentSlide === idx ? 1 : 0,
-                    transition: 'opacity 0.55s ease-in-out'
-                  }}
-                />
-              ))}
-            </div>
-
-            <div
-              style={{
-                width: '100%',
+                borderRadius: '20px',
+                background: activeItem.surface,
+                border: '1px solid rgba(148, 163, 184, 0.2)',
+                boxShadow: '0 22px 45px rgba(0,0,0,0.58)',
+                padding: '15px',
                 boxSizing: 'border-box',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '7px'
+                gap: '12px',
+                transition: 'background 0.5s ease'
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                <span
-                  style={{
-                    fontSize: '11px',
-                    fontWeight: '700',
-                    color: activeItem.accent,
-                    letterSpacing: '0.3px'
-                  }}
-                >
-                  {activeItem.category} • {activeItem.type}
-                </span>
-                <span
-                  style={{
-                    fontSize: '10px',
-                    fontWeight: '700',
-                    color: '#cbd5e1',
-                    backgroundColor: 'rgba(255,255,255,0.08)',
-                    padding: '2px 8px',
-                    borderRadius: '999px'
-                  }}
-                >
-                  {activeItem.status}
-                </span>
-              </div>
-
-              <div>
-                <div style={{ fontSize: '15px', fontWeight: '800', color: '#ffffff', lineHeight: 1.25 }}>
-                  {activeItem.name}
-                </div>
-                <div style={{ fontSize: '11.5px', color: '#94a3b8', marginTop: '1px' }}>
-                  {activeItem.role}
-                </div>
+              <div
+                style={{
+                  width: '100%',
+                  maxWidth: '280px',
+                  height: '240px',
+                  margin: '0 auto',
+                  borderRadius: '14px',
+                  overflow: 'hidden',
+                  border: '1px solid rgba(255,255,255,0.16)',
+                  backgroundColor: '#0b1322',
+                  position: 'relative'
+                }}
+              >
+                {slideshowItems.map((item, idx) => (
+                  <img
+                    key={idx}
+                    src={item.url}
+                    alt={item.name}
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      objectPosition: item.pos || '50% 25%',
+                      opacity: currentSlide === idx ? 1 : 0,
+                      transition: 'opacity 0.55s ease-in-out'
+                    }}
+                  />
+                ))}
               </div>
 
               <div
                 style={{
-                  backgroundColor: 'rgba(15, 23, 42, 0.88)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  borderLeft: `3px solid ${activeItem.accent}`,
-                  borderRadius: '12px',
-                  padding: '10px 12px',
-                  fontSize: '12px',
-                  color: '#e2e8f0',
-                  lineHeight: '1.45'
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '7px'
                 }}
               >
-                &ldquo;{activeItem.message}&rdquo;
-              </div>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', gap: '6px', alignItems: 'center', paddingLeft: '2px', flexWrap: 'wrap' }}>
-            {slideshowItems.map((_, idx) => (
-              <button
-                key={idx}
-                type="button"
-                aria-label={`Slide ${idx + 1}`}
-                onClick={() => setCurrentSlide(idx)}
-                style={{
-                  width: currentSlide === idx ? '22px' : '7px',
-                  height: '7px',
-                  borderRadius: '999px',
-                  border: 'none',
-                  padding: 0,
-                  cursor: 'pointer',
-                  backgroundColor: currentSlide === idx ? '#38bdf8' : '#334155',
-                  transition: 'all 0.25s ease'
-                }}
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* Right Column: Auth Card Form */}
-        <div
-          style={{
-            backgroundColor: '#0f172a',
-            border: '1px solid rgba(56, 189, 248, 0.2)',
-            borderTop: '3px solid #38bdf8',
-            borderRadius: '22px',
-            padding: '24px',
-            boxShadow: '0 24px 55px rgba(0,0,0,0.7), 0 0 28px rgba(56, 189, 248, 0.08)',
-            minWidth: 0
-          }}
-        >
-          {/* Mode Switcher Pills */}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: '6px',
-              backgroundColor: '#070b14',
-              padding: '4px',
-              borderRadius: '12px',
-              border: '1px solid rgba(148, 163, 184, 0.16)',
-              marginBottom: '18px'
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => switchAuthMode(false)}
-              style={{
-                padding: '7px 10px',
-                borderRadius: '9px',
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: '12px',
-                fontWeight: '700',
-                backgroundColor: !isSignup ? '#1e293b' : 'transparent',
-                color: !isSignup ? '#38bdf8' : '#94a3b8',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              Sign In
-            </button>
-            <button
-              type="button"
-              onClick={() => switchAuthMode(true)}
-              style={{
-                padding: '7px 10px',
-                borderRadius: '9px',
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: '12px',
-                fontWeight: '700',
-                backgroundColor: isSignup ? '#1e293b' : 'transparent',
-                color: isSignup ? '#38bdf8' : '#94a3b8',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              Create Account
-            </button>
-          </div>
-
-          <h2 style={{ fontSize: '20px', fontWeight: '800', marginBottom: '5px', marginTop: 0, color: '#fff' }}>
-            {isAddingAccount
-              ? (isSignup ? 'Add another account (Sign Up)' : 'Add another account (Sign In)')
-              : (isSignup ? 'Create a new account' : 'Sign in to SHANORA')}
-          </h2>
-          <p style={{ color: '#94a3b8', fontSize: '13px', marginBottom: '18px', marginTop: 0 }}>
-            {isSignup ? 'Quick and easy registration.' : 'Welcome back! Please enter your details.'}
-          </p>
-
-          {errorMessage && (
-            <div
-              role="alert"
-              style={{
-                backgroundColor: 'rgba(239, 68, 68, 0.12)',
-                border: '1px solid rgba(239, 68, 68, 0.35)',
-                color: '#fca5a5',
-                padding: '10px 12px',
-                borderRadius: '10px',
-                fontSize: '12px',
-                fontWeight: '600',
-                marginBottom: '14px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}
-            >
-              <span aria-hidden="true">⚠️</span>
-              <span>{errorMessage}</span>
-            </div>
-          )}
-
-          {successMessage && (
-            <div
-              role="status"
-              style={{
-                backgroundColor: 'rgba(34, 197, 94, 0.12)',
-                border: '1px solid rgba(34, 197, 94, 0.35)',
-                color: '#6ee7b7',
-                padding: '10px 12px',
-                borderRadius: '10px',
-                fontSize: '12px',
-                fontWeight: '600',
-                marginBottom: '14px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}
-            >
-              <span aria-hidden="true">✅</span>
-              <span>{successMessage}</span>
-            </div>
-          )}
-
-          {/* Google OAuth Button */}
-          <button
-            type="button"
-            disabled={loading}
-            onClick={handleGoogleAuth}
-            onMouseEnter={() => setHoveredBtn('google')}
-            onMouseLeave={() => setHoveredBtn('')}
-            style={{
-              width: '100%',
-              backgroundColor: hoveredBtn === 'google' ? '#1f2e45' : '#152033',
-              border: '1px solid rgba(148, 163, 184, 0.24)',
-              color: '#fff',
-              padding: '10.5px 12px',
-              borderRadius: '12px',
-              fontSize: '13px',
-              fontWeight: '600',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '10px',
-              marginBottom: '16px',
-              transition: 'background-color 0.2s ease, transform 0.15s ease',
-              transform: hoveredBtn === 'google' && !loading ? 'translateY(-1px)' : 'none'
-            }}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
-              <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z" />
-              <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.13 0-5.78-2.11-6.73-4.96H1.18v3.15C3.15 21.32 7.23 24 12 24z" />
-              <path fill="#FBBC05" d="M5.27 14.24c-.25-.72-.38-1.49-.38-2.24s.13-1.52.38-2.24V6.6H1.18C.43 8.13 0 9.87 0 12s.43 3.87 1.18 5.4l4.09-3.16z" />
-              <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.23 0 3.15 2.68 1.18 6.6l4.09 3.16c.95-2.85 3.6-4.96 6.73-4.96z" />
-            </svg>
-            Continue with Google
-          </button>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#64748b', fontSize: '11px', marginBottom: '16px' }}>
-            <div style={{ flex: 1, height: '1px', backgroundColor: 'rgba(148, 163, 184, 0.16)' }} />
-            <span>OR EMAIL</span>
-            <div style={{ flex: 1, height: '1px', backgroundColor: 'rgba(148, 163, 184, 0.16)' }} />
-          </div>
-
-          <form onSubmit={handleAuth} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {isSignup && (
-              <>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(125px, 1fr))', gap: '10px' }}>
-                  <div>
-                    <label htmlFor="auth-firstName" style={{ fontSize: '11.5px', color: '#cbd5e1', fontWeight: '600', display: 'block', marginBottom: '4px' }}>
-                      First Name *
-                    </label>
-                    <input
-                      id="auth-firstName"
-                      type="text"
-                      name="firstName"
-                      autoComplete="given-name"
-                      placeholder="Aman"
-                      value={formData.firstName}
-                      onChange={handleChange}
-                      onFocus={() => setFocusedField('firstName')}
-                      onBlur={() => setFocusedField('')}
-                      required
-                      style={getFieldInputStyle('firstName', Boolean(fieldErrors.firstName))}
-                    />
-                    {fieldErrors.firstName && (
-                      <div style={{ color: '#f87171', fontSize: '11px', marginTop: '3px' }}>{fieldErrors.firstName}</div>
-                    )}
-                  </div>
-
-                  <div>
-                    <label htmlFor="auth-lastName" style={{ fontSize: '11.5px', color: '#cbd5e1', fontWeight: '600', display: 'block', marginBottom: '4px' }}>
-                      Last Name *
-                    </label>
-                    <input
-                      id="auth-lastName"
-                      type="text"
-                      name="lastName"
-                      autoComplete="family-name"
-                      placeholder="Ullah"
-                      value={formData.lastName}
-                      onChange={handleChange}
-                      onFocus={() => setFocusedField('lastName')}
-                      onBlur={() => setFocusedField('')}
-                      required
-                      style={getFieldInputStyle('lastName', Boolean(fieldErrors.lastName))}
-                    />
-                    {fieldErrors.lastName && (
-                      <div style={{ color: '#f87171', fontSize: '11px', marginTop: '3px' }}>{fieldErrors.lastName}</div>
-                    )}
-                  </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      fontWeight: '700',
+                      color: activeItem.accent,
+                      letterSpacing: '0.3px'
+                    }}
+                  >
+                    {activeItem.category} • {activeItem.type}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: '10px',
+                      fontWeight: '700',
+                      color: '#cbd5e1',
+                      backgroundColor: 'rgba(255,255,255,0.08)',
+                      padding: '2px 8px',
+                      borderRadius: '999px'
+                    }}
+                  >
+                    {activeItem.status}
+                  </span>
                 </div>
 
                 <div>
-                  <label htmlFor="auth-username" style={{ fontSize: '11.5px', color: '#cbd5e1', fontWeight: '600', display: 'block', marginBottom: '4px' }}>
-                    Username *
-                  </label>
-                  <input
-                    id="auth-username"
-                    type="text"
-                    name="username"
-                    autoComplete="username"
-                    placeholder="amanullah_pk"
-                    value={formData.username}
-                    onChange={handleChange}
-                    onFocus={() => setFocusedField('username')}
-                    onBlur={() => setFocusedField('')}
-                    required
-                    style={getFieldInputStyle('username', Boolean(fieldErrors.username))}
-                  />
-                  {fieldErrors.username && (
-                    <div style={{ color: '#f87171', fontSize: '11px', marginTop: '3px' }}>{fieldErrors.username}</div>
-                  )}
+                  <div style={{ fontSize: '15px', fontWeight: '800', color: '#ffffff', lineHeight: 1.25 }}>
+                    {activeItem.name}
+                  </div>
+                  <div style={{ fontSize: '11.5px', color: '#94a3b8', marginTop: '1px' }}>
+                    {activeItem.role}
+                  </div>
                 </div>
-              </>
-            )}
 
-            <div>
-              <label htmlFor="auth-email" style={{ fontSize: '11.5px', color: '#cbd5e1', fontWeight: '600', display: 'block', marginBottom: '4px' }}>
-                Email Address *
-              </label>
-              <input
-                id="auth-email"
-                type="email"
-                name="email"
-                autoComplete="email"
-                placeholder="name@example.com"
-                value={formData.email}
-                onChange={handleChange}
-                onFocus={() => setFocusedField('email')}
-                onBlur={() => setFocusedField('')}
-                required
-                style={getFieldInputStyle('email', Boolean(fieldErrors.email))}
-              />
-              {fieldErrors.email && (
-                <div style={{ color: '#f87171', fontSize: '11px', marginTop: '3px' }}>{fieldErrors.email}</div>
-              )}
+                <div
+                  style={{
+                    backgroundColor: 'rgba(15, 23, 42, 0.88)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    borderLeft: `3px solid ${activeItem.accent}`,
+                    borderRadius: '12px',
+                    padding: '10px 12px',
+                    fontSize: '12px',
+                    color: '#e2e8f0',
+                    lineHeight: '1.45'
+                  }}
+                >
+                  &ldquo;{activeItem.message}&rdquo;
+                </div>
+              </div>
             </div>
 
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                <label htmlFor="auth-password" style={{ fontSize: '11.5px', color: '#cbd5e1', fontWeight: '600' }}>
-                  Password *
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center', paddingLeft: '2px', flexWrap: 'wrap' }}>
+              {slideshowItems.map((_, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  aria-label={`Slide ${idx + 1}`}
+                  onClick={() => setCurrentSlide(idx)}
+                  style={{
+                    width: currentSlide === idx ? '22px' : '7px',
+                    height: '7px',
+                    borderRadius: '999px',
+                    border: 'none',
+                    padding: 0,
+                    cursor: 'pointer',
+                    backgroundColor: currentSlide === idx ? '#38bdf8' : '#334155',
+                    transition: 'all 0.25s ease'
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Right Column: Auth Card Form */}
+          <div
+            style={{
+              backgroundColor: '#0f172a',
+              border: '1px solid rgba(56, 189, 248, 0.2)',
+              borderTop: '3px solid #38bdf8',
+              borderRadius: '22px',
+              padding: '24px',
+              boxShadow: '0 24px 55px rgba(0,0,0,0.7), 0 0 28px rgba(56, 189, 248, 0.08)',
+              minWidth: 0
+            }}
+          >
+            {/* Mode Switcher Pills */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '6px',
+                backgroundColor: '#070b14',
+                padding: '4px',
+                borderRadius: '12px',
+                border: '1px solid rgba(148, 163, 184, 0.16)',
+                marginBottom: '18px'
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => switchAuthMode(false)}
+                style={{
+                  padding: '7px 10px',
+                  borderRadius: '9px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  backgroundColor: !isSignup ? '#1e293b' : 'transparent',
+                  color: !isSignup ? '#38bdf8' : '#94a3b8',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                Sign In
+              </button>
+              <button
+                type="button"
+                onClick={() => switchAuthMode(true)}
+                style={{
+                  padding: '7px 10px',
+                  borderRadius: '9px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  backgroundColor: isSignup ? '#1e293b' : 'transparent',
+                  color: isSignup ? '#38bdf8' : '#94a3b8',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                Create Account
+              </button>
+            </div>
+
+            <h2 style={{ fontSize: '20px', fontWeight: '800', marginBottom: '5px', marginTop: 0, color: '#fff' }}>
+              {isAddingAccount
+                ? (isSignup ? 'Add another account (Sign Up)' : 'Add another account (Sign In)')
+                : (isSignup ? 'Create a new account' : 'Sign in to SHANORA')}
+            </h2>
+            <p style={{ color: '#94a3b8', fontSize: '13px', marginBottom: '18px', marginTop: 0 }}>
+              {isSignup ? 'Quick and easy registration.' : 'Welcome back! Please enter your details.'}
+            </p>
+
+            {errorMessage && (
+              <div
+                role="alert"
+                style={{
+                  backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                  border: '1px solid rgba(239, 68, 68, 0.35)',
+                  color: '#fca5a5',
+                  padding: '10px 12px',
+                  borderRadius: '10px',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  marginBottom: '14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                <span aria-hidden="true">⚠️</span>
+                <span>{errorMessage}</span>
+              </div>
+            )}
+
+            {successMessage && (
+              <div
+                role="status"
+                style={{
+                  backgroundColor: 'rgba(34, 197, 94, 0.12)',
+                  border: '1px solid rgba(34, 197, 94, 0.35)',
+                  color: '#6ee7b7',
+                  padding: '10px 12px',
+                  borderRadius: '10px',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  marginBottom: '14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                <span aria-hidden="true">✅</span>
+                <span>{successMessage}</span>
+              </div>
+            )}
+
+            {/* Google OAuth Button */}
+            <button
+              type="button"
+              disabled={loading}
+              onClick={handleGoogleAuth}
+              onMouseEnter={() => setHoveredBtn('google')}
+              onMouseLeave={() => setHoveredBtn('')}
+              style={{
+                width: '100%',
+                backgroundColor: hoveredBtn === 'google' ? '#1f2e45' : '#152033',
+                border: '1px solid rgba(148, 163, 184, 0.24)',
+                color: '#fff',
+                padding: '10.5px 12px',
+                borderRadius: '12px',
+                fontSize: '13px',
+                fontWeight: '600',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '10px',
+                marginBottom: '16px',
+                transition: 'background-color 0.2s ease, transform 0.15s ease',
+                transform: hoveredBtn === 'google' && !loading ? 'translateY(-1px)' : 'none'
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z" />
+                <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.13 0-5.78-2.11-6.73-4.96H1.18v3.15C3.15 21.32 7.23 24 12 24z" />
+                <path fill="#FBBC05" d="M5.27 14.24c-.25-.72-.38-1.49-.38-2.24s.13-1.52.38-2.24V6.6H1.18C.43 8.13 0 9.87 0 12s.43 3.87 1.18 5.4l4.09-3.16z" />
+                <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.23 0 3.15 2.68 1.18 6.6l4.09 3.16c.95-2.85 3.6-4.96 6.73-4.96z" />
+              </svg>
+              Continue with Google
+            </button>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#64748b', fontSize: '11px', marginBottom: '16px' }}>
+              <div style={{ flex: 1, height: '1px', backgroundColor: 'rgba(148, 163, 184, 0.16)' }} />
+              <span>OR EMAIL</span>
+              <div style={{ flex: 1, height: '1px', backgroundColor: 'rgba(148, 163, 184, 0.16)' }} />
+            </div>
+
+            <form onSubmit={handleAuth} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {isSignup && (
+                <>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(125px, 1fr))', gap: '10px' }}>
+                    <div>
+                      <label htmlFor="auth-firstName" style={{ fontSize: '11.5px', color: '#cbd5e1', fontWeight: '600', display: 'block', marginBottom: '4px' }}>
+                        First Name *
+                      </label>
+                      <input
+                        id="auth-firstName"
+                        type="text"
+                        name="firstName"
+                        autoComplete="given-name"
+                        placeholder="Aman"
+                        value={formData.firstName}
+                        onChange={handleChange}
+                        onFocus={() => setFocusedField('firstName')}
+                        onBlur={() => setFocusedField('')}
+                        required
+                        style={getFieldInputStyle('firstName', Boolean(fieldErrors.firstName))}
+                      />
+                      {fieldErrors.firstName && (
+                        <div style={{ color: '#f87171', fontSize: '11px', marginTop: '3px' }}>{fieldErrors.firstName}</div>
+                      )}
+                    </div>
+
+                    <div>
+                      <label htmlFor="auth-lastName" style={{ fontSize: '11.5px', color: '#cbd5e1', fontWeight: '600', display: 'block', marginBottom: '4px' }}>
+                        Last Name *
+                      </label>
+                      <input
+                        id="auth-lastName"
+                        type="text"
+                        name="lastName"
+                        autoComplete="family-name"
+                        placeholder="Ullah"
+                        value={formData.lastName}
+                        onChange={handleChange}
+                        onFocus={() => setFocusedField('lastName')}
+                        onBlur={() => setFocusedField('')}
+                        required
+                        style={getFieldInputStyle('lastName', Boolean(fieldErrors.lastName))}
+                      />
+                      {fieldErrors.lastName && (
+                        <div style={{ color: '#f87171', fontSize: '11px', marginTop: '3px' }}>{fieldErrors.lastName}</div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="auth-username" style={{ fontSize: '11.5px', color: '#cbd5e1', fontWeight: '600', display: 'block', marginBottom: '4px' }}>
+                      Username *
+                    </label>
+                    <input
+                      id="auth-username"
+                      type="text"
+                      name="username"
+                      autoComplete="username"
+                      placeholder="amanullah_pk"
+                      value={formData.username}
+                      onChange={handleChange}
+                      onFocus={() => setFocusedField('username')}
+                      onBlur={() => setFocusedField('')}
+                      required
+                      style={getFieldInputStyle('username', Boolean(fieldErrors.username))}
+                    />
+                    {fieldErrors.username && (
+                      <div style={{ color: '#f87171', fontSize: '11px', marginTop: '3px' }}>{fieldErrors.username}</div>
+                    )}
+                  </div>
+                </>
+              )}
+
+              <div>
+                <label htmlFor="auth-email" style={{ fontSize: '11.5px', color: '#cbd5e1', fontWeight: '600', display: 'block', marginBottom: '4px' }}>
+                  Email Address *
                 </label>
-                {!isSignup && (
-                  <Link href="/auth/forgot-password" style={{ fontSize: '11.5px', color: '#38bdf8', textDecoration: 'none', fontWeight: '600' }}>
-                    Forgot?
-                  </Link>
+                <input
+                  id="auth-email"
+                  type="email"
+                  name="email"
+                  autoComplete="email"
+                  placeholder="name@example.com"
+                  value={formData.email}
+                  onChange={handleChange}
+                  onFocus={() => setFocusedField('email')}
+                  onBlur={() => setFocusedField('')}
+                  required
+                  style={getFieldInputStyle('email', Boolean(fieldErrors.email))}
+                />
+                {fieldErrors.email && (
+                  <div style={{ color: '#f87171', fontSize: '11px', marginTop: '3px' }}>{fieldErrors.email}</div>
                 )}
               </div>
 
-              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                <input
-                  id="auth-password"
-                  type={showPassword ? 'text' : 'password'}
-                  name="password"
-                  autoComplete={isSignup ? 'new-password' : 'current-password'}
-                  placeholder="••••••••"
-                  value={formData.password}
-                  onChange={handleChange}
-                  onFocus={() => setFocusedField('password')}
-                  onBlur={() => setFocusedField('')}
-                  required
-                  style={{
-                    ...getFieldInputStyle('password', Boolean(fieldErrors.password)),
-                    paddingRight: '74px'
-                  }}
-                />
-                <button
-                  type="button"
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  onClick={() => setShowPassword((prev) => !prev)}
-                  style={toggleBtnStyle}
-                >
-                  <span>{showPassword ? '🙈' : '👁️'}</span>
-                  <span>{showPassword ? 'Hide' : 'Show'}</span>
-                </button>
-              </div>
-
-              {fieldErrors.password && (
-                <div style={{ color: '#f87171', fontSize: '11px', marginTop: '3px' }}>{fieldErrors.password}</div>
-              )}
-
-              {isSignup && formData.password && (
-                <div style={{ marginTop: '6px' }}>
-                  <div
-                    style={{
-                      height: '4px',
-                      width: '100%',
-                      backgroundColor: '#1e293b',
-                      borderRadius: '999px',
-                      overflow: 'hidden'
-                    }}
-                  >
-                    <div
-                      style={{
-                        height: '100%',
-                        width: passwordStrength.width,
-                        backgroundColor: passwordStrength.color,
-                        transition: 'width 0.25s ease, background-color 0.25s ease'
-                      }}
-                    />
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10.5px', color: '#94a3b8', marginTop: '3px' }}>
-                    <span>Strength: <strong style={{ color: passwordStrength.color }}>{passwordStrength.label}</strong></span>
-                    <span>8+ chars, A-Z, 0-9</span>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {isSignup && (
               <div>
-                <label htmlFor="auth-confirmPassword" style={{ fontSize: '11.5px', color: '#cbd5e1', fontWeight: '600', display: 'block', marginBottom: '4px' }}>
-                  Confirm Password *
-                </label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                  <label htmlFor="auth-password" style={{ fontSize: '11.5px', color: '#cbd5e1', fontWeight: '600' }}>
+                    Password *
+                  </label>
+                  {!isSignup && (
+                    <Link href="/auth/forgot-password" style={{ fontSize: '11.5px', color: '#38bdf8', textDecoration: 'none', fontWeight: '600' }}>
+                      Forgot?
+                    </Link>
+                  )}
+                </div>
+
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                   <input
-                    id="auth-confirmPassword"
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    name="confirmPassword"
-                    autoComplete="new-password"
+                    id="auth-password"
+                    type={showPassword ? 'text' : 'password'}
+                    name="password"
+                    autoComplete={isSignup ? 'new-password' : 'current-password'}
                     placeholder="••••••••"
-                    value={formData.confirmPassword}
+                    value={formData.password}
                     onChange={handleChange}
-                    onFocus={() => setFocusedField('confirmPassword')}
+                    onFocus={() => setFocusedField('password')}
                     onBlur={() => setFocusedField('')}
                     required
                     style={{
-                      ...getFieldInputStyle('confirmPassword', Boolean(fieldErrors.confirmPassword)),
+                      ...getFieldInputStyle('password', Boolean(fieldErrors.password)),
                       paddingRight: '74px'
                     }}
                   />
                   <button
                     type="button"
-                    aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
-                    onClick={() => setShowConfirmPassword((prev) => !prev)}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    onClick={() => setShowPassword((prev) => !prev)}
                     style={toggleBtnStyle}
                   >
-                    <span>{showConfirmPassword ? '🙈' : '👁️'}</span>
-                    <span>{showConfirmPassword ? 'Hide' : 'Show'}</span>
+                    <span>{showPassword ? '🙈' : '👁️'}</span>
+                    <span>{showPassword ? 'Hide' : 'Show'}</span>
                   </button>
                 </div>
-                {fieldErrors.confirmPassword && (
-                  <div style={{ color: '#f87171', fontSize: '11px', marginTop: '3px' }}>{fieldErrors.confirmPassword}</div>
+
+                {fieldErrors.password && (
+                  <div style={{ color: '#f87171', fontSize: '11px', marginTop: '3px' }}>{fieldErrors.password}</div>
                 )}
-              </div>
-            )}
 
-            {!isSignup && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <input
-                  id="auth-rememberMe"
-                  type="checkbox"
-                  name="rememberMe"
-                  checked={formData.rememberMe}
-                  onChange={handleChange}
-                  style={{ accentColor: '#3b82f6', cursor: 'pointer' }}
-                />
-                <label htmlFor="auth-rememberMe" style={{ fontSize: '11.5px', color: '#cbd5e1', cursor: 'pointer' }}>
-                  Remember my email on this device
-                </label>
-              </div>
-            )}
-
-            {isSignup && (
-              <>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(125px, 1fr))', gap: '10px' }}>
-                  <div>
-                    <label htmlFor="auth-dob" style={{ fontSize: '11.5px', color: '#cbd5e1', fontWeight: '600', display: 'block', marginBottom: '4px' }}>
-                      Date of Birth
-                    </label>
-                    <input
-                      id="auth-dob"
-                      type="date"
-                      name="dob"
-                      value={formData.dob}
-                      onChange={handleChange}
-                      onFocus={() => setFocusedField('dob')}
-                      onBlur={() => setFocusedField('')}
-                      style={getFieldInputStyle('dob', false)}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="auth-country" style={{ fontSize: '11.5px', color: '#cbd5e1', fontWeight: '600', display: 'block', marginBottom: '4px' }}>
-                      Country
-                    </label>
-                    <select
-                      id="auth-country"
-                      name="country"
-                      autoComplete="country-name"
-                      value={formData.country}
-                      onChange={handleChange}
-                      onFocus={() => setFocusedField('country')}
-                      onBlur={() => setFocusedField('')}
-                      style={getFieldInputStyle('country', false)}
+                {isSignup && formData.password && (
+                  <div style={{ marginTop: '6px' }}>
+                    <div
+                      style={{
+                        height: '4px',
+                        width: '100%',
+                        backgroundColor: '#1e293b',
+                        borderRadius: '999px',
+                        overflow: 'hidden'
+                      }}
                     >
-                      {countriesList.map((c) => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label htmlFor="auth-accountType" style={{ fontSize: '11.5px', color: '#cbd5e1', fontWeight: '600', display: 'block', marginBottom: '4px' }}>
-                    Account Type
-                  </label>
-                  <select
-                    id="auth-accountType"
-                    name="accountType"
-                    value={formData.accountType}
-                    onChange={handleChange}
-                    onFocus={() => setFocusedField('accountType')}
-                    onBlur={() => setFocusedField('')}
-                    style={getFieldInputStyle('accountType', false)}
-                  >
-                    {accountTypes.map((t) => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                </div>
-
-                <div style={{ marginTop: '2px' }}>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '11px', color: '#94a3b8', lineHeight: '1.4' }}>
-                    <input
-                      type="checkbox"
-                      name="agreeTerms"
-                      checked={formData.agreeTerms}
-                      onChange={handleChange}
-                      id="terms"
-                      style={{ marginTop: '2px', accentColor: '#3b82f6', cursor: 'pointer' }}
-                    />
-                    <div>
-                      <label htmlFor="terms" style={{ cursor: 'pointer' }}>
-                        I agree to SHANORA&apos;s{' '}
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => setLegalModal('terms')}
-                        style={{ background: 'none', border: 'none', padding: 0, color: '#38bdf8', textDecoration: 'underline', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}
-                      >
-                        Terms
-                      </button>
-                      {' '}and{' '}
-                      <button
-                        type="button"
-                        onClick={() => setLegalModal('privacy')}
-                        style={{ background: 'none', border: 'none', padding: 0, color: '#38bdf8', textDecoration: 'underline', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}
-                      >
-                        Privacy Policy
-                      </button>
-                      .
+                      <div
+                        style={{
+                          height: '100%',
+                          width: passwordStrength.width,
+                          backgroundColor: passwordStrength.color,
+                          transition: 'width 0.25s ease, background-color 0.25s ease'
+                        }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10.5px', color: '#94a3b8', marginTop: '3px' }}>
+                      <span>Strength: <strong style={{ color: passwordStrength.color }}>{passwordStrength.label}</strong></span>
+                      <span>8+ chars, A-Z, 0-9</span>
                     </div>
                   </div>
-                  {fieldErrors.agreeTerms && (
-                    <div style={{ color: '#f87171', fontSize: '11px', marginTop: '3px' }}>{fieldErrors.agreeTerms}</div>
+                )}
+              </div>
+
+              {isSignup && (
+                <div>
+                  <label htmlFor="auth-confirmPassword" style={{ fontSize: '11.5px', color: '#cbd5e1', fontWeight: '600', display: 'block', marginBottom: '4px' }}>
+                    Confirm Password *
+                  </label>
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                    <input
+                      id="auth-confirmPassword"
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      name="confirmPassword"
+                      autoComplete="new-password"
+                      placeholder="••••••••"
+                      value={formData.confirmPassword}
+                      onChange={handleChange}
+                      onFocus={() => setFocusedField('confirmPassword')}
+                      onBlur={() => setFocusedField('')}
+                      required
+                      style={{
+                        ...getFieldInputStyle('confirmPassword', Boolean(fieldErrors.confirmPassword)),
+                        paddingRight: '74px'
+                      }}
+                    />
+                    <button
+                      type="button"
+                      aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
+                      onClick={() => setShowConfirmPassword((prev) => !prev)}
+                      style={toggleBtnStyle}
+                    >
+                      <span>{showConfirmPassword ? '🙈' : '👁️'}</span>
+                      <span>{showConfirmPassword ? 'Hide' : 'Show'}</span>
+                    </button>
+                  </div>
+                  {fieldErrors.confirmPassword && (
+                    <div style={{ color: '#f87171', fontSize: '11px', marginTop: '3px' }}>{fieldErrors.confirmPassword}</div>
                   )}
                 </div>
-              </>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              onMouseEnter={() => setHoveredBtn('submit')}
-              onMouseLeave={() => setHoveredBtn('')}
-              style={{
-                width: '100%',
-                background:
-                  hoveredBtn === 'submit' && !loading
-                    ? 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)'
-                    : 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-                color: '#fff',
-                border: 'none',
-                padding: '11.5px 14px',
-                borderRadius: '12px',
-                fontSize: '14px',
-                fontWeight: '700',
-                cursor: loading ? 'not-allowed' : 'pointer',
-                marginTop: '6px',
-                boxShadow: '0 8px 20px rgba(59, 130, 246, 0.42)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                opacity: loading ? 0.85 : 1,
-                transition: 'background 0.2s ease, transform 0.15s ease',
-                transform: hoveredBtn === 'submit' && !loading ? 'translateY(-1px)' : 'none'
-              }}
-            >
-              {loading && (
-                <span
-                  aria-hidden="true"
-                  style={{
-                    width: '15px',
-                    height: '15px',
-                    border: '2px solid rgba(255,255,255,0.35)',
-                    borderTopColor: '#ffffff',
-                    borderRadius: '50%',
-                    display: 'inline-block',
-                    animation: 'shanoraSpin 0.75s linear infinite'
-                  }}
-                />
               )}
-              <span>
-                {loading
-                  ? (isSignup ? 'Creating account...' : 'Signing in...')
-                  : (isSignup ? 'Create Account 🚀' : 'Sign In ➔')}
-              </span>
-            </button>
-          </form>
 
-          {/* Toggle between Sign In / Sign Up */}
-          <div style={{ textAlign: 'center', marginTop: '16px', fontSize: '12px', color: '#94a3b8' }}>
-            {isSignup ? (
-              <>
-                Already have an account?{' '}
-                <button
-                  type="button"
-                  onClick={() => switchAuthMode(false)}
-                  style={{ background: 'none', border: 'none', color: '#38bdf8', fontWeight: '700', cursor: 'pointer', padding: 0, fontSize: '12px' }}
-                >
-                  Sign In
-                </button>
-              </>
-            ) : (
-              <>
-                New to SHANORA?{' '}
-                <button
-                  type="button"
-                  onClick={() => switchAuthMode(true)}
-                  style={{ background: 'none', border: 'none', color: '#38bdf8', fontWeight: '700', cursor: 'pointer', padding: 0, fontSize: '12px' }}
-                >
-                  Join Free
-                </button>
-              </>
-            )}
+              {!isSignup && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input
+                    id="auth-rememberMe"
+                    type="checkbox"
+                    name="rememberMe"
+                    checked={formData.rememberMe}
+                    onChange={handleChange}
+                    style={{ accentColor: '#3b82f6', cursor: 'pointer' }}
+                  />
+                  <label htmlFor="auth-rememberMe" style={{ fontSize: '11.5px', color: '#cbd5e1', cursor: 'pointer' }}>
+                    Remember my email on this device
+                  </label>
+                </div>
+              )}
+
+              {isSignup && (
+                <>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(125px, 1fr))', gap: '10px' }}>
+                    <div>
+                      <label htmlFor="auth-dob" style={{ fontSize: '11.5px', color: '#cbd5e1', fontWeight: '600', display: 'block', marginBottom: '4px' }}>
+                        Date of Birth
+                      </label>
+                      <input
+                        id="auth-dob"
+                        type="date"
+                        name="dob"
+                        value={formData.dob}
+                        onChange={handleChange}
+                        onFocus={() => setFocusedField('dob')}
+                        onBlur={() => setFocusedField('')}
+                        style={getFieldInputStyle('dob', false)}
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="auth-country" style={{ fontSize: '11.5px', color: '#cbd5e1', fontWeight: '600', display: 'block', marginBottom: '4px' }}>
+                        Country
+                      </label>
+                      <select
+                        id="auth-country"
+                        name="country"
+                        autoComplete="country-name"
+                        value={formData.country}
+                        onChange={handleChange}
+                        onFocus={() => setFocusedField('country')}
+                        onBlur={() => setFocusedField('')}
+                        style={getFieldInputStyle('country', false)}
+                      >
+                        {countriesList.map((c) => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="auth-accountType" style={{ fontSize: '11.5px', color: '#cbd5e1', fontWeight: '600', display: 'block', marginBottom: '4px' }}>
+                      Account Type
+                    </label>
+                    <select
+                      id="auth-accountType"
+                      name="accountType"
+                      value={formData.accountType}
+                      onChange={handleChange}
+                      onFocus={() => setFocusedField('accountType')}
+                      onBlur={() => setFocusedField('')}
+                      style={getFieldInputStyle('accountType', false)}
+                    >
+                      {accountTypes.map((t) => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </div>
+
+                  <div style={{ marginTop: '2px' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '11px', color: '#94a3b8', lineHeight: '1.4' }}>
+                      <input
+                        type="checkbox"
+                        name="agreeTerms"
+                        checked={formData.agreeTerms}
+                        onChange={handleChange}
+                        id="terms"
+                        style={{ marginTop: '2px', accentColor: '#3b82f6', cursor: 'pointer' }}
+                      />
+                      <div>
+                        <label htmlFor="terms" style={{ cursor: 'pointer' }}>
+                          I agree to SHANORA&apos;s{' '}
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setLegalModal('terms')}
+                          style={{ background: 'none', border: 'none', padding: 0, color: '#38bdf8', textDecoration: 'underline', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}
+                        >
+                          Terms
+                        </button>
+                        {' '}and{' '}
+                        <button
+                          type="button"
+                          onClick={() => setLegalModal('privacy')}
+                          style={{ background: 'none', border: 'none', padding: 0, color: '#38bdf8', textDecoration: 'underline', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}
+                        >
+                          Privacy Policy
+                        </button>
+                        .
+                      </div>
+                    </div>
+                    {fieldErrors.agreeTerms && (
+                      <div style={{ color: '#f87171', fontSize: '11px', marginTop: '3px' }}>{fieldErrors.agreeTerms}</div>
+                    )}
+                  </div>
+                </>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                onMouseEnter={() => setHoveredBtn('submit')}
+                onMouseLeave={() => setHoveredBtn('')}
+                style={{
+                  width: '100%',
+                  background:
+                    hoveredBtn === 'submit' && !loading
+                      ? 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)'
+                      : 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                  color: '#fff',
+                  border: 'none',
+                  padding: '11.5px 14px',
+                  borderRadius: '12px',
+                  fontSize: '14px',
+                  fontWeight: '700',
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  marginTop: '6px',
+                  boxShadow: '0 8px 20px rgba(59, 130, 246, 0.42)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  opacity: loading ? 0.85 : 1,
+                  transition: 'background 0.2s ease, transform 0.15s ease',
+                  transform: hoveredBtn === 'submit' && !loading ? 'translateY(-1px)' : 'none'
+                }}
+              >
+                {loading && (
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      width: '15px',
+                      height: '15px',
+                      border: '2px solid rgba(255,255,255,0.35)',
+                      borderTopColor: '#ffffff',
+                      borderRadius: '50%',
+                      display: 'inline-block',
+                      animation: 'shanoraSpin 0.75s linear infinite'
+                    }}
+                  />
+                )}
+                <span>
+                  {loading
+                    ? (isSignup ? 'Creating account...' : 'Signing in...')
+                    : (isSignup ? 'Create Account 🚀' : 'Sign In ➔')}
+                </span>
+              </button>
+            </form>
+
+            {/* Toggle between Sign In / Sign Up */}
+            <div style={{ textAlign: 'center', marginTop: '16px', fontSize: '12px', color: '#94a3b8' }}>
+              {isSignup ? (
+                <>
+                  Already have an account?{' '}
+                  <button
+                    type="button"
+                    onClick={() => switchAuthMode(false)}
+                    style={{ background: 'none', border: 'none', color: '#38bdf8', fontWeight: '700', cursor: 'pointer', padding: 0, fontSize: '12px' }}
+                  >
+                    Sign In
+                  </button>
+                </>
+              ) : (
+                <>
+                  New to SHANORA?{' '}
+                  <button
+                    type="button"
+                    onClick={() => switchAuthMode(true)}
+                    style={{ background: 'none', border: 'none', color: '#38bdf8', fontWeight: '700', cursor: 'pointer', padding: 0, fontSize: '12px' }}
+                  >
+                    Join Free
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         </div>
+
+        {/* 4. How SHANORA Works Section */}
+        <section
+          aria-labelledby="how-shanora-works-heading"
+          style={{
+            marginTop: '32px',
+            backgroundColor: '#0f172a',
+            border: '1px solid rgba(148, 163, 184, 0.16)',
+            borderRadius: '20px',
+            padding: '20px'
+          }}
+        >
+          <div style={{ marginBottom: '14px' }}>
+            <h2 id="how-shanora-works-heading" style={{ fontSize: '18px', fontWeight: '800', margin: 0, color: '#fff' }}>
+              How SHANORA Works
+            </h2>
+            <p style={{ fontSize: '12.5px', color: '#94a3b8', margin: '4px 0 0' }}>
+              Five simple steps to build your presence and connect across opportunities.
+            </p>
+          </div>
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(175px, 1fr))',
+              gap: '12px'
+            }}
+          >
+            {HOW_IT_WORKS_STEPS.map((item) => (
+              <div
+                key={item.step}
+                style={{
+                  backgroundColor: '#111b2e',
+                  border: '1px solid rgba(148, 163, 184, 0.15)',
+                  borderRadius: '14px',
+                  padding: '14px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '18px' }} aria-hidden="true">{item.icon}</span>
+                  <span style={{ fontSize: '11px', fontWeight: '800', color: '#38bdf8' }}>Step {item.step}</span>
+                </div>
+                <div style={{ fontSize: '13.5px', fontWeight: '800', color: '#fff' }}>{item.title}</div>
+                <div style={{ fontSize: '12px', color: '#94a3b8', lineHeight: '1.4' }}>{item.description}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* 5. Download SHANORA App Section */}
+        <section
+          aria-labelledby="download-shanora-heading"
+          style={{
+            marginTop: '24px',
+            backgroundColor: '#0f172a',
+            border: '1px solid rgba(148, 163, 184, 0.16)',
+            borderRadius: '20px',
+            padding: '20px'
+          }}
+        >
+          <div style={{ marginBottom: '14px' }}>
+            <h2 id="download-shanora-heading" style={{ fontSize: '18px', fontWeight: '800', margin: 0, color: '#fff' }}>
+              DOWNLOAD SHANORA
+            </h2>
+            <p style={{ fontSize: '12.5px', color: '#94a3b8', margin: '4px 0 0' }}>
+              Access SHANORA across your favourite devices.
+            </p>
+          </div>
+
+          {appNotice && (
+            <div
+              role="status"
+              style={{
+                backgroundColor: 'rgba(56, 189, 248, 0.12)',
+                border: '1px solid rgba(56, 189, 248, 0.35)',
+                color: '#7dd3fc',
+                borderRadius: '10px',
+                padding: '9px 12px',
+                fontSize: '12px',
+                fontWeight: '700',
+                marginBottom: '14px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '8px'
+              }}
+            >
+              <span>{appNotice}</span>
+              <button
+                type="button"
+                onClick={() => setAppNotice('')}
+                style={{ background: 'none', border: 'none', color: '#bae6fd', cursor: 'pointer', fontWeight: '800', fontSize: '12px' }}
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+              gap: '12px'
+            }}
+          >
+            {/* A. ANDROID */}
+            <div
+              style={{
+                backgroundColor: '#111b2e',
+                border: '1px solid rgba(148, 163, 184, 0.16)',
+                borderRadius: '14px',
+                padding: '15px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                gap: '12px'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '18px' }} aria-hidden="true">🤖</span>
+                  <span style={{ fontSize: '13.5px', fontWeight: '800', color: '#fff' }}>ANDROID</span>
+                </div>
+                <span style={{ fontSize: '10.5px', fontWeight: '700', color: '#38bdf8', backgroundColor: 'rgba(56, 189, 248, 0.12)', padding: '2px 8px', borderRadius: '999px' }}>
+                  Coming Soon
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => handlePlatformClick('Android')}
+                style={{
+                  width: '100%',
+                  backgroundColor: '#1e293b',
+                  border: '1px solid rgba(148, 163, 184, 0.25)',
+                  color: '#f8fafc',
+                  borderRadius: '10px',
+                  padding: '9px 12px',
+                  fontSize: '12.5px',
+                  fontWeight: '700',
+                  cursor: 'pointer'
+                }}
+              >
+                Download for Android
+              </button>
+            </div>
+
+            {/* B. APPLE */}
+            <div
+              style={{
+                backgroundColor: '#111b2e',
+                border: '1px solid rgba(148, 163, 184, 0.16)',
+                borderRadius: '14px',
+                padding: '15px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                gap: '12px'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '18px' }} aria-hidden="true">🍎</span>
+                  <span style={{ fontSize: '13.5px', fontWeight: '800', color: '#fff' }}>APPLE</span>
+                </div>
+                <span style={{ fontSize: '10.5px', fontWeight: '700', color: '#38bdf8', backgroundColor: 'rgba(56, 189, 248, 0.12)', padding: '2px 8px', borderRadius: '999px' }}>
+                  Coming Soon
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => handlePlatformClick('iOS')}
+                style={{
+                  width: '100%',
+                  backgroundColor: '#1e293b',
+                  border: '1px solid rgba(148, 163, 184, 0.25)',
+                  color: '#f8fafc',
+                  borderRadius: '10px',
+                  padding: '9px 12px',
+                  fontSize: '12.5px',
+                  fontWeight: '700',
+                  cursor: 'pointer'
+                }}
+              >
+                Download for iOS
+              </button>
+            </div>
+
+            {/* C. WINDOWS */}
+            <div
+              style={{
+                backgroundColor: '#111b2e',
+                border: '1px solid rgba(148, 163, 184, 0.16)',
+                borderRadius: '14px',
+                padding: '15px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                gap: '12px'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '18px' }} aria-hidden="true">🪟</span>
+                  <span style={{ fontSize: '13.5px', fontWeight: '800', color: '#fff' }}>WINDOWS</span>
+                </div>
+                <span style={{ fontSize: '10.5px', fontWeight: '700', color: '#38bdf8', backgroundColor: 'rgba(56, 189, 248, 0.12)', padding: '2px 8px', borderRadius: '999px' }}>
+                  Coming Soon
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => handlePlatformClick('Windows')}
+                style={{
+                  width: '100%',
+                  backgroundColor: '#1e293b',
+                  border: '1px solid rgba(148, 163, 184, 0.25)',
+                  color: '#f8fafc',
+                  borderRadius: '10px',
+                  padding: '9px 12px',
+                  fontSize: '12.5px',
+                  fontWeight: '700',
+                  cursor: 'pointer'
+                }}
+              >
+                Download for Windows
+              </button>
+            </div>
+          </div>
+        </section>
       </div>
+
+      {/* 6. Professional Footer */}
+      <footer
+        style={{
+          borderTop: '1px solid rgba(148, 163, 184, 0.16)',
+          backgroundColor: '#0b111e',
+          padding: '18px 14px',
+          marginTop: '12px'
+        }}
+      >
+        <div
+          style={{
+            maxWidth: '1080px',
+            margin: '0 auto',
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '12px',
+            fontSize: '12px',
+            color: '#94a3b8'
+          }}
+        >
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '16px' }}>
+            <Link href="/" style={{ color: '#cbd5e1', textDecoration: 'none', fontWeight: '600' }}>
+              About SHANORA
+            </Link>
+            <Link href="/settings" style={{ color: '#cbd5e1', textDecoration: 'none', fontWeight: '600' }}>
+              Contact Us
+            </Link>
+            <button
+              type="button"
+              onClick={() => setLegalModal('privacy')}
+              style={{ background: 'none', border: 'none', padding: 0, color: '#cbd5e1', fontWeight: '600', fontSize: '12px', cursor: 'pointer' }}
+            >
+              Privacy Policy
+            </button>
+            <button
+              type="button"
+              onClick={() => setLegalModal('terms')}
+              style={{ background: 'none', border: 'none', padding: 0, color: '#cbd5e1', fontWeight: '600', fontSize: '12px', cursor: 'pointer' }}
+            >
+              Terms & Conditions
+            </button>
+          </div>
+          <div>Copyright © 2026 SHANORA.</div>
+        </div>
+      </footer>
     </div>
   );
 }
