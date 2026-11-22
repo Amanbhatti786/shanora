@@ -197,7 +197,6 @@ function AuthContent() {
   const isAddingAccount = searchParams.get('addAccount') === '1';
 
   const [isSignup, setIsSignup] = useState(initialMode);
-  const [legalModal, setLegalModal] = useState(null); // 'terms' | 'privacy' | null
   const [appNotice, setAppNotice] = useState('');
   const [deferredInstallPrompt, setDeferredInstallPrompt] = useState(null);
 
@@ -710,141 +709,6 @@ function AuthContent() {
           to { transform: rotate(360deg); }
         }
       `}</style>
-
-      {/* Terms & Privacy Policy Modal (Opens cleanly without resetting form) */}
-      {legalModal && (
-        <div
-          onClick={() => setLegalModal(null)}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(7, 11, 20, 0.85)',
-            backdropFilter: 'blur(6px)',
-            zIndex: 9999,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '16px'
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              width: '100%',
-              maxWidth: '520px',
-              maxHeight: '84vh',
-              overflowY: 'auto',
-              backgroundColor: '#0f172a',
-              border: '1px solid rgba(56, 189, 248, 0.35)',
-              borderRadius: '18px',
-              padding: '20px',
-              boxShadow: '0 24px 60px rgba(0, 0, 0, 0.75)',
-              color: '#f8fafc'
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '12px', marginBottom: '14px' }}>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button
-                  type="button"
-                  onClick={() => setLegalModal('terms')}
-                  style={{
-                    backgroundColor: legalModal === 'terms' ? '#0284c7' : '#1e293b',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: '8px',
-                    padding: '6px 12px',
-                    fontSize: '12px',
-                    fontWeight: '800',
-                    cursor: 'pointer'
-                  }}
-                >
-                  📜 Terms & Conditions
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setLegalModal('privacy')}
-                  style={{
-                    backgroundColor: legalModal === 'privacy' ? '#0284c7' : '#1e293b',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: '8px',
-                    padding: '6px 12px',
-                    fontSize: '12px',
-                    fontWeight: '800',
-                    cursor: 'pointer'
-                  }}
-                >
-                  🔒 Privacy Policy
-                </button>
-              </div>
-              <button
-                type="button"
-                onClick={() => setLegalModal(null)}
-                style={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#94a3b8', width: '28px', height: '28px', borderRadius: '50%', cursor: 'pointer', fontWeight: '800' }}
-              >
-                ✕
-              </button>
-            </div>
-
-            {legalModal === 'terms' ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '12.5px', color: '#cbd5e1', lineHeight: '1.55' }}>
-                <div style={{ backgroundColor: '#131b2e', border: '1px solid #1e293b', borderRadius: '10px', padding: '10px 12px' }}>
-                  <strong style={{ color: '#38bdf8', display: 'block', marginBottom: '3px' }}>1. Account & Profile Responsibility</strong>
-                  Users must provide accurate identity, contact, and career details. Impersonation or unauthorized account sharing is prohibited on SHANORA.
-                </div>
-                <div style={{ backgroundColor: '#131b2e', border: '1px solid #1e293b', borderRadius: '10px', padding: '10px 12px' }}>
-                  <strong style={{ color: '#38bdf8', display: 'block', marginBottom: '3px' }}>2. Job Postings & Recruitment Integrity</strong>
-                  Employers must post genuine roles with accurate details and keep application statuses updated. Fraudulent or misleading job listings are removed immediately.
-                </div>
-                <div style={{ backgroundColor: '#131b2e', border: '1px solid #1e293b', borderRadius: '10px', padding: '10px 12px' }}>
-                  <strong style={{ color: '#38bdf8', display: 'block', marginBottom: '3px' }}>3. Platform Safety & Updates</strong>
-                  SHANORA may moderate reported content, suspend policy-violating accounts, and update platform features to protect members.
-                </div>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '12.5px', color: '#cbd5e1', lineHeight: '1.55' }}>
-                <div style={{ backgroundColor: '#131b2e', border: '1px solid #1e293b', borderRadius: '10px', padding: '10px 12px' }}>
-                  <strong style={{ color: '#38bdf8', display: 'block', marginBottom: '3px' }}>1. Information We Collect</strong>
-                  We store account registration details (name, username, email, country, account type) and profile/resume data you choose to add.
-                </div>
-                <div style={{ backgroundColor: '#131b2e', border: '1px solid #1e293b', borderRadius: '10px', padding: '10px 12px' }}>
-                  <strong style={{ color: '#38bdf8', display: 'block', marginBottom: '3px' }}>2. How Your Data Is Used</strong>
-                  Your profile and CV details are used to connect you with employers, deliver job alerts, and manage your account security via Supabase Auth.
-                </div>
-                <div style={{ backgroundColor: '#131b2e', border: '1px solid #1e293b', borderRadius: '10px', padding: '10px 12px' }}>
-                  <strong style={{ color: '#38bdf8', display: 'block', marginBottom: '3px' }}>3. Your Controls</strong>
-                  You can update your visibility, export your data archive, or request account changes anytime from SHANORA Settings.
-                </div>
-              </div>
-            )}
-
-            <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
-              <button
-                type="button"
-                onClick={() => {
-                  setFormData((prev) => ({ ...prev, agreeTerms: true }));
-                  setFieldErrors((prev) => {
-                    const copy = { ...prev };
-                    delete copy.agreeTerms;
-                    return copy;
-                  });
-                  setLegalModal(null);
-                }}
-                style={{ flex: 1, backgroundColor: '#22c55e', color: '#000', border: 'none', borderRadius: '10px', padding: '10px', fontSize: '13px', fontWeight: '800', cursor: 'pointer' }}
-              >
-                ✓ I Agree & Continue
-              </button>
-              <button
-                type="button"
-                onClick={() => setLegalModal(null)}
-                style={{ backgroundColor: '#1e293b', color: '#cbd5e1', border: '1px solid #334155', borderRadius: '10px', padding: '10px 14px', fontSize: '13px', fontWeight: '700', cursor: 'pointer' }}
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       <div style={{ maxWidth: '1080px', width: '100%', margin: '0 auto', padding: '18px 14px 28px', boxSizing: 'border-box' }}>
         {/* 1. Single Unified Top Header (Official Logo + Welcome + Domain Pill) */}
@@ -1516,21 +1380,19 @@ function AuthContent() {
                         <label htmlFor="terms" style={{ cursor: 'pointer' }}>
                           I agree to SHANORA&apos;s{' '}
                         </label>
-                        <button
-                          type="button"
-                          onClick={() => setLegalModal('terms')}
-                          style={{ background: 'none', border: 'none', padding: 0, color: '#38bdf8', textDecoration: 'underline', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}
+                        <Link
+                          href="/terms"
+                          style={{ color: '#38bdf8', textDecoration: 'underline', fontSize: '11px', fontWeight: '700' }}
                         >
                           Terms
-                        </button>
+                        </Link>
                         {' '}and{' '}
-                        <button
-                          type="button"
-                          onClick={() => setLegalModal('privacy')}
-                          style={{ background: 'none', border: 'none', padding: 0, color: '#38bdf8', textDecoration: 'underline', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}
+                        <Link
+                          href="/privacy"
+                          style={{ color: '#38bdf8', textDecoration: 'underline', fontSize: '11px', fontWeight: '700' }}
                         >
                           Privacy Policy
-                        </button>
+                        </Link>
                         .
                       </div>
                     </div>
@@ -1870,7 +1732,7 @@ function AuthContent() {
         </section>
       </div>
 
-      {/* 6. Professional Footer */}
+      {/* 6. Professional Footer Linked to Dedicated Pages */}
       <footer
         style={{
           borderTop: '1px solid rgba(148, 163, 184, 0.16)',
@@ -1893,26 +1755,18 @@ function AuthContent() {
           }}
         >
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '16px' }}>
-            <Link href="/" style={{ color: '#cbd5e1', textDecoration: 'none', fontWeight: '600' }}>
+            <Link href="/about" style={{ color: '#cbd5e1', textDecoration: 'none', fontWeight: '600' }}>
               About SHANORA
             </Link>
-            <Link href="/settings" style={{ color: '#cbd5e1', textDecoration: 'none', fontWeight: '600' }}>
+            <Link href="/contact" style={{ color: '#cbd5e1', textDecoration: 'none', fontWeight: '600' }}>
               Contact Us
             </Link>
-            <button
-              type="button"
-              onClick={() => setLegalModal('privacy')}
-              style={{ background: 'none', border: 'none', padding: 0, color: '#cbd5e1', fontWeight: '600', fontSize: '12px', cursor: 'pointer' }}
-            >
+            <Link href="/privacy" style={{ color: '#cbd5e1', textDecoration: 'none', fontWeight: '600' }}>
               Privacy Policy
-            </button>
-            <button
-              type="button"
-              onClick={() => setLegalModal('terms')}
-              style={{ background: 'none', border: 'none', padding: 0, color: '#cbd5e1', fontWeight: '600', fontSize: '12px', cursor: 'pointer' }}
-            >
+            </Link>
+            <Link href="/terms" style={{ color: '#cbd5e1', textDecoration: 'none', fontWeight: '600' }}>
               Terms &amp; Conditions
-            </button>
+            </Link>
           </div>
           <div>Copyright © 2026 SHANORA.</div>
         </div>
