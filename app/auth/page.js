@@ -65,6 +65,46 @@ function getFriendlyAuthError(err) {
   return err.message;
 }
 
+// Direct release asset URLs for SHANORA v1.0.0
+const DOWNLOAD_URLS = {
+  android: 'https://github.com/Amanbhatti786/shanora/releases/download/v1.0.0/Shanora.apk',
+  windows: 'https://github.com/Amanbhatti786/shanora/releases/download/v1.0.0/Windows.Zip.File.zip',
+  apple: 'https://github.com/Amanbhatti786/shanora/releases/download/v1.0.0/Shanora.zip'
+};
+
+// Official-style platform SVG icons
+function AndroidIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M7.2 7.4L5.6 4.7M16.8 7.4L18.4 4.7" stroke="#4ade80" strokeWidth="1.9" strokeLinecap="round" />
+      <path d="M6.5 10.5C6.5 7.7 8.9 5.8 12 5.8C15.1 5.8 17.5 7.7 17.5 10.5H6.5Z" fill="#4ade80" />
+      <circle cx="9.8" cy="8.6" r="0.95" fill="#070b14" />
+      <circle cx="14.2" cy="8.6" r="0.95" fill="#070b14" />
+      <rect x="6.5" y="11.5" width="11" height="7.5" rx="2" fill="#4ade80" />
+      <path d="M4.2 12.2V16.8M19.8 12.2V16.8M9.5 19.2V21.5M14.5 19.2V21.5" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function WindowsIcon() {
+  return (
+    <svg width="19" height="19" viewBox="0 0 24 24" aria-hidden="true">
+      <path fill="#38bdf8" d="M3 5.4L10.5 4.3V11.3H3V5.4ZM11.5 4.2L21 2.8V11.3H11.5V4.2ZM3 12.3H10.5V19.3L3 18.2V12.3ZM11.5 12.3H21V20.8L11.5 19.4V12.3Z" />
+    </svg>
+  );
+}
+
+function AppleIcon() {
+  return (
+    <svg width="19" height="19" viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        fill="#e2e8f0"
+        d="M16.65 12.7c-.03-2.25 1.84-3.34 1.92-3.39-1.05-1.53-2.68-1.74-3.25-1.76-1.38-.14-2.71.82-3.41.82-.71 0-1.8-.8-2.96-.78-1.52.02-2.93.89-3.71 2.25-1.59 2.75-.41 6.82 1.13 9.05.76 1.09 1.66 2.31 2.84 2.27 1.14-.05 1.57-.73 2.95-.73 1.37 0 1.77.73 2.96.71 1.22-.02 1.99-1.1 2.74-2.2.87-1.27 1.22-2.5 1.24-2.57-.03-.01-2.38-.91-2.4-3.67ZM14.42 5.95c.62-.76 1.04-1.81.93-2.86-.9.04-2 .6-2.64 1.35-.57.66-1.08 1.74-.94 2.77 1 .08 2.03-.5 2.65-1.26Z"
+      />
+    </svg>
+  );
+}
+
 // Each step has its own distinct glass tint, border, and accent color
 const HOW_IT_WORKS_STEPS = [
   {
@@ -407,13 +447,27 @@ function AuthContent() {
     setSuccessMessage('');
   }, []);
 
-  const handlePlatformClick = useCallback(async (platformName) => {
-    if (deferredInstallPrompt && (platformName === 'Android' || platformName === 'Windows')) {
+  const handlePlatformClick = useCallback(async (platformKey, labelName) => {
+    const directUrl = (DOWNLOAD_URLS[platformKey] || '').trim();
+    if (directUrl && typeof window !== 'undefined') {
+      const link = document.createElement('a');
+      link.href = directUrl;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.setAttribute('download', '');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setAppNotice(`Downloading SHANORA for ${labelName}...`);
+      return;
+    }
+
+    if (deferredInstallPrompt && (platformKey === 'android' || platformKey === 'windows')) {
       try {
         deferredInstallPrompt.prompt();
         const choice = await deferredInstallPrompt.userChoice;
         if (choice?.outcome === 'accepted') {
-          setAppNotice(`SHANORA app installed on ${platformName}.`);
+          setAppNotice(`SHANORA app installed on ${labelName}.`);
           setDeferredInstallPrompt(null);
           return;
         }
@@ -421,7 +475,7 @@ function AuthContent() {
         // Fallback to Coming Soon message
       }
     }
-    setAppNotice(`SHANORA for ${platformName} — Coming Soon.`);
+    setAppNotice(`SHANORA for ${labelName} — Coming Soon.`);
   }, [deferredInstallPrompt]);
 
   const validateFormInputs = useCallback(() => {
@@ -792,40 +846,81 @@ function AuthContent() {
         </div>
       )}
 
-      <div style={{ maxWidth: '1080px', width: '100%', margin: '0 auto', padding: '20px 14px 28px', boxSizing: 'border-box' }}>
-        {/* 1. Welcome to SHANORA Header Section */}
-        <section
-          aria-labelledby="welcome-shanora-heading"
+      <div style={{ maxWidth: '1080px', width: '100%', margin: '0 auto', padding: '18px 14px 28px', boxSizing: 'border-box' }}>
+        {/* 1. Single Unified Top Header (Official Logo + Welcome + Domain Pill) */}
+        <header
+          aria-label="SHANORA Top Header"
           style={{
-            backgroundColor: 'rgba(15, 23, 42, 0.75)',
+            backgroundColor: 'rgba(15, 23, 42, 0.82)',
             backdropFilter: 'blur(12px)',
-            border: '1px solid rgba(148, 163, 184, 0.16)',
+            border: '1px solid rgba(148, 163, 184, 0.18)',
             borderRadius: '18px',
-            padding: '16px 20px',
-            marginBottom: '22px',
+            padding: '15px 20px',
+            marginBottom: '24px',
             display: 'flex',
             flexWrap: 'wrap',
             alignItems: 'center',
             justifyContent: 'space-between',
-            gap: '12px'
+            gap: '14px'
           }}
         >
-          <div style={{ maxWidth: '720px' }}>
-            <div style={{ fontSize: '11px', fontWeight: '800', color: '#38bdf8', letterSpacing: '1.2px', textTransform: 'uppercase', marginBottom: '4px' }}>
-              WELCOME TO SHANORA
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: '720px' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px' }}>
+              <Link href="/" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                <div
+                  style={{
+                    width: '34px',
+                    height: '34px',
+                    borderRadius: '10px',
+                    background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: '900',
+                    fontSize: '17px',
+                    color: '#fff',
+                    boxShadow: '0 4px 12px rgba(59, 130, 246, 0.35)'
+                  }}
+                >
+                  S
+                </div>
+                <span style={{ fontSize: '20px', fontWeight: '800', color: '#fff', letterSpacing: '-0.4px' }}>
+                  SHANORA<span style={{ color: '#38bdf8' }}>.PK</span>
+                </span>
+              </Link>
+              <span style={{ fontSize: '11px', fontWeight: '800', color: '#38bdf8', letterSpacing: '1px', textTransform: 'uppercase' }}>
+                • WELCOME TO SHANORA
+              </span>
             </div>
-            <h2 id="welcome-shanora-heading" style={{ fontSize: 'clamp(17px, 3vw, 21px)', fontWeight: '800', margin: 0, color: '#fff', lineHeight: 1.25 }}>
-              Your Global Professional Network
-            </h2>
-            <p style={{ color: '#94a3b8', fontSize: '12.5px', lineHeight: '1.5', margin: '4px 0 0' }}>
-              Connect with professionals, discover career opportunities, build your network, and grow your professional future with SHANORA.
-            </p>
+
+            <div>
+              <h2 style={{ fontSize: 'clamp(16px, 2.8vw, 20px)', fontWeight: '800', margin: 0, color: '#fff', lineHeight: 1.25 }}>
+                Your Global Professional Network
+              </h2>
+              <p style={{ color: '#94a3b8', fontSize: '12.5px', lineHeight: '1.5', margin: '3px 0 0' }}>
+                Connect with professionals, discover career opportunities, build your network, and grow your professional future with SHANORA.
+              </p>
+            </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11.5px', color: '#cbd5e1', backgroundColor: '#111b2e', border: '1px solid rgba(148, 163, 184, 0.18)', borderRadius: '999px', padding: '5px 12px', fontWeight: '700' }}>
-            <span>🌐</span>
+
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '7px',
+              fontSize: '11.5px',
+              color: '#cbd5e1',
+              backgroundColor: '#111b2e',
+              border: '1px solid rgba(148, 163, 184, 0.18)',
+              borderRadius: '999px',
+              padding: '6px 12px',
+              fontWeight: '700'
+            }}
+          >
+            <span aria-hidden="true">🌐</span>
             <span>shanora.online</span>
           </div>
-        </section>
+        </header>
 
         {/* Main Auth Grid (Slideshow + Form) */}
         <div
@@ -838,31 +933,8 @@ function AuthContent() {
             alignItems: 'center'
           }}
         >
-          {/* Left Column: Brand & Clean Showcase Card */}
+          {/* Left Column: Headline & Clean Showcase Card */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', textAlign: 'left', minWidth: 0 }}>
-            <Link href="/" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '9px', width: 'fit-content' }}>
-              <div
-                style={{
-                  width: '40px',
-                  height: '40px',
-                  borderRadius: '11px',
-                  background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: '900',
-                  fontSize: '20px',
-                  color: '#fff',
-                  boxShadow: '0 6px 16px rgba(59, 130, 246, 0.35)'
-                }}
-              >
-                S
-              </div>
-              <span style={{ fontSize: '24px', fontWeight: '800', color: '#fff', letterSpacing: '-0.5px' }}>
-                SHANORA<span style={{ color: '#38bdf8' }}>.PK</span>
-              </span>
-            </Link>
-
             <h1 style={{ fontSize: 'clamp(22px, 4vw, 29px)', fontWeight: '800', lineHeight: '1.18', margin: 0, letterSpacing: '-0.5px' }}>
               Explore the professional connections you love.
             </h1>
@@ -1549,7 +1621,7 @@ function AuthContent() {
           </div>
         </div>
 
-        {/* 5. Download SHANORA App Section (Placed ABOVE How SHANORA Works) */}
+        {/* 5. Download SHANORA App Section: ANDROID -> WINDOWS -> APPLE (Placed ABOVE How SHANORA Works) */}
         <section
           aria-labelledby="download-shanora-heading"
           style={{
@@ -1606,7 +1678,7 @@ function AuthContent() {
               gap: '12px'
             }}
           >
-            {/* A. ANDROID */}
+            {/* 1. ANDROID */}
             <div
               style={{
                 background: 'linear-gradient(145deg, rgba(34, 197, 94, 0.12) 0%, rgba(17, 27, 46, 0.85) 100%)',
@@ -1621,16 +1693,16 @@ function AuthContent() {
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '18px' }} aria-hidden="true">🤖</span>
+                  <AndroidIcon />
                   <span style={{ fontSize: '13.5px', fontWeight: '800', color: '#fff' }}>ANDROID</span>
                 </div>
                 <span style={{ fontSize: '10.5px', fontWeight: '700', color: '#4ade80', backgroundColor: 'rgba(34, 197, 94, 0.14)', padding: '2px 8px', borderRadius: '999px' }}>
-                  Coming Soon
+                  {DOWNLOAD_URLS.android ? 'Available' : 'Coming Soon'}
                 </span>
               </div>
               <button
                 type="button"
-                onClick={() => handlePlatformClick('Android')}
+                onClick={() => handlePlatformClick('android', 'Android')}
                 style={{
                   width: '100%',
                   backgroundColor: '#1e293b',
@@ -1647,48 +1719,7 @@ function AuthContent() {
               </button>
             </div>
 
-            {/* B. APPLE */}
-            <div
-              style={{
-                background: 'linear-gradient(145deg, rgba(167, 139, 250, 0.12) 0%, rgba(17, 27, 46, 0.85) 100%)',
-                border: '1px solid rgba(167, 139, 250, 0.25)',
-                borderRadius: '14px',
-                padding: '15px',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                gap: '12px'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '18px' }} aria-hidden="true">🍎</span>
-                  <span style={{ fontSize: '13.5px', fontWeight: '800', color: '#fff' }}>APPLE</span>
-                </div>
-                <span style={{ fontSize: '10.5px', fontWeight: '700', color: '#c4b5fd', backgroundColor: 'rgba(167, 139, 250, 0.14)', padding: '2px 8px', borderRadius: '999px' }}>
-                  Coming Soon
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => handlePlatformClick('iOS')}
-                style={{
-                  width: '100%',
-                  backgroundColor: '#1e293b',
-                  border: '1px solid rgba(148, 163, 184, 0.25)',
-                  color: '#f8fafc',
-                  borderRadius: '10px',
-                  padding: '9px 12px',
-                  fontSize: '12.5px',
-                  fontWeight: '700',
-                  cursor: 'pointer'
-                }}
-              >
-                Download for iOS
-              </button>
-            </div>
-
-            {/* C. WINDOWS */}
+            {/* 2. WINDOWS */}
             <div
               style={{
                 background: 'linear-gradient(145deg, rgba(56, 189, 248, 0.12) 0%, rgba(17, 27, 46, 0.85) 100%)',
@@ -1703,16 +1734,16 @@ function AuthContent() {
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '18px' }} aria-hidden="true">🪟</span>
+                  <WindowsIcon />
                   <span style={{ fontSize: '13.5px', fontWeight: '800', color: '#fff' }}>WINDOWS</span>
                 </div>
                 <span style={{ fontSize: '10.5px', fontWeight: '700', color: '#7dd3fc', backgroundColor: 'rgba(56, 189, 248, 0.14)', padding: '2px 8px', borderRadius: '999px' }}>
-                  Coming Soon
+                  {DOWNLOAD_URLS.windows ? 'Available' : 'Coming Soon'}
                 </span>
               </div>
               <button
                 type="button"
-                onClick={() => handlePlatformClick('Windows')}
+                onClick={() => handlePlatformClick('windows', 'Windows')}
                 style={{
                   width: '100%',
                   backgroundColor: '#1e293b',
@@ -1726,6 +1757,47 @@ function AuthContent() {
                 }}
               >
                 Download for Windows
+              </button>
+            </div>
+
+            {/* 3. APPLE */}
+            <div
+              style={{
+                background: 'linear-gradient(145deg, rgba(167, 139, 250, 0.12) 0%, rgba(17, 27, 46, 0.85) 100%)',
+                border: '1px solid rgba(167, 139, 250, 0.25)',
+                borderRadius: '14px',
+                padding: '15px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                gap: '12px'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <AppleIcon />
+                  <span style={{ fontSize: '13.5px', fontWeight: '800', color: '#fff' }}>APPLE</span>
+                </div>
+                <span style={{ fontSize: '10.5px', fontWeight: '700', color: '#c4b5fd', backgroundColor: 'rgba(167, 139, 250, 0.14)', padding: '2px 8px', borderRadius: '999px' }}>
+                  {DOWNLOAD_URLS.apple ? 'Available' : 'Coming Soon'}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => handlePlatformClick('apple', 'iOS')}
+                style={{
+                  width: '100%',
+                  backgroundColor: '#1e293b',
+                  border: '1px solid rgba(148, 163, 184, 0.25)',
+                  color: '#f8fafc',
+                  borderRadius: '10px',
+                  padding: '9px 12px',
+                  fontSize: '12.5px',
+                  fontWeight: '700',
+                  cursor: 'pointer'
+                }}
+              >
+                Download for iOS
               </button>
             </div>
           </div>
