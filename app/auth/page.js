@@ -68,7 +68,7 @@ function getFriendlyAuthError(err) {
 // Direct release asset URLs for SHANORA v1.0.0
 const DOWNLOAD_URLS = {
   android: 'https://github.com/Amanbhatti786/shanora/releases/download/v1.0.0/Shanora.apk',
-  windows: 'https://github.com/Amanbhatti786/shanora/releases/download/v1.0.0/Windows.Zip.File.zip',
+  windows: 'https://github.com/Amanbhatti786/shanora/releases/download/v1.0.0/Shanora.sideload.msix',
   apple: 'https://github.com/Amanbhatti786/shanora/releases/download/v1.0.0/Shanora.zip'
 };
 
