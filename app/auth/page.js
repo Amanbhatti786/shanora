@@ -710,7 +710,7 @@ function AuthContent() {
         }
       `}</style>
 
-      <div style={{ maxWidth: '1080px', width: '100%', margin: '0 auto', padding: '18px 14px 24px', boxSizing: 'border-box' }}>
+      <div style={{ maxWidth: '1080px', width: '100%', margin: '0 auto', padding: '18px 14px 20px', boxSizing: 'border-box' }}>
         {/* 1. Single Unified Top Header (Official Logo + Welcome + Domain Pill) */}
         <header
           aria-label="SHANORA Top Header"
@@ -796,25 +796,35 @@ function AuthContent() {
             alignItems: 'stretch'
           }}
         >
-          {/* Left Column: Compact Hero & Clean Showcase Card */}
-          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '12px', textAlign: 'left', minWidth: 0 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <h1 style={{ fontSize: 'clamp(20px, 3.2vw, 24px)', fontWeight: '800', lineHeight: '1.2', margin: 0, letterSpacing: '-0.4px' }}>
+          {/* Left Column: Clean Heading & Balanced Showcase Card */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', textAlign: 'left', minWidth: 0 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+              <h1
+                style={{
+                  fontSize: 'clamp(21px, 3vw, 24px)',
+                  fontWeight: '800',
+                  lineHeight: '1.22',
+                  margin: 0,
+                  color: '#f8fafc',
+                  background: 'none',
+                  letterSpacing: '-0.3px'
+                }}
+              >
                 Explore the professional connections you love.
               </h1>
-              <p style={{ color: '#94a3b8', fontSize: '13px', lineHeight: '1.48', margin: 0 }}>
+              <p style={{ color: '#94a3b8', fontSize: '12.5px', lineHeight: '1.45', margin: 0 }}>
                 &ldquo;Professional growth within your reach&rdquo; — Connect with creators and global employers across Pakistan.
               </p>
             </div>
 
-            {/* Clean Compact Showcase Card */}
+            {/* Clean Balanced Showcase Card */}
             <div
               style={{
                 width: '100%',
                 borderRadius: '18px',
                 background: activeItem.surface,
                 border: '1px solid rgba(148, 163, 184, 0.2)',
-                boxShadow: '0 18px 38px rgba(0,0,0,0.52)',
+                boxShadow: '0 16px 34px rgba(0,0,0,0.48)',
                 padding: '14px',
                 boxSizing: 'border-box',
                 display: 'flex',
@@ -826,7 +836,7 @@ function AuthContent() {
               <div
                 style={{
                   width: '100%',
-                  height: '195px',
+                  height: '220px',
                   borderRadius: '12px',
                   overflow: 'hidden',
                   border: '1px solid rgba(255,255,255,0.16)',
@@ -1491,7 +1501,7 @@ function AuthContent() {
         <section
           aria-labelledby="download-shanora-heading"
           style={{
-            marginTop: '24px',
+            marginTop: '20px',
             backgroundColor: 'rgba(15, 23, 42, 0.78)',
             backdropFilter: 'blur(12px)',
             border: '1px solid rgba(148, 163, 184, 0.16)',
