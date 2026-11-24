@@ -81,6 +81,12 @@ async function compressImage(file, maxWidth = 1200, quality = 0.75) {
   });
 }
 
+function isAdWithinSchedule(ad, todayStr) {
+  const afterStart = !ad.start_date || String(ad.start_date).slice(0, 10) <= todayStr;
+  const beforeEnd = !ad.end_date || String(ad.end_date).slice(0, 10) >= todayStr;
+  return afterStart && beforeEnd;
+}
+
 function FeedContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -98,6 +104,9 @@ function FeedContent() {
 
   // New Posts Badge State (Facebook-style unread count)
   const [newPostsCount, setNewPostsCount] = useState(0);
+
+  // Track ad impressions once per rendered slot in session
+  const impressionTrackedRef = useRef({});
 
   useEffect(() => {
     const hasSeenSplash = sessionStorage.getItem('shanora_splash_shown');
@@ -318,7 +327,7 @@ function FeedContent() {
         const adsPromise = supabase
           .from('advertisements')
           .select('*')
-          .eq('status', 'approved')
+          .in('status', ['approved', 'active'])
           .order('created_at', { ascending: false });
 
         const [profileRes, followsRes, personalPostsRes, pagePostsRes, relaysRes, adsRes] = await Promise.all([
@@ -347,7 +356,13 @@ function FeedContent() {
         }
 
         if (adsRes.data) {
-          setApprovedAds(adsRes.data);
+          const todayStr = new Date().toISOString().split('T')[0];
+          const validFeedAds = adsRes.data.filter((ad) => {
+            const approvedOk = ad.is_admin_approved === undefined || ad.is_admin_approved === true || ad.status === 'approved' || ad.status === 'active';
+            const placementOk = !Array.isArray(ad.placements) || ad.placements.length === 0 || ad.placements.includes('feed_every_4_posts');
+            return approvedOk && placementOk && isAdWithinSchedule(ad, todayStr);
+          });
+          setApprovedAds(validFeedAds);
         }
 
         const personalPosts = personalPostsRes.data || [];
@@ -436,6 +451,41 @@ function FeedContent() {
     }
     loadData();
   }, [router]);
+
+  // Periodically filter out ads whose end_date has passed while feed is open
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const todayStr = new Date().toISOString().split('T')[0];
+      setApprovedAds((prev) => prev.filter((ad) => isAdWithinSchedule(ad, todayStr)));
+    }, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Track real impression once per rendered ad slot
+  useEffect(() => {
+    if (approvedAds.length === 0 || feedItems.length === 0) return;
+
+    feedItems.forEach((item, index) => {
+      if (index > 0 && (index + 1) % 4 === 0) {
+        const adIndex = Math.floor(index / 4);
+        const ad = approvedAds[adIndex % approvedAds.length];
+        const slotKey = `${ad.id}-slot-${index}`;
+        if (ad?.id && !impressionTrackedRef.current[slotKey]) {
+          impressionTrackedRef.current[slotKey] = true;
+          supabase.rpc('increment_ad_impression', { ad_uuid: ad.id }).catch(() => {});
+        }
+      }
+    });
+  }, [feedItems, approvedAds]);
+
+  const handleAdCtaClick = async (ad) => {
+    if (!ad?.id) return;
+    try {
+      await supabase.rpc('increment_ad_click', { ad_uuid: ad.id });
+    } catch {
+      // Ignore tracking errors
+    }
+  };
 
   // Supabase Realtime Subscription for New Posts Count (Facebook-style badge)
   useEffect(() => {
@@ -905,6 +955,8 @@ function FeedContent() {
 
   const currentUserName = userProfile?.name || currentUser?.email?.split('@')[0] || 'You';
   const cleanCurrentUserEmail = (currentUser?.email || '').toLowerCase();
+  const activeFeedTodayStr = new Date().toISOString().split('T')[0];
+  const activeScheduledAds = approvedAds.filter((ad) => isAdWithinSchedule(ad, activeFeedTodayStr));
 
   if (showSplash) {
     return (
@@ -1103,8 +1155,8 @@ function FeedContent() {
               const parentComments = commentsList.filter(c => !c.parent_id);
 
               const adIndex = Math.floor(index / 4);
-              const currentAd = (index > 0 && (index + 1) % 4 === 0 && approvedAds.length > 0) 
-                ? approvedAds[adIndex % approvedAds.length] 
+              const currentAd = (index > 0 && (index + 1) % 4 === 0 && activeScheduledAds.length > 0) 
+                ? activeScheduledAds[adIndex % activeScheduledAds.length] 
                 : null;
 
               return (
@@ -1255,7 +1307,7 @@ function FeedContent() {
 
                   {/* Render Sponsored Ad after every 4 posts */}
                   {currentAd && (
-                    <div key={`ad-${currentAd.id}`} style={{ backgroundColor: '#0f172a', border: '1px solid rgba(234, 179, 8, 0.4)', borderRadius: '14px', position: 'relative', overflow: 'hidden' }}>
+                    <div key={`ad-${currentAd.id}-${index}`} style={{ backgroundColor: '#0f172a', border: '1px solid rgba(234, 179, 8, 0.4)', borderRadius: '14px', position: 'relative', overflow: 'hidden' }}>
                       <div style={{ padding: '0.4rem 1rem', backgroundColor: 'rgba(234, 179, 8, 0.1)', fontSize: '0.72rem', color: '#facc15', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(234, 179, 8, 0.2)' }}>
                         <span>📢 Sponsored Advertisement</span>
                         <span>Target: {currentAd.target_city || 'All Pakistan'}</span>
@@ -1279,6 +1331,7 @@ function FeedContent() {
                           href={currentAd.destination_url || '#'} 
                           target="_blank" 
                           rel="noreferrer" 
+                          onClick={() => handleAdCtaClick(currentAd)}
                           style={{ backgroundColor: '#eab308', color: '#000', textDecoration: 'none', padding: '0.45rem 1.2rem', borderRadius: '8px', fontSize: '0.82rem', fontWeight: '900', display: 'inline-block' }}
                         >
                           {currentAd.cta_type || 'Learn More'} ➔
