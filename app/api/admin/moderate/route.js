@@ -32,7 +32,16 @@ export async function POST(req) {
     }
 
     const body = await req.json();
-    const { targetType, targetId, action, reason, suspendDays, targetEmail, targetUserId } = body || {};
+    const {
+      targetType,
+      targetId,
+      action,
+      reason,
+      suspendDays,
+      targetEmail,
+      targetUserId,
+      extraData
+    } = body || {};
 
     if (!targetType || !targetId || !action || !String(reason || '').trim()) {
       return NextResponse.json(
@@ -71,7 +80,11 @@ export async function POST(req) {
       } else if (action === 'soft_delete') {
         const { error } = await supabase
           .from('user_posts')
-          .update({ is_deleted: true, deleted_at: new Date().toISOString(), moderation_reason: cleanReason })
+          .update({
+            is_deleted: true,
+            deleted_at: new Date().toISOString(),
+            moderation_reason: cleanReason
+          })
           .eq('id', targetId);
         if (error) throw error;
       } else if (action === 'restore') {
@@ -96,6 +109,8 @@ export async function POST(req) {
           issued_by_admin_id: user.id
         }]);
         if (error) throw error;
+      } else {
+        return NextResponse.json({ error: 'Unsupported post action.' }, { status: 400 });
       }
     } else if (targetType === 'account') {
       if (action === 'verify_account') {
@@ -161,6 +176,8 @@ export async function POST(req) {
           issued_by_admin_id: user.id
         }]);
         if (error) throw error;
+      } else {
+        return NextResponse.json({ error: 'Unsupported account action.' }, { status: 400 });
       }
     } else if (targetType === 'comment') {
       if (action === 'hide_comment') {
@@ -178,7 +195,11 @@ export async function POST(req) {
       } else if (action === 'delete_comment') {
         const { error } = await supabase
           .from('post_comments')
-          .update({ is_deleted: true, deleted_at: new Date().toISOString(), moderation_reason: cleanReason })
+          .update({
+            is_deleted: true,
+            deleted_at: new Date().toISOString(),
+            moderation_reason: cleanReason
+          })
           .eq('id', targetId);
         if (error) throw error;
       } else if (action === 'warn_commenter') {
@@ -191,6 +212,229 @@ export async function POST(req) {
           issued_by_admin_id: user.id
         }]);
         if (error) throw error;
+      } else {
+        return NextResponse.json({ error: 'Unsupported comment action.' }, { status: 400 });
+      }
+    } else if (targetType === 'ad') {
+      if (action === 'approve_ad') {
+        const { error } = await supabase
+          .from('advertisements')
+          .update({
+            status: 'approved',
+            is_admin_approved: true,
+            moderation_reason: cleanReason,
+            reviewed_at: new Date().toISOString()
+          })
+          .eq('id', targetId);
+        if (error) throw error;
+      } else if (action === 'pause_ad') {
+        const { error } = await supabase
+          .from('advertisements')
+          .update({
+            status: 'paused',
+            moderation_reason: cleanReason,
+            reviewed_at: new Date().toISOString()
+          })
+          .eq('id', targetId);
+        if (error) throw error;
+      } else if (action === 'reject_ad') {
+        const { error } = await supabase
+          .from('advertisements')
+          .update({
+            status: 'rejected',
+            is_admin_approved: false,
+            moderation_reason: cleanReason,
+            reviewed_at: new Date().toISOString()
+          })
+          .eq('id', targetId);
+        if (error) throw error;
+      } else if (action === 'extend_ad_7d') {
+        const baseDate = extraData?.currentEndDate ? new Date(extraData.currentEndDate) : new Date();
+        const validBase = Number.isNaN(baseDate.getTime()) ? new Date() : baseDate;
+        const nextEnd = new Date(validBase.getTime() + 7 * 86400000).toISOString().split('T')[0];
+        const { error } = await supabase
+          .from('advertisements')
+          .update({
+            end_date: nextEnd,
+            status: 'approved',
+            is_admin_approved: true,
+            moderation_reason: cleanReason
+          })
+          .eq('id', targetId);
+        if (error) throw error;
+      } else if (action === 'permanent_delete') {
+        const { error } = await supabase
+          .from('advertisements')
+          .delete()
+          .eq('id', targetId);
+        if (error) throw error;
+      } else {
+        return NextResponse.json({ error: 'Unsupported ad action.' }, { status: 400 });
+      }
+    } else if (targetType === 'job') {
+      if (action === 'approve_job') {
+        const { error } = await supabase
+          .from('jobs')
+          .update({
+            status: 'approved',
+            is_hidden: false,
+            moderation_reason: cleanReason
+          })
+          .eq('id', targetId);
+        if (error) throw error;
+      } else if (action === 'verify_job') {
+        const { error } = await supabase
+          .from('jobs')
+          .update({
+            is_verified: true,
+            moderation_reason: cleanReason
+          })
+          .eq('id', targetId);
+        if (error) throw error;
+      } else if (action === 'unverify_job') {
+        const { error } = await supabase
+          .from('jobs')
+          .update({
+            is_verified: false,
+            moderation_reason: cleanReason
+          })
+          .eq('id', targetId);
+        if (error) throw error;
+      } else if (action === 'close_job') {
+        const { error } = await supabase
+          .from('jobs')
+          .update({
+            status: 'closed',
+            moderation_reason: cleanReason
+          })
+          .eq('id', targetId);
+        if (error) throw error;
+      } else if (action === 'hide_job') {
+        const { error } = await supabase
+          .from('jobs')
+          .update({
+            is_hidden: true,
+            moderation_reason: cleanReason
+          })
+          .eq('id', targetId);
+        if (error) throw error;
+      } else if (action === 'unhide_job') {
+        const { error } = await supabase
+          .from('jobs')
+          .update({
+            is_hidden: false,
+            moderation_reason: cleanReason
+          })
+          .eq('id', targetId);
+        if (error) throw error;
+      } else if (action === 'permanent_delete') {
+        const { error } = await supabase
+          .from('jobs')
+          .delete()
+          .eq('id', targetId);
+        if (error) throw error;
+      } else {
+        return NextResponse.json({ error: 'Unsupported job action.' }, { status: 400 });
+      }
+    } else if (targetType === 'pro') {
+      if (action === 'grant_pro') {
+        const days = Math.max(1, Number(extraData?.proDays || 30));
+        const expiresIso = new Date(Date.now() + days * 86400000).toISOString();
+        const { error } = await supabase
+          .from('profiles')
+          .update({
+            is_pro: true,
+            pro_plan: extraData?.plan || 'pro_manual',
+            pro_expires_at: expiresIso,
+            moderation_reason: cleanReason
+          })
+          .eq('id', targetId);
+        if (error) throw error;
+      } else if (action === 'revoke_pro') {
+        const { error } = await supabase
+          .from('profiles')
+          .update({
+            is_pro: false,
+            pro_plan: 'free',
+            pro_expires_at: null,
+            moderation_reason: cleanReason
+          })
+          .eq('id', targetId);
+        if (error) throw error;
+      } else {
+        return NextResponse.json({ error: 'Unsupported pro action.' }, { status: 400 });
+      }
+    } else if (targetType === 'resume') {
+      if (action === 'verify_resume') {
+        const { error } = await supabase
+          .from('profiles')
+          .update({
+            resume_verified: true,
+            resume_hidden: false,
+            moderation_reason: cleanReason
+          })
+          .eq('id', targetId);
+        if (error) throw error;
+      } else if (action === 'unverify_resume') {
+        const { error } = await supabase
+          .from('profiles')
+          .update({
+            resume_verified: false,
+            moderation_reason: cleanReason
+          })
+          .eq('id', targetId);
+        if (error) throw error;
+      } else if (action === 'hide_resume') {
+        const { error } = await supabase
+          .from('profiles')
+          .update({
+            resume_hidden: true,
+            moderation_reason: cleanReason
+          })
+          .eq('id', targetId);
+        if (error) throw error;
+      } else if (action === 'unhide_resume') {
+        const { error } = await supabase
+          .from('profiles')
+          .update({
+            resume_hidden: false,
+            moderation_reason: cleanReason
+          })
+          .eq('id', targetId);
+        if (error) throw error;
+      } else {
+        return NextResponse.json({ error: 'Unsupported resume action.' }, { status: 400 });
+      }
+    } else if (targetType === 'monetization') {
+      if (action === 'approve_monetization') {
+        const { error } = await supabase
+          .from('pages')
+          .update({
+            monetization_status: 'approved',
+            monetization_reason: cleanReason
+          })
+          .eq('id', targetId);
+        if (error) throw error;
+      } else if (action === 'reject_monetization') {
+        const { error } = await supabase
+          .from('pages')
+          .update({
+            monetization_status: 'rejected',
+            monetization_reason: cleanReason
+          })
+          .eq('id', targetId);
+        if (error) throw error;
+      } else if (action === 'suspend_monetization') {
+        const { error } = await supabase
+          .from('pages')
+          .update({
+            monetization_status: 'suspended',
+            monetization_reason: cleanReason
+          })
+          .eq('id', targetId);
+        if (error) throw error;
+      } else {
+        return NextResponse.json({ error: 'Unsupported monetization action.' }, { status: 400 });
       }
     } else {
       return NextResponse.json({ error: 'Unsupported targetType.' }, { status: 400 });
@@ -205,9 +449,9 @@ export async function POST(req) {
     }]);
     if (logError) throw logError;
 
-    return NextResponse.json({ ok: true, message: `Action "${action}" recorded with audit log.` });
+    return NextResponse.json({ ok: true, message: `Action "${action}" completed & logged.` });
   } catch (err) {
     return NextResponse.json({ error: err.message || 'Moderation action failed.' }, { status: 500 });
   }
-}
-
+      }
+          
