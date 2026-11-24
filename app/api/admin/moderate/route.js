@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
+const AUTHORIZED_ADMIN_EMAIL = 'amanullahmahtam7@gmail.com';
+
 function getUserScopedClient(req) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -22,8 +24,10 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Unauthorized: sign in required.' }, { status: 401 });
     }
 
-    const { data: isAdmin, error: roleError } = await supabase.rpc('is_shanora_admin');
-    if (roleError || !isAdmin) {
+    const userEmail = String(user.email || '').trim().toLowerCase();
+    const { data: isAdmin } = await supabase.rpc('is_shanora_admin');
+
+    if (userEmail !== AUTHORIZED_ADMIN_EMAIL && !isAdmin) {
       return NextResponse.json({ error: 'Forbidden: administrator access required.' }, { status: 403 });
     }
 
@@ -139,7 +143,6 @@ export async function POST(req) {
           .eq('id', targetId);
         if (error) throw error;
       } else if (action === 'delete_account') {
-        // Retention policy: mark profile as deleted without wiping unrelated users' records
         const { error } = await supabase
           .from('profiles')
           .update({
@@ -193,7 +196,6 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Unsupported targetType.' }, { status: 400 });
     }
 
-    // Record mandatory audit log entry
     const { error: logError } = await supabase.from('admin_audit_logs').insert([{
       admin_id: user.id,
       target_id: String(targetId),
@@ -208,3 +210,4 @@ export async function POST(req) {
     return NextResponse.json({ error: err.message || 'Moderation action failed.' }, { status: 500 });
   }
 }
+
