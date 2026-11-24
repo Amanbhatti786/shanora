@@ -17,10 +17,19 @@ const MODERATION_CENTER_VIEWS = [
   { id: 'banned_accounts', label: 'Banned Accounts' }
 ];
 
+const CONFIGURED_ADMIN_EMAIL = String(process.env.NEXT_PUBLIC_ADMIN_EMAIL || '').trim().toLowerCase();
+
 export default function MasterAdminPanelPage() {
   const [authChecking, setAuthChecking] = useState(true);
+  const [isSignedIn, setIsSignedIn] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [sessionToken, setSessionToken] = useState('');
+
+  // Direct Admin Login Form State
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [loginError, setLoginError] = useState('');
 
   const [section, setSection] = useState('moderation_center');
   const [centerView, setCenterView] = useState('all_posts');
@@ -55,44 +64,99 @@ export default function MasterAdminPanelPage() {
         supabase.from('admin_audit_logs').select('*').order('created_at', { ascending: false }).limit(100)
       ]);
 
-      setPosts(postsRes.data || []);
-      setAccounts(accountsRes.data || []);
-      setComments(commentsRes.data || []);
-      setReports(reportsRes.data || []);
-      setAuditLogs(logsRes.data || []);
+      setPosts(Array.isArray(postsRes?.data) ? postsRes.data : []);
+      setAccounts(Array.isArray(accountsRes?.data) ? accountsRes.data : []);
+      setComments(Array.isArray(commentsRes?.data) ? commentsRes.data : []);
+      setReports(Array.isArray(reportsRes?.data) ? reportsRes.data : []);
+      setAuditLogs(Array.isArray(logsRes?.data) ? logsRes.data : []);
     } catch (err) {
       showBanner(`Error loading admin data: ${err.message}`, 'error');
     }
   }, [showBanner]);
 
-  useEffect(() => {
-    let active = true;
-    async function initAdmin() {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.user) {
-          if (active) setAuthChecking(false);
-          return;
-        }
-        setSessionToken(session.access_token || '');
+  const checkAdminSession = useCallback(async () => {
+    setAuthChecking(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const session = sessionData?.session || null;
+      const user = session?.user || null;
 
-        const { data: adminCheck } = await supabase.rpc('is_shanora_admin');
-        if (active) {
-          setIsAdmin(Boolean(adminCheck));
-          setAuthChecking(false);
-        }
-        if (adminCheck && active) {
-          await loadAllModerationData();
-        }
-      } catch {
-        if (active) setAuthChecking(false);
+      if (!user) {
+        setIsSignedIn(false);
+        setIsAdmin(false);
+        setSessionToken('');
+        setAuthChecking(false);
+        return;
       }
+
+      setIsSignedIn(true);
+      setSessionToken(session.access_token || '');
+
+      const userEmailLower = String(user.email || '').toLowerCase();
+      const matchesEnvAdmin = Boolean(CONFIGURED_ADMIN_EMAIL && userEmailLower === CONFIGURED_ADMIN_EMAIL);
+
+      let rpcAdmin = false;
+      try {
+        const { data: adminCheck } = await supabase.rpc('is_shanora_admin');
+        rpcAdmin = Boolean(adminCheck);
+      } catch {
+        rpcAdmin = false;
+      }
+
+      let profileAdmin = false;
+      try {
+        const { data: prof } = await supabase
+          .from('profiles')
+          .select('is_admin, role')
+          .eq('id', user.id)
+          .maybeSingle();
+        profileAdmin =
+          Boolean(prof?.is_admin) ||
+          ['admin', 'super_admin'].includes(String(prof?.role || '').toLowerCase());
+      } catch {
+        profileAdmin = false;
+      }
+
+      const authorized = rpcAdmin || profileAdmin || matchesEnvAdmin;
+      setIsAdmin(authorized);
+      setAuthChecking(false);
+
+      if (authorized) {
+        await loadAllModerationData();
+      }
+    } catch {
+      setIsSignedIn(false);
+      setIsAdmin(false);
+      setAuthChecking(false);
     }
-    initAdmin();
-    return () => {
-      active = false;
-    };
   }, [loadAllModerationData]);
+
+  useEffect(() => {
+    checkAdminSession();
+  }, [checkAdminSession]);
+
+  const handleAdminLogin = async (e) => {
+    e.preventDefault();
+    setLoginError('');
+    if (!loginEmail.trim() || !loginPassword) {
+      setLoginError('Please enter your email and password.');
+      return;
+    }
+
+    setLoginLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: loginEmail.trim(),
+        password: loginPassword
+      });
+      if (error) throw error;
+      await checkAdminSession();
+    } catch (err) {
+      setLoginError(err.message || 'Sign in failed.');
+    } finally {
+      setLoginLoading(false);
+    }
+  };
 
   const runModerationAction = async ({
     targetType,
@@ -218,6 +282,48 @@ export default function MasterAdminPanelPage() {
     );
   }
 
+  if (!isSignedIn) {
+    return (
+      <div style={{ minHeight: '100vh', backgroundColor: '#070b14', color: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.2rem' }}>
+        <form onSubmit={handleAdminLogin} style={{ width: '100%', maxWidth: '380px', backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.4rem', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+          <div style={{ fontWeight: '900', fontSize: '1.05rem', color: '#38bdf8' }}>SHANORA Admin Sign In</div>
+          <div style={{ fontSize: '0.78rem', color: '#94a3b8' }}>Sign in with your authorized administrator account.</div>
+          {loginError && (
+            <div style={{ backgroundColor: 'rgba(239,68,68,0.18)', border: '1px solid #ef4444', color: '#fca5a5', padding: '0.55rem 0.7rem', borderRadius: '8px', fontSize: '0.78rem' }}>
+              {loginError}
+            </div>
+          )}
+          <input
+            type="email"
+            placeholder="Admin Email"
+            value={loginEmail}
+            onChange={(e) => setLoginEmail(e.target.value)}
+            required
+            style={{ width: '100%', backgroundColor: '#131b2e', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem 0.75rem', color: '#fff', fontSize: '0.84rem', boxSizing: 'border-box' }}
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            value={loginPassword}
+            onChange={(e) => setLoginPassword(e.target.value)}
+            required
+            style={{ width: '100%', backgroundColor: '#131b2e', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem 0.75rem', color: '#fff', fontSize: '0.84rem', boxSizing: 'border-box' }}
+          />
+          <button
+            type="submit"
+            disabled={loginLoading}
+            style={{ width: '100%', backgroundColor: '#0284c7', color: '#fff', border: 'none', borderRadius: '8px', padding: '0.65rem', fontWeight: '800', fontSize: '0.86rem', cursor: 'pointer' }}
+          >
+            {loginLoading ? 'Signing In...' : 'Sign In to Admin'}
+          </button>
+          <Link href="/feed" style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.78rem', textDecoration: 'none' }}>
+            Return to Feed
+          </Link>
+        </form>
+      </div>
+    );
+  }
+
   if (!isAdmin) {
     return (
       <div style={{ minHeight: '100vh', backgroundColor: '#070b14', color: '#f8fafc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1rem', padding: '1.5rem' }}>
@@ -255,7 +361,6 @@ export default function MasterAdminPanelPage() {
           </div>
         )}
 
-        {/* Primary Sections */}
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', backgroundColor: '#0f172a', padding: '0.45rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
           {[
             { id: 'moderation_center', label: 'Content Moderation Center' },
@@ -283,7 +388,6 @@ export default function MasterAdminPanelPage() {
           ))}
         </div>
 
-        {/* Reason & Suspension Duration Controls */}
         <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '0.9rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
           <div>
             <label style={{ display: 'block', fontSize: '0.72rem', color: '#94a3b8', marginBottom: '0.25rem' }}>Moderation Reason (Logged in Audit Trail)</label>
@@ -318,7 +422,6 @@ export default function MasterAdminPanelPage() {
           </div>
         </div>
 
-        {/* CONTENT MODERATION CENTER */}
         {section === 'moderation_center' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
             <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
@@ -354,7 +457,7 @@ export default function MasterAdminPanelPage() {
                       <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '0.2rem' }}>
                         Hidden: {String(Boolean(c.is_hidden))} • Deleted: {String(Boolean(c.is_deleted))}
                       </div>
-                    </div>
+          </div>
                     <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
                       <button type="button" disabled={busy} onClick={() => runModerationAction({ targetType: 'comment', targetId: c.id, action: c.is_hidden ? 'unhide_comment' : 'hide_comment', targetEmail: c.user_email })} style={{ backgroundColor: '#d97706', color: '#fff', border: 'none', borderRadius: '6px', padding: '0.35rem 0.65rem', fontSize: '0.72rem', fontWeight: '700', cursor: 'pointer' }}>
                         {c.is_hidden ? 'Unhide' : 'Hide'}
@@ -454,20 +557,17 @@ export default function MasterAdminPanelPage() {
           </div>
         )}
 
-        {/* ACCOUNT MANAGEMENT */}
         {section === 'accounts' && (
           <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <div style={{ fontWeight: '800', fontSize: '0.9rem' }}>Registered Accounts</div>
             {filteredAccounts.map((acc) => (
               <div key={acc.id} style={{ backgroundColor: '#131b2e', border: '1px solid #1e293b', borderRadius: '10px', padding: '0.85rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.4rem' }}>
-                  <div>
-                    <div style={{ fontWeight: '800', fontSize: '0.86rem' }}>
-                      {acc.name || acc.email} {acc.is_verified ? '• ✓ Verified Account' : ''}
-                    </div>
-                    <div style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
-                      {acc.email} • Status: <strong>{acc.account_status || 'active'}</strong>
-                    </div>
+                <div>
+                  <div style={{ fontWeight: '800', fontSize: '0.86rem' }}>
+                    {acc.name || acc.email} {acc.is_verified ? '• ✓ Verified Account' : ''}
+                  </div>
+                  <div style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
+                    {acc.email} • Status: <strong>{acc.account_status || 'active'}</strong>
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
@@ -503,7 +603,6 @@ export default function MasterAdminPanelPage() {
           </div>
         )}
 
-        {/* AUDIT LOGS */}
         {section === 'audit_logs' && (
           <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
             <div style={{ fontWeight: '800', fontSize: '0.9rem' }}>Admin Action Audit Trail</div>
@@ -515,7 +614,6 @@ export default function MasterAdminPanelPage() {
           </div>
         )}
 
-        {/* POST DETAILS DRAWER / MODAL */}
         {selectedPostDetail && (
           <div onClick={() => setSelectedPostDetail(null)} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
             <div onClick={(e) => e.stopPropagation()} style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '14px', padding: '1.2rem', maxWidth: '520px', width: '100%', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
@@ -537,4 +635,4 @@ export default function MasterAdminPanelPage() {
       </main>
     </div>
   );
-}
+            }
