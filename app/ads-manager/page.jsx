@@ -14,6 +14,39 @@ const FUTURE_PAYMENT_PROVIDERS = [
   { id: 'safepay', label: 'Safepay (Future Ready)' }
 ];
 
+const AD_CATEGORIES = [
+  'General Business',
+  'Technology & Software',
+  'Jobs & Recruitment',
+  'Education & Training',
+  'E-Commerce & Retail',
+  'Real Estate & Property',
+  'Freelancing & Digital Services',
+  'Healthcare & Wellness',
+  'Finance & Consulting'
+];
+
+const AUDIENCE_INTEREST_OPTIONS = [
+  'Technology',
+  'Business',
+  'Career',
+  'Jobs & Hiring',
+  'Startups',
+  'Software Development',
+  'Digital Marketing',
+  'E-Commerce',
+  'Education',
+  'Freelancing'
+];
+
+const TARGET_LANGUAGES = [
+  'English',
+  'Urdu',
+  'Sindhi',
+  'Arabic',
+  'All Languages'
+];
+
 const PLACEMENT_OPTIONS = [
   { id: 'feed_every_4_posts', label: 'Feed Stream (Every 4 Posts — Active)' },
   { id: 'feed_top_spotlight', label: 'Feed Spotlight Slot (Queued)' },
@@ -79,7 +112,7 @@ export default function AdsManagerPage() {
   const [maxAge, setMaxAge] = useState(65);
   const [targetGender, setTargetGender] = useState('All');
   const [targetLanguage, setTargetLanguage] = useState('English');
-  const [audienceInterests, setAudienceInterests] = useState('Technology, Business, Career');
+  const [selectedInterests, setSelectedInterests] = useState(['Technology', 'Business', 'Career']);
 
   // Schedule & Budget
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
@@ -158,6 +191,15 @@ export default function AdsManagerPage() {
     setTargetCountry(sel);
     const cities = COUNTRY_CITIES_MAP[sel] || ['All Regions'];
     setTargetCity(cities[0]);
+  };
+
+  const toggleInterest = (interest) => {
+    setSelectedInterests((prev) => {
+      if (prev.includes(interest)) {
+        return prev.length > 1 ? prev.filter((item) => item !== interest) : prev;
+      }
+      return [...prev, interest];
+    });
   };
 
   const togglePlacement = (placementId) => {
@@ -251,7 +293,7 @@ export default function AdsManagerPage() {
         max_age: Math.max(Number(minAge) || 18, Number(maxAge) || 65),
         target_gender: targetGender,
         target_language: targetLanguage,
-        audience_interests: audienceInterests,
+        audience_interests: selectedInterests.join(', '),
         placements: placements.length > 0 ? placements : ['feed_every_4_posts'],
         start_date: startDate,
         start_time: startTime,
@@ -381,6 +423,25 @@ export default function AdsManagerPage() {
   }, [myAds, statusFilter, searchQuery]);
 
   const currentCitiesList = COUNTRY_CITIES_MAP[targetCountry] || ['All Regions'];
+
+  const labelStyle = {
+    display: 'block',
+    fontSize: '0.72rem',
+    color: '#94a3b8',
+    marginBottom: '0.28rem',
+    fontWeight: '700'
+  };
+
+  const inputStyle = {
+    width: '100%',
+    backgroundColor: '#1e293b',
+    border: '1px solid #334155',
+    borderRadius: '8px',
+    padding: '0.6rem',
+    color: '#fff',
+    fontSize: '0.82rem',
+    boxSizing: 'border-box'
+  };
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#070b14', color: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif', paddingBottom: '80px' }}>
@@ -597,52 +658,53 @@ export default function AdsManagerPage() {
               </p>
 
               <form onSubmit={handleSubmitCampaign} style={{ display: 'flex', flexDirection: 'column', gap: '0.95rem' }}>
+                {/* Campaign Information */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.72rem', color: '#94a3b8', marginBottom: '0.25rem' }}>Campaign Name *</label>
+                    <label style={labelStyle}>Campaign Name *</label>
                     <input
                       type="text"
                       value={campaignName}
                       onChange={(e) => setCampaignName(e.target.value)}
                       placeholder="e.g. Shanora Launch Campaign"
                       required
-                      style={{ width: '100%', backgroundColor: '#131b2e', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem', color: '#fff', fontSize: '0.82rem', boxSizing: 'border-box' }}
+                      style={{ ...inputStyle, backgroundColor: '#131b2e' }}
                     />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.72rem', color: '#94a3b8', marginBottom: '0.25rem' }}>Company / Brand</label>
+                    <label style={labelStyle}>Company / Brand Name</label>
                     <input
                       type="text"
                       value={companyName}
                       onChange={(e) => setCompanyName(e.target.value)}
                       placeholder="e.g. Shanora"
-                      style={{ width: '100%', backgroundColor: '#131b2e', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem', color: '#fff', fontSize: '0.82rem', boxSizing: 'border-box' }}
+                      style={{ ...inputStyle, backgroundColor: '#131b2e' }}
                     />
                   </div>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.72rem', color: '#94a3b8', marginBottom: '0.25rem' }}>Objective</label>
-                    <select value={campaignObjective} onChange={(e) => setCampaignObjective(e.target.value)} style={{ width: '100%', backgroundColor: '#131b2e', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem', color: '#fff', fontSize: '0.82rem' }}>
+                    <label style={labelStyle}>Campaign Objective</label>
+                    <select value={campaignObjective} onChange={(e) => setCampaignObjective(e.target.value)} style={{ ...inputStyle, backgroundColor: '#131b2e' }}>
                       <option value="Brand Awareness">Brand Awareness</option>
                       <option value="Website Traffic">Website Traffic</option>
                       <option value="Product Promotion">Product Promotion</option>
+                      <option value="Service Promotion">Service Promotion</option>
                       <option value="Job Promotion">Job Promotion</option>
                     </select>
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.72rem', color: '#94a3b8', marginBottom: '0.25rem' }}>Category</label>
-                    <input
-                      type="text"
-                      value={adCategory}
-                      onChange={(e) => setAdCategory(e.target.value)}
-                      style={{ width: '100%', backgroundColor: '#131b2e', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem', color: '#fff', fontSize: '0.82rem', boxSizing: 'border-box' }}
-                    />
+                    <label style={labelStyle}>Business / Ad Category (Select)</label>
+                    <select value={adCategory} onChange={(e) => setAdCategory(e.target.value)} style={{ ...inputStyle, backgroundColor: '#131b2e' }}>
+                      {AD_CATEGORIES.map((cat) => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.72rem', color: '#94a3b8', marginBottom: '0.25rem' }}>Creative Type</label>
-                    <select value={campaignType} onChange={(e) => setCampaignType(e.target.value)} style={{ width: '100%', backgroundColor: '#131b2e', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem', color: '#fff', fontSize: '0.82rem' }}>
+                    <label style={labelStyle}>Creative Type</label>
+                    <select value={campaignType} onChange={(e) => setCampaignType(e.target.value)} style={{ ...inputStyle, backgroundColor: '#131b2e' }}>
                       <option value="Single Image Advertisement">Single Image Advertisement</option>
                       <option value="Banner Advertisement">Banner Advertisement</option>
                     </select>
@@ -650,103 +712,179 @@ export default function AdsManagerPage() {
                 </div>
 
                 {/* Creative Upload */}
-                <div style={{ backgroundColor: '#131b2e', padding: '0.95rem', borderRadius: '10px', border: '1px solid #1e293b', display: 'flex', flexDirection: 'column', gap: '0.7rem' }}>
-                  <div style={{ fontSize: '0.8rem', fontWeight: '700', color: '#38bdf8' }}>Ad Creative & Banner</div>
-                  <input
-                    type="text"
-                    value={adTitle}
-                    onChange={(e) => setAdTitle(e.target.value)}
-                    placeholder="Advertisement Headline *"
-                    required
-                    style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem', color: '#fff', fontSize: '0.82rem', boxSizing: 'border-box' }}
-                  />
-                  <textarea
-                    rows={2}
-                    value={adDescription}
-                    onChange={(e) => setAdDescription(e.target.value)}
-                    placeholder="Ad copy / description"
-                    style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem', color: '#fff', fontSize: '0.82rem', boxSizing: 'border-box' }}
-                  />
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    disabled={uploadingImg}
-                    style={{ fontSize: '0.78rem', color: '#94a3b8' }}
-                  />
-                  {mediaUrl && (
-                    <div style={{ fontSize: '0.75rem', color: '#4ade80' }}>Banner uploaded: {mediaUrl}</div>
-                  )}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.65rem' }}>
-                    <select value={ctaType} onChange={(e) => setCtaType(e.target.value)} style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem', color: '#fff', fontSize: '0.82rem' }}>
-                      <option value="Learn More">Learn More</option>
-                      <option value="Apply Now">Apply Now</option>
-                      <option value="Sign Up">Sign Up</option>
-                      <option value="Visit Website">Visit Website</option>
-                    </select>
+                <div style={{ backgroundColor: '#131b2e', padding: '0.95rem', borderRadius: '10px', border: '1px solid #1e293b', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <div style={{ fontSize: '0.82rem', fontWeight: '700', color: '#38bdf8' }}>Ad Creative & Banner</div>
+                  <div>
+                    <label style={labelStyle}>Advertisement Headline *</label>
                     <input
-                      type="url"
-                      value={destinationUrl}
-                      onChange={(e) => setDestinationUrl(e.target.value)}
-                      placeholder="https://example.com"
-                      style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem', color: '#fff', fontSize: '0.82rem' }}
+                      type="text"
+                      value={adTitle}
+                      onChange={(e) => setAdTitle(e.target.value)}
+                      placeholder="e.g. Grow Your Career with SHANORA"
+                      required
+                      style={inputStyle}
                     />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Ad Description / Promotional Text</label>
+                    <textarea
+                      rows={2}
+                      value={adDescription}
+                      onChange={(e) => setAdDescription(e.target.value)}
+                      placeholder="Write short details about your offer..."
+                      style={inputStyle}
+                    />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Upload Ad Image / Banner (Max 5MB) *</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      disabled={uploadingImg}
+                      style={{ ...inputStyle, padding: '0.45rem', color: '#94a3b8' }}
+                    />
+                    {mediaUrl && (
+                      <div style={{ fontSize: '0.75rem', color: '#4ade80', marginTop: '0.3rem' }}>Banner uploaded successfully!</div>
+                    )}
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.65rem' }}>
+                    <div>
+                      <label style={labelStyle}>Call-to-Action Button</label>
+                      <select value={ctaType} onChange={(e) => setCtaType(e.target.value)} style={inputStyle}>
+                        <option value="Learn More">Learn More</option>
+                        <option value="Apply Now">Apply Now</option>
+                        <option value="Sign Up">Sign Up</option>
+                        <option value="Shop Now">Shop Now</option>
+                        <option value="Contact Us">Contact Us</option>
+                        <option value="Visit Website">Visit Website</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Destination Website URL</label>
+                      <input
+                        type="url"
+                        value={destinationUrl}
+                        onChange={(e) => setDestinationUrl(e.target.value)}
+                        placeholder="https://example.com"
+                        style={inputStyle}
+                      />
+                    </div>
                   </div>
                 </div>
 
                 {/* Targeting & Placements */}
-                <div style={{ backgroundColor: '#131b2e', padding: '0.95rem', borderRadius: '10px', border: '1px solid #1e293b', display: 'flex', flexDirection: 'column', gap: '0.7rem' }}>
-                  <div style={{ fontSize: '0.8rem', fontWeight: '700', color: '#facc15' }}>Audience & Placements</div>
+                <div style={{ backgroundColor: '#131b2e', padding: '0.95rem', borderRadius: '10px', border: '1px solid #1e293b', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <div style={{ fontSize: '0.82rem', fontWeight: '700', color: '#facc15' }}>Audience & Placements</div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '0.65rem' }}>
-                    <select value={targetCountry} onChange={handleCountryChange} style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem', color: '#fff', fontSize: '0.82rem' }}>
-                      {Object.keys(COUNTRY_CITIES_MAP).map((c) => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                    <select value={targetCity} onChange={(e) => setTargetCity(e.target.value)} style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem', color: '#fff', fontSize: '0.82rem' }}>
-                      {currentCitiesList.map((city) => <option key={city} value={city}>{city}</option>)}
-                    </select>
-                    <select value={targetGender} onChange={(e) => setTargetGender(e.target.value)} style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem', color: '#fff', fontSize: '0.82rem' }}>
-                      <option value="All">All Genders</option>
-                      <option value="Male">Male</option>
-                      <option value="Female">Female</option>
-                    </select>
+                    <div>
+                      <label style={labelStyle}>Target Country</label>
+                      <select value={targetCountry} onChange={handleCountryChange} style={inputStyle}>
+                        {Object.keys(COUNTRY_CITIES_MAP).map((c) => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Target City / Region</label>
+                      <select value={targetCity} onChange={(e) => setTargetCity(e.target.value)} style={inputStyle}>
+                        {currentCitiesList.map((city) => <option key={city} value={city}>{city}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Target Gender</label>
+                      <select value={targetGender} onChange={(e) => setTargetGender(e.target.value)} style={inputStyle}>
+                        <option value="All">All Genders</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                      </select>
+                    </div>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.65rem' }}>
-                    <input type="number" min="13" max="80" value={minAge} onChange={(e) => setMinAge(e.target.value)} placeholder="Min Age" style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem', color: '#fff', fontSize: '0.8rem' }} />
-                    <input type="number" min="13" max="80" value={maxAge} onChange={(e) => setMaxAge(e.target.value)} placeholder="Max Age" style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem', color: '#fff', fontSize: '0.8rem' }} />
-                    <input type="text" value={targetLanguage} onChange={(e) => setTargetLanguage(e.target.value)} placeholder="Language" style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem', color: '#fff', fontSize: '0.8rem' }} />
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.65rem' }}>
+                    <div>
+                      <label style={labelStyle}>Minimum Age (Years)</label>
+                      <input type="number" min="13" max="80" value={minAge} onChange={(e) => setMinAge(e.target.value)} style={inputStyle} />
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Maximum Age (Years)</label>
+                      <input type="number" min="13" max="80" value={maxAge} onChange={(e) => setMaxAge(e.target.value)} style={inputStyle} />
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Audience Language</label>
+                      <select value={targetLanguage} onChange={(e) => setTargetLanguage(e.target.value)} style={inputStyle}>
+                        {TARGET_LANGUAGES.map((lang) => (
+                          <option key={lang} value={lang}>{lang}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
-                  <input
-                    type="text"
-                    value={audienceInterests}
-                    onChange={(e) => setAudienceInterests(e.target.value)}
-                    placeholder="Interests (e.g. Technology, Business, Career)"
-                    style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem', color: '#fff', fontSize: '0.8rem', boxSizing: 'border-box' }}
-                  />
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                    {PLACEMENT_OPTIONS.map((p) => (
-                      <label key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.78rem', color: '#cbd5e1' }}>
-                        <input
-                          type="checkbox"
-                          checked={placements.includes(p.id)}
-                          onChange={() => togglePlacement(p.id)}
-                        />
-                        <span>{p.label}</span>
-                      </label>
-                    ))}
+
+                  <div>
+                    <label style={labelStyle}>
+                      Target Audience Interests (Click to Select — users with these interests see your ad)
+                    </label>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.2rem' }}>
+                      {AUDIENCE_INTEREST_OPTIONS.map((interest) => {
+                        const isSelected = selectedInterests.includes(interest);
+                        return (
+                          <button
+                            key={interest}
+                            type="button"
+                            onClick={() => toggleInterest(interest)}
+                            style={{
+                              padding: '0.36rem 0.72rem',
+                              borderRadius: '999px',
+                              border: isSelected ? '1px solid #38bdf8' : '1px solid #334155',
+                              backgroundColor: isSelected ? 'rgba(56, 189, 248, 0.2)' : '#1e293b',
+                              color: isSelected ? '#38bdf8' : '#cbd5e1',
+                              fontSize: '0.75rem',
+                              fontWeight: '700',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            {isSelected ? `✓ ${interest}` : `+ ${interest}`}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={labelStyle}>Ad Placements</label>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                      {PLACEMENT_OPTIONS.map((p) => (
+                        <label key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.78rem', color: '#cbd5e1' }}>
+                          <input
+                            type="checkbox"
+                            checked={placements.includes(p.id)}
+                            onChange={() => togglePlacement(p.id)}
+                          />
+                          <span>{p.label}</span>
+                        </label>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
                 {/* Budget & Schedule */}
-                <div style={{ backgroundColor: '#131b2e', padding: '0.95rem', borderRadius: '10px', border: '1px solid #1e293b', display: 'flex', flexDirection: 'column', gap: '0.7rem' }}>
-                  <div style={{ fontSize: '0.8rem', fontWeight: '700', color: '#4ade80' }}>Schedule & Budget</div>
+                <div style={{ backgroundColor: '#131b2e', padding: '0.95rem', borderRadius: '10px', border: '1px solid #1e293b', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <div style={{ fontSize: '0.82rem', fontWeight: '700', color: '#4ade80' }}>Schedule & Budget (PKR {DAILY_PRICE_PKR} / Day)</div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '0.65rem' }}>
-                    <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem', color: '#fff', fontSize: '0.8rem' }} />
-                    <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem', color: '#fff', fontSize: '0.8rem' }} />
-                    <input type="number" min="1" max="90" value={durationDays} onChange={(e) => setDurationDays(Number(e.target.value))} style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.55rem', color: '#fff', fontSize: '0.8rem' }} />
+                    <div>
+                      <label style={labelStyle}>Campaign Start Date</label>
+                      <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} style={inputStyle} />
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Start Time</label>
+                      <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} style={inputStyle} />
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Campaign Duration (Days)</label>
+                      <input type="number" min="1" max="90" value={durationDays} onChange={(e) => setDurationDays(Number(e.target.value))} style={inputStyle} />
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem', backgroundColor: '#070b14', padding: '0.6rem 0.75rem', borderRadius: '8px', fontSize: '0.8rem' }}>
-                    <span>End Date: <strong>{endDate}</strong></span>
-                    <strong style={{ color: '#4ade80' }}>Budget: Rs. {totalBudget}</strong>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem', backgroundColor: '#070b14', padding: '0.65rem 0.8rem', borderRadius: '8px', fontSize: '0.8rem' }}>
+                    <span>Calculated End Date: <strong>{endDate}</strong></span>
+                    <strong style={{ color: '#4ade80' }}>Total Budget: Rs. {totalBudget} ({Math.max(1, Number(durationDays || 1))} Days × Rs. {DAILY_PRICE_PKR})</strong>
                   </div>
                 </div>
 
