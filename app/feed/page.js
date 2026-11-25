@@ -7,13 +7,34 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '../../lib/supabaseClient';
 
+function safeDateLabel(val) {
+  if (!val) return '';
+  const d = new Date(val);
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString();
+}
+
+function safeTimeLabel(val) {
+  if (!val) return '';
+  const d = new Date(val);
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function safeTimestamp(val) {
+  if (!val) return 0;
+  const d = new Date(val);
+  const t = d.getTime();
+  return Number.isNaN(t) ? 0 : t;
+}
+
 function playActionSound(type = 'like') {
   if (typeof window === 'undefined') return;
   try {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
     if (!AudioContextClass) return;
     const ctx = new AudioContextClass();
-    if (ctx.state === 'suspended') ctx.resume();
+    if (ctx.state === 'suspended') {
+      Promise.resolve(ctx.resume()).catch(() => {});
+    }
 
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
@@ -45,43 +66,50 @@ function playActionSound(type = 'like') {
 }
 
 async function compressImage(file, maxWidth = 1200, quality = 0.75) {
-  if (!file || !file.type.startsWith('image/')) return file;
+  if (!file || !file.type?.startsWith('image/')) return file;
   if (file.size <= 250 * 1024) return file;
 
   return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const img = new Image();
-      img.src = event.target.result;
-      img.onload = () => {
-        let width = img.width;
-        let height = img.height;
-        if (width > maxWidth) {
-          height = Math.round((height * maxWidth) / width);
-          width = maxWidth;
-        }
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-        canvas.toBlob((blob) => {
-          if (!blob) return resolve(file);
-          const compressed = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".webp", {
-            type: 'image/webp',
-            lastModified: Date.now(),
-          });
-          resolve(compressed);
-        }, 'image/webp', quality);
+    try {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result || '';
+        img.onload = () => {
+          let width = img.width || maxWidth;
+          let height = img.height || maxWidth;
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return resolve(file);
+          ctx.drawImage(img, 0, 0, width, height);
+          canvas.toBlob((blob) => {
+            if (!blob) return resolve(file);
+            const compressed = new File(
+              [blob],
+              String(file.name || 'image').replace(/\.[^/.]+$/, '') + '.webp',
+              { type: 'image/webp', lastModified: Date.now() }
+            );
+            resolve(compressed);
+          }, 'image/webp', quality);
+        };
+        img.onerror = () => resolve(file);
       };
-      img.onerror = () => resolve(file);
-    };
-    reader.onerror = () => resolve(file);
+      reader.onerror = () => resolve(file);
+    } catch {
+      resolve(file);
+    }
   });
 }
 
 function isAdWithinSchedule(ad, todayStr) {
+  if (!ad) return false;
   const afterStart = !ad.start_date || String(ad.start_date).slice(0, 10) <= todayStr;
   const beforeEnd = !ad.end_date || String(ad.end_date).slice(0, 10) >= todayStr;
   return afterStart && beforeEnd;
@@ -109,12 +137,16 @@ function FeedContent() {
   const impressionTrackedRef = useRef({});
 
   useEffect(() => {
-    const hasSeenSplash = sessionStorage.getItem('shanora_splash_shown');
-    if (!hasSeenSplash) {
-      setShowSplash(true);
-      sessionStorage.setItem('shanora_splash_shown', 'true');
-      const timer = setTimeout(() => setShowSplash(false), 1200);
-      return () => clearTimeout(timer);
+    try {
+      const hasSeenSplash = sessionStorage.getItem('shanora_splash_shown');
+      if (!hasSeenSplash) {
+        setShowSplash(true);
+        sessionStorage.setItem('shanora_splash_shown', 'true');
+        const timer = setTimeout(() => setShowSplash(false), 1200);
+        return () => clearTimeout(timer);
+      }
+    } catch {
+      // Ignore storage access errors
     }
   }, []);
 
@@ -148,20 +180,30 @@ function FeedContent() {
   const observerRef = useRef(null);
 
   useEffect(() => {
-    const targetPostId = searchParams.get('postId');
-    const shouldFocusComment = searchParams.get('focusComment') === 'true';
+    const targetPostId = searchParams?.get('postId');
+    const shouldFocusComment = searchParams?.get('focusComment') === 'true';
 
     if (!targetPostId || feedItems.length === 0) return;
 
     const timer = setTimeout(() => {
-      let targetEl = document.getElementById(`user-${targetPostId}`) || document.getElementById(`page-${targetPostId}`);
-      let targetKey = targetEl ? targetEl.id : (feedItems.some(i => i.postId === targetPostId && i.postType === 'page') ? `page-${targetPostId}` : `user-${targetPostId}`);
+      try {
+        const targetEl =
+          document.getElementById(`user-${targetPostId}`) ||
+          document.getElementById(`page-${targetPostId}`);
+        const targetKey = targetEl
+          ? targetEl.id
+          : feedItems.some((i) => String(i.postId) === String(targetPostId) && i.postType === 'page')
+          ? `page-${targetPostId}`
+          : `user-${targetPostId}`;
 
-      if (targetEl) {
-        targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-      if (shouldFocusComment) {
-        setActiveCommentPostId(targetKey);
+        if (targetEl) {
+          targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        if (shouldFocusComment) {
+          setActiveCommentPostId(targetKey);
+        }
+      } catch {
+        // Ignore scroll errors
       }
     }, 500);
 
@@ -169,10 +211,14 @@ function FeedContent() {
   }, [searchParams, feedItems]);
 
   const loadInteractions = async (items, userEmail) => {
-    if (!items || items.length === 0) return;
+    if (!Array.isArray(items) || items.length === 0) return;
 
-    const personalPostIds = items.filter(m => m.postType === 'personal').map(m => m.postId);
-    const pagePostIds = items.filter(m => m.postType === 'page').map(m => m.postId);
+    const personalPostIds = items
+      .filter((m) => m && m.postType === 'personal' && m.postId != null)
+      .map((m) => m.postId);
+    const pagePostIds = items
+      .filter((m) => m && m.postType === 'page' && m.postId != null)
+      .map((m) => m.postId);
 
     const countsLikes = {};
     const likedMap = {};
@@ -181,7 +227,7 @@ function FeedContent() {
     const commentsMap = {};
     const allCommentIds = [];
 
-    const cleanUserEmail = userEmail ? userEmail.toLowerCase() : null;
+    const cleanUserEmail = userEmail ? String(userEmail).toLowerCase() : null;
 
     try {
       const promises = [];
@@ -189,7 +235,9 @@ function FeedContent() {
       if (personalPostIds.length > 0) {
         promises.push(supabase.from('post_likes').select('*').in('post_id', personalPostIds));
         promises.push(supabase.from('post_relays').select('*').in('post_id', personalPostIds));
-        promises.push(supabase.from('post_comments').select('*').in('post_id', personalPostIds).order('created_at', { ascending: true }));
+        promises.push(
+          supabase.from('post_comments').select('*').in('post_id', personalPostIds).order('created_at', { ascending: true })
+        );
       } else {
         promises.push(Promise.resolve({ data: [] }));
         promises.push(Promise.resolve({ data: [] }));
@@ -199,78 +247,90 @@ function FeedContent() {
       if (pagePostIds.length > 0) {
         promises.push(supabase.from('page_post_likes').select('*').in('post_id', pagePostIds));
         promises.push(supabase.from('page_post_relays').select('*').in('post_id', pagePostIds));
-        promises.push(supabase.from('page_post_comments').select('*').in('post_id', pagePostIds).order('created_at', { ascending: true }));
+        promises.push(
+          supabase.from('page_post_comments').select('*').in('post_id', pagePostIds).order('created_at', { ascending: true })
+        );
       } else {
         promises.push(Promise.resolve({ data: [] }));
         promises.push(Promise.resolve({ data: [] }));
         promises.push(Promise.resolve({ data: [] }));
       }
 
-      const [pLikesRes, pRelaysRes, pCommentsRes, pgLikesRes, pgRelaysRes, pgCommentsRes] = await Promise.all(promises);
+      const [pLikesRes, pRelaysRes, pCommentsRes, pgLikesRes, pgRelaysRes, pgCommentsRes] =
+        await Promise.all(promises);
 
-      (pLikesRes.data || []).forEach(l => {
+      (Array.isArray(pLikesRes?.data) ? pLikesRes.data : []).forEach((l) => {
+        if (!l || l.post_id == null) return;
         const key = `user-${l.post_id}`;
         countsLikes[key] = (countsLikes[key] || 0) + 1;
         if (cleanUserEmail && l.user_email?.toLowerCase() === cleanUserEmail) likedMap[key] = true;
       });
 
-      (pRelaysRes.data || []).forEach(r => {
+      (Array.isArray(pRelaysRes?.data) ? pRelaysRes.data : []).forEach((r) => {
+        if (!r || r.post_id == null) return;
         const key = `user-${r.post_id}`;
         countsRelays[key] = (countsRelays[key] || 0) + 1;
         if (cleanUserEmail && r.user_email?.toLowerCase() === cleanUserEmail) relayedMap[key] = true;
       });
 
-      (pCommentsRes.data || []).forEach(c => {
+      (Array.isArray(pCommentsRes?.data) ? pCommentsRes.data : []).forEach((c) => {
+        if (!c || c.post_id == null || c.is_deleted || c.is_hidden) return;
         const key = `user-${c.post_id}`;
         if (!commentsMap[key]) commentsMap[key] = [];
         allCommentIds.push(c.id);
+        const fallbackEmail = c.user_email || c.author_email || c.email || '';
         commentsMap[key].push({
           id: c.id,
           parent_id: c.parent_id || null,
-          user_email: c.user_email || c.author_email || c.email,
-          user_name: c.user_name || c.author_name || (c.user_email?.split('@')[0]) || 'Member',
-          comment_text: c.comment_text || c.content,
-          created_at: c.created_at
+          user_email: fallbackEmail,
+          user_name: c.user_name || c.author_name || (fallbackEmail ? String(fallbackEmail).split('@')[0] : 'Member'),
+          comment_text: c.comment_text || c.content || '',
+          created_at: c.created_at || null
         });
       });
 
-      (pgLikesRes.data || []).forEach(l => {
+      (Array.isArray(pgLikesRes?.data) ? pgLikesRes.data : []).forEach((l) => {
+        if (!l || l.post_id == null) return;
         const key = `page-${l.post_id}`;
         countsLikes[key] = (countsLikes[key] || 0) + 1;
         if (cleanUserEmail && l.user_email?.toLowerCase() === cleanUserEmail) likedMap[key] = true;
       });
 
-      (pgRelaysRes.data || []).forEach(r => {
+      (Array.isArray(pgRelaysRes?.data) ? pgRelaysRes.data : []).forEach((r) => {
+        if (!r || r.post_id == null) return;
         const key = `page-${r.post_id}`;
         countsRelays[key] = (countsRelays[key] || 0) + 1;
         if (cleanUserEmail && r.user_email?.toLowerCase() === cleanUserEmail) relayedMap[key] = true;
       });
 
-      (pgCommentsRes.data || []).forEach(c => {
+      (Array.isArray(pgCommentsRes?.data) ? pgCommentsRes.data : []).forEach((c) => {
+        if (!c || c.post_id == null) return;
         const key = `page-${c.post_id}`;
         if (!commentsMap[key]) commentsMap[key] = [];
         allCommentIds.push(c.id);
+        const fallbackEmail = c.user_email || c.author_email || c.email || '';
         commentsMap[key].push({
           id: c.id,
           parent_id: c.parent_id || null,
-          user_email: c.user_email || c.author_email || c.email,
-          user_name: c.user_name || c.author_name || (c.user_email?.split('@')[0]) || 'Member',
-          comment_text: c.comment_text || c.content,
-          created_at: c.created_at
+          user_email: fallbackEmail,
+          user_name: c.user_name || c.author_name || (fallbackEmail ? String(fallbackEmail).split('@')[0] : 'Member'),
+          comment_text: c.comment_text || c.content || '',
+          created_at: c.created_at || null
         });
       });
 
-      setPostLikesCount(prev => ({ ...prev, ...countsLikes }));
-      setLikedPosts(prev => ({ ...prev, ...likedMap }));
-      setPostRelaysCount(prev => ({ ...prev, ...countsRelays }));
-      setRelayedPosts(prev => ({ ...prev, ...relayedMap }));
-      setPostComments(prev => ({ ...prev, ...commentsMap }));
+      setPostLikesCount((prev) => ({ ...prev, ...countsLikes }));
+      setLikedPosts((prev) => ({ ...prev, ...likedMap }));
+      setPostRelaysCount((prev) => ({ ...prev, ...countsRelays }));
+      setRelayedPosts((prev) => ({ ...prev, ...relayedMap }));
+      setPostComments((prev) => ({ ...prev, ...commentsMap }));
 
       if (allCommentIds.length > 0) {
         const { data: rxData } = await supabase.from('comment_reactions').select('*').in('comment_id', allCommentIds);
-        if (rxData) {
+        if (Array.isArray(rxData)) {
           const rMap = {};
-          rxData.forEach(r => {
+          rxData.forEach((r) => {
+            if (!r || r.comment_id == null) return;
             if (!rMap[r.comment_id]) rMap[r.comment_id] = { likes: 0, dislikes: 0, myReaction: null };
             if (r.reaction_type === 'like') rMap[r.comment_id].likes += 1;
             if (r.reaction_type === 'dislike') rMap[r.comment_id].dislikes += 1;
@@ -278,7 +338,7 @@ function FeedContent() {
               rMap[r.comment_id].myReaction = r.reaction_type;
             }
           });
-          setCommentReactions(prev => ({ ...prev, ...rMap }));
+          setCommentReactions((prev) => ({ ...prev, ...rMap }));
         }
       }
     } catch (err) {
@@ -287,16 +347,17 @@ function FeedContent() {
   };
 
   useEffect(() => {
+    let active = true;
+
     async function loadData() {
       try {
-        // --- AUTH GUARD CHECK ---
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) {
-          router.push('/');
+          if (active) router.push('/');
           return;
         }
         const user = session.user;
-        setCurrentUser(user);
+        if (active) setCurrentUser(user);
 
         const profilePromise = user?.email
           ? supabase.from('profiles').select('*').eq('email', user.email).maybeSingle()
@@ -339,117 +400,140 @@ function FeedContent() {
           adsPromise
         ]);
 
-        if (user?.email) {
-          setUserProfile(profileRes.data || {
-            name: user.user_metadata?.full_name || user.email.split('@')[0],
-            username: user.email.split('@')[0],
-            avatar_url: null
-          });
+        if (!active) return;
 
-          if (followsRes.data) {
+        if (user?.email) {
+          setUserProfile(
+            profileRes?.data || {
+              name: user.user_metadata?.full_name || String(user.email).split('@')[0],
+              username: String(user.email).split('@')[0],
+              avatar_url: null
+            }
+          );
+
+          if (Array.isArray(followsRes?.data)) {
             const map = {};
-            followsRes.data.forEach(f => {
-              if (f.following_email) map[f.following_email.toLowerCase()] = true;
+            followsRes.data.forEach((f) => {
+              if (f?.following_email) map[String(f.following_email).toLowerCase()] = true;
             });
             setFollowingMap(map);
           }
         }
 
-        if (adsRes.data) {
+        if (Array.isArray(adsRes?.data)) {
           const todayStr = new Date().toISOString().split('T')[0];
           const validFeedAds = adsRes.data.filter((ad) => {
-            const approvedOk = ad.is_admin_approved === undefined || ad.is_admin_approved === true || ad.status === 'approved' || ad.status === 'active';
-            const placementOk = !Array.isArray(ad.placements) || ad.placements.length === 0 || ad.placements.includes('feed_every_4_posts');
+            if (!ad) return false;
+            const approvedOk =
+              ad.is_admin_approved === undefined ||
+              ad.is_admin_approved === true ||
+              ad.status === 'approved' ||
+              ad.status === 'active';
+            const placementOk =
+              !Array.isArray(ad.placements) ||
+              ad.placements.length === 0 ||
+              ad.placements.includes('feed_every_4_posts');
             return approvedOk && placementOk && isAdWithinSchedule(ad, todayStr);
           });
           setApprovedAds(validFeedAds);
         }
 
-        const personalPosts = personalPostsRes.data || [];
-        if (personalPosts.length < POSTS_PER_PAGE) setHasMore(false);
+        const rawPersonal = Array.isArray(personalPostsRes?.data) ? personalPostsRes.data : [];
+        if (rawPersonal.length < POSTS_PER_PAGE) setHasMore(false);
+        const personalPosts = rawPersonal.filter((p) => p && !p.is_deleted && !p.is_hidden);
 
-        const pagePosts = pagePostsRes.data || [];
-        const relays = relaysRes.data || [];
+        const pagePosts = Array.isArray(pagePostsRes?.data) ? pagePostsRes.data : [];
+        const relays = Array.isArray(relaysRes?.data) ? relaysRes.data : [];
 
-        const formattedPersonal = personalPosts.map(p => {
+        const formattedPersonal = personalPosts.map((p) => {
           const rawEmail = p.user_email || p.email || p.author_email || '';
-          const uname = rawEmail.split('@')[0] || p.user_name || 'user';
+          const uname = rawEmail ? String(rawEmail).split('@')[0] : p.user_name || 'user';
           return {
             feedItemId: `user-${p.id}`,
             postId: p.id,
-            authorEmail: rawEmail ? rawEmail.toLowerCase() : '',
+            authorEmail: rawEmail ? String(rawEmail).toLowerCase() : '',
             postType: 'personal',
             authorName: p.user_name || uname,
-            authorAvatar: p.avatar_url,
-            authorLink: `/view-profile?email=${encodeURIComponent(rawEmail.toLowerCase())}`,
-            isVerified: false,
-            content: p.content,
-            imageUrl: p.image_url,
+            authorAvatar: p.avatar_url || null,
+            authorLink: `/view-profile?email=${encodeURIComponent(String(rawEmail).toLowerCase())}`,
+            isVerified: Boolean(p.is_verified),
+            content: p.content || '',
+            imageUrl: p.image_url || null,
             docUrl: p.doc_url || null,
             docName: p.doc_name || 'Attached Document',
-            createdAt: p.created_at,
-            sortTime: new Date(p.created_at).getTime(),
+            createdAt: p.created_at || null,
+            sortTime: safeTimestamp(p.created_at),
             isRelay: false,
             relayedBy: null
           };
         });
 
-        const formattedPages = pagePosts.map(p => {
-          const ownerEmail = (p.pages?.owner_email || '').toLowerCase();
-          return {
-            feedItemId: `page-${p.id}`,
-            postId: p.id,
-            authorEmail: ownerEmail,
-            postType: 'page',
-            authorName: p.pages?.name || 'Shanora Page',
-            authorAvatar: p.pages?.logo_url,
-            authorLink: `/page/${p.pages?.slug || ''}`,
-            isVerified: p.pages?.monetization_status === 'approved',
-            content: p.content,
-            imageUrl: p.image_url,
-            docUrl: null,
-            docName: null,
-            createdAt: p.created_at,
-            sortTime: new Date(p.created_at).getTime(),
-            isRelay: false,
-            relayedBy: null
-          };
-        });
+        const formattedPages = pagePosts
+          .filter((p) => p && p.pages)
+          .map((p) => {
+            const ownerEmail = String(p.pages?.owner_email || '').toLowerCase();
+            return {
+              feedItemId: `page-${p.id}`,
+              postId: p.id,
+              authorEmail: ownerEmail,
+              postType: 'page',
+              authorName: p.pages?.name || 'Shanora Page',
+              authorAvatar: p.pages?.logo_url || null,
+              authorLink: `/page/${p.pages?.slug || ''}`,
+              isVerified: p.pages?.monetization_status === 'approved',
+              content: p.content || '',
+              imageUrl: p.image_url || null,
+              docUrl: null,
+              docName: null,
+              createdAt: p.created_at || null,
+              sortTime: safeTimestamp(p.created_at),
+              isRelay: false,
+              relayedBy: null
+            };
+          });
 
-        const formattedRelays = relays.filter(r => r.page_posts && r.page_posts.pages).map(r => {
-          const ownerEmail = (r.page_posts.pages?.owner_email || '').toLowerCase();
-          return {
-            feedItemId: `page-${r.page_posts.id}`,
-            postId: r.page_posts.id,
-            authorEmail: ownerEmail,
-            postType: 'page',
-            authorName: r.page_posts.pages?.name || 'Shanora Page',
-            authorAvatar: r.page_posts.pages?.logo_url,
-            authorLink: `/page/${r.page_posts.pages?.slug || ''}`,
-            isVerified: r.page_posts.pages?.monetization_status === 'approved',
-            content: r.page_posts.content,
-            imageUrl: r.page_posts.image_url,
-            docUrl: null,
-            docName: null,
-            createdAt: r.page_posts.created_at,
-            sortTime: new Date(r.created_at).getTime(),
-            isRelay: true,
-            relayedBy: r.user_email?.split('@')[0] || 'A creator',
-            relayedByLink: `/view-profile?email=${encodeURIComponent(r.user_email || '')}`
-          };
-        });
+        const formattedRelays = relays
+          .filter((r) => r && r.page_posts && r.page_posts.pages)
+          .map((r) => {
+            const ownerEmail = String(r.page_posts.pages?.owner_email || '').toLowerCase();
+            return {
+              feedItemId: `page-${r.page_posts.id}-relay-${r.id}`,
+              postId: r.page_posts.id,
+              authorEmail: ownerEmail,
+              postType: 'page',
+              authorName: r.page_posts.pages?.name || 'Shanora Page',
+              authorAvatar: r.page_posts.pages?.logo_url || null,
+              authorLink: `/page/${r.page_posts.pages?.slug || ''}`,
+              isVerified: r.page_posts.pages?.monetization_status === 'approved',
+              content: r.page_posts.content || '',
+              imageUrl: r.page_posts.image_url || null,
+              docUrl: null,
+              docName: null,
+              createdAt: r.page_posts.created_at || null,
+              sortTime: safeTimestamp(r.page_posts.created_at),
+              isRelay: true,
+              relayedBy: r.user_email ? String(r.user_email).split('@')[0] : 'A creator',
+              relayedByLink: `/view-profile?email=${encodeURIComponent(r.user_email || '')}`
+            };
+          });
 
-        const merged = [...formattedPersonal, ...formattedPages, ...formattedRelays].sort((a, b) => b.sortTime - a.sortTime);
+        const merged = [...formattedPersonal, ...formattedPages, ...formattedRelays].sort(
+          (a, b) => (b.sortTime || 0) - (a.sortTime || 0)
+        );
         setFeedItems(merged);
         setLoading(false);
 
-        loadInteractions(merged, user?.email);
+        await loadInteractions(merged, user?.email);
       } catch (err) {
         console.error('Error fetching feed:', err);
-        setLoading(false);
+        if (active) setLoading(false);
       }
     }
+
     loadData();
+    return () => {
+      active = false;
+    };
   }, [router]);
 
   // Periodically filter out ads whose end_date has passed while feed is open
@@ -469,10 +553,10 @@ function FeedContent() {
       if (index > 0 && (index + 1) % 4 === 0) {
         const adIndex = Math.floor(index / 4);
         const ad = approvedAds[adIndex % approvedAds.length];
-        const slotKey = `${ad.id}-slot-${index}`;
+        const slotKey = `${ad?.id}-slot-${index}`;
         if (ad?.id && !impressionTrackedRef.current[slotKey]) {
           impressionTrackedRef.current[slotKey] = true;
-          supabase.rpc('increment_ad_impression', { ad_uuid: ad.id }).catch(() => {});
+          Promise.resolve(supabase.rpc('increment_ad_impression', { ad_uuid: ad.id })).catch(() => {});
         }
       }
     });
@@ -492,7 +576,7 @@ function FeedContent() {
     const channel = supabase
       .channel('public:user_posts')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'user_posts' }, () => {
-        setNewPostsCount(prev => prev + 1);
+        setNewPostsCount((prev) => prev + 1);
       })
       .subscribe();
 
@@ -523,34 +607,35 @@ function FeedContent() {
 
       if (error) throw error;
 
-      if (data) {
+      if (Array.isArray(data)) {
         if (data.length < POSTS_PER_PAGE) setHasMore(false);
-        const formattedMore = data.map(p => {
+        const visibleMore = data.filter((p) => p && !p.is_deleted && !p.is_hidden);
+        const formattedMore = visibleMore.map((p) => {
           const rawEmail = p.user_email || p.email || p.author_email || '';
-          const uname = rawEmail.split('@')[0] || p.user_name || 'user';
+          const uname = rawEmail ? String(rawEmail).split('@')[0] : p.user_name || 'user';
           return {
             feedItemId: `user-${p.id}`,
             postId: p.id,
-            authorEmail: rawEmail ? rawEmail.toLowerCase() : '',
+            authorEmail: rawEmail ? String(rawEmail).toLowerCase() : '',
             postType: 'personal',
             authorName: p.user_name || uname,
-            authorAvatar: p.avatar_url,
-            authorLink: `/view-profile?email=${encodeURIComponent(rawEmail.toLowerCase())}`,
-            isVerified: false,
-            content: p.content,
-            imageUrl: p.image_url,
+            authorAvatar: p.avatar_url || null,
+            authorLink: `/view-profile?email=${encodeURIComponent(String(rawEmail).toLowerCase())}`,
+            isVerified: Boolean(p.is_verified),
+            content: p.content || '',
+            imageUrl: p.image_url || null,
             docUrl: p.doc_url || null,
             docName: p.doc_name || 'Attached Document',
-            createdAt: p.created_at,
-            sortTime: new Date(p.created_at).getTime(),
+            createdAt: p.created_at || null,
+            sortTime: safeTimestamp(p.created_at),
             isRelay: false,
             relayedBy: null
           };
         });
 
-        setFeedItems(prev => [...prev, ...formattedMore]);
+        setFeedItems((prev) => [...prev, ...formattedMore]);
         setPage(nextPage);
-        loadInteractions(formattedMore, currentUser?.email);
+        await loadInteractions(formattedMore, currentUser?.email);
       }
     } catch (err) {
       console.error('Error loading more posts:', err);
@@ -559,18 +644,24 @@ function FeedContent() {
     }
   }, [loading, loadingMore, hasMore, page, currentUser]);
 
-  const lastPostElementRef = useCallback((node) => {
-    if (loading || loadingMore) return;
-    if (observerRef.current) observerRef.current.disconnect();
+  const lastPostElementRef = useCallback(
+    (node) => {
+      if (loading || loadingMore) return;
+      if (observerRef.current) observerRef.current.disconnect();
 
-    observerRef.current = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting && hasMore) {
-        loadMorePosts();
-      }
-    }, { threshold: 0.5 });
+      observerRef.current = new IntersectionObserver(
+        (entries) => {
+          if (entries[0]?.isIntersecting && hasMore) {
+            loadMorePosts();
+          }
+        },
+        { threshold: 0.5 }
+      );
 
-    if (node) observerRef.current.observe(node);
-  }, [loading, loadingMore, hasMore, loadMorePosts]);
+      if (node) observerRef.current.observe(node);
+    },
+    [loading, loadingMore, hasMore, loadMorePosts]
+  );
 
   useEffect(() => {
     function handleClickOutside() {
@@ -581,55 +672,66 @@ function FeedContent() {
   }, []);
 
   async function handleToggleFollow(targetEmail, e) {
-    e.stopPropagation();
+    e?.stopPropagation();
     if (!currentUser) return router.push('/');
     if (!targetEmail) return;
 
-    const cleanTarget = targetEmail.toLowerCase();
-    const cleanCurrent = currentUser.email.toLowerCase();
-    if (cleanTarget === cleanCurrent) return;
+    const cleanTarget = String(targetEmail).toLowerCase();
+    const cleanCurrent = String(currentUser.email || '').toLowerCase();
+    if (!cleanCurrent || cleanTarget === cleanCurrent) return;
 
     const isFollowing = !!followingMap[cleanTarget];
-    setFollowingLoading(prev => ({ ...prev, [cleanTarget]: true }));
-    setFollowingMap(prev => ({ ...prev, [cleanTarget]: !isFollowing }));
+    setFollowingLoading((prev) => ({ ...prev, [cleanTarget]: true }));
+    setFollowingMap((prev) => ({ ...prev, [cleanTarget]: !isFollowing }));
 
     try {
       if (isFollowing) {
-        await supabase.from('user_follows').delete().eq('follower_email', cleanCurrent).eq('following_email', cleanTarget);
+        await supabase
+          .from('user_follows')
+          .delete()
+          .eq('follower_email', cleanCurrent)
+          .eq('following_email', cleanTarget);
       } else {
-        await supabase.from('user_follows').insert([{ follower_email: cleanCurrent, following_email: cleanTarget }]);
+        await supabase
+          .from('user_follows')
+          .insert([{ follower_email: cleanCurrent, following_email: cleanTarget }]);
       }
     } catch (err) {
       console.error('Follow error:', err);
-      setFollowingMap(prev => ({ ...prev, [cleanTarget]: isFollowing }));
+      setFollowingMap((prev) => ({ ...prev, [cleanTarget]: isFollowing }));
     } finally {
-      setFollowingLoading(prev => ({ ...prev, [cleanTarget]: false }));
+      setFollowingLoading((prev) => ({ ...prev, [cleanTarget]: false }));
     }
   }
 
   function handleCopyPostLink(item, e) {
-    e.stopPropagation();
+    e?.stopPropagation();
+    if (typeof window === 'undefined') return;
     const url = `${window.location.origin}/feed#${item.feedItemId}`;
-    navigator.clipboard.writeText(url);
+    try {
+      navigator.clipboard?.writeText(url);
+    } catch {
+      // Ignore clipboard permission errors
+    }
     alert('Link copied to clipboard! 📋');
     setOpenMenuPostId(null);
   }
 
   function handleToggleSavePost(feedItemId, e) {
-    e.stopPropagation();
-    setSavedPosts(prev => ({ ...prev, [feedItemId]: !prev[feedItemId] }));
+    e?.stopPropagation();
+    setSavedPosts((prev) => ({ ...prev, [feedItemId]: !prev[feedItemId] }));
     alert(savedPosts[feedItemId] ? 'Post removed from saved!' : 'Post saved successfully! 🔖');
     setOpenMenuPostId(null);
   }
 
   async function handleDeletePost(postId, postType, e) {
-    e.stopPropagation();
+    e?.stopPropagation();
     if (!confirm('Are you sure you want to delete this post?')) return;
     try {
       const tableName = postType === 'page' ? 'page_posts' : 'user_posts';
       const { error } = await supabase.from(tableName).delete().eq('id', postId);
       if (error) throw error;
-      setFeedItems(prev => prev.filter(item => !(item.postId === postId && item.postType === postType)));
+      setFeedItems((prev) => prev.filter((item) => !(item.postId === postId && item.postType === postType)));
       setOpenMenuPostId(null);
     } catch (err) {
       alert('Delete failed: ' + err.message);
@@ -637,14 +739,14 @@ function FeedContent() {
   }
 
   async function handleImageSelect(e) {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
     if (!file) return;
     setCompressing(true);
     try {
       const optimized = await compressImage(file, 1200, 0.75);
       setPostPhoto(optimized);
       setPhotoPreview(URL.createObjectURL(optimized));
-    } catch (err) {
+    } catch {
       setPostPhoto(file);
       setPhotoPreview(URL.createObjectURL(file));
     } finally {
@@ -653,7 +755,7 @@ function FeedContent() {
   }
 
   function handleDocumentSelect(e) {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 15 * 1024 * 1024) return alert('Document size must be less than 15MB.');
     setPostDoc(file);
@@ -671,26 +773,29 @@ function FeedContent() {
       let finalDocUrl = null;
 
       if (postPhoto) {
-        const fileExt = postPhoto.name.split('.').pop();
+        const fileExt = String(postPhoto.name || 'webp').split('.').pop() || 'webp';
         const filePath = `posts/personal_${Date.now()}.${fileExt}`;
         const { error: uploadError } = await supabase.storage.from('page-media').upload(filePath, postPhoto);
         if (uploadError) throw uploadError;
         const { data } = supabase.storage.from('page-media').getPublicUrl(filePath);
-        finalImageUrl = data.publicUrl;
+        finalImageUrl = data?.publicUrl || null;
       }
 
       if (postDoc) {
-        const cleanName = postDoc.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+        const cleanName = String(postDoc.name || 'document').replace(/[^a-zA-Z0-9.-]/g, '_');
         const docPath = `documents/${Date.now()}_${cleanName}`;
         const { error: docUploadError } = await supabase.storage.from('page-media').upload(docPath, postDoc);
         if (docUploadError) throw docUploadError;
         const { data } = supabase.storage.from('page-media').getPublicUrl(docPath);
-        finalDocUrl = data.publicUrl;
+        finalDocUrl = data?.publicUrl || null;
       }
 
-      const senderName = userProfile?.name || currentUser.user_metadata?.full_name || currentUser.email.split('@')[0];
+      const senderName =
+        userProfile?.name ||
+        currentUser.user_metadata?.full_name ||
+        (currentUser.email ? String(currentUser.email).split('@')[0] : 'Member');
       const senderAvatar = userProfile?.avatar_url || currentUser.user_metadata?.avatar_url || null;
-      const senderEmail = currentUser.email.toLowerCase();
+      const senderEmail = String(currentUser.email || '').toLowerCase();
 
       const postPayload = {
         user_email: senderEmail,
@@ -716,17 +821,17 @@ function FeedContent() {
         authorAvatar: senderAvatar,
         authorLink: `/view-profile?email=${encodeURIComponent(senderEmail)}`,
         isVerified: false,
-        content: newPost.content,
-        imageUrl: newPost.image_url,
+        content: newPost.content || '',
+        imageUrl: newPost.image_url || null,
         docUrl: newPost.doc_url || finalDocUrl,
         docName: newPost.doc_name || docName,
-        createdAt: newPost.created_at,
-        sortTime: new Date(newPost.created_at).getTime(),
+        createdAt: newPost.created_at || null,
+        sortTime: safeTimestamp(newPost.created_at) || Date.now(),
         isRelay: false,
         relayedBy: null
       };
 
-      setFeedItems([formattedNew, ...feedItems]);
+      setFeedItems((prev) => [formattedNew, ...prev]);
       setPostText('');
       setPostPhoto(null);
       setPhotoPreview('');
@@ -745,14 +850,14 @@ function FeedContent() {
     playActionSound('like');
 
     const key = item.feedItemId;
-    const userEmail = currentUser.email.toLowerCase();
+    const userEmail = String(currentUser.email || '').toLowerCase();
     const isLiked = !!likedPosts[key];
     const currentCount = postLikesCount[key] || 0;
     const nextLikedState = !isLiked;
     const nextCount = nextLikedState ? currentCount + 1 : Math.max(0, currentCount - 1);
 
-    setLikedPosts(prev => ({ ...prev, [key]: nextLikedState }));
-    setPostLikesCount(prev => ({ ...prev, [key]: nextCount }));
+    setLikedPosts((prev) => ({ ...prev, [key]: nextLikedState }));
+    setPostLikesCount((prev) => ({ ...prev, [key]: nextCount }));
 
     const tableName = item.postType === 'page' ? 'page_post_likes' : 'post_likes';
 
@@ -764,8 +869,8 @@ function FeedContent() {
       }
     } catch (err) {
       console.error('Like sync error:', err);
-      setLikedPosts(prev => ({ ...prev, [key]: isLiked }));
-      setPostLikesCount(prev => ({ ...prev, [key]: currentCount }));
+      setLikedPosts((prev) => ({ ...prev, [key]: isLiked }));
+      setPostLikesCount((prev) => ({ ...prev, [key]: currentCount }));
     }
   }
 
@@ -774,14 +879,14 @@ function FeedContent() {
     playActionSound('relay');
 
     const key = item.feedItemId;
-    const userEmail = currentUser.email.toLowerCase();
+    const userEmail = String(currentUser.email || '').toLowerCase();
     const isRelayed = !!relayedPosts[key];
     const currentCount = postRelaysCount[key] || 0;
     const nextRelayedState = !isRelayed;
     const nextCount = nextRelayedState ? currentCount + 1 : Math.max(0, currentCount - 1);
 
-    setRelayedPosts(prev => ({ ...prev, [key]: nextRelayedState }));
-    setPostRelaysCount(prev => ({ ...prev, [key]: nextCount }));
+    setRelayedPosts((prev) => ({ ...prev, [key]: nextRelayedState }));
+    setPostRelaysCount((prev) => ({ ...prev, [key]: nextCount }));
 
     const tableName = item.postType === 'page' ? 'page_post_relays' : 'post_relays';
 
@@ -793,8 +898,8 @@ function FeedContent() {
       }
     } catch (err) {
       console.error('Relay error:', err);
-      setRelayedPosts(prev => ({ ...prev, [key]: isRelayed }));
-      setPostRelaysCount(prev => ({ ...prev, [key]: currentCount }));
+      setRelayedPosts((prev) => ({ ...prev, [key]: isRelayed }));
+      setPostRelaysCount((prev) => ({ ...prev, [key]: currentCount }));
     }
   }
 
@@ -807,8 +912,8 @@ function FeedContent() {
     playActionSound('comment');
     setSubmittingComment(true);
 
-    const userEmail = currentUser.email.toLowerCase();
-    const userName = userProfile?.name || currentUser.user_metadata?.full_name || userEmail.split('@')[0];
+    const userEmail = String(currentUser.email || '').toLowerCase();
+    const userName = userProfile?.name || currentUser.user_metadata?.full_name || userEmail.split('@')[0] || 'Member';
     const isPagePost = item.postType === 'page';
     const targetTable = isPagePost ? 'page_post_comments' : 'post_comments';
 
@@ -840,8 +945,8 @@ function FeedContent() {
         created_at: newComment.created_at || new Date().toISOString()
       };
 
-      setPostComments(prev => ({ ...prev, [key]: [...(prev[key] || []), formatted] }));
-      setCommentInputs(prev => ({ ...prev, [key]: '' }));
+      setPostComments((prev) => ({ ...prev, [key]: [...(prev[key] || []), formatted] }));
+      setCommentInputs((prev) => ({ ...prev, [key]: '' }));
     } catch (err) {
       console.error('Comment error:', err);
       alert('Comment failed: ' + err.message);
@@ -858,8 +963,8 @@ function FeedContent() {
     playActionSound('reply');
     setSubmittingComment(true);
 
-    const userEmail = currentUser.email.toLowerCase();
-    const userName = userProfile?.name || currentUser.user_metadata?.full_name || userEmail.split('@')[0];
+    const userEmail = String(currentUser.email || '').toLowerCase();
+    const userName = userProfile?.name || currentUser.user_metadata?.full_name || userEmail.split('@')[0] || 'Member';
     const isPagePost = item.postType === 'page';
     const targetTable = isPagePost ? 'page_post_comments' : 'post_comments';
 
@@ -891,12 +996,12 @@ function FeedContent() {
         created_at: newReply.created_at || new Date().toISOString()
       };
 
-      setPostComments(prev => ({
+      setPostComments((prev) => ({
         ...prev,
         [item.feedItemId]: [...(prev[item.feedItemId] || []), formatted]
       }));
 
-      setReplyInputs(prev => ({ ...prev, [parentComment.id]: '' }));
+      setReplyInputs((prev) => ({ ...prev, [parentComment.id]: '' }));
       setReplyingToCommentId(null);
     } catch (err) {
       console.error('Reply error:', err);
@@ -910,7 +1015,7 @@ function FeedContent() {
     if (!currentUser) return router.push('/');
     playActionSound('reaction');
 
-    const userEmail = currentUser.email.toLowerCase();
+    const userEmail = String(currentUser.email || '').toLowerCase();
     const current = commentReactions[commentId] || { likes: 0, dislikes: 0, myReaction: null };
     const prevReaction = current.myReaction;
 
@@ -932,7 +1037,7 @@ function FeedContent() {
       }
     }
 
-    setCommentReactions(prev => ({
+    setCommentReactions((prev) => ({
       ...prev,
       [commentId]: { likes: nextLikes, dislikes: nextDislikes, myReaction: nextReaction }
     }));
@@ -941,20 +1046,25 @@ function FeedContent() {
       if (nextReaction === null) {
         await supabase.from('comment_reactions').delete().eq('comment_id', commentId).ilike('user_email', userEmail);
       } else {
-        await supabase.from('comment_reactions').upsert([{
-          comment_id: commentId,
-          user_email: userEmail,
-          reaction_type: nextReaction
-        }], { onConflict: 'comment_id,user_email' });
+        await supabase.from('comment_reactions').upsert(
+          [
+            {
+              comment_id: commentId,
+              user_email: userEmail,
+              reaction_type: nextReaction
+            }
+          ],
+          { onConflict: 'comment_id,user_email' }
+        );
       }
     } catch (err) {
       console.error('Reaction sync error:', err);
-      setCommentReactions(prev => ({ ...prev, [commentId]: current }));
+      setCommentReactions((prev) => ({ ...prev, [commentId]: current }));
     }
   }
 
-  const currentUserName = userProfile?.name || currentUser?.email?.split('@')[0] || 'You';
-  const cleanCurrentUserEmail = (currentUser?.email || '').toLowerCase();
+  const currentUserName = userProfile?.name || (currentUser?.email ? String(currentUser.email).split('@')[0] : 'You');
+  const cleanCurrentUserEmail = String(currentUser?.email || '').toLowerCase();
   const activeFeedTodayStr = new Date().toISOString().split('T')[0];
   const activeScheduledAds = approvedAds.filter((ad) => isAdWithinSchedule(ad, activeFeedTodayStr));
 
@@ -985,16 +1095,15 @@ function FeedContent() {
       {/* Top Header */}
       <header style={{ backgroundColor: '#0f172a', borderBottom: '1px solid #1e293b', padding: '0.65rem 0.8rem', position: 'sticky', top: 0, zIndex: 100 }}>
         <div style={{ maxWidth: '640px', margin: '0 auto', display: 'flex', alignItems: 'center', gap: '0.6rem', justifyContent: 'space-between' }}>
-          
           {/* Feed Brand Link with Facebook-style New Posts Badge Counter */}
-          <Link 
-            href="/feed" 
+          <Link
+            href="/feed"
             onClick={handleClearNewPostsBadge}
             style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#0b1322', border: '1px solid #1e293b', borderRadius: '10px', padding: '0.28rem 0.55rem 0.28rem 0.35rem', boxShadow: '0 2px 8px rgba(0,0,0,0.4)', flexShrink: 0, position: 'relative' }}
           >
             <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)', border: '1px solid rgba(255, 255, 255, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 10px rgba(2, 132, 199, 0.45)', flexShrink: 0, position: 'relative' }}>
               <span style={{ color: '#ffffff', fontSize: '0.95rem', fontWeight: '900', lineHeight: 1 }}>S</span>
-              
+
               {newPostsCount > 0 && (
                 <span style={{
                   position: 'absolute',
@@ -1071,7 +1180,6 @@ function FeedContent() {
               </svg>
             </Link>
           </div>
-
         </div>
       </header>
 
@@ -1083,7 +1191,7 @@ function FeedContent() {
               <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', marginBottom: '0.8rem' }}>
                 <Link href={`/view-profile?email=${encodeURIComponent(currentUser.email || '')}`} style={{ textDecoration: 'none' }}>
                   <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', fontSize: '1rem', flexShrink: 0, cursor: 'pointer' }}>
-                    {currentUserName.charAt(0).toUpperCase()}
+                    {String(currentUserName || 'U').charAt(0).toUpperCase()}
                   </div>
                 </Link>
                 <input
@@ -1142,30 +1250,35 @@ function FeedContent() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             {feedItems.map((item, index) => {
+              if (!item) return null;
               const isLiked = !!likedPosts[item.feedItemId];
               const likesCount = postLikesCount[item.feedItemId] || 0;
               const isRelayed = !!relayedPosts[item.feedItemId];
               const relaysCount = postRelaysCount[item.feedItemId] || 0;
-              const commentsList = postComments[item.feedItemId] || [];
+              const commentsList = Array.isArray(postComments[item.feedItemId]) ? postComments[item.feedItemId] : [];
               const isCommentsOpen = activeCommentPostId === item.feedItemId;
-              const authorEmailClean = (item.authorEmail || '').toLowerCase();
-              const isOwnPost = cleanCurrentUserEmail && authorEmailClean === cleanCurrentUserEmail;
+              const authorEmailClean = String(item.authorEmail || '').toLowerCase();
+              const isOwnPost = Boolean(cleanCurrentUserEmail && authorEmailClean === cleanCurrentUserEmail);
               const isFollowingAuthor = authorEmailClean ? !!followingMap[authorEmailClean] : false;
               const isMenuOpen = openMenuPostId === item.feedItemId;
-              const parentComments = commentsList.filter(c => !c.parent_id);
+              const parentComments = commentsList.filter((c) => c && !c.parent_id);
+              const safeAuthorName = String(item.authorName || 'Member');
 
               const adIndex = Math.floor(index / 4);
-              const currentAd = (index > 0 && (index + 1) % 4 === 0 && activeScheduledAds.length > 0) 
-                ? activeScheduledAds[adIndex % activeScheduledAds.length] 
-                : null;
+              const currentAd =
+                index > 0 && (index + 1) % 4 === 0 && activeScheduledAds.length > 0
+                  ? activeScheduledAds[adIndex % activeScheduledAds.length]
+                  : null;
 
               return (
-                <React.Fragment key={item.feedItemId}>
+                <React.Fragment key={item.feedItemId || index}>
                   <div id={item.feedItemId} style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', position: 'relative' }}>
                     {item.isRelay && (
                       <div style={{ padding: '0.5rem 1rem', backgroundColor: '#1e293b', fontSize: '0.76rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.4rem', borderBottom: '1px solid #334155' }}>
-                        <span style={{ color: '#4ade80', fontWeight: 'bold' }}>🔄</span> 
-                        <Link href={item.relayedByLink || '#'} style={{ color: '#38bdf8', textDecoration: 'none', fontWeight: 'bold' }}>{item.relayedBy}</Link>
+                        <span style={{ color: '#4ade80', fontWeight: 'bold' }}>🔄</span>
+                        <Link href={item.relayedByLink || '#'} style={{ color: '#38bdf8', textDecoration: 'none', fontWeight: 'bold' }}>
+                          {item.relayedBy || 'Creator'}
+                        </Link>
                         <span>Relayed</span>
                       </div>
                     )}
@@ -1174,16 +1287,16 @@ function FeedContent() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', flex: 1, overflow: 'hidden' }}>
                         <Link href={item.authorLink || `/view-profile?email=${encodeURIComponent(item.authorEmail || '')}`} style={{ textDecoration: 'none' }}>
                           <div style={{ width: '42px', height: '42px', borderRadius: '50%', backgroundColor: '#1e293b', backgroundImage: item.authorAvatar ? `url(${item.authorAvatar})` : 'none', backgroundSize: 'cover', backgroundPosition: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#38bdf8', cursor: 'pointer', border: '1px solid #334155', flexShrink: 0 }}>
-                            {!item.authorAvatar && item.authorName.charAt(0).toUpperCase()}
+                            {!item.authorAvatar && safeAuthorName.charAt(0).toUpperCase()}
                           </div>
                         </Link>
                         <div style={{ overflow: 'hidden' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                             <Link href={item.authorLink || `/view-profile?email=${encodeURIComponent(item.authorEmail || '')}`} style={{ textDecoration: 'none' }}>
-                              <span style={{ fontWeight: '700', fontSize: '0.9rem', color: '#fff' }}>{item.authorName}</span>
+                              <span style={{ fontWeight: '700', fontSize: '0.9rem', color: '#fff' }}>{safeAuthorName}</span>
                             </Link>
                             {item.isVerified && <span style={{ color: '#22c55e', fontSize: '0.8rem' }}>✓</span>}
-                            {!isOwnPost && (
+                            {!isOwnPost && authorEmailClean && (
                               <button
                                 type="button"
                                 onClick={(e) => handleToggleFollow(authorEmailClean, e)}
@@ -1194,7 +1307,7 @@ function FeedContent() {
                               </button>
                             )}
                           </div>
-                          <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{new Date(item.createdAt).toLocaleDateString()}</div>
+                          <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{safeDateLabel(item.createdAt)}</div>
                         </div>
                       </div>
 
@@ -1261,8 +1374,8 @@ function FeedContent() {
                           <button type="button" disabled={submittingComment || !commentInputs[item.feedItemId]?.trim()} onClick={() => handleAddComment(item)} style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.45rem 0.9rem', borderRadius: '18px', fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer' }}>Post</button>
                         </div>
 
-                        {parentComments.map(c => {
-                          const nestedReplies = commentsList.filter(r => r.parent_id === c.id);
+                        {parentComments.map((c) => {
+                          const nestedReplies = commentsList.filter((r) => r && r.parent_id === c.id);
                           const isReplying = replyingToCommentId === c.id;
                           const rx = commentReactions[c.id] || { likes: 0, dislikes: 0, myReaction: null };
 
@@ -1271,7 +1384,7 @@ function FeedContent() {
                               <div style={{ backgroundColor: '#1e293b', padding: '0.65rem 0.9rem', borderRadius: '12px', fontSize: '0.82rem' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                   <Link href={`/view-profile?email=${encodeURIComponent(c.user_email || '')}`} style={{ color: '#38bdf8', textDecoration: 'none', fontWeight: '700', fontSize: '0.76rem' }}>{c.user_name}</Link>
-                                  <span style={{ fontSize: '0.65rem', color: '#64748b' }}>{c.created_at ? new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</span>
+                                  <span style={{ fontSize: '0.65rem', color: '#64748b' }}>{safeTimeLabel(c.created_at)}</span>
                                 </div>
                                 <div style={{ color: '#f8fafc', margin: '0.3rem 0' }}>{c.comment_text}</div>
                                 <div style={{ display: 'flex', gap: '0.8rem', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '0.35rem', marginTop: '0.4rem', fontSize: '0.72rem' }}>
@@ -1290,7 +1403,7 @@ function FeedContent() {
 
                               {nestedReplies.length > 0 && (
                                 <div style={{ marginLeft: '1.6rem', borderLeft: '2px solid #334155', paddingLeft: '0.65rem', display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
-                                  {nestedReplies.map(r => (
+                                  {nestedReplies.map((r) => (
                                     <div key={r.id} style={{ backgroundColor: '#131e32', padding: '0.5rem 0.75rem', borderRadius: '10px', fontSize: '0.78rem' }}>
                                       <span style={{ color: '#38bdf8', fontWeight: '700' }}>{r.user_name}</span>
                                       <div style={{ color: '#cbd5e1', marginTop: '0.2rem' }}>{r.comment_text}</div>
@@ -1315,8 +1428,8 @@ function FeedContent() {
 
                       <div style={{ padding: '0.8rem 1rem', display: 'flex', alignItems: 'center', gap: '0.7rem' }}>
                         <div>
-                          <h4 style={{ margin: '0 0 0.2rem 0', fontSize: '0.95rem', color: '#fff', fontWeight: '800' }}>{currentAd.title || currentAd.headline}</h4>
-                          <p style={{ margin: 0, fontSize: '0.82rem', color: '#cbd5e1', lineHeight: '1.4' }}>{currentAd.description || currentAd.ad_text}</p>
+                          <h4 style={{ margin: '0 0 0.2rem 0', fontSize: '0.95rem', color: '#fff', fontWeight: '800' }}>{currentAd.title || currentAd.headline || 'Sponsored'}</h4>
+                          <p style={{ margin: 0, fontSize: '0.82rem', color: '#cbd5e1', lineHeight: '1.4' }}>{currentAd.description || currentAd.ad_text || ''}</p>
                         </div>
                       </div>
 
@@ -1327,10 +1440,10 @@ function FeedContent() {
                       )}
 
                       <div style={{ padding: '0.8rem 1rem', display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #1e293b' }}>
-                        <a 
-                          href={currentAd.destination_url || '#'} 
-                          target="_blank" 
-                          rel="noreferrer" 
+                        <a
+                          href={currentAd.destination_url || '#'}
+                          target="_blank"
+                          rel="noreferrer"
                           onClick={() => handleAdCtaClick(currentAd)}
                           style={{ backgroundColor: '#eab308', color: '#000', textDecoration: 'none', padding: '0.45rem 1.2rem', borderRadius: '8px', fontSize: '0.82rem', fontWeight: '900', display: 'inline-block' }}
                         >
